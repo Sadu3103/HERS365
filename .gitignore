@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+*.sqlite
+.DS_Store
+build_output*.txt
+temp*.txt
+temp*.js
+temp_files.txt

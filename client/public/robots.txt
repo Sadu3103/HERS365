@@ -1,0 +1,10 @@
+# H.E.R.S.365 Robots.txt
+# https://hers365.com
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /payments/
+
+# Sitemap location
+Sitemap: https://hers365.com/sitemap.xml

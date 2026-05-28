@@ -1,0 +1,395 @@
+version: '3.8'
+
+services:
+  # ===========================================
+  # MICROSERVICES
+  # ===========================================
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hers365-auth-service
+    environment:
+      - SERVICE_NAME=auth-service
+      - SERVICE_PORT=3001
+      - NODE_ENV=production
+    env_file:
+      - .env
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres
+      - redis
+      - jaeger
+    networks:
+      - hers365-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  user-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hers365-user-service
+    environment:
+      - SERVICE_NAME=user-service
+      - SERVICE_PORT=3002
+      - NODE_ENV=production
+    env_file:
+      - .env
+    ports:
+      - "3002:3002"
+    depends_on:
+      - postgres
+      - redis
+      - jaeger
+    networks:
+      - hers365-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  recruiting-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hers365-recruiting-service
+    environment:
+      - SERVICE_NAME=recruiting-service
+      - SERVICE_PORT=3003
+      - NODE_ENV=production
+    env_file:
+      - .env
+    ports:
+      - "3003:3003"
+    depends_on:
+      - postgres
+      - redis
+      - jaeger
+    networks:
+      - hers365-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hers365-payment-service
+    environment:
+      - SERVICE_NAME=payment-service
+      - SERVICE_PORT=3004
+      - NODE_ENV=production
+    env_file:
+      - .env
+    ports:
+      - "3004:3004"
+    depends_on:
+      - postgres
+      - redis
+      - jaeger
+      - stripe-webhook-relay
+    networks:
+      - hers365-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hers365-notification-service
+    environment:
+      - SERVICE_NAME=notification-service
+      - SERVICE_PORT=3005
+      - NODE_ENV=production
+    env_file:
+      - .env
+    ports:
+      - "3005:3005"
+    depends_on:
+      - postgres
+      - redis
+      - jaeger
+    networks:
+      - hers365-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  analytics-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hers365-analytics-service
+    environment:
+      - SERVICE_NAME=analytics-service
+      - SERVICE_PORT=3006
+      - NODE_ENV=production
+    env_file:
+      - .env
+    ports:
+      - "3006:3006"
+    depends_on:
+      - postgres
+      - redis
+      - jaeger
+      - elasticsearch
+    networks:
+      - hers365-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  audit-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hers365-audit-service
+    environment:
+      - SERVICE_NAME=audit-service
+      - SERVICE_PORT=3007
+      - NODE_ENV=production
+    env_file:
+      - .env
+    ports:
+      - "3007:3007"
+    depends_on:
+      - postgres
+      - redis
+      - jaeger
+    networks:
+      - hers365-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3007/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ===========================================
+  # INFRASTRUCTURE SERVICES
+  # ===========================================
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: hers365-postgres
+    environment:
+      - POSTGRES_DB=hers365
+      - POSTGRES_USER=hers365
+      - POSTGRES_PASSWORD=secure_password_change_in_prod
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - hers365-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hers365 -d hers365"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    container_name: hers365-redis
+    command: redis-server --appendonly yes --cluster-enabled no
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - hers365-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis-cluster:
+    image: redis:7-alpine
+    container_name: hers365-redis-cluster
+    command: redis-server --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    volumes:
+      - redis_cluster_data:/data
+    ports:
+      - "7000-7005:7000-7005"
+    networks:
+      - hers365-network
+    deploy:
+      replicas: 6
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.41
+    container_name: hers365-jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # Jaeger collector (OTLP)
+      - "9411:9411"    # Zipkin collector
+    networks:
+      - hers365-network
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: hers365-prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - hers365-network
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: hers365-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    ports:
+      - "3000:3000"
+    networks:
+      - hers365-network
+    restart: unless-stopped
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.7.0
+    container_name: hers365-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - hers365-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.7.0
+    container_name: hers365-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - hers365-network
+    restart: unless-stopped
+    depends_on:
+      - elasticsearch
+
+  # ===========================================
+  # DEVELOPMENT & TESTING
+  # ===========================================
+
+  stripe-webhook-relay:
+    image: stripe/stripe-cli:latest
+    container_name: hers365-stripe-relay
+    command: listen --forward-to payment-service:3004/webhooks/stripe
+    environment:
+      - STRIPE_API_KEY=${STRIPE_SECRET_KEY}
+    networks:
+      - hers365-network
+    restart: unless-stopped
+
+  service-discovery:
+    image: consul:latest
+    container_name: hers365-consul
+    ports:
+      - "8500:8500"
+      - "8600:8600/udp"
+    networks:
+      - hers365-network
+    restart: unless-stopped
+    command: agent -server -bootstrap -ui -client=0.0.0.0 -bind=127.0.0.1
+
+  # ===========================================
+  # MONITORING & LOGGING
+  # ===========================================
+
+  fluent-bit:
+    image: fluent/fluent-bit:latest
+    container_name: hers365-fluent-bit
+    volumes:
+      - ./monitoring/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+    networks:
+      - hers365-network
+    restart: unless-stopped
+    depends_on:
+      - elasticsearch
+
+  # ===========================================
+  # NETWORKS & VOLUMES
+  # ===========================================
+
+networks:
+  hers365-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  postgres_data:
+  redis_data:
+  redis_cluster_data:
+  prometheus_data:
+  grafana_data:
+  elasticsearch_data:

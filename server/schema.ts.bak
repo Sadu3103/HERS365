@@ -1,0 +1,532 @@
+import { pgTable, text, serial, integer, boolean, timestamp, json, foreignKey, index, real } from 'drizzle-orm/pg-core';
+
+export const players = pgTable('players', {
+  id: serial('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  passwordHash: text('password_hash'),
+  name: text('name').notNull(),
+  position: text('position'),
+  age: integer('age'),
+  state: text('state'),
+  city: text('city'),
+  zipCode: text('zip_code'),
+  school: text('school'),
+  gradYear: integer('grad_year'),
+  g5Rating: integer('g5_rating'), // 1-5 stars
+  nilPoints: integer('nil_points').default(0),
+  xpPoints: integer('xp_points').default(0), // Progression points
+  level: integer('level').default(1),
+  archetype: text('archetype'),
+  gpa: text('gpa'),
+  collegeOffers: json('college_offers'),
+  verificationStatus: text('verification_status').default('unverified'),
+  subscriptionTier: text('subscription_tier').default('free'),
+  privacySetting: text('privacy_setting').default('public'),
+  segment: text('segment').default('high_school'), // youth, high_school, college, elite
+  skillTier: text('skill_tier').default('beginner'), // beginner, intermediate, advanced, elite
+  isRecreational: boolean('is_recreational').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => {
+  return {
+    stateIdx: index('idx_players_state').on(table.state),
+    positionIdx: index('idx_players_position').on(table.position),
+    emailIdx: index('idx_players_email').on(table.email),
+    createdAtIdx: index('idx_players_created_at').on(table.createdAt),
+  };
+});
+
+export const teams = pgTable('teams', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  logo: text('logo'),
+  state: text('state'),
+  city: text('city'),
+  conference: text('conference'),
+  division: text('division'), // NAIA, NJCAA, NCAA D1, etc.
+  wins: integer('wins').default(0),
+  losses: integer('losses').default(0),
+  titles: integer('titles').default(0),
+  rating: integer('rating').default(0),
+  tuitionInState: integer('tuition_in_state'),
+  tuitionOutState: integer('tuition_out_state'),
+  hasApplication: boolean('has_application').default(false),
+  hasQuestionnaire: boolean('has_questionnaire').default(false),
+  applicationUrl: text('application_url'),
+  questionnaireUrl: text('questionnaire_url'),
+  socials: json('socials'), // { instagram, twitter, facebook, youtube }
+  type: text('type').default('college'), // college, high_school
+});
+
+export const combineStats = pgTable('combine_stats', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  season: text('season'),
+  fortyDash: text('forty_dash'),
+  shuttle: text('shuttle'),
+  vertical: text('vertical'),
+  broadJump: text('broad_jump'),
+  threeCone: text('three_cone'),
+});
+
+export const gameStats = pgTable('game_stats', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  gameId: integer('game_id'),
+  passingAttempts: integer('passing_attempts'),
+  passingCompletions: integer('passing_completions'),
+  passingYards: integer('passing_yards'),
+  passingTds: integer('passing_tds'),
+  interceptionsThrown: integer('interceptions_thrown'),
+  longestPass: integer('longest_pass'),
+  rushingAttempts: integer('rushing_attempts'),
+  rushingYards: integer('rushing_yards'),
+  rushingTds: integer('rushing_tds'),
+  longestRun: integer('longest_run'),
+  receptions: integer('receptions'),
+  receivingYards: integer('receiving_yards'),
+  receivingTds: integer('receiving_tds'),
+  longestReception: integer('longest_reception'),
+  flagPulls: integer('flag_pulls'),
+  interceptionsCaught: integer('interceptions_caught'),
+  passBreakups: integer('pass_breakups'),
+  defensiveTds: integer('defensive_tds'),
+});
+
+export const badges = pgTable('badges', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  icon: text('icon'),
+  category: text('category'),
+});
+
+export const playerBadges = pgTable('player_badges', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  badgeId: integer('badge_id').references(() => badges.id),
+  earnedAt: timestamp('earned_at').defaultNow(),
+});
+
+export const challenges = pgTable('challenges', {
+  id: serial('id').primaryKey(),
+  title: text('title').notNull(),
+  description: text('description'),
+  points: integer('points'),
+  type: text('type'),
+});
+
+export const playerChallenges = pgTable('player_challenges', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  challengeId: integer('challenge_id').references(() => challenges.id),
+  progress: integer('progress').default(0),
+  completed: boolean('completed').default(false),
+});
+
+export const posts = pgTable('posts', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  content: text('content'),
+  mediaUrl: text('media_url'),
+  mediaType: text('media_type'),
+  category: text('category'), // training, game, combine
+  moderationStatus: text('moderation_status').default('pending'), // pending, approved, flagged
+  likes: integer('likes').default(0),
+  comments: integer('comments').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const stories = pgTable('stories', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  imageUrl: text('image_url'),
+  expiresAt: timestamp('expires_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const nilActivities = pgTable('nil_activities', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  activityType: text('activity_type'),
+  pointsEarned: integer('points_earned'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const nilOpportunities = pgTable('nil_opportunities', {
+  id: serial('id').primaryKey(),
+  brandName: text('brand_name'),
+  requirements: text('requirements'),
+  deliverables: text('deliverables'),
+  estimatedEarnings: integer('estimated_earnings'),
+});
+
+export const dealApplications = pgTable('deal_applications', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  opportunityId: integer('opportunity_id').references(() => nilOpportunities.id),
+  status: text('status'),
+  aiMatchScore: integer('ai_match_score'),
+});
+
+export const dealTasks = pgTable('deal_tasks', {
+  id: serial('id').primaryKey(),
+  applicationId: integer('application_id').references(() => dealApplications.id),
+  taskDescription: text('task_description'),
+  completed: boolean('completed').default(false),
+});
+
+export const earningsTracking = pgTable('earnings_tracking', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  applicationId: integer('application_id').references(() => dealApplications.id),
+  amount: integer('amount'),
+  status: text('status'),
+});
+
+export const teamNilCampaigns = pgTable('team_nil_campaigns', {
+  id: serial('id').primaryKey(),
+  teamId: integer('team_id').references(() => teams.id),
+  campaignName: text('campaign_name'),
+  totalPool: integer('total_pool'),
+});
+
+export const mentorshipConnections = pgTable('mentorship_connections', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  mentorName: text('mentor_name'),
+  matchedAt: timestamp('matched_at').defaultNow(),
+});
+
+export const playerHighlights = pgTable('player_highlights', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  videoUrl: text('video_url'),
+  thumbnailUrl: text('thumbnail_url'),
+  category: text('category'),
+  season: text('season'),
+  annotations: json('annotations').default([]),
+  clipSettings: json('clip_settings'), // { start, end, originalVideoId }
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Parents table - for parent accounts who can manage their children's profiles and payments
+export const parents = pgTable('parents', {
+  id: serial('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  name: text('name').notNull(),
+  phone: text('phone'),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => {
+  return {
+    emailIdx: index('idx_parents_email').on(table.email),
+  };
+});
+
+// Link between parents and their children (athletes)
+export const parentChildRelations = pgTable('parent_child_relations', {
+  id: serial('id').primaryKey(),
+  parentId: integer('parent_id').references(() => parents.id),
+  playerId: integer('player_id').references(() => players.id),
+  relationship: text('relationship'), // 'mother', 'father', 'guardian', etc.
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => {
+  return {
+    parentIdIdx: index('idx_parent_child_parent_id').on(table.parentId),
+    playerIdIdx: index('idx_parent_child_player_id').on(table.playerId),
+  };
+});
+
+export const coaches = pgTable('coaches', {
+  id: serial('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  passwordHash: text('password_hash'),
+  name: text('name'),
+  university: text('university'),
+  division: text('division'),
+  recruitingPositions: json('recruiting_positions'),
+  recruitingStates: json('recruiting_states'),
+  verifiedStatus: boolean('verified_status').default(false),
+}, (table) => {
+  return {
+    emailIdx: index('idx_coaches_email').on(table.email),
+  };
+});
+
+export const adminUsers = pgTable('admin_users', {
+  id: serial('id').primaryKey(),
+  username: text('username').notNull(),
+  passwordHash: text('password_hash').notNull(),
+  role: text('role'),
+});
+
+export const subscriptionPlans = pgTable('subscription_plans', {
+  id: serial('id').primaryKey(),
+  name: text('name'),
+  price: integer('price'), // in cents
+  tierLevel: text('tier_level'),
+});
+
+export const playerSubscriptions = pgTable('player_subscriptions', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  planId: integer('plan_id').references(() => subscriptionPlans.id),
+  status: text('status'),
+  stripeSubscriptionId: text('stripe_subscription_id'),
+});
+
+export const schedules = pgTable('schedules', {
+  id: serial('id').primaryKey(),
+  teamId: integer('team_id').references(() => teams.id),
+  opponentName: text('opponent_name'),
+  date: timestamp('date'),
+  result: text('result'),
+});
+
+export const follows = pgTable('follows', {
+  id: serial('id').primaryKey(),
+  followerId: integer('follower_id').references(() => players.id),
+  followingId: integer('following_id').references(() => players.id),
+});
+
+export const comments = pgTable('comments', {
+  id: serial('id').primaryKey(),
+  postId: integer('post_id').references(() => posts.id),
+  playerId: integer('player_id').references(() => players.id),
+  content: text('content'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const notifications = pgTable('notifications', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  type: text('type'), // like, comment, follow, mention, coach_interest
+  actorName: text('actor_name'),
+  read: boolean('read').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const aiBots = pgTable('ai_bots', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  botName: text('bot_name'),
+  personality: text('personality'),
+  interactionCount: integer('interaction_count').default(0),
+});
+
+export const botConversations = pgTable('bot_conversations', {
+  id: serial('id').primaryKey(),
+  botId: integer('bot_id').references(() => aiBots.id),
+  role: text('role'), // 'user' | 'assistant'
+  content: text('content'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const trainingPlans = pgTable('training_plans', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  weeklySchedule: json('weekly_schedule'),
+  goals: text('goals'),
+});
+
+export const drills = pgTable('drills', {
+  id: serial('id').primaryKey(),
+  position: text('position'),
+  category: text('category'),
+  instructions: text('instructions'),
+});
+
+export const skillChallengeCompletions = pgTable('skill_challenge_completions', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  drillId: integer('drill_id').references(() => drills.id),
+  aiFeedback: text('ai_feedback'),
+  score: integer('score'),
+});
+
+export const coachFeedback = pgTable('coach_feedback', {
+  id: serial('id').primaryKey(),
+  coachId: integer('coach_id').references(() => coaches.id),
+  playerId: integer('player_id').references(() => players.id),
+  skillRatings: json('skill_ratings'),
+  notes: text('notes'),
+});
+
+export const events = pgTable('events', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  date: timestamp('date').notNull(),
+  location: text('location').notNull(),
+  registrationDeadline: timestamp('registration_deadline'),
+  participantCount: integer('participant_count').default(0),
+  capacity: integer('capacity').default(0),
+  price: integer('price').default(0), // in cents
+  description: text('description'),
+  upcoming: boolean('upcoming').default(true),
+});
+
+export const eventRegistrations = pgTable('event_registrations', {
+  id: serial('id').primaryKey(),
+  eventId: integer('event_id').references(() => events.id),
+  playerId: integer('player_id').references(() => players.id),
+  checkedIn: boolean('checked_in').default(false),
+});
+
+export const eventLeaderboards = pgTable('event_leaderboards', {
+  id: serial('id').primaryKey(),
+  eventId: integer('event_id').references(() => events.id),
+  playerId: integer('player_id').references(() => players.id),
+  rank: integer('rank'),
+  performanceMetrics: json('performance_metrics'),
+});
+
+export const brandPartnerships = pgTable('brand_partnerships', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  opportunityId: integer('opportunity_id').references(() => nilOpportunities.id),
+  status: text('status'), // active, completed
+});
+
+// ----------------------
+// PAYMENTS - Track kid payments
+// ----------------------
+export const payments = pgTable('payments', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  amount: integer('amount').notNull(), // in cents
+  currency: text('currency').default('usd'),
+  status: text('status').default('pending'), // pending, completed, failed, refunded
+  paymentMethod: text('payment_method'), // card, paypal, stripe, cash, check
+  paymentType: text('payment_type'), // subscription, one_time, tournament_fee, equipment, training
+  description: text('description'),
+  stripePaymentIntentId: text('stripe_payment_intent_id'),
+  stripeCustomerId: text('stripe_customer_id'),
+  receiptUrl: text('receipt_url'),
+  parentName: text('parent_name'),
+  parentEmail: text('parent_email'),
+  parentPhone: text('parent_phone'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+  paidAt: timestamp('paid_at'),
+}, (table) => {
+  return {
+    playerIdIdx: index('idx_payments_player_id').on(table.playerId),
+    statusIdx: index('idx_payments_status').on(table.status),
+  };
+});
+
+export const paymentMethods = pgTable('payment_methods', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  type: text('type').notNull(), // card, paypal, bank_account
+  last4: text('last4'),
+  brand: text('brand'), // visa, mastercard, etc.
+  expiryMonth: integer('expiry_month'),
+  expiryYear: integer('expiry_year'),
+  stripePaymentMethodId: text('stripe_payment_method_id'),
+  isDefault: boolean('is_default').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const invoices = pgTable('invoices', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  invoiceNumber: text('invoice_number').notNull(),
+  amount: integer('amount').notNull(),
+  tax: integer('tax').default(0),
+  total: integer('total').notNull(),
+  status: text('status').default('draft'), // draft, sent, paid, void
+  dueDate: timestamp('due_date'),
+  paidAt: timestamp('paid_at'),
+  description: text('description'),
+  lineItems: json('line_items'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+export const messageRequests = pgTable('message_requests', {
+  id: serial('id').primaryKey(),
+  athleteId: integer('athlete_id').references(() => players.id),
+  receiverId: integer('receiver_id'), // Coach or College ID
+  content: text('content').notNull(),
+  status: text('status').default('pending'), // pending, approved, rejected, sent
+  parentId: integer('parent_id').references(() => parents.id),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const athleteRankings = pgTable('athlete_rankings', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id).unique(),
+  nationalRank: integer('national_rank'),
+  stateRank: integer('state_rank'),
+  positionRank: integer('position_rank'),
+  percentile: integer('percentile'),
+  movement: text('movement'), // up, down, same
+  // Overall scores
+  overallScore: real('overall_score'),
+  // Individual source scores
+  combineScore: real('combine_score'),
+  maxPrepsScore: real('max_preps_score'),
+  zybekScore: real('zybek_score'),
+  usaTalentIdScore: real('usa_talent_id_score'),
+  // Data source tracking
+  dataSources: json('data_sources').default([]),
+  // Last update from each source
+  maxPrepsLastUpdate: timestamp('max_preps_last_update'),
+  zybekLastUpdate: timestamp('zybek_last_update'),
+  usaTalentIdLastUpdate: timestamp('usa_talent_id_last_update'),
+  combineLastUpdate: timestamp('combine_last_update'),
+  // Verification status
+  maxPrepsVerified: boolean('max_preps_verified').default(false),
+  zybekVerified: boolean('zybek_verified').default(false),
+  usaTalentIdVerified: boolean('usa_talent_id_verified').default(false),
+  combineVerified: boolean('combine_verified').default(false),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const coachProspects = pgTable('coach_prospects', {
+  id: serial('id').primaryKey(),
+  coachId: integer('coach_id').references(() => coaches.id),
+  athleteId: integer('athlete_id').references(() => players.id),
+  tier: text('tier').default('watching'), // target, watching, offered
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const scholarships = pgTable('scholarships', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  amount: integer('amount').notNull(),
+  deadline: timestamp('deadline').notNull(),
+  requirements: text('requirements'),
+  category: text('category'),
+  eligibleStates: json('eligible_states').default(['ALL']),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const savedScholarships = pgTable('saved_scholarships', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  scholarshipId: integer('scholarship_id').references(() => scholarships.id),
+  savedAt: timestamp('saved_at').defaultNow(),
+});
+export const faqs = pgTable('faqs', {
+  id: serial('id').primaryKey(),
+  question: text('question').notNull(),
+  answer: text('answer').notNull(),
+  category: text('category').default('General'),
+  isPublic: boolean('is_public').default(true),
+  askedCount: integer('asked_count').default(1),
+  lastAskedAt: timestamp('last_asked_at').defaultNow(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const supportInteractions = pgTable('support_interactions', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id),
+  question: text('question').notNull(),
+  aiResponse: text('ai_response').notNull(),
+  wasHelpful: boolean('was_helpful').default(true),
+  tags: json('tags'), // Array of keywords
+  createdAt: timestamp('created_at').defaultNow(),
+});
