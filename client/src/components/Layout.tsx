@@ -60,6 +60,8 @@ export const Layout = () => {
             background: '#ff5a2d',
             borderRadius: 8,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 0 16px rgba(255,90,45,0.35)',
+            flexShrink: 0,
           }}>
             <Zap size={18} color="#fff" fill="#fff" />
           </div>
@@ -69,6 +71,7 @@ export const Layout = () => {
             fontSize: '1.25rem',
             letterSpacing: '0.05em',
             textTransform: 'uppercase',
+            color: '#fff',
           }}>HERS365</span>
         </div>
 
@@ -77,11 +80,8 @@ export const Layout = () => {
           {nav.map(({ icon: Icon, label, path }) => {
             const active = location.pathname === path;
             return (
-              <Link key={path} to={path} className="nav-item" style={active ? {
-                background: 'rgba(255,90,45,0.1)',
-                color: '#ff5a2d',
-              } : {}}>
-                <Icon size={18} />
+              <Link key={path} to={path} className={`nav-item${active ? ' nav-active' : ''}`}>
+                <Icon size={18} color={active ? '#ff5a2d' : undefined} />
                 {label}
               </Link>
             );
@@ -90,7 +90,7 @@ export const Layout = () => {
 
         {/* Bottom: profile + settings */}
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Link to="/settings" className="nav-item" style={location.pathname === '/settings' ? { color: '#ff5a2d', background: 'rgba(255,90,45,0.1)' } : {}}>
+          <Link to="/settings" className={`nav-item${location.pathname === '/settings' ? ' nav-active' : ''}`}>
             <Settings size={18} />
             Settings
           </Link>
@@ -99,22 +99,39 @@ export const Layout = () => {
             onClick={() => navigate('/profile')}
             style={{
               display: 'flex', alignItems: 'center', gap: 10,
-              padding: '10px 12px', borderRadius: 8,
+              padding: '10px 12px', borderRadius: 10,
               background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.07)',
               cursor: 'pointer', marginTop: 8,
               width: '100%', textAlign: 'left',
+              transition: 'border-color 0.15s ease, background 0.15s ease',
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.06)';
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,90,45,0.2)';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.03)';
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.07)';
             }}
           >
-            <div style={{
-              width: 32, height: 32, borderRadius: '50%',
-              background: 'linear-gradient(135deg, #ff5a2d, #ff8c66)',
-              flexShrink: 0,
-            }} />
-            <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>Sarah Watkins</div>
-              <div style={{ fontSize: '0.7rem', color: '#666', marginTop: 1 }}>QB | 2026</div>
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <img
+                src="https://api.dicebear.com/7.x/avataaars/svg?seed=SarahWatkins"
+                alt="Sarah Watkins"
+                style={{ width: 32, height: 32, borderRadius: '50%', background: '#1c1c1c', border: '1.5px solid rgba(255,90,45,0.4)' }}
+              />
+              <div style={{
+                position: 'absolute', bottom: 0, right: 0,
+                width: 8, height: 8, borderRadius: '50%',
+                background: '#4ade80', border: '1.5px solid #0a0a0a',
+              }} />
             </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '0.83rem', fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Sarah Watkins</div>
+              <div style={{ fontSize: '0.68rem', color: '#555', marginTop: 1 }}>QB | 2026</div>
+            </div>
+            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '0.9rem', color: '#ff5a2d', flexShrink: 0 }}>95</div>
           </button>
         </div>
       </aside>
@@ -180,11 +197,7 @@ export const Layout = () => {
             <div style={{ position: 'relative' }} ref={notifRef}>
               <button
                 onClick={() => setNotifOpen(!notifOpen)}
-                style={{
-                  position: 'relative', background: 'none', border: 'none',
-                  cursor: 'pointer', color: '#666', padding: 8, borderRadius: 8,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
+                className="k-icon-btn"
               >
                 <Bell size={18} />
                 {unreadCount > 0 && (
@@ -237,12 +250,8 @@ export const Layout = () => {
             {/* Messages */}
             <button
               onClick={() => navigate('/messages')}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: '#666', padding: 8, borderRadius: 8,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                position: 'relative',
-              }}
+              className="k-icon-btn"
+              style={{ position: 'relative' }}
             >
               <MessageSquare size={18} />
               <span style={{
@@ -254,27 +263,32 @@ export const Layout = () => {
             {/* Post highlight CTA */}
             <button
               onClick={() => navigate('/training')}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                background: '#ff5a2d', color: '#fff',
-                border: 'none', borderRadius: 8,
-                padding: '8px 14px',
-                fontSize: '0.78rem', fontWeight: 700,
-                cursor: 'pointer',
-                letterSpacing: '0.03em',
-              }}
+              className="k-btn k-btn-primary"
+              style={{ padding: '8px 14px' }}
             >
               <Plus size={14} />
               POST HIGHLIGHT
             </button>
 
-            {/* Avatar */}
+            {/* Avatar with coral ring */}
             <button
               onClick={() => navigate('/profile')}
               style={{
-                width: 32, height: 32, borderRadius: '50%',
+                width: 34, height: 34, borderRadius: '50%',
                 background: 'linear-gradient(135deg, #ff5a2d, #ff8c66)',
-                border: 'none', cursor: 'pointer', flexShrink: 0,
+                border: '2px solid rgba(255,90,45,0.5)',
+                cursor: 'pointer', flexShrink: 0,
+                padding: 0,
+                transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+                boxShadow: '0 0 0 0 rgba(255,90,45,0)',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = '#ff5a2d';
+                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 0 3px rgba(255,90,45,0.2)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,90,45,0.5)';
+                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 0 0 rgba(255,90,45,0)';
               }}
             />
           </div>

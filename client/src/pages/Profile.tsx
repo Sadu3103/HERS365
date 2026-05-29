@@ -48,12 +48,20 @@ export const Profile = () => {
 
       {/* Hero card */}
       <div className="k-card" style={{ padding: '28px 24px', marginBottom: 20, position: 'relative', overflow: 'hidden' }}>
-        {/* Subtle coral glow top-right */}
+        {/* Coral glow top-right */}
         <div style={{
-          position: 'absolute', top: -60, right: -60,
-          width: 200, height: 200,
-          background: 'radial-gradient(circle, rgba(255,90,45,0.08) 0%, transparent 70%)',
+          position: 'absolute', top: -80, right: -80,
+          width: 280, height: 280,
+          background: 'radial-gradient(circle, rgba(255,90,45,0.12) 0%, transparent 65%)',
           pointerEvents: 'none',
+        }} />
+        {/* Subtle grid texture */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: 'linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)',
+          backgroundSize: '32px 32px',
+          pointerEvents: 'none',
+          borderRadius: 12,
         }} />
 
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, position: 'relative' }}>
@@ -92,11 +100,18 @@ export const Profile = () => {
 
               {/* Score */}
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '3rem', color: '#ff5a2d', lineHeight: 1 }}>{profile.score}</div>
-                <div style={{ fontSize: '0.65rem', color: '#555', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 2 }}>Score</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 3, justifyContent: 'flex-end', marginTop: 4 }}>
-                  <TrendingUp size={12} color="#4ade80" />
-                  <span style={{ fontSize: '0.7rem', color: '#4ade80', fontWeight: 700 }}>#1 Nationally</span>
+                <div style={{
+                  fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800,
+                  fontSize: '3.5rem', color: '#ff5a2d', lineHeight: 1,
+                  textShadow: '0 0 30px rgba(255,90,45,0.5)',
+                }}>{profile.score}</div>
+                <div style={{ fontSize: '0.6rem', color: '#444', textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: 2 }}>Score</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 3, justifyContent: 'flex-end', marginTop: 6,
+                  background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.15)',
+                  borderRadius: 6, padding: '3px 7px',
+                }}>
+                  <TrendingUp size={11} color="#4ade80" />
+                  <span style={{ fontSize: '0.68rem', color: '#4ade80', fontWeight: 700 }}>#1 Nationally</span>
                 </div>
               </div>
             </div>
@@ -106,28 +121,13 @@ export const Profile = () => {
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => navigate('/messages')} style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                background: '#ff5a2d', border: 'none', borderRadius: 7,
-                color: '#fff', fontSize: '0.78rem', fontWeight: 700,
-                padding: '9px 16px', cursor: 'pointer',
-              }}>
+              <button onClick={() => navigate('/messages')} className="k-btn k-btn-primary">
                 <MessageSquare size={14} /> Message
               </button>
-              <button style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 7, color: '#ccc', fontSize: '0.78rem', fontWeight: 600,
-                padding: '9px 16px', cursor: 'pointer',
-              }}>
+              <button className="k-btn k-btn-ghost">
                 <Edit3 size={14} /> Edit Profile
               </button>
-              <button style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 7, color: '#ccc', fontSize: '0.78rem', fontWeight: 600,
-                padding: '9px 16px', cursor: 'pointer',
-              }}>
+              <button className="k-btn k-btn-ghost">
                 <Share2 size={14} /> Share
               </button>
             </div>

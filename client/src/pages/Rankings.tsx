@@ -59,22 +59,37 @@ export const Rankings = () => {
           {top3.map((p, i) => (
             <motion.div key={p.rank} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
               className="k-card" style={{
-                padding: '20px 18px',
-                borderColor: i === 0 ? 'rgba(255,90,45,0.3)' : 'rgba(255,255,255,0.06)',
+                padding: '20px 18px', position: 'relative', overflow: 'hidden',
+                borderColor: i === 0 ? 'rgba(255,90,45,0.4)' : 'rgba(255,255,255,0.06)',
+                boxShadow: i === 0 ? '0 0 0 1px rgba(255,90,45,0.1), 0 8px 32px rgba(255,90,45,0.08)' : 'none',
               }}>
+              {/* #1 background glow */}
+              {i === 0 && (
+                <div style={{
+                  position: 'absolute', top: -40, right: -40,
+                  width: 160, height: 160,
+                  background: 'radial-gradient(circle, rgba(255,90,45,0.12) 0%, transparent 70%)',
+                  pointerEvents: 'none',
+                }} />
+              )}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <span style={{
                   fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800,
-                  fontSize: i === 0 ? '1.5rem' : '1.2rem',
+                  fontSize: i === 0 ? '1.6rem' : '1.2rem',
                   color: i === 0 ? '#ff5a2d' : '#444',
+                  textShadow: i === 0 ? '0 0 16px rgba(255,90,45,0.4)' : 'none',
                 }}>#{p.rank}</span>
-                <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.8rem', color: '#ff5a2d' }}>{p.score}</span>
+                <span style={{
+                  fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800,
+                  fontSize: i === 0 ? '2rem' : '1.8rem', color: '#ff5a2d',
+                  textShadow: i === 0 ? '0 0 20px rgba(255,90,45,0.5)' : '0 0 12px rgba(255,90,45,0.2)',
+                }}>{p.score}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Avatar name={p.name} size={40} />
+                <Avatar name={p.name} size={i === 0 ? 44 : 38} />
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#fff' }}>{p.name}</span>
+                    <span style={{ fontSize: i === 0 ? '0.92rem' : '0.85rem', fontWeight: 700, color: '#fff' }}>{p.name}</span>
                     {p.verified && <CheckCircle2 size={12} color="#ff5a2d" fill="#ff5a2d" />}
                   </div>
                   <div style={{ fontSize: '0.7rem', color: '#555', marginTop: 2 }}>{p.pos} | {p.school}</div>
