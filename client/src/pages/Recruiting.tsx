@@ -1,15 +1,6 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import {
-  Search,
-  Filter,
-  Star,
-  Heart,
-  Target,
-  Users,
-  Eye
-} from 'lucide-react';
+import { Search, Filter, Heart, CheckCircle2, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface Athlete {
@@ -17,430 +8,167 @@ interface Athlete {
   name: string;
   school: string;
   position: string;
-  rating: number;
   score: number;
   location: string;
   graduationYear: number;
   height: string;
-  weight: number;
   fortyYardTime: number;
   gpa: number;
   verified: boolean;
   isFavorited: boolean;
-  avatar: string;
-  lastActive: string;
 }
 
-interface SearchFilters {
-  position: string;
-  location: string;
-  graduationYear: string;
-  rating: string;
-  sortBy: string;
+const mockAthletes: Athlete[] = [
+  { id: 1, name: 'Sarah Watkins',   school: 'Westlake HS, TX',          position: 'QB', score: 95, location: 'Texas',      graduationYear: 2026, height: "5'9\"", fortyYardTime: 4.72, gpa: 3.9,  verified: true,  isFavorited: false },
+  { id: 2, name: 'Maya Johnson',    school: "St. Mary's Academy, FL",   position: 'WR', score: 92, location: 'Florida',     graduationYear: 2026, height: "5'7\"", fortyYardTime: 4.71, gpa: 3.7,  verified: true,  isFavorited: true  },
+  { id: 3, name: 'Isabella Reyes',  school: 'Centennial HS, CA',        position: 'DB', score: 91, location: 'California',  graduationYear: 2027, height: "5'6\"", fortyYardTime: 4.68, gpa: 4.0,  verified: true,  isFavorited: false },
+  { id: 4, name: 'Chloe Zhang',     school: 'Northwood HS, GA',         position: 'RB', score: 90, location: 'Georgia',     graduationYear: 2026, height: "5'5\"", fortyYardTime: 4.65, gpa: 3.8,  verified: true,  isFavorited: false },
+  { id: 5, name: "Emma O'Connor",   school: 'Summit Prep, CO',          position: 'QB', score: 89, location: 'Colorado',    graduationYear: 2027, height: "5'8\"", fortyYardTime: 4.88, gpa: 3.95, verified: false, isFavorited: false },
+  { id: 6, name: 'Ava Mitchell',    school: 'Harrison HS, AL',          position: 'LB', score: 89, location: 'Alabama',     graduationYear: 2026, height: "5'9\"", fortyYardTime: 4.75, gpa: 3.6,  verified: true,  isFavorited: false },
+];
+
+const positions = ['All', 'QB', 'RB', 'WR', 'TE', 'LB', 'DB'];
+const locations  = ['All', 'California', 'Texas', 'Florida', 'Georgia', 'Colorado', 'Alabama'];
+const years      = ['All', '2025', '2026', '2027', '2028'];
+
+function Avatar({ name, size = 48 }: { name: string; size?: number }) {
+  return (
+    <img
+      src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`}
+      alt={name}
+      style={{ width: size, height: size, borderRadius: '50%', background: '#1c1c1c', flexShrink: 0 }}
+    />
+  );
 }
 
 export const Recruiting = () => {
   const navigate = useNavigate();
-  const [athletes, setAthletes] = useState<Athlete[]>([]);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [filters, setFilters] = useState<SearchFilters>({
-    position: 'All',
-    location: 'All',
-    graduationYear: 'All',
-    rating: 'All',
-    sortBy: 'rating'
-  });
-  const [showFilters, setShowFilters] = useState<boolean>(false);
+  const [athletes, setAthletes] = useState<Athlete[]>(mockAthletes);
+  const [search, setSearch] = useState('');
+  const [pos, setPos] = useState('All');
+  const [loc, setLoc] = useState('All');
+  const [year, setYear] = useState('All');
+  const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => {
-    // Mock data - in real app, fetch from API
-    const mockAthletes: Athlete[] = [
-      {
-        id: 1,
-        name: 'Sarah Watkins',
-        school: 'Westlake HS, TX',
-        position: 'QB',
-        rating: 4.82,
-        score: 95,
-        location: 'Texas',
-        graduationYear: 2026,
-        height: '5\'9"',
-        weight: 145,
-        fortyYardTime: 4.82,
-        gpa: 3.9,
-        verified: true,
-        isFavorited: false,
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah',
-        lastActive: '2 hours ago'
-      },
-      {
-        id: 2,
-        name: 'Maya Johnson',
-        school: "St. Mary's Academy, FL",
-        position: 'WR',
-        rating: 4.71,
-        score: 92,
-        location: 'Florida',
-        graduationYear: 2026,
-        height: '5\'7"',
-        weight: 130,
-        fortyYardTime: 4.71,
-        gpa: 3.7,
-        verified: true,
-        isFavorited: true,
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Maya',
-        lastActive: '1 day ago'
-      },
-      {
-        id: 3,
-        name: 'Isabella Reyes',
-        school: 'Centennial HS, CA',
-        position: 'DB',
-        rating: 4.68,
-        score: 91,
-        location: 'California',
-        graduationYear: 2027,
-        height: '5\'6"',
-        weight: 125,
-        fortyYardTime: 4.68,
-        gpa: 4.0,
-        verified: true,
-        isFavorited: false,
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Isabella',
-        lastActive: '5 hours ago'
-      },
-      {
-        id: 4,
-        name: 'Chloe Zhang',
-        school: 'Northwood HS, GA',
-        position: 'RB',
-        rating: 4.65,
-        score: 90,
-        location: 'Georgia',
-        graduationYear: 2026,
-        height: '5\'5"',
-        weight: 120,
-        fortyYardTime: 4.65,
-        gpa: 3.8,
-        verified: true,
-        isFavorited: false,
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Chloe',
-        lastActive: '3 days ago'
-      },
-      {
-        id: 5,
-        name: 'Emma O\'Connor',
-        school: 'Summit Prep, CO',
-        position: 'QB',
-        rating: 4.88,
-        score: 89,
-        location: 'Colorado',
-        graduationYear: 2027,
-        height: '5\'8"',
-        weight: 140,
-        fortyYardTime: 4.88,
-        gpa: 3.95,
-        verified: false,
-        isFavorited: false,
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emma',
-        lastActive: '1 hour ago'
-      },
-      {
-        id: 6,
-        name: 'Ava Mitchell',
-        school: 'Harrison HS, AL',
-        position: 'LB',
-        rating: 4.75,
-        score: 89,
-        location: 'Alabama',
-        graduationYear: 2026,
-        height: '5\'9"',
-        weight: 135,
-        fortyYardTime: 4.75,
-        gpa: 3.6,
-        verified: true,
-        isFavorited: false,
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ava',
-        lastActive: '4 hours ago'
-      }
-    ];
-    setAthletes(mockAthletes);
-  }, []);
+  const filtered = athletes.filter(a => {
+    const q = search.toLowerCase();
+    const matchQ = !q || a.name.toLowerCase().includes(q) || a.school.toLowerCase().includes(q) || a.position.toLowerCase().includes(q);
+    return matchQ && (pos === 'All' || a.position === pos) && (loc === 'All' || a.location === loc) && (year === 'All' || a.graduationYear.toString() === year);
+  }).sort((a, b) => b.score - a.score);
 
-  const positions = ['All', 'QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'DB', 'K'];
-  const locations = ['All', 'California', 'Texas', 'Florida', 'New York', 'Illinois', 'Pennsylvania'];
-  const graduationYears = ['All', '2025', '2026', '2027', '2028'];
-  const ratingRanges = ['All', '95+', '90-94', '85-89', '80-84'];
+  const toggleFav = (id: number) => setAthletes(prev => prev.map(a => a.id === id ? { ...a, isFavorited: !a.isFavorited } : a));
 
-  const filteredAthletes = athletes
-    .filter(athlete => {
-      const matchesSearch = searchQuery === '' ||
-        athlete.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        athlete.school.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        athlete.position.toLowerCase().includes(searchQuery.toLowerCase());
-
-      const matchesPosition = filters.position === 'All' || athlete.position === filters.position;
-      const matchesLocation = filters.location === 'All' || athlete.location === filters.location;
-      const matchesYear = filters.graduationYear === 'All' || athlete.graduationYear.toString() === filters.graduationYear;
-
-      let matchesRating = true;
-      if (filters.rating !== 'All') {
-        const rating = athlete.rating;
-        switch (filters.rating) {
-          case '95+': matchesRating = rating >= 95; break;
-          case '90-94': matchesRating = rating >= 90 && rating <= 94; break;
-          case '85-89': matchesRating = rating >= 85 && rating <= 89; break;
-          case '80-84': matchesRating = rating >= 80 && rating <= 84; break;
-        }
-      }
-
-      return matchesSearch && matchesPosition && matchesLocation && matchesYear && matchesRating;
-    })
-    .sort((a, b) => {
-      switch (filters.sortBy) {
-        case 'rating': return b.rating - a.rating;
-        case 'name': return a.name.localeCompare(b.name);
-        case 'school': return a.school.localeCompare(b.school);
-        case 'location': return a.location.localeCompare(b.location);
-        default: return 0;
-      }
-    });
-
-  const toggleFavorite = (athleteId: number) => {
-    setAthletes(prev =>
-      prev.map(athlete =>
-        athlete.id === athleteId
-          ? { ...athlete, isFavorited: !athlete.isFavorited }
-          : athlete
-      )
-    );
+  const sel: React.CSSProperties = {
+    background: '#161616', border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: 8, padding: '8px 12px', color: '#ccc',
+    fontSize: '0.8rem', outline: 'none', cursor: 'pointer',
   };
 
   return (
-    <div className="max-w-7xl mx-auto py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-black text-white uppercase tracking-tighter mb-4">
+    <div style={{ padding: '24px', maxWidth: 1100, margin: '0 auto' }}>
+
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '2rem', textTransform: 'uppercase', color: '#fff', marginBottom: 4 }}>
           Athlete Recruiting
         </h1>
-        <p className="text-dark-300 text-lg">
-          Discover and connect with top female high school athletes
-        </p>
+        <p style={{ color: '#555', fontSize: '0.85rem' }}>Discover and connect with top female high school athletes</p>
       </div>
 
-      {/* Search and Filters */}
-      <div className="glass-card p-6 mb-8">
-        <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search Bar */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-dark-400" size={20} />
+      {/* Search */}
+      <div className="k-card" style={{ padding: 16, marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#444', pointerEvents: 'none' }} />
             <input
-              type="text"
-              placeholder="Search athletes, schools, or positions..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-dark-800 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-dark-500 focus:outline-none focus:border-brand-500"
+              type="text" placeholder="Search athletes, schools, positions..."
+              value={search} onChange={e => setSearch(e.target.value)}
+              style={{ width: '100%', background: '#161616', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px 10px 36px', color: '#fff', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
             />
           </div>
-
-          {/* Filter Toggle */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-6 py-4 rounded-xl font-bold uppercase tracking-widest transition-all ${
-              showFilters
-                ? 'bg-brand-500 text-white'
-                : 'bg-dark-800 border border-white/10 text-dark-300 hover:text-white'
-            }`}
-          >
-            <Filter size={18} />
-            Filters
+          <button onClick={() => setShowFilters(!showFilters)} style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            background: showFilters ? '#ff5a2d' : '#161616',
+            border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8,
+            padding: '10px 16px', color: showFilters ? '#fff' : '#888',
+            fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
+          }}>
+            <Filter size={14} /> Filters
           </button>
         </div>
-
-        {/* Expanded Filters */}
         {showFilters && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mt-6 pt-6 border-t border-white/5"
-          >
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <select
-                value={filters.position}
-                onChange={(e) => setFilters(prev => ({ ...prev, position: e.target.value }))}
-                className="bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500"
-              >
-                <option value="All">All Positions</option>
-                {positions.slice(1).map(pos => (
-                  <option key={pos} value={pos}>{pos}</option>
-                ))}
-              </select>
-
-              <select
-                value={filters.location}
-                onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
-                className="bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500"
-              >
-                <option value="All">All Locations</option>
-                {locations.slice(1).map(loc => (
-                  <option key={loc} value={loc}>{loc}</option>
-                ))}
-              </select>
-
-              <select
-                value={filters.graduationYear}
-                onChange={(e) => setFilters(prev => ({ ...prev, graduationYear: e.target.value }))}
-                className="bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500"
-              >
-                <option value="All">All Years</option>
-                {graduationYears.slice(1).map(year => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
-
-              <select
-                value={filters.rating}
-                onChange={(e) => setFilters(prev => ({ ...prev, rating: e.target.value }))}
-                className="bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500"
-              >
-                <option value="All">All Ratings</option>
-                {ratingRanges.slice(1).map(range => (
-                  <option key={range} value={range}>{range}</option>
-                ))}
-              </select>
-
-              <select
-                value={filters.sortBy}
-                onChange={(e) => setFilters(prev => ({ ...prev, sortBy: e.target.value }))}
-                className="bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500"
-              >
-                <option value="rating">Sort by Rating</option>
-                <option value="name">Sort by Name</option>
-                <option value="school">Sort by School</option>
-                <option value="location">Sort by Location</option>
-              </select>
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+            style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+              <select value={pos}  onChange={e => setPos(e.target.value)}  style={sel}>{positions.map(p => <option key={p}>{p === 'All' ? 'All Positions' : p}</option>)}</select>
+              <select value={loc}  onChange={e => setLoc(e.target.value)}  style={sel}>{locations.map(l => <option key={l}>{l === 'All' ? 'All Locations' : l}</option>)}</select>
+              <select value={year} onChange={e => setYear(e.target.value)} style={sel}>{years.map(y => <option key={y}>{y === 'All' ? 'All Years' : `Class of ${y}`}</option>)}</select>
             </div>
           </motion.div>
         )}
       </div>
 
-      {/* Results Summary */}
-      <div className="flex items-center justify-between mb-6">
-        <p className="text-dark-300">
-          Showing {filteredAthletes.length} of {athletes.length} athletes
-        </p>
-        <div className="flex items-center gap-4 text-sm text-dark-400">
-          <div className="flex items-center gap-1">
-            <Users size={16} />
-            {athletes.filter(a => a.isFavorited).length} favorited
-          </div>
-          <div className="flex items-center gap-1">
-            <Eye size={16} />
-            Active this week
-          </div>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+        <span style={{ fontSize: '0.78rem', color: '#555' }}>Showing <span style={{ color: '#ccc', fontWeight: 600 }}>{filtered.length}</span> athletes</span>
+        <span style={{ fontSize: '0.78rem', color: '#555' }}>{athletes.filter(a => a.isFavorited).length} favorited</span>
       </div>
 
-      {/* Athletes Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {filteredAthletes.map((athlete) => (
-          <motion.div
-            key={athlete.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass-card p-6 group cursor-pointer hover:scale-105 transition-all"
-            onClick={() => navigate(`/athlete/${athlete.id}`)}
-          >
-            {/* Header with Avatar */}
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-500 to-accent p-0.5">
-                  <div className="w-full h-full rounded-[14px] bg-dark-800 overflow-hidden">
-                    <img src={athlete.avatar} alt={athlete.name} className="w-full h-full object-cover" />
-                  </div>
+      {/* Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+        {filtered.map((a, i) => (
+          <motion.div key={a.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+            className="k-card-hover" style={{ padding: '18px 18px 14px', cursor: 'pointer', position: 'relative' }}
+            onClick={() => navigate(`/profile/${a.id}`)}>
+
+            <button onClick={e => { e.stopPropagation(); toggleFav(a.id); }}
+              style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', cursor: 'pointer', color: a.isFavorited ? '#ff5a2d' : '#333', padding: 4, transition: 'color 0.15s' }}>
+              <Heart size={16} fill={a.isFavorited ? '#ff5a2d' : 'none'} />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+              <Avatar name={a.name} size={44} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff' }}>{a.name}</span>
+                  {a.verified && <CheckCircle2 size={13} color="#ff5a2d" fill="#ff5a2d" />}
                 </div>
+                <div style={{ fontSize: '0.72rem', color: '#555', marginTop: 2 }}>{a.school}</div>
               </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleFavorite(athlete.id);
-                }}
-                className={`p-2 rounded-lg transition-colors ${
-                  athlete.isFavorited
-                    ? 'text-red-500 bg-red-500/10'
-                    : 'text-dark-400 hover:text-red-500 hover:bg-red-500/10'
-                }`}
-              >
-                <Heart size={18} className={athlete.isFavorited ? 'fill-current' : ''} />
-              </button>
+              <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.6rem', color: '#ff5a2d', lineHeight: 1, flexShrink: 0 }}>{a.score}</span>
             </div>
 
-            {/* Name and verification */}
-            <div className="mb-3">
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold text-white">{athlete.name}</h3>
-                {athlete.verified && <span className="text-blue-400 text-sm">✓</span>}
-              </div>
-              <p className="text-xs text-dark-400">{athlete.school}</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span style={{ background: 'rgba(255,90,45,0.1)', color: '#ff5a2d', fontSize: '0.7rem', fontWeight: 700, padding: '3px 8px', borderRadius: 4, letterSpacing: '0.06em' }}>{a.position}</span>
+              <span style={{ fontSize: '0.72rem', color: '#555' }}>Class of {a.graduationYear}</span>
             </div>
 
-            {/* Position and Class */}
-            <div className="mb-3 space-y-1">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-dark-400">{athlete.position}</span>
-                <span className="text-dark-400">Class of {athlete.graduationYear}</span>
-              </div>
-            </div>
-
-            {/* Stats Row: 40yd, GPA, Height */}
-            <div className="flex items-center justify-between mb-4 text-xs">
-              <div>
-                <span className="text-dark-500">40yd</span>
-                <span className="text-white font-bold ml-1">{athlete.fortyYardTime.toFixed(2)}s</span>
-              </div>
-              <div>
-                <span className="text-dark-500">GPA</span>
-                <span className="text-white font-bold ml-1">{athlete.gpa.toFixed(1)}</span>
-              </div>
-              <div>
-                <span className="text-dark-500">HGT</span>
-                <span className="text-white font-bold ml-1">{athlete.height}</span>
-              </div>
-              <div className="text-blue-400 font-black text-lg">{athlete.score}</div>
-            </div>
-
-            {/* Star Rating */}
-            <div className="flex items-center justify-center gap-1 mb-4">
-              {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  size={14}
-                  className={i < 4 ? 'text-yellow-500 fill-yellow-500' : 'text-dark-500'}
-                />
+            <div style={{ display: 'flex', background: '#0d0d0d', borderRadius: 8, overflow: 'hidden', marginBottom: 12, border: '1px solid rgba(255,255,255,0.04)' }}>
+              {[{ label: '40YD', value: `${a.fortyYardTime.toFixed(2)}s` }, { label: 'GPA', value: a.gpa.toFixed(1) }, { label: 'HGT', value: a.height }].map(({ label, value }, idx, arr) => (
+                <div key={label} style={{ flex: 1, padding: '10px 8px', textAlign: 'center', borderRight: idx < arr.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                  <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#444', marginBottom: 3 }}>{label}</div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#ddd' }}>{value}</div>
+                </div>
               ))}
             </div>
 
-            {/* View Profile Button */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/profile/${athlete.id}`);
-              }}
-              className="w-full py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg transition-colors font-semibold"
-            >
-              View Profile
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 12 }}>
+              <MapPin size={11} color="#444" />
+              <span style={{ fontSize: '0.72rem', color: '#444' }}>{a.location}</span>
+            </div>
+
+            <button onClick={e => { e.stopPropagation(); navigate(`/profile/${a.id}`); }}
+              style={{ width: '100%', background: 'rgba(255,90,45,0.1)', border: '1px solid rgba(255,90,45,0.2)', borderRadius: 7, color: '#ff5a2d', fontSize: '0.75rem', fontWeight: 700, padding: '9px', cursor: 'pointer', letterSpacing: '0.05em', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#ff5a2d'; e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,90,45,0.1)'; e.currentTarget.style.color = '#ff5a2d'; }}>
+              VIEW PROFILE
             </button>
           </motion.div>
         ))}
       </div>
 
-      {/* Empty State */}
-      {filteredAthletes.length === 0 && (
-        <div className="text-center py-16">
-          <Target className="mx-auto text-dark-500 mb-4" size={48} />
-          <h3 className="text-xl font-bold text-white mb-2">No athletes found</h3>
-          <p className="text-dark-400">Try adjusting your search criteria or filters</p>
+      {filtered.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '64px 0', color: '#444' }}>
+          <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '1.5rem', fontWeight: 700, marginBottom: 8 }}>No athletes found</div>
+          <div style={{ fontSize: '0.85rem' }}>Try adjusting your filters</div>
         </div>
       )}
     </div>

@@ -1,297 +1,294 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  Home, 
-  Trophy, 
-  User, 
-  Dumbbell, 
-  Search, 
-  Users, 
-  Bell, 
-  Settings, 
-  MessageSquare,
-  Shield,
-  Menu,
-  X,
-  Zap
+import {
+  Home, Trophy, User, Dumbbell, Search,
+  Users, Shield, Settings, Bell, MessageSquare,
+  Menu, X, Plus, Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface SidebarItemProps {
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  label: string;
-  path: string;
-  active: boolean;
-  collapsed: boolean;
-}
-
-const SidebarItem = ({ icon: Icon, label, path, active, collapsed }: SidebarItemProps) => (
-  <Link to={path} className="block">
-    <motion.div
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
-        active 
-          ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/20' 
-          : 'text-dark-300 hover:bg-white/5 hover:text-white'
-      }`}
-    >
-      <Icon size={22} className={active ? 'animate-pulse' : ''} />
-      {!collapsed && (
-        <span className="font-medium tracking-wide">{label}</span>
-      )}
-    </motion.div>
-  </Link>
-);
+const nav = [
+  { icon: Home,     label: 'Feed',       path: '/' },
+  { icon: Trophy,   label: 'Rankings',   path: '/rankings' },
+  { icon: User,     label: 'Profile',    path: '/profile' },
+  { icon: Dumbbell, label: 'Training',   path: '/training' },
+  { icon: Search,   label: 'Recruiting', path: '/recruiting' },
+  { icon: Users,    label: 'Teams',      path: '/teams' },
+  { icon: Shield,   label: 'Compliance', path: '/audit' },
+];
 
 export const Layout = () => {
-  const [collapsed, setCollapsed] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [accountOpen, setAccountOpen] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
-  const notificationsRef = useRef<HTMLDivElement>(null);
-  const accountRef = useRef<HTMLDivElement>(null);
+  const navigate  = useNavigate();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [notifOpen,  setNotifOpen]  = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
-        setNotificationsOpen(false);
-      }
-      if (accountRef.current && !accountRef.current.contains(event.target as Node)) {
-        setAccountOpen(false);
-      }
+    const h = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
   }, []);
 
   const notifications = [
-    { id: 1, title: 'New Scout Interest', message: 'Coach Johnson viewed your profile', time: '2m ago', unread: true, action: '/messages' },
-    { id: 2, title: 'Training Reminder', message: 'Agility session starts in 30 minutes', time: '15m ago', unread: true, action: '/training' },
-    { id: 3, title: 'Rank Updated', message: 'You moved up to #42 in rankings', time: '1h ago', unread: false, action: '/rankings' },
+    { id: 1, msg: 'Coach Johnson viewed your profile', time: '2m ago', unread: true },
+    { id: 2, msg: 'Agility session starts in 30 minutes', time: '15m ago', unread: true },
+    { id: 3, msg: 'You moved up to #42 in rankings', time: '1h ago', unread: false },
   ];
-
-  const menuItems = [
-    { icon: Home, label: 'Feed', path: '/' },
-    { icon: Trophy, label: 'Rankings', path: '/rankings' },
-    { icon: User, label: 'Profile', path: '/profile' },
-    { icon: Dumbbell, label: 'Training', path: '/training' },
-    { icon: Search, label: 'Recruiting', path: '/recruiting' },
-    { icon: Users, label: 'Teams', path: '/teams' },
-    { icon: Shield, label: 'Compliance', path: '/audit' },
-  ];
+  const unreadCount = notifications.filter(n => n.unread).length;
 
   return (
-    <div className="flex h-screen bg-dark-900 text-white overflow-hidden cyber-grid">
-      {/* Sidebar - Desktop */}
-      <motion.aside
-        initial={false}
-        animate={{ width: collapsed ? 80 : 280 }}
-        className="hidden md:flex flex-col bg-dark-800/50 backdrop-blur-xl border-r border-white/5 p-4 relative z-20"
-      >
-        <div className="flex items-center gap-3 px-2 mb-10">
-          <div className="w-10 h-10 bg-brand-500 rounded-lg flex items-center justify-center shadow-lg shadow-brand-500/40">
-            <Zap className="text-white fill-current" size={24} />
+    <div style={{ display: 'flex', height: '100vh', background: '#0a0a0a', color: '#fff', overflow: 'hidden' }}>
+
+      {/* ─── Sidebar ─── */}
+      <aside style={{
+        width: 240,
+        flexShrink: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        borderRight: '1px solid rgba(255,255,255,0.06)',
+        padding: '24px 16px',
+        background: '#0a0a0a',
+      }} className="hidden md:flex">
+
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 36, paddingLeft: 4 }}>
+          <div style={{
+            width: 32, height: 32,
+            background: '#ff5a2d',
+            borderRadius: 8,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Zap size={18} color="#fff" fill="#fff" />
           </div>
-          {!collapsed && (
-            <span className="text-xl font-bold tracking-tighter text-gradient-glow uppercase">HERS365</span>
-          )}
+          <span style={{
+            fontFamily: 'Barlow Condensed, sans-serif',
+            fontWeight: 800,
+            fontSize: '1.25rem',
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+          }}>HERS365</span>
         </div>
 
-        <nav className="flex-1 space-y-2">
-          {menuItems.map((item) => (
-            <SidebarItem
-              key={item.path}
-              {...item}
-              active={location.pathname === item.path}
-              collapsed={collapsed}
-            />
-          ))}
+        {/* Nav */}
+        <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {nav.map(({ icon: Icon, label, path }) => {
+            const active = location.pathname === path;
+            return (
+              <Link key={path} to={path} className="nav-item" style={active ? {
+                background: 'rgba(255,90,45,0.1)',
+                color: '#ff5a2d',
+              } : {}}>
+                <Icon size={18} />
+                {label}
+              </Link>
+            );
+          })}
         </nav>
 
-        <div className="mt-auto space-y-2 pt-4 border-t border-white/5">
-          <SidebarItem 
-            icon={Settings} 
-            label="Settings" 
-            path="/settings" 
-            active={location.pathname === '/settings'}
-            collapsed={collapsed}
-          />
+        {/* Bottom: profile + settings */}
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Link to="/settings" className="nav-item" style={location.pathname === '/settings' ? { color: '#ff5a2d', background: 'rgba(255,90,45,0.1)' } : {}}>
+            <Settings size={18} />
+            Settings
+          </Link>
+          {/* Profile card */}
           <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="w-full flex items-center gap-3 px-4 py-3 text-dark-400 hover:text-white transition-colors"
+            onClick={() => navigate('/profile')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 12px', borderRadius: 8,
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.06)',
+              cursor: 'pointer', marginTop: 8,
+              width: '100%', textAlign: 'left',
+            }}
           >
-            {collapsed ? <Menu size={22} /> : <X size={22} />}
-            {!collapsed && <span className="font-medium">Collapse</span>}
+            <div style={{
+              width: 32, height: 32, borderRadius: '50%',
+              background: 'linear-gradient(135deg, #ff5a2d, #ff8c66)',
+              flexShrink: 0,
+            }} />
+            <div>
+              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>Sarah Watkins</div>
+              <div style={{ fontSize: '0.7rem', color: '#666', marginTop: 1 }}>QB | 2026</div>
+            </div>
           </button>
         </div>
-      </motion.aside>
+      </aside>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      {/* ─── Main ─── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+
         {/* Header */}
-        <header className="h-20 bg-dark-900/50 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-6 z-10">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setMobileMenuOpen(true)}
-              className="md:hidden p-2 text-dark-300"
+        <header style={{
+          height: 64,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 24px',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          background: '#0a0a0a',
+          flexShrink: 0,
+          zIndex: 10,
+        }}>
+          {/* Left: mobile menu + page title */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button
+              onClick={() => setMobileOpen(true)}
+              style={{ display: 'none', color: '#666', background: 'none', border: 'none', cursor: 'pointer' }}
+              className="md-hidden-mobile-btn"
             >
-              <Menu size={24} />
+              <Menu size={22} />
             </button>
-            <h1 className="text-lg font-semibold tracking-tight">
-              {menuItems.find(i => i.path === location.pathname)?.label || 'Platform'}
-            </h1>
+            <span style={{
+              fontFamily: 'Barlow Condensed, sans-serif',
+              fontWeight: 700,
+              fontSize: '1.1rem',
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+              color: '#fff',
+            }}>
+              {nav.find(i => i.path === location.pathname)?.label || 'Platform'}
+            </span>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="relative">
+          {/* Right: search + actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Search */}
+            <div style={{ position: 'relative' }} className="hidden lg:block">
+              <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#555' }} />
               <input
                 type="text"
                 placeholder="Search athletes, drills..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && searchQuery.trim()) {
-                    navigate(`/recruiting?q=${encodeURIComponent(searchQuery.trim())}`);
-                  }
+                style={{
+                  background: '#161616',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 8,
+                  padding: '7px 12px 7px 34px',
+                  fontSize: '0.8rem',
+                  color: '#fff',
+                  width: 220,
+                  outline: 'none',
                 }}
-                className="hidden lg:block w-64 bg-white/5 border border-white/10 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-brand-500/50 transition-all"
+                onFocus={e => (e.target.style.borderColor = 'rgba(255,90,45,0.4)')}
+                onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.08)')}
               />
             </div>
-            <div className="relative" ref={notificationsRef}>
+
+            {/* Notifications */}
+            <div style={{ position: 'relative' }} ref={notifRef}>
               <button
-                onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="p-2 text-dark-300 hover:text-white transition-colors relative"
+                onClick={() => setNotifOpen(!notifOpen)}
+                style={{
+                  position: 'relative', background: 'none', border: 'none',
+                  cursor: 'pointer', color: '#666', padding: 8, borderRadius: 8,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
               >
-                <Bell size={20} />
-                {notifications.filter(n => n.unread).length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-accent rounded-full shadow-[0_0_10px_rgba(34,197,94,0.8)]" />
+                <Bell size={18} />
+                {unreadCount > 0 && (
+                  <span style={{
+                    position: 'absolute', top: 6, right: 6,
+                    width: 7, height: 7, borderRadius: '50%',
+                    background: '#ff5a2d',
+                  }} />
                 )}
               </button>
 
-              {/* Notifications Dropdown */}
               <AnimatePresence>
-                {notificationsOpen && (
+                {notifOpen && (
                   <motion.div
-                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    initial={{ opacity: 0, y: -8, scale: 0.96 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    className="absolute top-full right-0 mt-2 w-80 bg-dark-800/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-50"
+                    exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                    style={{
+                      position: 'absolute', top: '100%', right: 0, marginTop: 8,
+                      width: 300, background: '#111',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: 12, boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
+                      zIndex: 100,
+                    }}
                   >
-                    <div className="p-4 border-b border-white/5">
-                      <h3 className="text-sm font-black uppercase tracking-widest text-white">Notifications</h3>
+                    <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#555' }}>Notifications</span>
                     </div>
-                    <div className="max-h-96 overflow-y-auto">
-                      {notifications.map((notification) => (
-                        <button
-                          key={notification.id}
-                          onClick={() => {
-                            setNotificationsOpen(false);
-                            navigate(notification.action);
-                          }}
-                          className="w-full p-4 border-b border-white/5 hover:bg-white/5 transition-colors text-left"
-                        >
-                          <div className="flex gap-3">
-                            <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-2 ${notification.unread ? 'bg-accent' : 'bg-dark-600'}`} />
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-sm font-bold text-white">{notification.title}</h4>
-                              <p className="text-xs text-dark-300 mt-1">{notification.message}</p>
-                              <p className="text-[10px] text-dark-500 font-bold uppercase tracking-widest mt-2">{notification.time}</p>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="p-4">
-                      <button
-                        onClick={() => {
-                          setNotificationsOpen(false);
-                          navigate('/settings'); // Navigate to settings where notifications can be managed
-                        }}
-                        className="w-full text-center text-xs font-black uppercase tracking-widest text-brand-400 hover:text-brand-300 transition-colors"
-                      >
-                        View All
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-            <button
-              onClick={() => navigate('/messages')}
-              className="p-2 text-dark-300 hover:text-white transition-colors relative"
-            >
-              <MessageSquare size={20} />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-brand-500 rounded-full"></span>
-            </button>
-            <div className="relative" ref={accountRef}>
-              <button
-                onClick={() => setAccountOpen(!accountOpen)}
-                className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-400 to-accent shadow-lg shadow-brand-500/20 cursor-pointer"
-              />
-              {/* Account Dropdown */}
-              <AnimatePresence>
-                {accountOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    className="absolute top-full right-0 mt-2 w-64 bg-dark-800/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-50"
-                  >
-                    <div className="p-4 border-b border-white/5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-400 to-accent shadow-lg shadow-brand-500/20" />
+                    {notifications.map(n => (
+                      <div key={n.id} style={{
+                        padding: '12px 16px',
+                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                        display: 'flex', gap: 10, alignItems: 'flex-start',
+                      }}>
+                        <div style={{
+                          width: 6, height: 6, borderRadius: '50%', marginTop: 5, flexShrink: 0,
+                          background: n.unread ? '#ff5a2d' : '#333',
+                        }} />
                         <div>
-                          <p className="text-sm font-bold text-white">Sarah Johnson</p>
-                          <p className="text-xs text-accent font-bold uppercase tracking-widest">Premium Athlete</p>
+                          <div style={{ fontSize: '0.82rem', color: '#ddd' }}>{n.msg}</div>
+                          <div style={{ fontSize: '0.7rem', color: '#555', marginTop: 3 }}>{n.time}</div>
                         </div>
                       </div>
-                    </div>
-                    <div className="p-2">
-                      <button
-                        onClick={() => navigate('/profile')}
-                        className="w-full text-left px-4 py-3 text-sm text-dark-300 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
-                      >
-                        View Profile
-                      </button>
-                      <button
-                        onClick={() => navigate('/settings')}
-                        className="w-full text-left px-4 py-3 text-sm text-dark-300 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
-                      >
-                        Settings
-                      </button>
-                      <button
-                        onClick={() => {
-                          // Clear local storage and redirect to auth
-                          localStorage.removeItem('user');
-                          localStorage.removeItem('token');
-                          navigate('/auth');
-                        }}
-                        className="w-full text-left px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-colors"
-                      >
-                        Sign Out
-                      </button>
-                    </div>
+                    ))}
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
+
+            {/* Messages */}
+            <button
+              onClick={() => navigate('/messages')}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: '#666', padding: 8, borderRadius: 8,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                position: 'relative',
+              }}
+            >
+              <MessageSquare size={18} />
+              <span style={{
+                position: 'absolute', top: 6, right: 6,
+                width: 7, height: 7, borderRadius: '50%', background: '#ff5a2d',
+              }} />
+            </button>
+
+            {/* Post highlight CTA */}
+            <button
+              onClick={() => navigate('/training')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                background: '#ff5a2d', color: '#fff',
+                border: 'none', borderRadius: 8,
+                padding: '8px 14px',
+                fontSize: '0.78rem', fontWeight: 700,
+                cursor: 'pointer',
+                letterSpacing: '0.03em',
+              }}
+            >
+              <Plus size={14} />
+              POST HIGHLIGHT
+            </button>
+
+            {/* Avatar */}
+            <button
+              onClick={() => navigate('/profile')}
+              style={{
+                width: 32, height: 32, borderRadius: '50%',
+                background: 'linear-gradient(135deg, #ff5a2d, #ff8c66)',
+                border: 'none', cursor: 'pointer', flexShrink: 0,
+              }}
+            />
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-6 scroll-smooth">
+        <main style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
             >
               <Outlet />
             </motion.div>
@@ -299,42 +296,37 @@ export const Layout = () => {
         </main>
       </div>
 
-      {/* Mobile Menu Overlay */}
+      {/* Mobile menu overlay */}
       <AnimatePresence>
-        {mobileMenuOpen && (
+        {mobileOpen && (
           <>
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setMobileMenuOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setMobileOpen(false)}
+              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 30 }}
             />
             <motion.nav
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              className="fixed inset-y-0 left-0 w-72 bg-dark-800 z-40 p-6 flex flex-col md:hidden"
+              initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
+              transition={{ type: 'tween', duration: 0.22 }}
+              style={{
+                position: 'fixed', inset: '0 auto 0 0', width: 260,
+                background: '#111', zIndex: 40, padding: 24,
+                display: 'flex', flexDirection: 'column', gap: 4,
+              }}
             >
-              <div className="flex items-center justify-between mb-10">
-                <span className="text-xl font-bold tracking-tighter uppercase text-gradient">HERS365</span>
-                <button onClick={() => setMobileMenuOpen(false)}>
-                  <X size={24} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.2rem', letterSpacing: '0.05em' }}>HERS365</span>
+                <button onClick={() => setMobileOpen(false)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer' }}>
+                  <X size={20} />
                 </button>
               </div>
-              <div className="space-y-4">
-                {menuItems.map((item) => (
-                  <Link 
-                    key={item.path} 
-                    to={item.path}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-4 text-lg font-medium text-dark-300 hover:text-white"
-                  >
-                    <item.icon size={24} />
-                    {item.label}
-                  </Link>
-                ))}
-              </div>
+              {nav.map(({ icon: Icon, label, path }) => (
+                <Link key={path} to={path} onClick={() => setMobileOpen(false)} className="nav-item"
+                  style={location.pathname === path ? { color: '#ff5a2d', background: 'rgba(255,90,45,0.1)' } : {}}>
+                  <Icon size={18} />
+                  {label}
+                </Link>
+              ))}
             </motion.nav>
           </>
         )}
