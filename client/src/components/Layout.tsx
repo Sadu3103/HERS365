@@ -1,27 +1,33 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Home, Trophy, User, Dumbbell, Search,
-  Users, Shield, Settings, Bell, MessageSquare,
-  Menu, X, Plus, Zap
+  LayoutGrid, Trophy, User, Dumbbell, Search,
+  Settings, Bell, MessageSquare, Menu, X, Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const nav = [
-  { icon: Home,     label: 'Feed',       path: '/' },
-  { icon: Trophy,   label: 'Rankings',   path: '/rankings' },
-  { icon: User,     label: 'Profile',    path: '/profile' },
-  { icon: Dumbbell, label: 'Training',   path: '/training' },
-  { icon: Search,   label: 'Recruiting', path: '/recruiting' },
-  { icon: Users,    label: 'Teams',      path: '/teams' },
-  { icon: Shield,   label: 'Compliance', path: '/audit' },
+interface NavItem {
+  icon: React.ElementType;
+  label: string;
+  path: string;
+  badge?: number;
+}
+
+const nav: NavItem[] = [
+  { icon: LayoutGrid,    label: 'THE GRID',   path: '/' },
+  { icon: Trophy,        label: 'RANKINGS',   path: '/rankings' },
+  { icon: User,          label: 'MY PROFILE', path: '/profile' },
+  { icon: Dumbbell,      label: 'TRAINING',   path: '/training' },
+  { icon: Search,        label: 'RECRUITING', path: '/recruiting' },
+  { icon: MessageSquare, label: 'MESSAGES',   path: '/messages', badge: 3 },
 ];
 
 export const Layout = () => {
-  const location = useLocation();
+  const location  = useLocation();
   const navigate  = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifOpen,  setNotifOpen]  = useState(false);
+  const [mode,       setMode]       = useState<'athlete' | 'coach'>('athlete');
   const notifRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,9 +39,9 @@ export const Layout = () => {
   }, []);
 
   const notifications = [
-    { id: 1, msg: 'Coach Johnson viewed your profile', time: '2m ago', unread: true },
-    { id: 2, msg: 'Agility session starts in 30 minutes', time: '15m ago', unread: true },
-    { id: 3, msg: 'You moved up to #42 in rankings', time: '1h ago', unread: false },
+    { id: 1, msg: 'Coach Johnson viewed your profile',  time: '2m ago',  unread: true  },
+    { id: 2, msg: 'Agility session starts in 30 minutes', time: '15m ago', unread: true  },
+    { id: 3, msg: 'You moved up to #42 in rankings',   time: '1h ago',  unread: false },
   ];
   const unreadCount = notifications.filter(n => n.unread).length;
 
@@ -48,53 +54,95 @@ export const Layout = () => {
         flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
-        borderRight: '1px solid rgba(255,255,255,0.06)',
-        padding: '24px 16px',
+        padding: '28px 16px',
         background: '#0a0a0a',
       }} className="hidden md:flex">
 
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 36, paddingLeft: 4 }}>
-          <div style={{
-            width: 32, height: 32,
-            background: '#ff5a2d',
-            borderRadius: 8,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 16px rgba(255,90,45,0.35)',
-            flexShrink: 0,
-          }}>
-            <Zap size={18} color="#fff" fill="#fff" />
-          </div>
+        {/* Logo — plain text, no icon */}
+        <div style={{ marginBottom: 20, paddingLeft: 4 }}>
           <span style={{
             fontFamily: 'Barlow Condensed, sans-serif',
-            fontWeight: 800,
-            fontSize: '1.25rem',
-            letterSpacing: '0.05em',
+            fontWeight: 900,
+            fontSize: '1.6rem',
+            letterSpacing: '0.04em',
             textTransform: 'uppercase',
             color: '#fff',
-          }}>HERS365</span>
+          }}>HERS 365</span>
+        </div>
+
+        {/* ATHLETE / COACH toggle */}
+        <div style={{
+          display: 'flex',
+          background: '#161616',
+          borderRadius: 9999,
+          padding: 3,
+          marginBottom: 32,
+        }}>
+          {(['athlete', 'coach'] as const).map(m => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              style={{
+                flex: 1,
+                padding: '6px 0',
+                borderRadius: 9999,
+                background: mode === m ? '#ff5a2d' : 'transparent',
+                color: mode === m ? '#fff' : '#555',
+                fontSize: '0.68rem',
+                fontWeight: 800,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              {m === 'athlete' ? 'ATHLETE' : 'COACH'}
+            </button>
+          ))}
         </div>
 
         {/* Nav */}
         <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {nav.map(({ icon: Icon, label, path }) => {
+          {nav.map(({ icon: Icon, label, path, badge }) => {
             const active = location.pathname === path;
             return (
-              <Link key={path} to={path} className={`nav-item${active ? ' nav-active' : ''}`}>
-                <Icon size={18} color={active ? '#ff5a2d' : undefined} />
-                {label}
+              <Link
+                key={path}
+                to={path}
+                className={`nav-item${active ? ' nav-active' : ''}`}
+                style={{ justifyContent: 'space-between', fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.04em' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <Icon size={17} color={active ? '#ff5a2d' : undefined} />
+                  {label}
+                </div>
+                {badge && (
+                  <div style={{
+                    minWidth: 18, height: 18, borderRadius: 9999,
+                    background: '#ff5a2d',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '0 5px', flexShrink: 0,
+                  }}>
+                    <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#fff' }}>{badge}</span>
+                  </div>
+                )}
               </Link>
             );
           })}
         </nav>
 
-        {/* Bottom: profile + settings */}
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Link to="/settings" className={`nav-item${location.pathname === '/settings' ? ' nav-active' : ''}`}>
-            <Settings size={18} />
-            Settings
+        {/* Bottom: settings + profile card */}
+        <div style={{ paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Link
+            to="/settings"
+            className={`nav-item${location.pathname === '/settings' ? ' nav-active' : ''}`}
+            style={{ fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.04em' }}
+          >
+            <Settings size={17} />
+            SETTINGS
           </Link>
-          {/* Profile card */}
+
           <button
             onClick={() => navigate('/profile')}
             style={{
@@ -102,7 +150,7 @@ export const Layout = () => {
               padding: '10px 12px', borderRadius: 10,
               background: 'rgba(255,255,255,0.03)',
               border: '1px solid rgba(255,255,255,0.07)',
-              cursor: 'pointer', marginTop: 8,
+              cursor: 'pointer', marginTop: 10,
               width: '100%', textAlign: 'left',
               transition: 'border-color 0.15s ease, background 0.15s ease',
             }}
@@ -142,63 +190,49 @@ export const Layout = () => {
         {/* Header */}
         <header style={{
           height: 64,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          display: 'flex', alignItems: 'center',
           padding: '0 24px',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
           background: '#0a0a0a',
           flexShrink: 0,
           zIndex: 10,
+          gap: 16,
         }}>
-          {/* Left: mobile menu + page title */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button
-              onClick={() => setMobileOpen(true)}
-              style={{ display: 'none', color: '#666', background: 'none', border: 'none', cursor: 'pointer' }}
-              className="md-hidden-mobile-btn"
-            >
-              <Menu size={22} />
-            </button>
-            <span style={{
-              fontFamily: 'Barlow Condensed, sans-serif',
-              fontWeight: 700,
-              fontSize: '1.1rem',
-              letterSpacing: '0.05em',
-              textTransform: 'uppercase',
-              color: '#fff',
-            }}>
-              {nav.find(i => i.path === location.pathname)?.label || 'Platform'}
-            </span>
+          {/* Mobile menu */}
+          <button
+            onClick={() => setMobileOpen(true)}
+            style={{ display: 'none', color: '#666', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}
+            className="md-hidden-mobile-btn"
+          >
+            <Menu size={22} />
+          </button>
+
+          {/* Search — centered and wide */}
+          <div style={{ flex: 1, position: 'relative', maxWidth: 540 }}>
+            <Search size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#555', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              placeholder="Search athletes, drills, schools..."
+              style={{
+                width: '100%',
+                background: '#161616',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 9999,
+                padding: '8px 18px 8px 38px',
+                fontSize: '0.8rem',
+                color: '#fff',
+                outline: 'none',
+                transition: 'border-color 0.15s',
+              }}
+              onFocus={e => (e.target.style.borderColor = 'rgba(255,90,45,0.4)')}
+              onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.08)')}
+            />
           </div>
 
-          {/* Right: search + actions */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* Search */}
-            <div style={{ position: 'relative' }} className="hidden lg:block">
-              <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#555' }} />
-              <input
-                type="text"
-                placeholder="Search athletes, drills..."
-                style={{
-                  background: '#161616',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: 8,
-                  padding: '7px 12px 7px 34px',
-                  fontSize: '0.8rem',
-                  color: '#fff',
-                  width: 220,
-                  outline: 'none',
-                }}
-                onFocus={e => (e.target.style.borderColor = 'rgba(255,90,45,0.4)')}
-                onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.08)')}
-              />
-            </div>
-
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             {/* Notifications */}
             <div style={{ position: 'relative' }} ref={notifRef}>
-              <button
-                onClick={() => setNotifOpen(!notifOpen)}
-                className="k-icon-btn"
-              >
+              <button onClick={() => setNotifOpen(!notifOpen)} className="k-icon-btn">
                 <Bell size={18} />
                 {unreadCount > 0 && (
                   <span style={{
@@ -247,38 +281,24 @@ export const Layout = () => {
               </AnimatePresence>
             </div>
 
-            {/* Messages */}
-            <button
-              onClick={() => navigate('/messages')}
-              className="k-icon-btn"
-              style={{ position: 'relative' }}
-            >
-              <MessageSquare size={18} />
-              <span style={{
-                position: 'absolute', top: 6, right: 6,
-                width: 7, height: 7, borderRadius: '50%', background: '#ff5a2d',
-              }} />
-            </button>
-
-            {/* Post highlight CTA */}
+            {/* POST HIGHLIGHT — full pill */}
             <button
               onClick={() => navigate('/training')}
               className="k-btn k-btn-primary"
-              style={{ padding: '8px 14px' }}
+              style={{ padding: '8px 18px', borderRadius: 9999 }}
             >
               <Plus size={14} />
               POST HIGHLIGHT
             </button>
 
-            {/* Avatar with coral ring */}
+            {/* Avatar */}
             <button
               onClick={() => navigate('/profile')}
               style={{
                 width: 34, height: 34, borderRadius: '50%',
                 background: 'linear-gradient(135deg, #ff5a2d, #ff8c66)',
                 border: '2px solid rgba(255,90,45,0.5)',
-                cursor: 'pointer', flexShrink: 0,
-                padding: 0,
+                cursor: 'pointer', flexShrink: 0, padding: 0,
                 transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
                 boxShadow: '0 0 0 0 rgba(255,90,45,0)',
               }}
@@ -329,15 +349,15 @@ export const Layout = () => {
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.2rem', letterSpacing: '0.05em' }}>HERS365</span>
+                <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 900, fontSize: '1.4rem', letterSpacing: '0.04em' }}>HERS 365</span>
                 <button onClick={() => setMobileOpen(false)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer' }}>
                   <X size={20} />
                 </button>
               </div>
               {nav.map(({ icon: Icon, label, path }) => (
                 <Link key={path} to={path} onClick={() => setMobileOpen(false)} className="nav-item"
-                  style={location.pathname === path ? { color: '#ff5a2d', background: 'rgba(255,90,45,0.1)' } : {}}>
-                  <Icon size={18} />
+                  style={location.pathname === path ? { color: '#ff5a2d', background: 'rgba(255,90,45,0.1)', fontWeight: 700, fontSize: '0.78rem' } : { fontWeight: 700, fontSize: '0.78rem' }}>
+                  <Icon size={17} />
                   {label}
                 </Link>
               ))}
