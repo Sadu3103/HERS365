@@ -165,9 +165,9 @@ export const Layout = () => {
           >
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <img
-                src="https://api.dicebear.com/7.x/avataaars/svg?seed=SarahWatkins"
+                src="https://randomuser.me/api/portraits/women/44.jpg"
                 alt="Sarah Watkins"
-                style={{ width: 32, height: 32, borderRadius: '50%', background: '#1c1c1c', border: '1.5px solid rgba(255,90,45,0.4)' }}
+                style={{ width: 32, height: 32, borderRadius: '50%', background: '#1c1c1c', border: '1.5px solid rgba(255,90,45,0.4)', objectFit: 'cover' }}
               />
               <div style={{
                 position: 'absolute', bottom: 0, right: 0,

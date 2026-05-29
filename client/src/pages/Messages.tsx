@@ -40,11 +40,17 @@ const mockMsgs: Msg[] = [
 const roleColor: Record<string, string> = { coach: '#60a5fa', athlete: '#4ade80', recruiter: '#c084fc' };
 const roleLabel: Record<string, string> = { coach: 'Coach', athlete: 'Athlete', recruiter: 'Recruiter' };
 
+function nameToIdx(name: string) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
+  return (h % 90) + 1;
+}
+
 function Avatar({ name, size = 36, online }: { name: string; size?: number; online?: boolean }) {
   return (
     <div style={{ position: 'relative', flexShrink: 0 }}>
-      <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`}
-        alt={name} style={{ width: size, height: size, borderRadius: '50%', background: '#1c1c1c' }} />
+      <img src={`https://randomuser.me/api/portraits/women/${nameToIdx(name)}.jpg`}
+        alt={name} style={{ width: size, height: size, borderRadius: '50%', background: '#1c1c1c', objectFit: 'cover' }} />
       {online && (
         <div style={{ position: 'absolute', bottom: 1, right: 1, width: 9, height: 9, borderRadius: '50%', background: '#4ade80', border: '2px solid #0a0a0a' }} />
       )}

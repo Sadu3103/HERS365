@@ -68,9 +68,9 @@ export const Profile = () => {
           {/* Avatar */}
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <img
-              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(profile.name)}`}
+              src="https://randomuser.me/api/portraits/women/44.jpg"
               alt={profile.name}
-              style={{ width: 80, height: 80, borderRadius: '50%', background: '#1c1c1c', border: '2px solid rgba(255,90,45,0.3)' }}
+              style={{ width: 80, height: 80, borderRadius: '50%', background: '#1c1c1c', border: '2px solid rgba(255,90,45,0.3)', objectFit: 'cover' }}
             />
             {profile.verified && (
               <div style={{ position: 'absolute', bottom: 2, right: 2 }}>

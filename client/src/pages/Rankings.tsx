@@ -17,10 +17,16 @@ const players = [
 
 const positions = ['All', 'QB', 'RB', 'WR', 'TE', 'LB', 'DB'];
 
+function nameToIdx(name: string) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
+  return (h % 90) + 1;
+}
+
 function Avatar({ name, size = 36 }: { name: string; size?: number }) {
   return (
-    <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`}
-      alt={name} style={{ width: size, height: size, borderRadius: '50%', background: '#1c1c1c', flexShrink: 0 }} />
+    <img src={`https://randomuser.me/api/portraits/women/${nameToIdx(name)}.jpg`}
+      alt={name} style={{ width: size, height: size, borderRadius: '50%', background: '#1c1c1c', flexShrink: 0, objectFit: 'cover' }} />
   );
 }
 
