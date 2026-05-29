@@ -1,360 +1,224 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import {
-  Dumbbell,
-  Target,
-  Calendar,
-  Clock,
-  Play,
-  CheckCircle,
-  Circle,
-  TrendingUp,
-  Award,
-  Flame,
-  Timer,
-  Activity
-} from 'lucide-react';
+import { Play, CheckCircle, Clock, Flame, ChevronRight, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-interface TrainingProgram {
-  id: number;
-  name: string;
-  description: string;
-  duration: string;
-  level: 'Beginner' | 'Intermediate' | 'Advanced' | 'Elite';
-  category: string;
-  progress: number;
-  totalSessions: number;
-  completedSessions: number;
-  nextSession?: string;
-  image: string;
-}
+const programs = [
+  { id: 1, name: 'Elite QB Development',    cat: 'Quarterback',  done: 18, total: 24, level: 'Advanced', next: 'Pocket Presence & Footwork',   locked: false },
+  { id: 2, name: 'Speed & Agility Mastery', cat: 'Conditioning', done: 12, total: 18, level: 'Intermediate', next: 'L-Drill Progression',           locked: false },
+  { id: 3, name: 'Route Running Academy',   cat: 'Wide Receiver', done: 4,  total: 20, level: 'Elite',     next: 'Double-Move Releases',          locked: false },
+  { id: 4, name: 'DB Lockdown System',      cat: 'Defense',      done: 0,  total: 16, level: 'Advanced',  next: 'Press Coverage Fundamentals',   locked: true  },
+];
 
-interface WorkoutSession {
-  id: number;
-  name: string;
-  exercises: string[];
-  duration: number;
-  completed: boolean;
-  date: string;
-}
+const todayDrills = [
+  { id: 1, name: 'Pocket Presence & Footwork', dur: '18 min', cat: 'QB',       done: false },
+  { id: 2, name: '3-Step Drop Progression',     dur: '12 min', cat: 'QB',       done: true  },
+  { id: 3, name: 'L-Drill Cone Work',           dur: '10 min', cat: 'Agility',  done: true  },
+  { id: 4, name: 'Single-Leg RDL Series',       dur: '15 min', cat: 'Strength', done: false },
+  { id: 5, name: 'Hand Fighting Drills',        dur: '8 min',  cat: 'DB',       done: false },
+];
+
+const levelColor: Record<string, string> = {
+  Beginner:     'rgba(100,200,100,0.15)',
+  Intermediate: 'rgba(255,180,50,0.12)',
+  Advanced:     'rgba(255,90,45,0.12)',
+  Elite:        'rgba(200,50,255,0.12)',
+};
+const levelText: Record<string, string> = {
+  Beginner: '#64c864', Intermediate: '#ffb432', Advanced: '#ff5a2d', Elite: '#c832ff',
+};
 
 export const Training = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'programs' | 'sessions' | 'progress'>('programs');
-  const [programs, setPrograms] = useState<TrainingProgram[]>([]);
-  const [todaySessions, setTodaySessions] = useState<WorkoutSession[]>([]);
+  const [drills, setDrills] = useState(todayDrills);
 
-  useEffect(() => {
-    // Mock data - in real app, fetch from API
-    const mockPrograms: TrainingProgram[] = [
-      {
-        id: 1,
-        name: 'Elite QB Development',
-        description: 'Comprehensive quarterback training program focusing on accuracy, decision-making, and leadership.',
-        duration: '12 weeks',
-        level: 'Advanced',
-        category: 'Position Specific',
-        progress: 75,
-        totalSessions: 36,
-        completedSessions: 27,
-        nextSession: 'Tomorrow',
-        image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=400'
-      },
-      {
-        id: 2,
-        name: 'Speed & Agility Mastery',
-        description: 'Advanced training for explosive speed, quick directional changes, and footwork.',
-        duration: '8 weeks',
-        level: 'Elite',
-        category: 'Athletic Development',
-        progress: 60,
-        totalSessions: 24,
-        completedSessions: 14,
-        nextSession: 'Today',
-        image: 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?auto=format&fit=crop&q=80&w=400'
-      },
-      {
-        id: 3,
-        name: 'Strength Foundation',
-        description: 'Build a solid strength base with compound movements and progressive overload.',
-        duration: '10 weeks',
-        level: 'Intermediate',
-        category: 'Strength Training',
-        progress: 40,
-        totalSessions: 30,
-        completedSessions: 12,
-        image: 'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b?auto=format&fit=crop&q=80&w=400'
-      },
-      {
-        id: 4,
-        name: 'Football Fundamentals',
-        description: 'Master the basics of football technique, strategy, and team play.',
-        duration: '6 weeks',
-        level: 'Beginner',
-        category: 'Fundamentals',
-        progress: 90,
-        totalSessions: 18,
-        completedSessions: 16,
-        image: 'https://images.unsplash.com/photo-1560272564-c83b66b1ad12?auto=format&fit=crop&q=80&w=400'
-      }
-    ];
+  const toggleDrill = (id: number) =>
+    setDrills(prev => prev.map(d => d.id === id ? { ...d, done: !d.done } : d));
 
-    const mockSessions: WorkoutSession[] = [
-      {
-        id: 1,
-        name: 'QB Footwork & Accuracy',
-        exercises: ['Drop back drills', 'Target practice', 'Decision training'],
-        duration: 90,
-        completed: false,
-        date: 'Today'
-      },
-      {
-        id: 2,
-        name: 'Speed Training',
-        exercises: ['40-yard dashes', 'Agility ladder', 'Hill sprints'],
-        duration: 60,
-        completed: false,
-        date: 'Today'
-      },
-      {
-        id: 3,
-        name: 'Strength Session',
-        exercises: ['Squats', 'Bench press', 'Deadlifts'],
-        duration: 75,
-        completed: true,
-        date: 'Yesterday'
-      }
-    ];
-
-    setPrograms(mockPrograms);
-    setTodaySessions(mockSessions);
-  }, []);
-
-  const getLevelColor = (level: string) => {
-    switch (level) {
-      case 'Beginner': return 'text-green-500';
-      case 'Intermediate': return 'text-yellow-500';
-      case 'Advanced': return 'text-orange-500';
-      case 'Elite': return 'text-red-500';
-      default: return 'text-dark-400';
-    }
-  };
-
-  const getProgressColor = (progress: number) => {
-    if (progress >= 80) return 'bg-accent';
-    if (progress >= 60) return 'bg-yellow-500';
-    if (progress >= 40) return 'bg-orange-500';
-    return 'bg-red-500';
-  };
+  const completedToday = drills.filter(d => d.done).length;
+  const streak = 12;
 
   return (
-    <div className="max-w-7xl mx-auto py-8">
+    <div style={{ padding: '24px', maxWidth: 1100, margin: '0 auto' }}>
+
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-black text-white uppercase tracking-tighter mb-4">
-          Training Center
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '2rem', textTransform: 'uppercase', color: '#fff', marginBottom: 4 }}>
+          Training Academy
         </h1>
-        <p className="text-dark-300 text-lg">
-          Personalized training programs designed for female athletes
-        </p>
+        <p style={{ color: '#555', fontSize: '0.85rem' }}>Your personalized path to elite performance</p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 mb-8">
+      {/* Top stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 28 }}>
         {[
-          { id: 'programs', label: 'Programs', icon: Dumbbell },
-          { id: 'sessions', label: 'Today\'s Sessions', icon: Calendar },
-          { id: 'progress', label: 'Progress', icon: TrendingUp }
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold uppercase tracking-widest transition-all ${
-              activeTab === tab.id
-                ? 'bg-brand-500 text-white'
-                : 'text-dark-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <tab.icon size={18} />
-            {tab.label}
-          </button>
+          { label: 'STREAK',       value: `${streak} Days`,        sub: 'Keep it going' },
+          { label: 'THIS WEEK',    value: `${completedToday}/5`,    sub: 'Drills today' },
+          { label: 'COMPLETION',   value: '74%',                    sub: 'Program avg' },
+          { label: 'LEVEL',        value: 'Advanced',               sub: 'Current tier' },
+        ].map(({ label, value, sub }) => (
+          <div key={label} className="k-card" style={{ padding: '16px 18px' }}>
+            <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555', marginBottom: 6 }}>{label}</div>
+            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.5rem', color: '#fff', lineHeight: 1, marginBottom: 4 }}>{value}</div>
+            <div style={{ fontSize: '0.7rem', color: '#444' }}>{sub}</div>
+          </div>
         ))}
       </div>
 
-      {/* Programs Tab */}
-      {activeTab === 'programs' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {programs.map((program) => (
-            <motion.div
-              key={program.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="glass-card p-6 group cursor-pointer hover:scale-105 transition-all"
-              onClick={() => navigate(`/training/program/${program.id}`)}
-            >
-              <div className="relative mb-4">
-                <img
-                  src={program.image}
-                  alt={program.name}
-                  className="w-full h-48 object-cover rounded-xl"
-                />
-                <div className="absolute top-4 right-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest bg-dark-900/80 ${getLevelColor(program.level)}`}>
-                    {program.level}
-                  </span>
-                </div>
-                {program.nextSession && (
-                  <div className="absolute bottom-4 left-4">
-                    <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest bg-accent text-white">
-                      Next: {program.nextSession}
-                    </span>
-                  </div>
-                )}
-              </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20 }}>
 
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-xl font-bold text-white mb-2 group-hover:text-brand-400 transition-colors">
-                    {program.name}
-                  </h3>
-                  <p className="text-dark-300 text-sm">{program.description}</p>
-                </div>
+        {/* Left: Programs */}
+        <div>
+          <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555', marginBottom: 14 }}>Active Programs</div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-dark-400">{program.category}</span>
-                  <span className="text-dark-400">{program.duration}</span>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-dark-400">Progress</span>
-                    <span className="text-white font-bold">{program.progress}%</span>
-                  </div>
-                  <div className="w-full bg-dark-700 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full transition-all duration-500 ${getProgressColor(program.progress)}`}
-                      style={{ width: `${program.progress}%` }}
-                    />
-                  </div>
-                  <div className="text-xs text-dark-500">
-                    {program.completedSessions} of {program.totalSessions} sessions completed
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      )}
-
-      {/* Sessions Tab */}
-      {activeTab === 'sessions' && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Today's Workouts</h2>
-            <div className="flex items-center gap-2 text-accent">
-              <Flame size={20} />
-              <span className="font-bold">3 Sessions</span>
-            </div>
-          </div>
-
-          {todaySessions.map((session) => (
-            <motion.div
-              key={session.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="glass-card p-6"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                    session.completed ? 'bg-accent' : 'bg-brand-500'
-                  }`}>
-                    {session.completed ? (
-                      <CheckCircle className="text-white" size={24} />
-                    ) : (
-                      <Play className="text-white" size={24} />
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-white">{session.name}</h3>
-                    <div className="flex items-center gap-4 text-sm text-dark-400">
-                      <div className="flex items-center gap-1">
-                        <Clock size={14} />
-                        {session.duration} min
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {programs.map((p, i) => {
+              const pct = Math.round((p.done / p.total) * 100);
+              return (
+                <motion.div key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
+                  className="k-card-hover" style={{ padding: '18px 20px', opacity: p.locked ? 0.5 : 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                        <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff' }}>{p.name}</span>
+                        {p.locked && <Lock size={12} color="#555" />}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Activity size={14} />
-                        {session.exercises.length} exercises
-                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#555' }}>{p.cat}</div>
+                    </div>
+                    <span style={{
+                      background: levelColor[p.level] || 'rgba(255,90,45,0.12)',
+                      color: levelText[p.level] || '#ff5a2d',
+                      fontSize: '0.65rem', fontWeight: 700,
+                      padding: '3px 8px', borderRadius: 4,
+                      letterSpacing: '0.06em', textTransform: 'uppercase',
+                      flexShrink: 0, marginLeft: 12,
+                    }}>{p.level}</span>
+                  </div>
+
+                  {/* Progress */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ fontSize: '0.72rem', color: '#666' }}>{p.done}/{p.total} sessions</span>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#ff5a2d' }}>{pct}%</span>
+                    </div>
+                    <div className="k-progress-track">
+                      <div className="k-progress-fill" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
-                </div>
 
-                <div className="text-right">
-                  <div className="text-sm text-dark-400 mb-2">{session.date}</div>
-                  {!session.completed && (
-                    <button className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg font-bold uppercase tracking-widest transition-colors">
-                      Start Workout
-                    </button>
+                  {/* Next session */}
+                  {!p.locked && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ fontSize: '0.65rem', color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>Next</div>
+                        <div style={{ fontSize: '0.8rem', color: '#ccc', fontWeight: 500 }}>{p.next}</div>
+                      </div>
+                      <button style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        background: '#ff5a2d', border: 'none', borderRadius: 7,
+                        color: '#fff', fontSize: '0.75rem', fontWeight: 700,
+                        padding: '8px 14px', cursor: 'pointer',
+                        letterSpacing: '0.04em',
+                      }}>
+                        <Play size={12} fill="#fff" /> START
+                      </button>
+                    </div>
                   )}
-                </div>
-              </div>
-
-              {!session.completed && (
-                <div className="mt-4 pt-4 border-t border-white/5">
-                  <div className="flex flex-wrap gap-2">
-                    {session.exercises.map((exercise, idx) => (
-                      <span key={idx} className="px-3 py-1 bg-dark-800 rounded-full text-xs text-dark-300">
-                        {exercise}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          ))}
+                </motion.div>
+              );
+            })}
+          </div>
         </div>
-      )}
 
-      {/* Progress Tab */}
-      {activeTab === 'progress' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Weekly Stats */}
-          <div className="glass-card p-6">
-            <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Weekly Stats</h3>
-            <div className="space-y-4">
-              {[
-                { label: 'Workouts Completed', value: '5/7', icon: CheckCircle, color: 'text-accent' },
-                { label: 'Total Training Time', value: '8.5 hrs', icon: Timer, color: 'text-blue-500' },
-                { label: 'Personal Records', value: '3', icon: Award, color: 'text-yellow-500' },
-                { label: 'Consistency Streak', value: '12 days', icon: Flame, color: 'text-red-500' }
-              ].map((stat) => (
-                <div key={stat.label} className="flex items-center justify-between p-4 bg-dark-800/50 rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <stat.icon className={stat.color} size={20} />
-                    <span className="text-dark-300">{stat.label}</span>
+        {/* Right: Today's drills */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* Today's session */}
+          <div className="k-card" style={{ padding: '18px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <span style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555' }}>Today's Session</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Flame size={13} color="#ff5a2d" />
+                <span style={{ fontSize: '0.75rem', color: '#ff5a2d', fontWeight: 700 }}>{completedToday}/{drills.length}</span>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div className="k-progress-track" style={{ marginBottom: 16 }}>
+              <div className="k-progress-fill" style={{ width: `${(completedToday / drills.length) * 100}%` }} />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {drills.map(d => (
+                <button key={d.id} onClick={() => toggleDrill(d.id)} style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  padding: '8px 0', textAlign: 'left',
+                  borderBottom: '1px solid rgba(255,255,255,0.04)',
+                  opacity: d.done ? 0.5 : 1,
+                  transition: 'opacity 0.15s',
+                }}>
+                  {d.done
+                    ? <CheckCircle size={16} color="#ff5a2d" fill="#ff5a2d" style={{ flexShrink: 0 }} />
+                    : <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1.5px solid #333', flexShrink: 0 }} />
+                  }
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.82rem', color: d.done ? '#555' : '#ccc', fontWeight: 500, textDecoration: d.done ? 'line-through' : 'none' }}>{d.name}</div>
+                    <div style={{ fontSize: '0.68rem', color: '#444', marginTop: 1 }}>{d.cat}</div>
                   </div>
-                  <span className="text-white font-bold">{stat.value}</span>
-                </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                    <Clock size={11} color="#444" />
+                    <span style={{ fontSize: '0.68rem', color: '#444' }}>{d.dur}</span>
+                  </div>
+                </button>
               ))}
             </div>
           </div>
 
-          {/* Performance Chart Placeholder */}
-          <div className="glass-card p-6">
-            <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Performance Trends</h3>
-            <div className="h-64 flex items-center justify-center bg-dark-800/50 rounded-xl">
-              <div className="text-center">
-                <TrendingUp className="mx-auto text-brand-500 mb-4" size={48} />
-                <p className="text-dark-400">Performance chart coming soon</p>
-                <p className="text-sm text-dark-500 mt-2">Track your improvement over time</p>
-              </div>
+          {/* Weekly streak */}
+          <div className="k-card" style={{ padding: '18px 16px' }}>
+            <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555', marginBottom: 14 }}>Weekly Streak</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => {
+                const active = i < 5;
+                return (
+                  <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <div style={{
+                      width: 32, height: 32, borderRadius: '50%',
+                      background: active ? '#ff5a2d' : 'rgba(255,255,255,0.04)',
+                      border: active ? 'none' : '1px solid rgba(255,255,255,0.06)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {active && <CheckCircle size={14} color="#fff" />}
+                    </div>
+                    <span style={{ fontSize: '0.65rem', color: active ? '#ff5a2d' : '#444', fontWeight: 600 }}>{day}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
+
+          {/* Quick actions */}
+          <div className="k-card" style={{ padding: '18px 16px' }}>
+            <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555', marginBottom: 14 }}>Quick Actions</div>
+            {[
+              { label: 'Browse All Drills',     path: '/drills' },
+              { label: 'Schedule a Session',    path: '/events' },
+              { label: 'Track Performance',     path: '/rankings' },
+            ].map(({ label, path }) => (
+              <button key={label} onClick={() => navigate(path)} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                width: '100%', background: 'none', border: 'none',
+                padding: '9px 0', borderBottom: '1px solid rgba(255,255,255,0.04)',
+                cursor: 'pointer', color: '#ccc', fontSize: '0.82rem', fontWeight: 500,
+              }}>
+                {label}
+                <ChevronRight size={14} color="#444" />
+              </button>
+            ))}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };

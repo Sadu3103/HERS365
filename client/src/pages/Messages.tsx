@@ -1,373 +1,203 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Send, Search, MoreVertical, Phone, Video, Check, CheckCheck, Paperclip, Smile, CheckCircle2 } from 'lucide-react';
 
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import {
-  MessageSquare,
-  Send,
-  Search,
-  MoreVertical,
-  Phone,
-  Video,
-  User,
-  Clock,
-  Check,
-  CheckCheck,
-  Image,
-  Paperclip,
-  Smile
-} from 'lucide-react';
-
-interface Conversation {
+interface Convo {
   id: number;
-  participant: {
-    name: string;
-    avatar: string;
-    role: 'coach' | 'athlete' | 'recruiter';
-    isOnline: boolean;
-  };
-  lastMessage: {
-    text: string;
-    timestamp: string;
-    isFromMe: boolean;
-    isRead: boolean;
-  };
-  unreadCount: number;
+  name: string;
+  role: 'coach' | 'athlete' | 'recruiter';
+  online: boolean;
+  lastMsg: string;
+  time: string;
+  fromMe: boolean;
+  unread: number;
 }
 
-interface Message {
+interface Msg {
   id: number;
   text: string;
-  timestamp: string;
-  isFromMe: boolean;
-  isRead: boolean;
-  type: 'text' | 'image' | 'file';
-  attachment?: string;
+  time: string;
+  fromMe: boolean;
+  read: boolean;
+}
+
+const convos: Convo[] = [
+  { id: 1, name: 'Coach Anderson',  role: 'coach',     online: true,  lastMsg: 'Great game last Friday! Your performance was outstanding.', time: '2m ago',  fromMe: false, unread: 2 },
+  { id: 2, name: 'Sarah Johnson',   role: 'athlete',   online: false, lastMsg: 'Thanks for the feedback on my QB mechanics!',               time: '1h ago',  fromMe: true,  unread: 0 },
+  { id: 3, name: 'Recruiter Mike',  role: 'recruiter', online: true,  lastMsg: "We'd love to discuss your future at State University.",       time: '3h ago',  fromMe: false, unread: 1 },
+  { id: 4, name: 'Maya Johnson',    role: 'athlete',   online: true,  lastMsg: 'See you at 7v7 on Saturday!',                               time: 'Yesterday', fromMe: false, unread: 0 },
+  { id: 5, name: 'Coach Martinez',  role: 'coach',     online: false, lastMsg: 'Film review is at 4pm tomorrow.',                           time: '2d ago',  fromMe: false, unread: 0 },
+];
+
+const mockMsgs: Msg[] = [
+  { id: 1, text: 'Hi! I saw your profile and was impressed by your stats.',     time: 'Yesterday 2:30 PM', fromMe: false, read: true },
+  { id: 2, text: "Thank you! I've been working really hard on my training.",    time: 'Yesterday 2:35 PM', fromMe: true,  read: true },
+  { id: 3, text: 'That shows. Your 40-yard dash time is excellent for a QB.',   time: 'Yesterday 2:36 PM', fromMe: false, read: true },
+  { id: 4, text: 'Thanks! Coach has been helping me with speed training.',      time: '2h ago',            fromMe: true,  read: true },
+  { id: 5, text: 'Great game last Friday! Your performance was outstanding.',   time: '2m ago',            fromMe: false, read: false },
+];
+
+const roleColor: Record<string, string> = { coach: '#60a5fa', athlete: '#4ade80', recruiter: '#c084fc' };
+const roleLabel: Record<string, string> = { coach: 'Coach', athlete: 'Athlete', recruiter: 'Recruiter' };
+
+function Avatar({ name, size = 36, online }: { name: string; size?: number; online?: boolean }) {
+  return (
+    <div style={{ position: 'relative', flexShrink: 0 }}>
+      <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`}
+        alt={name} style={{ width: size, height: size, borderRadius: '50%', background: '#1c1c1c' }} />
+      {online && (
+        <div style={{ position: 'absolute', bottom: 1, right: 1, width: 9, height: 9, borderRadius: '50%', background: '#4ade80', border: '2px solid #0a0a0a' }} />
+      )}
+    </div>
+  );
 }
 
 export const Messages = () => {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [activeId, setActiveId] = useState<number>(1);
+  const [msgs, setMsgs] = useState<Msg[]>(mockMsgs);
+  const [draft, setDraft] = useState('');
+  const [search, setSearch] = useState('');
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    // Mock data - in real app, fetch from API
-    const mockConversations: Conversation[] = [
-      {
-        id: 1,
-        participant: {
-          name: 'Coach Anderson',
-          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Coach',
-          role: 'coach',
-          isOnline: true
-        },
-        lastMessage: {
-          text: 'Great game last Friday! Your performance was outstanding.',
-          timestamp: '2 min ago',
-          isFromMe: false,
-          isRead: false
-        },
-        unreadCount: 2
-      },
-      {
-        id: 2,
-        participant: {
-          name: 'Sarah Johnson',
-          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah',
-          role: 'athlete',
-          isOnline: false
-        },
-        lastMessage: {
-          text: 'Thanks for the feedback on my QB mechanics!',
-          timestamp: '1 hour ago',
-          isFromMe: true,
-          isRead: true
-        },
-        unreadCount: 0
-      },
-      {
-        id: 3,
-        participant: {
-          name: 'Recruiter Mike',
-          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike',
-          role: 'recruiter',
-          isOnline: true
-        },
-        lastMessage: {
-          text: 'We\'d love to discuss your future at State University.',
-          timestamp: '3 hours ago',
-          isFromMe: false,
-          isRead: true
-        },
-        unreadCount: 1
-      }
-    ];
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
 
-    setConversations(mockConversations);
-  }, []);
+  const active = convos.find(c => c.id === activeId)!;
+  const filtered = convos.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
 
-  useEffect(() => {
-    if (selectedConversation) {
-      // Mock messages for selected conversation
-      const mockMessages: Message[] = [
-        {
-          id: 1,
-          text: 'Hi! I saw your profile and was impressed by your stats.',
-          timestamp: 'Yesterday 2:30 PM',
-          isFromMe: false,
-          isRead: true,
-          type: 'text'
-        },
-        {
-          id: 2,
-          text: 'Thank you! I\'ve been working really hard on my training.',
-          timestamp: 'Yesterday 2:35 PM',
-          isFromMe: true,
-          isRead: true,
-          type: 'text'
-        },
-        {
-          id: 3,
-          text: 'That shows. Your 40-yard dash time is excellent for a QB.',
-          timestamp: 'Yesterday 2:36 PM',
-          isFromMe: false,
-          isRead: true,
-          type: 'text'
-        },
-        {
-          id: 4,
-          text: 'Thanks! Coach has been helping me with speed training.',
-          timestamp: '2 hours ago',
-          isFromMe: true,
-          isRead: true,
-          type: 'text'
-        },
-        {
-          id: 5,
-          text: 'Great game last Friday! Your performance was outstanding.',
-          timestamp: '2 min ago',
-          isFromMe: false,
-          isRead: false,
-          type: 'text'
-        }
-      ];
-      setMessages(mockMessages);
-    }
-  }, [selectedConversation]);
-
-  const selectedConv = conversations.find(c => c.id === selectedConversation);
-
-  const handleSendMessage = () => {
-    if (newMessage.trim() && selectedConversation) {
-      const message: Message = {
-        id: Date.now(),
-        text: newMessage,
-        timestamp: new Date().toLocaleTimeString(),
-        isFromMe: true,
-        isRead: true,
-        type: 'text'
-      };
-      setMessages(prev => [...prev, message]);
-      setNewMessage('');
-    }
-  };
-
-  const filteredConversations = conversations.filter(conv =>
-    conv.participant.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'coach': return 'text-blue-500';
-      case 'athlete': return 'text-green-500';
-      case 'recruiter': return 'text-purple-500';
-      default: return 'text-gray-500';
-    }
+  const send = () => {
+    if (!draft.trim()) return;
+    setMsgs(prev => [...prev, { id: Date.now(), text: draft, time: 'Just now', fromMe: true, read: false }]);
+    setDraft('');
   };
 
   return (
-    <div className="h-[calc(100vh-12rem)] flex bg-dark-900 rounded-2xl overflow-hidden">
-      {/* Conversations Sidebar */}
-      <div className="w-full md:w-80 bg-dark-800 border-r border-white/5 flex flex-col">
-        {/* Header */}
-        <div className="p-6 border-b border-white/5">
-          <h1 className="text-2xl font-black text-white uppercase tracking-tight mb-4">Messages</h1>
+    <div style={{ display: 'flex', height: 'calc(100vh - 80px)', margin: '0 -24px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
 
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" size={18} />
-            <input
-              type="text"
-              placeholder="Search conversations..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-dark-900/50 border border-white/5 rounded-xl py-3 pl-10 pr-4 text-white placeholder:text-dark-500 focus:outline-none focus:border-brand-500"
-            />
+      {/* Sidebar */}
+      <div style={{ width: 280, flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
+        <div style={{ padding: '20px 16px 12px' }}>
+          <h2 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.3rem', textTransform: 'uppercase', color: '#fff', marginBottom: 12 }}>Messages</h2>
+          <div style={{ position: 'relative' }}>
+            <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#444', pointerEvents: 'none' }} />
+            <input type="text" placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)}
+              style={{ width: '100%', background: '#111', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 7, padding: '8px 10px 8px 28px', color: '#fff', fontSize: '0.78rem', outline: 'none', boxSizing: 'border-box' }} />
           </div>
         </div>
 
-        {/* Conversations List */}
-        <div className="flex-1 overflow-y-auto">
-          {filteredConversations.map((conversation) => (
-            <motion.div
-              key={conversation.id}
-              onClick={() => setSelectedConversation(conversation.id)}
-              className={`p-4 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors ${
-                selectedConversation === conversation.id ? 'bg-brand-500/10 border-l-4 border-l-brand-500' : ''
-              }`}
-              whileHover={{ scale: 1.02 }}
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {filtered.map(c => (
+            <div key={c.id} onClick={() => setActiveId(c.id)}
+              style={{
+                display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 16px',
+                background: activeId === c.id ? 'rgba(255,90,45,0.07)' : 'transparent',
+                borderLeft: activeId === c.id ? '2px solid #ff5a2d' : '2px solid transparent',
+                cursor: 'pointer', transition: 'all 0.12s',
+              }}
+              onMouseEnter={e => { if (activeId !== c.id) e.currentTarget.style.background = '#111'; }}
+              onMouseLeave={e => { if (activeId !== c.id) e.currentTarget.style.background = 'transparent'; }}
             >
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-accent p-0.5">
-                    <div className="w-full h-full rounded-[14px] bg-dark-800 overflow-hidden">
-                      <img src={conversation.participant.avatar} alt={conversation.participant.name} />
+              <Avatar name={c.name} size={38} online={c.online} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                  <span style={{ fontSize: '0.62rem', color: '#444', flexShrink: 0 }}>{c.time}</span>
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 3 }}>
+                  {c.fromMe ? 'You: ' : ''}{c.lastMsg}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.62rem', color: roleColor[c.role], fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{roleLabel[c.role]}</span>
+                  {c.unread > 0 && (
+                    <div style={{ width: 17, height: 17, borderRadius: '50%', background: '#ff5a2d', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#fff' }}>{c.unread}</span>
                     </div>
-                  </div>
-                  {conversation.participant.isOnline && (
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-accent rounded-full border-2 border-dark-800"></div>
                   )}
                 </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-white font-bold truncate">{conversation.participant.name}</h3>
-                    <span className="text-xs text-dark-500">{conversation.lastMessage.timestamp}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <p className={`text-sm truncate ${conversation.lastMessage.isRead ? 'text-dark-400' : 'text-white'}`}>
-                      {conversation.lastMessage.isFromMe && 'You: '}{conversation.lastMessage.text}
-                    </p>
-                    {conversation.unreadCount > 0 && (
-                      <span className="bg-accent text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                        {conversation.unreadCount}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className={`text-xs uppercase tracking-widest ${getRoleColor(conversation.participant.role)}`}>
-                    {conversation.participant.role}
-                  </div>
-                </div>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>
 
-      {/* Chat Area */}
-      <div className="flex-1 flex flex-col">
-        {selectedConv ? (
-          <>
-            {/* Chat Header */}
-            <div className="p-6 border-b border-white/5 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-accent p-0.5">
-                    <div className="w-full h-full rounded-[14px] bg-dark-800 overflow-hidden">
-                      <img src={selectedConv.participant.avatar} alt={selectedConv.participant.name} />
-                    </div>
-                  </div>
-                  {selectedConv.participant.isOnline && (
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-accent rounded-full border-2 border-dark-800"></div>
-                  )}
-                </div>
+      {/* Chat area */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
 
-                <div>
-                  <h2 className="text-xl font-bold text-white">{selectedConv.participant.name}</h2>
-                  <p className={`text-sm uppercase tracking-widest ${getRoleColor(selectedConv.participant.role)}`}>
-                    {selectedConv.participant.role} • {selectedConv.participant.isOnline ? 'Online' : 'Offline'}
-                  </p>
-                </div>
+        {/* Chat header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: '#0a0a0a' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Avatar name={active.name} size={40} online={active.online} />
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff' }}>{active.name}</span>
+                <CheckCircle2 size={13} color="#ff5a2d" fill="#ff5a2d" />
               </div>
-
-              <div className="flex items-center gap-2">
-                <button className="p-2 text-dark-400 hover:text-white transition-colors">
-                  <Phone size={20} />
-                </button>
-                <button className="p-2 text-dark-400 hover:text-white transition-colors">
-                  <Video size={20} />
-                </button>
-                <button className="p-2 text-dark-400 hover:text-white transition-colors">
-                  <MoreVertical size={20} />
-                </button>
-              </div>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {messages.map((message) => (
-                <motion.div
-                  key={message.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`flex ${message.isFromMe ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
-                    message.isFromMe
-                      ? 'bg-brand-500 text-white'
-                      : 'bg-dark-800 text-white border border-white/5'
-                  }`}>
-                    <p className="text-sm">{message.text}</p>
-                    <div className={`flex items-center justify-end gap-1 mt-1 text-xs ${
-                      message.isFromMe ? 'text-brand-200' : 'text-dark-500'
-                    }`}>
-                      <span>{message.timestamp}</span>
-                      {message.isFromMe && (
-                        message.isRead ? <CheckCheck size={12} /> : <Check size={12} />
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Message Input */}
-            <div className="p-6 border-t border-white/5">
-              <div className="flex items-center gap-4">
-                <button className="p-2 text-dark-400 hover:text-white transition-colors">
-                  <Paperclip size={20} />
-                </button>
-                <button className="p-2 text-dark-400 hover:text-white transition-colors">
-                  <Image size={20} />
-                </button>
-
-                <div className="flex-1 relative">
-                  <input
-                    type="text"
-                    placeholder="Type a message..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                    className="w-full bg-dark-800 border border-white/5 rounded-2xl py-3 px-4 pr-12 text-white placeholder:text-dark-500 focus:outline-none focus:border-brand-500"
-                  />
-                  <button className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-dark-400 hover:text-white transition-colors">
-                    <Smile size={18} />
-                  </button>
-                </div>
-
-                <button
-                  onClick={handleSendMessage}
-                  disabled={!newMessage.trim()}
-                  className="p-3 bg-brand-500 hover:bg-brand-600 disabled:bg-dark-700 disabled:cursor-not-allowed text-white rounded-xl transition-colors"
-                >
-                  <Send size={18} />
-                </button>
-              </div>
-            </div>
-          </>
-        ) : (
-          /* Empty State */
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <MessageSquare className="mx-auto text-dark-500 mb-4" size={48} />
-              <h3 className="text-xl font-bold text-white mb-2">Select a conversation</h3>
-              <p className="text-dark-400">Choose a conversation from the sidebar to start messaging</p>
+              <span style={{ fontSize: '0.7rem', color: roleColor[active.role], fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                {roleLabel[active.role]} · {active.online ? 'Online' : 'Offline'}
+              </span>
             </div>
           </div>
-        )}
+          <div style={{ display: 'flex', gap: 4 }}>
+            {[Phone, Video, MoreVertical].map((Icon, i) => (
+              <button key={i} style={{ background: 'none', border: 'none', padding: 8, cursor: 'pointer', color: '#444', borderRadius: 6, transition: 'color 0.12s' }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#888')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#444')}>
+                <Icon size={16} />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <AnimatePresence initial={false}>
+            {msgs.map(m => (
+              <motion.div key={m.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }}
+                style={{ display: 'flex', justifyContent: m.fromMe ? 'flex-end' : 'flex-start' }}>
+                <div style={{
+                  maxWidth: '60%',
+                  padding: '10px 14px',
+                  borderRadius: m.fromMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+                  background: m.fromMe ? '#ff5a2d' : '#161616',
+                  border: m.fromMe ? 'none' : '1px solid rgba(255,255,255,0.06)',
+                }}>
+                  <div style={{ fontSize: '0.85rem', color: '#fff', lineHeight: 1.5, marginBottom: 4 }}>{m.text}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
+                    <span style={{ fontSize: '0.62rem', color: m.fromMe ? 'rgba(255,255,255,0.55)' : '#444' }}>{m.time}</span>
+                    {m.fromMe && (m.read ? <CheckCheck size={11} color="rgba(255,255,255,0.55)" /> : <Check size={11} color="rgba(255,255,255,0.4)" />)}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Input */}
+        <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 10, background: '#0a0a0a' }}>
+          <button style={{ background: 'none', border: 'none', color: '#444', cursor: 'pointer', padding: 6, borderRadius: 6, transition: 'color 0.12s' }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#888')} onMouseLeave={e => (e.currentTarget.style.color = '#444')}>
+            <Paperclip size={16} />
+          </button>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <input
+              type="text"
+              placeholder="Type a message…"
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && send()}
+              style={{ width: '100%', background: '#111', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 40px 10px 14px', color: '#fff', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.15s' }}
+              onFocus={e => (e.currentTarget.style.borderColor = 'rgba(255,90,45,0.4)')}
+              onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)')}
+            />
+            <button style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#444', cursor: 'pointer', padding: 4 }}>
+              <Smile size={15} />
+            </button>
+          </div>
+          <button onClick={send} disabled={!draft.trim()}
+            style={{ width: 38, height: 38, borderRadius: 9, background: draft.trim() ? '#ff5a2d' : '#1a1a1a', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: draft.trim() ? 'pointer' : 'not-allowed', transition: 'all 0.15s', flexShrink: 0 }}>
+            <Send size={15} color={draft.trim() ? '#fff' : '#444'} />
+          </button>
+        </div>
       </div>
     </div>
   );

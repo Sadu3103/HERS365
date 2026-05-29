@@ -1,272 +1,184 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import {
-  Trophy,
-  Medal,
-  Award,
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  Filter,
-  Search,
-  Star,
-  Target,
-  Zap
-} from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Search, CheckCircle2 } from 'lucide-react';
 
-interface PlayerRanking {
-  id: number;
-  name: string;
-  school: string;
-  position: string;
-  rating: number;
-  change: number;
-  stats: {
-    speed: number;
-    strength: number;
-    agility: number;
-    technique: number;
-  };
-  avatar?: string;
+const players = [
+  { rank: 1,  prev: 1,  name: 'Sarah Watkins',   school: 'Westlake HS, TX',          pos: 'QB', score: 95, gpa: 3.9,  fortyYard: 4.72, verified: true  },
+  { rank: 2,  prev: 3,  name: 'Maya Johnson',    school: "St. Mary's Academy, FL",   pos: 'WR', score: 92, gpa: 3.7,  fortyYard: 4.71, verified: true  },
+  { rank: 3,  prev: 2,  name: 'Isabella Reyes',  school: 'Centennial HS, CA',        pos: 'DB', score: 91, gpa: 4.0,  fortyYard: 4.68, verified: true  },
+  { rank: 4,  prev: 4,  name: 'Chloe Zhang',     school: 'Northwood HS, GA',         pos: 'RB', score: 90, gpa: 3.8,  fortyYard: 4.65, verified: true  },
+  { rank: 5,  prev: 7,  name: "Emma O'Connor",   school: 'Summit Prep, CO',          pos: 'QB', score: 89, gpa: 3.95, fortyYard: 4.88, verified: false },
+  { rank: 6,  prev: 5,  name: 'Ava Mitchell',    school: 'Harrison HS, AL',          pos: 'LB', score: 89, gpa: 3.6,  fortyYard: 4.75, verified: true  },
+  { rank: 7,  prev: 6,  name: 'Jordan Lee',      school: 'Lincoln Prep, OH',         pos: 'WR', score: 88, gpa: 3.5,  fortyYard: 4.62, verified: true  },
+  { rank: 8,  prev: 9,  name: 'Priya Patel',     school: 'Edison HS, NJ',            pos: 'DB', score: 87, gpa: 4.0,  fortyYard: 4.78, verified: false },
+  { rank: 9,  prev: 8,  name: 'Taylor Brooks',   school: 'Riverside Academy, TN',    pos: 'RB', score: 86, gpa: 3.4,  fortyYard: 4.59, verified: true  },
+  { rank: 10, prev: 12, name: 'Zoe Williams',    school: 'Lakewood HS, WA',          pos: 'QB', score: 85, gpa: 3.8,  fortyYard: 4.91, verified: true  },
+];
+
+const positions = ['All', 'QB', 'RB', 'WR', 'TE', 'LB', 'DB'];
+
+function Avatar({ name, size = 36 }: { name: string; size?: number }) {
+  return (
+    <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`}
+      alt={name} style={{ width: size, height: size, borderRadius: '50%', background: '#1c1c1c', flexShrink: 0 }} />
+  );
+}
+
+function Trend({ curr, prev }: { curr: number; prev: number }) {
+  const diff = prev - curr;
+  if (diff === 0) return <Minus size={13} color="#444" />;
+  if (diff > 0)   return <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}><TrendingUp size={13} color="#4ade80" /><span style={{ fontSize: '0.65rem', color: '#4ade80', fontWeight: 700 }}>+{diff}</span></div>;
+  return <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}><TrendingDown size={13} color="#f87171" /><span style={{ fontSize: '0.65rem', color: '#f87171', fontWeight: 700 }}>{diff}</span></div>;
 }
 
 export const Rankings = () => {
-  const [rankings, setRankings] = useState<PlayerRanking[]>([]);
-  const [filterPosition, setFilterPosition] = useState<string>('All');
-  const [filterSchool, setFilterSchool] = useState<string>('All');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [sortBy, setSortBy] = useState<string>('rating');
+  const [search, setSearch] = useState('');
+  const [pos, setPos] = useState('All');
 
-  useEffect(() => {
-    // Mock data - in real app, fetch from API
-    const mockRankings: PlayerRanking[] = [
-      {
-        id: 1,
-        name: 'Sarah Johnson',
-        school: 'Lincoln High',
-        position: 'QB',
-        rating: 98.5,
-        change: 2.1,
-        stats: { speed: 95, strength: 88, agility: 92, technique: 97 },
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah'
-      },
-      {
-        id: 2,
-        name: 'Emma Davis',
-        school: 'Washington Prep',
-        position: 'WR',
-        rating: 97.8,
-        change: -0.5,
-        stats: { speed: 98, strength: 85, agility: 96, technique: 94 },
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emma'
-      },
-      {
-        id: 3,
-        name: 'Olivia Brown',
-        school: 'Jefferson Academy',
-        position: 'RB',
-        rating: 97.2,
-        change: 1.8,
-        stats: { speed: 97, strength: 90, agility: 95, technique: 92 },
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Olivia'
-      },
-      {
-        id: 4,
-        name: 'Ava Wilson',
-        school: 'Roosevelt High',
-        position: 'QB',
-        rating: 96.9,
-        change: 0,
-        stats: { speed: 93, strength: 89, agility: 91, technique: 96 },
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ava'
-      },
-      {
-        id: 5,
-        name: 'Sophia Miller',
-        school: 'Adams College Prep',
-        position: 'WR',
-        rating: 96.5,
-        change: 3.2,
-        stats: { speed: 96, strength: 84, agility: 94, technique: 93 },
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sophia'
-      }
-    ];
-    setRankings(mockRankings);
-  }, []);
+  const filtered = players.filter(p => {
+    const q = search.toLowerCase();
+    return (!q || p.name.toLowerCase().includes(q) || p.school.toLowerCase().includes(q))
+      && (pos === 'All' || p.pos === pos);
+  });
 
-  const positions = ['All', 'QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'DB', 'K'];
-  const schools = ['All', ...Array.from(new Set(rankings.map(r => r.school)))];
-
-  const filteredRankings = rankings
-    .filter(player =>
-      (filterPosition === 'All' || player.position === filterPosition) &&
-      (filterSchool === 'All' || player.school === filterSchool) &&
-      (searchQuery === '' || player.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-       player.school.toLowerCase().includes(searchQuery.toLowerCase()))
-    )
-    .sort((a, b) => {
-      if (sortBy === 'rating') return b.rating - a.rating;
-      if (sortBy === 'name') return a.name.localeCompare(b.name);
-      return 0;
-    });
-
-  const getRankIcon = (rank: number) => {
-    if (rank === 1) return <Trophy className="text-yellow-500" size={24} />;
-    if (rank === 2) return <Medal className="text-gray-400" size={24} />;
-    if (rank === 3) return <Award className="text-amber-600" size={24} />;
-    return <span className="text-2xl font-black text-dark-400">#{rank}</span>;
-  };
-
-  const getChangeIcon = (change: number) => {
-    if (change > 0) return <TrendingUp className="text-accent" size={16} />;
-    if (change < 0) return <TrendingDown className="text-red-500" size={16} />;
-    return <Minus className="text-dark-400" size={16} />;
-  };
+  const top3 = filtered.slice(0, 3);
 
   return (
-    <div className="max-w-7xl mx-auto py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-black text-white uppercase tracking-tighter mb-4">
-          Player Rankings
+    <div style={{ padding: '24px', maxWidth: 1100, margin: '0 auto' }}>
+
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '2rem', textTransform: 'uppercase', color: '#fff', marginBottom: 4 }}>
+          National Rankings
         </h1>
-        <p className="text-dark-300 text-lg">
-          Real-time rankings of top female high school athletes across the nation
-        </p>
+        <p style={{ color: '#555', fontSize: '0.85rem' }}>Top female high school athletes ranked by performance score</p>
       </div>
 
+      {/* Podium — top 3 */}
+      {search === '' && pos === 'All' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 28 }}>
+          {top3.map((p, i) => (
+            <motion.div key={p.rank} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
+              className="k-card" style={{
+                padding: '20px 18px',
+                borderColor: i === 0 ? 'rgba(255,90,45,0.3)' : 'rgba(255,255,255,0.06)',
+              }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <span style={{
+                  fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800,
+                  fontSize: i === 0 ? '1.5rem' : '1.2rem',
+                  color: i === 0 ? '#ff5a2d' : '#444',
+                }}>#{p.rank}</span>
+                <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.8rem', color: '#ff5a2d' }}>{p.score}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Avatar name={p.name} size={40} />
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#fff' }}>{p.name}</span>
+                    {p.verified && <CheckCircle2 size={12} color="#ff5a2d" fill="#ff5a2d" />}
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#555', marginTop: 2 }}>{p.pos} | {p.school}</div>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
       {/* Filters */}
-      <div className="glass-card p-6 mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" size={20} />
-            <input
-              type="text"
-              placeholder="Search players..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-dark-800 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white placeholder:text-dark-500 focus:outline-none focus:border-brand-500"
-            />
-          </div>
-
-          {/* Position Filter */}
-          <select
-            value={filterPosition}
-            onChange={(e) => setFilterPosition(e.target.value)}
-            className="bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500"
-          >
-            {positions.map(pos => (
-              <option key={pos} value={pos}>{pos === 'All' ? 'All Positions' : pos}</option>
-            ))}
-          </select>
-
-          {/* School Filter */}
-          <select
-            value={filterSchool}
-            onChange={(e) => setFilterSchool(e.target.value)}
-            className="bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500"
-          >
-            {schools.map(school => (
-              <option key={school} value={school}>{school === 'All' ? 'All Schools' : school}</option>
-            ))}
-          </select>
-
-          {/* Sort */}
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500"
-          >
-            <option value="rating">Sort by Rating</option>
-            <option value="name">Sort by Name</option>
-          </select>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+        <div style={{ flex: 1, position: 'relative' }}>
+          <Search size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#444', pointerEvents: 'none' }} />
+          <input type="text" placeholder="Search athletes or schools..." value={search} onChange={e => setSearch(e.target.value)}
+            style={{ width: '100%', background: '#111', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px 9px 32px', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {positions.map(p => (
+            <button key={p} onClick={() => setPos(p)} style={{
+              background: pos === p ? '#ff5a2d' : '#111',
+              border: '1px solid',
+              borderColor: pos === p ? '#ff5a2d' : 'rgba(255,255,255,0.08)',
+              borderRadius: 7, padding: '8px 12px',
+              color: pos === p ? '#fff' : '#666',
+              fontSize: '0.75rem', fontWeight: 700,
+              cursor: 'pointer', transition: 'all 0.15s',
+            }}>{p}</button>
+          ))}
         </div>
       </div>
 
-      {/* Rankings Table */}
-      <div className="space-y-4">
-        {filteredRankings.map((player, index) => (
-          <motion.div
-            key={player.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="glass-card p-6 hover:bg-white/5 transition-colors cursor-pointer group"
+      {/* Table */}
+      <div className="k-card" style={{ overflow: 'hidden' }}>
+        {/* Header row */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: '48px 1fr 80px 80px 80px 80px',
+          padding: '10px 16px',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+        }}>
+          {['RK', 'ATHLETE', 'POS', '40YD', 'GPA', 'SCORE'].map(h => (
+            <div key={h} style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#444', textAlign: h === 'ATHLETE' ? 'left' : 'center' }}>{h}</div>
+          ))}
+        </div>
+
+        {filtered.map((p, i) => (
+          <motion.div key={p.rank} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
+            style={{
+              display: 'grid', gridTemplateColumns: '48px 1fr 80px 80px 80px 80px',
+              padding: '12px 16px', alignItems: 'center',
+              borderBottom: '1px solid rgba(255,255,255,0.04)',
+              transition: 'background 0.15s', cursor: 'default',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#161616')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-6">
-                {/* Rank */}
-                <div className="flex items-center justify-center w-12 h-12">
-                  {getRankIcon(index + 1)}
-                </div>
+            {/* Rank */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{
+                fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800,
+                fontSize: '1rem',
+                color: p.rank <= 3 ? '#ff5a2d' : '#555',
+              }}>{p.rank}</span>
+            </div>
 
-                {/* Player Info */}
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-accent p-0.5">
-                    <div className="w-full h-full rounded-[14px] bg-dark-800 overflow-hidden">
-                      <img src={player.avatar} alt={player.name} />
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-white group-hover:text-brand-400 transition-colors">
-                      {player.name}
-                    </h3>
-                    <p className="text-sm text-dark-400">{player.school} • {player.position}</p>
-                  </div>
+            {/* Athlete */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Avatar name={p.name} size={32} />
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#ddd' }}>{p.name}</span>
+                  {p.verified && <CheckCircle2 size={11} color="#ff5a2d" fill="#ff5a2d" />}
                 </div>
+                <div style={{ fontSize: '0.68rem', color: '#555', marginTop: 1 }}>{p.school}</div>
               </div>
+            </div>
 
-              {/* Rating & Change */}
-              <div className="flex items-center gap-6">
-                {/* Stats Overview */}
-                <div className="hidden md:flex gap-4">
-                  <div className="text-center">
-                    <div className="text-xs text-dark-500 uppercase tracking-widest">Speed</div>
-                    <div className="text-sm font-bold text-white">{player.stats.speed}</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-xs text-dark-500 uppercase tracking-widest">Strength</div>
-                    <div className="text-sm font-bold text-white">{player.stats.strength}</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-xs text-dark-500 uppercase tracking-widest">Agility</div>
-                    <div className="text-sm font-bold text-white">{player.stats.agility}</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-xs text-dark-500 uppercase tracking-widest">Technique</div>
-                    <div className="text-sm font-bold text-white">{player.stats.technique}</div>
-                  </div>
-                </div>
+            {/* Pos */}
+            <div style={{ textAlign: 'center' }}>
+              <span style={{ background: 'rgba(255,90,45,0.1)', color: '#ff5a2d', fontSize: '0.65rem', fontWeight: 700, padding: '2px 7px', borderRadius: 4 }}>{p.pos}</span>
+            </div>
 
-                {/* Rating */}
-                <div className="text-right">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Star className="text-yellow-500 fill-current" size={16} />
-                    <span className="text-2xl font-black text-white">{player.rating}</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-sm">
-                    {getChangeIcon(player.change)}
-                    <span className={`font-bold ${player.change > 0 ? 'text-accent' : player.change < 0 ? 'text-red-500' : 'text-dark-400'}`}>
-                      {player.change > 0 ? '+' : ''}{player.change}
-                    </span>
-                  </div>
-                </div>
+            {/* 40yd */}
+            <div style={{ textAlign: 'center', fontSize: '0.82rem', fontWeight: 600, color: '#ccc' }}>{p.fortyYard.toFixed(2)}s</div>
+
+            {/* GPA */}
+            <div style={{ textAlign: 'center', fontSize: '0.82rem', fontWeight: 600, color: '#ccc' }}>{p.gpa.toFixed(1)}</div>
+
+            {/* Score */}
+            <div style={{ textAlign: 'center' }}>
+              <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.1rem', color: '#ff5a2d' }}>{p.score}</span>
+              <div style={{ marginTop: 2, display: 'flex', justifyContent: 'center' }}>
+                <Trend curr={p.rank} prev={p.prev} />
               </div>
             </div>
           </motion.div>
         ))}
-      </div>
 
-      {/* Empty State */}
-      {filteredRankings.length === 0 && (
-        <div className="text-center py-16">
-          <Target className="mx-auto text-dark-500 mb-4" size={48} />
-          <h3 className="text-xl font-bold text-white mb-2">No players found</h3>
-          <p className="text-dark-400">Try adjusting your search or filter criteria</p>
-        </div>
-      )}
+        {filtered.length === 0 && (
+          <div style={{ padding: '48px', textAlign: 'center', color: '#444' }}>
+            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '1.2rem', fontWeight: 700 }}>No athletes found</div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
