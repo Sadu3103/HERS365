@@ -1,0 +1,11 @@
+# HERS365 codeowners
+# Samuel reviews everything — leads all PRs
+* @Sadu3103
+
+# Frontend pages — Tory
+client/src/pages/ @Sadu3103
+
+# Backend routes — Irene
+server/routes/ @Sadu3103
+server/schema.ts @Sadu3103
+server/db.ts @Sadu3103
