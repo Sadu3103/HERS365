@@ -29,6 +29,16 @@
   50%       { text-shadow: 0 0 24px rgba(255,90,45,0.6); }
 }
 
+@keyframes score-tick {
+  0%   { opacity: 0; transform: translateY(8px) scale(0.95); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes border-glow {
+  0%, 100% { border-color: rgba(255,90,45,0.15); }
+  50%       { border-color: rgba(255,90,45,0.35); }
+}
+
 /* ─── Base ─── */
 @layer base {
   html {
@@ -57,20 +67,63 @@
     background: #111111;
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .k-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(255,90,45,0.06) 0%, transparent 50%, rgba(255,90,45,0.03) 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .k-card:hover::before {
+    opacity: 1;
   }
 
   .k-card-hover {
     background: #111111;
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: 12px;
-    transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
     cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .k-card-hover::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(255,90,45,0.08) 0%, transparent 50%, rgba(255,90,45,0.04) 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
   }
 
   .k-card-hover:hover {
-    background: #161616;
-    border-color: rgba(255,90,45,0.25);
-    box-shadow: 0 0 0 1px rgba(255,90,45,0.08), 0 8px 32px rgba(0,0,0,0.45);
+    background: #141414;
+    border-color: rgba(255,90,45,0.22);
+    box-shadow: 0 0 0 1px rgba(255,90,45,0.06), 0 12px 40px rgba(0,0,0,0.5), 0 0 60px rgba(255,90,45,0.04);
+    transform: translateY(-2px);
+  }
+
+  .k-card-hover:hover::before {
+    opacity: 1;
   }
 
   /* ── Coral helpers ── */
@@ -171,7 +224,7 @@
 
   /* ── Progress bars ── */
   .k-progress-track {
-    background: rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.06);
     border-radius: 99px;
     height: 4px;
     overflow: hidden;
@@ -184,7 +237,7 @@
     border-radius: 99px;
     position: relative;
     overflow: hidden;
-    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* Shimmer sweep over progress bar */
@@ -194,7 +247,7 @@
     top: 0; left: 0;
     width: 40%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
     animation: shimmer 2.4s ease-in-out infinite;
   }
 
@@ -219,14 +272,16 @@
   .k-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
     border: none;
-    border-radius: 8px;
+    border-radius: 9px;
     font-weight: 700;
     font-size: 0.78rem;
     letter-spacing: 0.03em;
     cursor: pointer;
     transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+    position: relative;
+    overflow: hidden;
   }
 
   .k-btn:active {
@@ -236,30 +291,30 @@
   .k-btn-primary {
     background: #ff5a2d;
     color: #fff;
-    padding: 9px 16px;
-    box-shadow: 0 2px 12px rgba(255,90,45,0.25);
+    padding: 10px 18px;
+    box-shadow: 0 2px 16px rgba(255,90,45,0.25);
   }
 
   .k-btn-primary:hover {
     background: #ff6d42;
-    box-shadow: 0 4px 20px rgba(255,90,45,0.4);
+    box-shadow: 0 4px 24px rgba(255,90,45,0.4);
     transform: translateY(-1px);
   }
 
   .k-btn-primary:active {
     transform: scale(0.96);
-    box-shadow: 0 1px 6px rgba(255,90,45,0.2);
+    box-shadow: 0 1px 8px rgba(255,90,45,0.2);
   }
 
   .k-btn-ghost {
-    background: rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.08);
-    color: #ccc;
-    padding: 9px 16px;
+    color: #aaa;
+    padding: 10px 18px;
   }
 
   .k-btn-ghost:hover {
-    background: rgba(255,255,255,0.09);
+    background: rgba(255,255,255,0.08);
     border-color: rgba(255,255,255,0.14);
     color: #fff;
   }
@@ -288,59 +343,85 @@
   .k-pos-badge {
     background: rgba(255,90,45,0.1);
     color: #ff5a2d;
-    font-size: 0.65rem;
+    font-size: 0.68rem;
     font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 4px;
+    padding: 3px 9px;
+    border-radius: 5px;
     letter-spacing: 0.06em;
     text-transform: uppercase;
+    border: 1px solid rgba(255,90,45,0.12);
   }
 
   /* ── Stat block (measurables) ── */
   .k-stat-block {
     background: #0d0d0d;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid rgba(255,255,255,0.04);
-    padding: 10px 12px;
+    padding: 14px 12px;
     text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .k-stat-block::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: rgba(255,90,45,0.08);
   }
 
   /* ── Status badges ── */
-  .k-badge-green  { background: rgba(74,222,128,0.1);  color: #4ade80; font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 5px; }
-  .k-badge-yellow { background: rgba(251,191,36,0.1);  color: #fbbf24; font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 5px; }
-  .k-badge-coral  { background: rgba(255,90,45,0.1);   color: #ff5a2d; font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 5px; }
-  .k-badge-dim    { background: rgba(255,255,255,0.05); color: #666;    font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 5px; }
+  .k-badge-green  { background: rgba(74,222,128,0.1);  color: #4ade80; font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 5px; border: 1px solid rgba(74,222,128,0.15); }
+  .k-badge-yellow { background: rgba(251,191,36,0.1);  color: #fbbf24; font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 5px; border: 1px solid rgba(251,191,36,0.15); }
+  .k-badge-coral  { background: rgba(255,90,45,0.1);   color: #ff5a2d; font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 5px; border: 1px solid rgba(255,90,45,0.15); }
+  .k-badge-dim    { background: rgba(255,255,255,0.05); color: #666;    font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.08); }
 
   /* ── Input focus style ── */
   .k-input {
     background: #161616;
     border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 8px;
+    border-radius: 9px;
     color: #fff;
     font-size: 0.85rem;
     font-family: 'DM Sans', sans-serif;
     outline: none;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
 
   .k-input:focus {
-    border-color: rgba(255,90,45,0.45);
+    border-color: rgba(255,90,45,0.4);
     box-shadow: 0 0 0 3px rgba(255,90,45,0.08);
   }
 
-  .k-input::placeholder { color: #444; }
+  .k-input::placeholder { color: #3a3a3a; }
 
   /* ── Animate on mount ── */
   .k-fade-up {
-    animation: fade-up 0.3s ease both;
+    animation: fade-up 0.35s ease both;
+  }
+
+  /* ── Score animation helper ── */
+  .k-score-enter {
+    animation: score-tick 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  /* ── Glow border helper ── */
+  .k-glow-border {
+    animation: border-glow 3s ease-in-out infinite;
+  }
+
+  /* ── Glow coral text helper ── */
+  .k-glow-coral {
+    animation: glow-coral 2.5s ease-in-out infinite;
   }
 }
 
 /* ─── Scrollbar ─── */
-::-webkit-scrollbar              { width: 4px; height: 4px; }
+::-webkit-scrollbar              { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track        { background: transparent; }
-::-webkit-scrollbar-thumb        { background: #1e1e1e; border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover  { background: #2a2a2a; }
+::-webkit-scrollbar-thumb        { background: #1a1a1a; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover  { background: #252525; }
 
 /* ─── Selection ─── */
 ::selection { background: rgba(255,90,45,0.25); color: #fff; }
