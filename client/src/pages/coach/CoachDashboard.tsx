@@ -54,7 +54,7 @@ export function CoachDashboard() {
         position: searchPosition,
         state: searchState,
       });
-      const response = await fetch(`/coach/search?${params.toString()}`, {
+      const response = await fetch(`/coach/players/search?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -112,7 +112,7 @@ export function CoachDashboard() {
   };
 
   const quickActions = [
-    { title: 'Player Search', description: 'Find and discover new talent', icon: Search, path: '/coach/search', color: 'bg-blue-600 hover:bg-blue-700' },
+    { title: 'Player Search', description: 'Find and discover new talent', icon: Search, path: '/coach/players/search', color: 'bg-blue-600 hover:bg-blue-700' },
     { title: 'Scouting Board', description: 'Manage your watchlist', icon: Heart, path: '/coach/board', color: 'bg-red-600 hover:bg-red-700' },
     { title: 'Messages', description: 'Contact athletes and parents', icon: MessageSquare, path: '/coach/messages', color: 'bg-green-600 hover:bg-green-700' },
     { title: 'Analytics', description: 'View recruiting insights', icon: BarChart3, path: '/coach/analytics', color: 'bg-purple-600 hover:bg-purple-700' },
@@ -284,7 +284,7 @@ export function CoachDashboard() {
         <div className="mt-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-white">{isSearchActive ? 'Search Results' : 'Player Highlights'}</h2>
-            <Link to="/coach/search" className="text-blue-400 hover:text-blue-300 text-sm font-medium">View All Players →</Link>
+            <Link to="/coach/players/search" className="text-blue-400 hover:text-blue-300 text-sm font-medium">View All Players →</Link>
           </div>
 
           {loading || searchLoading ? (
