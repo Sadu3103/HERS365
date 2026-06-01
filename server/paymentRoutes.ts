@@ -54,11 +54,12 @@ router.post('/create-checkout-session', async (req, res) => {
       return res.json({ url: successUrl || '/profile', free: true });
     }
     
-    // Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
-        {
+    // Build line item — use a pre-configured Stripe price ID when available,
+    // otherwise build inline price_data from the DB plan record.
+    const priceId = process.env.STRIPE_PRO_PRICE_ID;
+    const lineItem = priceId
+      ? { price: priceId, quantity: 1 }
+      : {
           price_data: {
             currency: 'usd',
             product_data: {
@@ -67,12 +68,16 @@ router.post('/create-checkout-session', async (req, res) => {
             },
             unit_amount: plan.price,
             recurring: {
-              interval: 'month',
+              interval: 'month' as const,
             },
           },
           quantity: 1,
-        },
-      ],
+        };
+
+    // Create Stripe checkout session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [lineItem],
       mode: 'subscription',
       success_url: successUrl || `${process.env.ALLOWED_ORIGINS?.split(',')[0] || 'http://localhost:5173'}/thank-you?plan=${encodeURIComponent(plan.name)}&amount=${plan.price}&interval=month`,
       cancel_url: cancelUrl || `${process.env.ALLOWED_ORIGINS?.split(',')[0] || 'http://localhost:5173'}/subscribe?subscription=cancelled`,
