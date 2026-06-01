@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Eye, Heart, MessageSquare, Award, Star, Users, MapPin, GraduationCap, Ruler, Weight, Clock, Target } from 'lucide-react';
 import type { PlayerProfile } from '../../types';
+import { useNotifications } from '../../context/NotificationContext';
 
 export function CoachPlayerProfile() {
   const { id } = useParams<{ id: string }>();
@@ -9,6 +10,7 @@ export function CoachPlayerProfile() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [isSaved, setIsSaved] = useState(false);
+  const { showNotification } = useNotifications();
 
   useEffect(() => {
     if (id) {
@@ -31,6 +33,7 @@ export function CoachPlayerProfile() {
       }
     } catch (error) {
       console.error('Failed to fetch player profile:', error);
+      showNotification('error', 'Load Failed', 'Could not load player profile. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -62,6 +65,7 @@ export function CoachPlayerProfile() {
       }
     } catch (error) {
       console.error('Failed to save player:', error);
+      showNotification('error', 'Save Failed', 'Could not update player. Please try again.');
     }
   };
 
@@ -81,11 +85,10 @@ export function CoachPlayerProfile() {
         body: JSON.stringify({ message }),
       });
 
-      // In a real app, you'd show a success message
-      alert('Message sent successfully!');
+      showNotification('success', 'Message Sent', 'Your message has been delivered to the player.');
     } catch (error) {
       console.error('Failed to send message:', error);
-      alert('Failed to send message. Please try again.');
+      showNotification('error', 'Send Failed', 'Could not send message. Please try again.');
     }
   };
 
