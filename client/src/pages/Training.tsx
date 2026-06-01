@@ -11,11 +11,11 @@ const programs = [
 ];
 
 const todayDrills = [
-  { id: 1, name: 'Pocket Presence & Footwork', dur: '18 min', cat: 'QB',       done: false },
-  { id: 2, name: '3-Step Drop Progression',     dur: '12 min', cat: 'QB',       done: true  },
-  { id: 3, name: 'L-Drill Cone Work',           dur: '10 min', cat: 'Agility',  done: true  },
-  { id: 4, name: 'Single-Leg RDL Series',       dur: '15 min', cat: 'Strength', done: false },
-  { id: 5, name: 'Hand Fighting Drills',        dur: '8 min',  cat: 'DB',       done: false },
+  { id: 1, name: 'Pocket Presence & Footwork', dur: '18 min', cat: 'QB',       difficulty: 'Advanced',     done: false },
+  { id: 2, name: '3-Step Drop Progression',     dur: '12 min', cat: 'QB',       difficulty: 'Intermediate', done: true  },
+  { id: 3, name: 'L-Drill Cone Work',           dur: '10 min', cat: 'Agility',  difficulty: 'Beginner',     done: true  },
+  { id: 4, name: 'Single-Leg RDL Series',       dur: '15 min', cat: 'Strength', difficulty: 'Intermediate', done: false },
+  { id: 5, name: 'Hand Fighting Drills',        dur: '8 min',  cat: 'DB',       difficulty: 'Advanced',     done: false },
 ];
 
 const levelColor: Record<string, string> = {
@@ -28,12 +28,23 @@ const levelText: Record<string, string> = {
   Beginner: '#64c864', Intermediate: '#ffb432', Advanced: '#ff5a2d', Elite: '#c832ff',
 };
 
+const ALL = 'All';
+const drillCategories = [ALL, ...Array.from(new Set(todayDrills.map(d => d.cat)))];
+const difficulties = [ALL, 'Beginner', 'Intermediate', 'Advanced', 'Elite'];
+
 export const Training = () => {
   const navigate = useNavigate();
   const [drills, setDrills] = useState(todayDrills);
+  const [filterCat, setFilterCat] = useState(ALL);
+  const [filterDifficulty, setFilterDifficulty] = useState(ALL);
 
   const toggleDrill = (id: number) =>
     setDrills(prev => prev.map(d => d.id === id ? { ...d, done: !d.done } : d));
+
+  const filteredDrills = drills.filter(d =>
+    (filterCat === ALL || d.cat === filterCat) &&
+    (filterDifficulty === ALL || d.difficulty === filterDifficulty)
+  );
 
   const completedToday = drills.filter(d => d.done).length;
   const streak = 12;
@@ -143,13 +154,37 @@ export const Training = () => {
               </div>
             </div>
 
+            {/* Filters */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+              <select
+                value={filterCat}
+                onChange={e => setFilterCat(e.target.value)}
+                style={{
+                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 6, color: '#ccc', fontSize: '0.72rem', padding: '4px 8px', cursor: 'pointer',
+                }}
+              >
+                {drillCategories.map(c => <option key={c} value={c}>{c === ALL ? 'All Categories' : c}</option>)}
+              </select>
+              <select
+                value={filterDifficulty}
+                onChange={e => setFilterDifficulty(e.target.value)}
+                style={{
+                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 6, color: '#ccc', fontSize: '0.72rem', padding: '4px 8px', cursor: 'pointer',
+                }}
+              >
+                {difficulties.map(d => <option key={d} value={d}>{d === ALL ? 'All Levels' : d}</option>)}
+              </select>
+            </div>
+
             {/* Progress bar */}
             <div className="k-progress-track" style={{ marginBottom: 16 }}>
               <div className="k-progress-fill" style={{ width: `${(completedToday / drills.length) * 100}%` }} />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {drills.map(d => (
+              {filteredDrills.map(d => (
                 <button key={d.id} onClick={() => toggleDrill(d.id)} style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   background: 'none', border: 'none', cursor: 'pointer',
