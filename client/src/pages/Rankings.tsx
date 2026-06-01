@@ -63,7 +63,7 @@ export const Rankings = () => {
       {search === '' && pos === 'All' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 28 }}>
           {top3.map((p, i) => (
-            <motion.div key={p.rank} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
+            <motion.div key={p.name} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
               className="k-card" style={{
                 padding: '20px 18px', position: 'relative', overflow: 'hidden',
                 borderColor: i === 0 ? 'rgba(255,90,45,0.4)' : 'rgba(255,255,255,0.06)',
@@ -142,7 +142,7 @@ export const Rankings = () => {
         </div>
 
         {filtered.map((p, i) => (
-          <motion.div key={p.rank} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
+          <motion.div key={p.name} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
             style={{
               display: 'grid', gridTemplateColumns: '48px 1fr 80px 80px 80px 80px',
               padding: '12px 16px', alignItems: 'center',
