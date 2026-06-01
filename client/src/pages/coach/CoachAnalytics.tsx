@@ -15,10 +15,12 @@ import {
   Activity
 } from 'lucide-react';
 import type { CoachAnalytics as CoachAnalyticsType } from '../../types';
+import { useNotifications } from '../../context/NotificationContext';
 
 export function CoachAnalytics() {
   const [analytics, setAnalytics] = useState<CoachAnalyticsType | null>(null);
   const [loading, setLoading] = useState(true);
+  const { showNotification } = useNotifications();
 
   useEffect(() => {
     fetchAnalytics();
@@ -39,6 +41,7 @@ export function CoachAnalytics() {
       }
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
+      showNotification('error', 'Load Failed', 'Could not load analytics. Please refresh to try again.');
     } finally {
       setLoading(false);
     }

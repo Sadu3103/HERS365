@@ -1,508 +1,420 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Heart, MessageCircle, Share2, MoreHorizontal, CheckCircle2, Play } from 'lucide-react';
+import {
+  Heart,
+  MessageCircle,
+  Share2,
+  MoreHorizontal,
+  Zap,
+  Trophy,
+  Calendar,
+  PlayCircle,
+  Award,
+  Flag,
+  EyeOff,
+  UserX
+} from 'lucide-react';
+import { useNotifications } from '../context/NotificationContext';
 
-interface Post {
+interface PostData {
   id: number;
-  name: string;
-  role: string;
-  school: string;
+  user: { name: string; avatar: string | null };
   time: string;
   content: string;
-  tags: string[];
-  likes: number;
-  comments: number;
-  shares: number;
   image?: string;
-  isLiked: boolean;
-  verified: boolean;
-  isVideo?: boolean;
+  likes: string;
+  comments: string;
+  highlights: boolean;
+  isLiked?: boolean;
 }
 
-const posts: Post[] = [
-  {
-    id: 1,
-    name: 'Sarah Watkins',
-    role: 'QB',
-    school: 'Westlake HS',
-    time: '2h ago',
-    content: 'Just clocked a 4.72 in the 40 at the Dallas Combine! Hard work paying off. Next stop: Elite 11 Finals.',
-    tags: ['#Combine', '#40YardDash', '#Grind'],
-    likes: 234, comments: 18, shares: 7,
-    image: 'https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=800',
-    isLiked: false, verified: true, isVideo: true,
-  },
-  {
-    id: 2,
-    name: 'Coach Martinez',
-    role: 'Head Coach',
-    school: 'Summit Prep',
-    time: '4h ago',
-    content: 'Proud of our girls for finishing top 3 at the State 7v7 Tournament. The future of flag football is bright!',
-    tags: ['#Tournament', '#StateChamps'],
-    likes: 456, comments: 32, shares: 12,
-    isLiked: false, verified: true,
-  },
-  {
-    id: 3,
-    name: 'Maya Johnson',
-    role: 'WR',
-    school: "St. Mary's Academy",
-    time: '5h ago',
-    content: 'New highlight reel dropping tomorrow! 18 TDs this season. Thank you to my coaches and teammates for believing in me.',
-    tags: ['#Highlights', '#Recruiting'],
-    likes: 189, comments: 24, shares: 5,
-    image: 'https://images.unsplash.com/photo-1541252260730-0412e3e2108e?auto=format&fit=crop&q=80&w=800',
-    isLiked: true, verified: true, isVideo: true,
-  },
-  {
-    id: 4,
-    name: 'Isabella Reyes',
-    role: 'DB',
-    school: 'Centennial HS',
-    time: '8h ago',
-    content: 'Committed to Stanford for flag football! Dream come true. Go Cardinal! 🌲',
-    tags: ['#Committed', '#Stanford', '#DreamSchool'],
-    likes: 892, comments: 67, shares: 45,
-    isLiked: false, verified: true,
-  },
-  {
-    id: 5,
-    name: 'NFL Flag',
-    role: 'Official Account',
-    school: '',
-    time: '12h ago',
-    content: 'The 2026 NFL Flag National Championships registration is now open! Register your team before spots fill up.',
-    tags: ['#NFLFlag', '#Nationals', '#Register'],
-    likes: 1203, comments: 89, shares: 234,
-    isLiked: false, verified: true,
-  },
-];
+const PostCard = ({
+  post,
+  onLike,
+  onComment,
+  onShare,
+  onUserClick,
+  onMenuClick,
+  onHighlightClick,
+  onPostClick
+}: {
+  post: PostData;
+  onLike: (postId: number) => void;
+  onComment: (postId: number) => void;
+  onShare: (postId: number) => void;
+  onUserClick: (userId: string) => void;
+  onMenuClick: (postId: number) => void;
+  onHighlightClick: (postId: number) => void;
+  onPostClick: (postId: number) => void;
+}) => {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const { showNotification } = useNotifications();
 
-const ranked = [
-  { rank: 1, name: 'Sarah Watkins',  pos: 'QB', school: 'Westlake HS, TX',        score: 95 },
-  { rank: 2, name: 'Maya Johnson',   pos: 'WR', school: "St. Mary's Academy, FL", score: 92 },
-  { rank: 3, name: 'Isabella Reyes', pos: 'DB', school: 'Centennial HS, CA',       score: 91 },
-  { rank: 4, name: 'Chloe Zhang',    pos: 'RB', school: 'Northwood HS, GA',        score: 90 },
-  { rank: 5, name: "Emma O'Connor",  pos: 'QB', school: 'Summit Prep, CO',         score: 89 },
-];
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
 
-const inProgress = [
-  { name: 'Elite QB Development',    done: 18, total: 24 },
-  { name: 'Speed & Agility Mastery', done: 12, total: 18 },
-];
-
-const drills = [
-  { id: 1, name: '3-Step Drop Progression', cat: 'QB',       dur: '15 min' },
-  { id: 2, name: 'L-Drill Cone Work',        cat: 'Agility',  dur: '10 min' },
-  { id: 3, name: 'Single-Leg RDL Series',    cat: 'Strength', dur: '12 min' },
-  { id: 4, name: 'Hand Fighting Drills',     cat: 'DB',       dur: '8 min'  },
-];
-
-function formatNum(n: number) {
-  return n >= 1000 ? (n / 1000).toFixed(1) + 'K' : n.toString();
-}
-
-function nameToIdx(name: string) {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
-  return (h % 90) + 1;
-}
-
-function Avatar({ name, size = 40 }: { name: string; size?: number }) {
-  return (
-    <img
-      src={`https://randomuser.me/api/portraits/women/${nameToIdx(name)}.jpg`}
-      alt={name}
-      style={{ width: size, height: size, borderRadius: '50%', background: '#1c1c1c', flexShrink: 0, objectFit: 'cover' }}
-    />
-  );
-}
-
-export const Feed = () => {
-  const navigate = useNavigate();
-  const [feedPosts, setFeedPosts] = useState<Post[]>(posts);
-  const [tab, setTab] = useState<'recent' | 'trending'>('recent');
-
-  const toggleLike = (id: number) => {
-    setFeedPosts(prev => prev.map(p =>
-      p.id === id ? { ...p, isLiked: !p.isLiked, likes: p.isLiked ? p.likes - 1 : p.likes + 1 } : p
-    ));
-  };
-
-  const sorted = tab === 'trending'
-    ? [...feedPosts].sort((a, b) => b.likes - a.likes)
-    : feedPosts;
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
-    <div>
-
-      {/* ── Hero Banner — full bleed ── */}
-      <div style={{ position: 'relative', height: 380, overflow: 'hidden' }}>
-        <img
-          src="https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=85&w=1600"
-          alt="hero"
-          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 30%' }}
-        />
-        {/* Gradient overlay */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(105deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 55%, rgba(0,0,0,0.25) 100%)',
-        }} />
-        {/* Subtle coral accent bottom */}
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, height: 2,
-          background: 'linear-gradient(90deg, #ff5a2d 0%, transparent 60%)',
-        }} />
-
-        {/* Hero content */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          display: 'flex', flexDirection: 'column', justifyContent: 'center',
-          padding: '0 52px',
-        }}>
-          <div style={{
-            fontSize: '0.68rem', fontWeight: 800,
-            letterSpacing: '0.35em', textTransform: 'uppercase',
-            color: '#ff5a2d', marginBottom: 14,
-          }}>
-            NATIONAL RANKINGS 2025
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      onClick={() => onPostClick(post.id)}
+      className="glass-card mb-8 group cursor-pointer hover:bg-white/5 transition-colors"
+    >
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onUserClick(post.user.name);
+          }}
+          className="flex items-center gap-4 cursor-pointer hover:opacity-80 transition-opacity"
+        >
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-accent p-0.5 shadow-lg shadow-brand-500/20">
+            <div className="w-full h-full rounded-[14px] bg-dark-800 overflow-hidden">
+              <img src={post.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.user.name}`} alt={post.user.name} />
+            </div>
           </div>
-
-          <h1 style={{
-            fontFamily: 'Barlow Condensed, sans-serif',
-            fontWeight: 900,
-            fontSize: 'clamp(2.8rem, 5vw, 4.2rem)',
-            textTransform: 'uppercase',
-            color: '#fff',
-            lineHeight: 0.92,
-            marginBottom: 20,
-            letterSpacing: '-0.01em',
-          }}>
-            THE FUTURE<br />OF THE GAME.
-          </h1>
-
-          <p style={{
-            fontSize: '0.88rem',
-            color: 'rgba(255,255,255,0.6)',
-            marginBottom: 30,
-            maxWidth: 400,
-            lineHeight: 1.6,
-          }}>
-            Top female high school flag football athletes competing for D1 scholarships and national recognition.
-          </p>
-
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <button
-              onClick={() => navigate('/rankings')}
-              style={{
-                background: 'transparent',
-                border: '1.5px solid rgba(255,255,255,0.75)',
-                borderRadius: 9999,
-                color: '#fff',
-                fontSize: '0.75rem',
-                fontWeight: 800,
-                letterSpacing: '0.12em',
-                padding: '10px 24px',
-                cursor: 'pointer',
-                textTransform: 'uppercase',
-                transition: 'all 0.15s',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = '#ff5a2d';
-                e.currentTarget.style.borderColor = '#ff5a2d';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.75)';
-              }}
-            >
-              VIEW RANKINGS →
-            </button>
-            <button
-              onClick={() => navigate('/profile')}
-              style={{
-                background: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: 9999,
-                color: 'rgba(255,255,255,0.7)',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                letterSpacing: '0.08em',
-                padding: '10px 20px',
-                cursor: 'pointer',
-                textTransform: 'uppercase',
-                transition: 'all 0.15s',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
-                e.currentTarget.style.color = '#fff';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-                e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
-              }}
-            >
-              MY PROFILE
-            </button>
+          <div>
+            <h3 className="text-white font-bold tracking-tight uppercase text-sm hover:text-brand-400 transition-colors">{post.user.name}</h3>
+            <p className="text-xs text-dark-500 font-bold uppercase tracking-widest">{post.time}</p>
           </div>
+        </button>
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen(!menuOpen);
+            }}
+            className="text-dark-500 hover:text-white transition-colors"
+          >
+            <MoreHorizontal size={20} />
+          </button>
+
+          {/* Post Menu Dropdown */}
+          <AnimatePresence>
+            {menuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                className="absolute top-full right-0 mt-2 w-48 bg-dark-800/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-50"
+              >
+                <div className="p-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onMenuClick(post.id);
+                      setMenuOpen(false);
+                      showNotification('success', 'Post Reported', 'Thank you for keeping the community safe!');
+                    }}
+                    className="w-full text-left px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-colors flex items-center gap-3"
+                  >
+                    <Flag size={16} />
+                    Report Post
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuOpen(false);
+                      showNotification('info', 'Post Hidden', 'This post has been hidden from your feed.');
+                    }}
+                    className="w-full text-left px-4 py-3 text-sm text-dark-300 hover:text-white hover:bg-white/5 rounded-xl transition-colors flex items-center gap-3"
+                  >
+                    <EyeOff size={16} />
+                    Hide Post
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuOpen(false);
+                      showNotification('info', 'User Blocked', 'You will no longer see content from this user.');
+                    }}
+                    className="w-full text-left px-4 py-3 text-sm text-dark-300 hover:text-white hover:bg-white/5 rounded-xl transition-colors flex items-center gap-3"
+                  >
+                    <UserX size={16} />
+                    Block User
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
-      {/* ── Feed body ── */}
-      <div style={{ display: 'flex', padding: '24px', gap: 24, maxWidth: 1200, margin: '0 auto' }}>
+      <p className="text-dark-200 mb-6 text-base leading-relaxed">
+        {post.content}
+      </p>
 
-        {/* Main feed */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-
-          {/* Stat cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 28 }}>
-            {[
-              { label: 'STREAK', value: '12 Days', sub: 'Training streak',  path: '/training'  },
-              { label: 'RANK',   value: 'Top 5%',  sub: 'Platform ranking', path: '/rankings'  },
-              { label: 'NEXT',   value: '3 Days',  sub: 'Dallas Combine',   path: '/recruiting' },
-            ].map(({ label, value, sub, path }) => (
-              <button key={label} onClick={() => navigate(path)} style={{
-                background: '#111',
-                border: '1px solid rgba(255,255,255,0.06)',
-                borderRadius: 12,
-                padding: '18px 20px',
-                textAlign: 'left',
-                cursor: 'pointer',
-                transition: 'border-color 0.2s',
-              }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,90,45,0.3)')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)')}
+      {post.image && (
+        <div className="relative rounded-2xl overflow-hidden border border-white/5 mb-6 aspect-video group-hover:border-brand-500/30 transition-all duration-500">
+           <img src={post.image} alt="Post Highlight" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+            {post.highlights && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onHighlightClick(post.id);
+                }}
+                className="absolute top-4 right-4 px-3 py-1 bg-brand-500 hover:bg-brand-600 rounded-full flex items-center gap-2 shadow-lg transition-colors cursor-pointer"
               >
-                <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555', marginBottom: 6 }}>{label}</div>
-                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.75rem', color: '#fff', lineHeight: 1 }}>{value}</div>
-                <div style={{ fontSize: '0.72rem', color: '#666', marginTop: 4 }}>{sub}</div>
+                 <PlayCircle size={14} className="text-white fill-current" />
+                 <span className="text-[10px] font-black uppercase tracking-widest text-white">Watch Highlight</span>
               </button>
-            ))}
-          </div>
+            )}
+        </div>
+      )}
 
-          {/* Feed header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.1rem', letterSpacing: '0.05em', textTransform: 'uppercase' }}>The Grid</span>
-            <div style={{ display: 'flex', gap: 4 }}>
-              {(['recent', 'trending'] as const).map(t => (
-                <button key={t} onClick={() => setTab(t)} style={{
-                  background: tab === t ? '#ff5a2d' : 'transparent',
-                  color: tab === t ? '#fff' : '#666',
-                  border: 'none',
-                  borderRadius: 6,
-                  padding: '5px 12px',
-                  fontSize: '0.72rem',
-                  fontWeight: 700,
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s',
-                }}>
-                  {t}
-                </button>
-              ))}
+      <div className="flex items-center gap-8 pt-6 border-t border-white/5">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onLike(post.id);
+          }}
+          className={`flex items-center gap-2 transition-all group/btn ${
+            post.isLiked ? 'text-accent' : 'text-dark-400 hover:text-accent'
+          }`}
+        >
+          <Heart size={18} className={`transition-all ${post.isLiked ? 'fill-accent' : 'group-hover/btn:fill-accent'}`} />
+          <span className="text-xs font-black uppercase tracking-widest">{post.likes}</span>
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onComment(post.id);
+          }}
+          className="flex items-center gap-2 text-dark-400 hover:text-white transition-all"
+        >
+          <MessageCircle size={18} />
+          <span className="text-xs font-black uppercase tracking-widest">{post.comments}</span>
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onShare(post.id);
+          }}
+          className="flex items-center gap-2 text-dark-400 hover:text-white ml-auto transition-all"
+        >
+          <Share2 size={18} />
+        </button>
+      </div>
+    </div>
+  </motion.div>
+  );
+};
+
+export const Feed = () => {
+  const navigate = useNavigate();
+  const { showNotification } = useNotifications();
+  const [feedType, setFeedType] = useState<'recent' | 'trending'>('recent');
+  const [posts, setPosts] = useState<PostData[]>([
+    {
+      id: 1,
+      user: { name: 'Sarah Watkins', avatar: null },
+      time: '2 hours ago',
+      content: "Just finished a killer session at the Nike Training Camp. 40yd dash improved by 0.2s! Hard work pays off. 🏈💨",
+      image: "https://images.unsplash.com/photo-1541252260730-0412e3e2108e?auto=format&fit=crop&q=80&w=1200",
+      likes: '1.2K',
+      comments: '84',
+      highlights: true,
+      isLiked: false
+    },
+    {
+      id: 2,
+      user: { name: 'Coach Miller', avatar: null },
+      time: '5 hours ago',
+      content: "Looking for a dynamic wide receiver for the 2026 class. Show us what you've got in the next regional combine! 🎯",
+      likes: '450',
+      comments: '12',
+      highlights: false,
+      isLiked: false
+    }
+  ]);
+
+  const handleLike = (postId: number) => {
+    setPosts(prevPosts =>
+      prevPosts.map(post =>
+        post.id === postId
+          ? { ...post, isLiked: !post.isLiked }
+          : post
+      )
+    );
+  };
+
+  const handleComment = (postId: number) => {
+    showNotification('info', 'Coming Soon', 'Comments are on the way — stay tuned!');
+  };
+
+  const handleShare = (postId: number) => {
+    const postUrl = `${window.location.origin}/post/${postId}`;
+    navigator.clipboard.writeText(postUrl).then(() => {
+      showNotification('success', 'Link Copied', 'Post link copied to clipboard!');
+    }).catch(() => {
+      showNotification('error', 'Copy Failed', `Share this link: ${postUrl}`);
+    });
+  };
+
+  const handleUserClick = (userName: string) => {
+    // Navigate to user profile
+    navigate(`/profile/${encodeURIComponent(userName)}`);
+  };
+
+  const handleMenuClick = (postId: number) => {
+    // Handle menu actions (report, hide, block)
+    // This is handled in the individual menu buttons
+  };
+
+  const handleHighlightClick = (postId: number) => {
+    // Navigate to highlight video or open video player
+    navigate(`/highlights/${postId}`);
+  };
+
+  const handlePostClick = (postId: number) => {
+    // Navigate to detailed post view
+    navigate(`/post/${postId}`);
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto py-8">
+        {/* Header Stat Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <button
+            onClick={() => navigate('/training')}
+            className="glass-premium p-6 rounded-3xl relative overflow-hidden group cursor-pointer hover:scale-105 transition-all duration-300"
+          >
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Zap size={60} className="text-brand-500" />
             </div>
-          </div>
-
-          {/* Posts */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {sorted.map((post, i) => (
-              <motion.article
-                key={post.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04 }}
-                className="k-card-hover"
-                style={{ overflow: 'hidden' }}
-              >
-                {post.image && (
-                  <div style={{ position: 'relative', aspectRatio: '16/7', overflow: 'hidden', borderRadius: '12px 12px 0 0' }}>
-                    <img src={post.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 60%)' }} />
-                    {post.isVideo && (
-                      <button style={{
-                        position: 'absolute', inset: 0,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        background: 'none', border: 'none', cursor: 'pointer',
-                      }}>
-                        <div style={{
-                          width: 44, height: 44, borderRadius: '50%',
-                          background: 'rgba(255,90,45,0.9)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
-                          <Play size={18} color="#fff" fill="#fff" style={{ marginLeft: 2 }} />
-                        </div>
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                <div style={{ padding: '16px 18px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <Avatar name={post.name} size={36} />
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <span style={{ fontSize: '0.87rem', fontWeight: 600, color: '#fff' }}>{post.name}</span>
-                          {post.verified && <CheckCircle2 size={13} color="#ff5a2d" fill="#ff5a2d" />}
-                        </div>
-                        <div style={{ fontSize: '0.72rem', color: '#666' }}>
-                          {post.role}{post.school ? ` | ${post.school}` : ''}
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: '0.72rem', color: '#555' }}>{post.time}</span>
-                      <button style={{ background: 'none', border: 'none', color: '#444', cursor: 'pointer', padding: 4 }}>
-                        <MoreHorizontal size={16} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <p style={{ fontSize: '0.87rem', color: '#ccc', lineHeight: 1.55, marginBottom: 10 }}>{post.content}</p>
-
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
-                    {post.tags.map(t => (
-                      <span key={t} style={{ fontSize: '0.75rem', color: '#ff5a2d', fontWeight: 500 }}>{t}</span>
-                    ))}
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 20, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 12 }}>
-                    <button
-                      onClick={() => toggleLike(post.id)}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 5,
-                        background: 'none', border: 'none', cursor: 'pointer',
-                        color: post.isLiked ? '#ff5a2d' : '#555',
-                        fontSize: '0.78rem', fontWeight: 600,
-                        transition: 'color 0.15s',
-                      }}
-                    >
-                      <Heart size={15} fill={post.isLiked ? '#ff5a2d' : 'none'} />
-                      {formatNum(post.likes)}
-                    </button>
-                    <button style={{
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      color: '#555', fontSize: '0.78rem', fontWeight: 600,
-                    }}>
-                      <MessageCircle size={15} />
-                      {post.comments}
-                    </button>
-                    <button style={{
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      color: '#555', fontSize: '0.78rem', fontWeight: 600,
-                      marginLeft: 'auto',
-                    }}>
-                      <Share2 size={15} />
-                      {post.shares}
-                    </button>
-                  </div>
-                </div>
-              </motion.article>
-            ))}
-          </div>
+            <p className="text-xs font-black uppercase tracking-widest text-brand-400 mb-2">Training Streak</p>
+            <h4 className="text-3xl font-black text-white">12 DAYS</h4>
+          </button>
+          <button
+            onClick={() => navigate('/rankings')}
+            className="glass-premium p-6 rounded-3xl relative overflow-hidden group cursor-pointer hover:scale-105 transition-all duration-300"
+          >
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Trophy size={60} className="text-accent" />
+            </div>
+            <p className="text-xs font-black uppercase tracking-widest text-accent mb-2">Platform Rank</p>
+            <h4 className="text-3xl font-black text-white">TOP 5%</h4>
+          </button>
+          <button
+            onClick={() => navigate('/events')}
+            className="glass-premium p-6 rounded-3xl relative overflow-hidden group cursor-pointer hover:scale-105 transition-all duration-300"
+          >
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Calendar size={60} className="text-blue-500" />
+            </div>
+            <p className="text-xs font-black uppercase tracking-widest text-blue-400 mb-2">Next Event</p>
+            <h4 className="text-3xl font-black text-white">IN 3 DAYS</h4>
+          </button>
         </div>
 
-        {/* ── Right sidebar ── */}
-        <div style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-          {/* Top Ranked */}
-          <div className="k-card" style={{ padding: '18px 16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <span style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555' }}>Top Ranked</span>
-              <button onClick={() => navigate('/rankings')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.72rem', color: '#ff5a2d', fontWeight: 600 }}>View All</button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {ranked.map(({ rank, name, pos, school, score }) => (
-                <div key={rank} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#444', width: 14, textAlign: 'right', flexShrink: 0 }}>{rank}</span>
-                  <Avatar name={name} size={30} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#ddd', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</div>
-                    <div style={{ fontSize: '0.68rem', color: '#555' }}>{pos} | {school}</div>
-                  </div>
-                  <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.1rem', color: '#ff5a2d', flexShrink: 0 }}>{score}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* In Progress */}
-          <div className="k-card" style={{ padding: '18px 16px' }}>
-            <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555', marginBottom: 14 }}>In Progress</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {inProgress.map(({ name, done, total }) => {
-                const pct = Math.round((done / total) * 100);
-                return (
-                  <div key={name}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                      <span style={{ fontSize: '0.8rem', color: '#ccc', fontWeight: 500 }}>{name}</span>
-                      <span style={{ fontSize: '0.7rem', color: '#555' }}>{done}/{total} sessions</span>
-                    </div>
-                    <div className="k-progress-track">
-                      <div className="k-progress-fill" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
+      <div className="flex flex-col lg:flex-row gap-12">
+        {/* Main Feed */}
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-2xl font-black uppercase tracking-tighter text-white">The Grid</h2>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setFeedType('recent')}
+                className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-colors ${
+                  feedType === 'recent'
+                    ? 'bg-brand-500 text-white'
+                    : 'text-dark-400 hover:text-white'
+                }`}
+              >
+                Recent
+              </button>
+              <button
+                onClick={() => setFeedType('trending')}
+                className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-colors ${
+                  feedType === 'trending'
+                    ? 'bg-brand-500 text-white'
+                    : 'text-dark-400 hover:text-white'
+                }`}
+              >
+                Trending
+              </button>
             </div>
           </div>
 
-          {/* Recommended Drills */}
-          <div className="k-card" style={{ padding: '18px 16px' }}>
-            <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555', marginBottom: 14 }}>Recommended Drills</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {drills.map(({ id, name, cat, dur }) => (
+          {posts.map((post) => (
+            <PostCard
+              key={post.id}
+              post={post}
+              onLike={handleLike}
+              onComment={handleComment}
+              onShare={handleShare}
+              onUserClick={handleUserClick}
+              onMenuClick={handleMenuClick}
+              onHighlightClick={handleHighlightClick}
+              onPostClick={handlePostClick}
+            />
+          ))}
+        </div>
+
+        {/* Right Sidebar */}
+        <aside className="w-full lg:w-80 space-y-8">
+          <div className="glass-card p-6">
+            <h3 className="text-sm font-black uppercase tracking-widest text-white mb-6 flex items-center gap-2">
+              <Award size={16} className="text-brand-500" />
+              Recommended Drills
+            </h3>
+            <div className="space-y-4">
+              {[
+                { id: 1, name: 'Agility Ladder Level 1', duration: '15 mins', level: 'Advanced' },
+                { id: 2, name: 'Agility Ladder Level 2', duration: '20 mins', level: 'Expert' },
+                { id: 3, name: 'Agility Ladder Level 3', duration: '25 mins', level: 'Elite' }
+              ].map((drill) => (
                 <button
-                  key={id}
-                  onClick={() => navigate('/training')}
-                  style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)',
-                    textAlign: 'left', width: '100%',
-                  }}
+                  key={drill.id}
+                  onClick={() => navigate(`/drills?id=${drill.id}`)}
+                  className="w-full flex gap-4 group cursor-pointer text-left"
                 >
-                  <div>
-                    <div style={{ fontSize: '0.8rem', color: '#ccc', fontWeight: 500 }}>{name}</div>
-                    <div style={{ fontSize: '0.68rem', color: '#555', marginTop: 2 }}>{cat} · {dur}</div>
+                  <div className="w-16 h-16 rounded-xl bg-dark-900 border border-white/5 overflow-hidden flex-shrink-0 group-hover:border-brand-500/50 transition-colors">
+                    {/* Placeholder image */}
+                    <div className="w-full h-full bg-gradient-to-br from-brand-500/20 to-accent/20 flex items-center justify-center">
+                      <PlayCircle size={20} className="text-brand-400" />
+                    </div>
                   </div>
-                  <Play size={13} color="#ff5a2d" style={{ flexShrink: 0, marginLeft: 8 }} />
+                  <div>
+                    <h4 className="text-xs font-bold text-white uppercase group-hover:text-brand-400 transition-colors">{drill.name}</h4>
+                    <p className="text-[10px] text-dark-500 font-bold uppercase mt-1">{drill.duration} • {drill.level}</p>
+                  </div>
                 </button>
               ))}
-            </div>
-          </div>
-
-          {/* NIL Compliance */}
-          <div className="k-card" style={{ padding: '18px 16px', borderColor: 'rgba(255,90,45,0.15)' }}>
-            <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#ff5a2d', marginBottom: 10 }}>NIL Compliance</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10 }}>
-              <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '2rem', color: '#fff' }}>94%</span>
-              <div>
-                <div style={{ fontSize: '0.78rem', color: '#ccc', fontWeight: 500 }}>Profile Complete</div>
-                <div style={{ fontSize: '0.7rem', color: '#ff5a2d', marginTop: 2 }}>2 items pending</div>
-              </div>
-            </div>
-            <div className="k-progress-track">
-              <div className="k-progress-fill" style={{ width: '94%' }} />
             </div>
             <button
-              onClick={() => navigate('/audit')}
-              style={{
-                marginTop: 12, width: '100%', background: 'none',
-                border: '1px solid rgba(255,90,45,0.3)', borderRadius: 6,
-                color: '#ff5a2d', fontSize: '0.72rem', fontWeight: 700,
-                padding: '7px', cursor: 'pointer', letterSpacing: '0.06em',
-              }}
+              onClick={() => navigate('/drills')}
+              className="w-full mt-6 py-3 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-dark-300 hover:text-white hover:bg-white/5 transition-all"
             >
-              VIEW DETAILS →
+              View All Academy
             </button>
           </div>
-        </div>
+
+          <div className="glass-card p-6 bg-brand-500/5 border-brand-500/20">
+             <h3 className="text-sm font-black uppercase tracking-widest text-brand-400 mb-4 italic">NIL Compliance</h3>
+             <p className="text-xs text-dark-300 leading-relaxed font-medium">
+               Make sure your profile information is up to date to remain eligible for upcoming scholarship matches.
+             </p>
+              <button
+                onClick={() => navigate('/audit')}
+                className="mt-4 text-[10px] font-black uppercase tracking-widest text-brand-400 hover:text-brand-300 transition-colors"
+              >
+                 Check Status →
+              </button>
+          </div>
+        </aside>
       </div>
     </div>
   );
