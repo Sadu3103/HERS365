@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Filter, Eye, Star, MapPin, GraduationCap, Award, Users, Heart } from 'lucide-react';
 import type { PlayerSearchResult } from '../../types';
+import { useNotifications } from '../../context/NotificationContext';
 
 interface SearchFilters {
   q?: string;
@@ -40,6 +41,7 @@ export function CoachPlayerSearch() {
   const [filters, setFilters] = useState<SearchFilters>({});
   const [showFilters, setShowFilters] = useState(false);
   const [savedPlayers, setSavedPlayers] = useState<Set<number>>(new Set());
+  const { showNotification } = useNotifications();
 
   useEffect(() => {
     searchPlayers();
@@ -69,6 +71,7 @@ export function CoachPlayerSearch() {
       }
     } catch (error) {
       console.error('Search failed:', error);
+      showNotification('error', 'Search Failed', 'Could not complete the search. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -104,6 +107,7 @@ export function CoachPlayerSearch() {
       }
     } catch (error) {
       console.error('Failed to save player:', error);
+      showNotification('error', 'Save Failed', 'Could not update player save status. Please try again.');
     }
   };
 

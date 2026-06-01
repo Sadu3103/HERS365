@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Heart, Eye, Trash2, Star, Users, MapPin, GraduationCap, Award } from 'lucide-react';
 import type { ScoutingBoardItem, PlayerSearchResult } from '../../types';
+import { useNotifications } from '../../context/NotificationContext';
 
 const TIERS = [
   { id: 'top-target', label: 'Top Targets', color: 'bg-red-600', description: 'Priority recruits' },
@@ -16,6 +17,7 @@ export function CoachScoutingBoard() {
   const [activeTier, setActiveTier] = useState<string>('all');
   const [editingNotes, setEditingNotes] = useState<number | null>(null);
   const [notesText, setNotesText] = useState('');
+  const { showNotification } = useNotifications();
 
   useEffect(() => {
     fetchScoutingBoard();
@@ -48,6 +50,7 @@ export function CoachScoutingBoard() {
             }
           } catch (error) {
             console.error(`Failed to fetch player ${item.playerId}:`, error);
+            showNotification('error', 'Player Load Failed', `Could not load data for player ${item.playerId}.`);
           }
           return null;
         });
@@ -86,6 +89,7 @@ export function CoachScoutingBoard() {
       }
     } catch (error) {
       console.error('Failed to fetch scouting board:', error);
+      showNotification('error', 'Load Failed', 'Could not load your scouting board. Please refresh.');
     } finally {
       setLoading(false);
     }
@@ -104,6 +108,7 @@ export function CoachScoutingBoard() {
       setBoard(prev => prev.filter(item => item.playerId !== playerId));
     } catch (error) {
       console.error('Failed to remove player from board:', error);
+      showNotification('error', 'Remove Failed', 'Could not remove player from board. Please try again.');
     }
   };
 
@@ -126,6 +131,7 @@ export function CoachScoutingBoard() {
       }
     } catch (error) {
       console.error('Failed to update tier:', error);
+      showNotification('error', 'Update Failed', 'Could not update player tier. Please try again.');
     }
   };
 
@@ -148,6 +154,7 @@ export function CoachScoutingBoard() {
       setNotesText('');
     } catch (error) {
       console.error('Failed to update notes:', error);
+      showNotification('error', 'Save Failed', 'Could not save notes. Please try again.');
     }
   };
 

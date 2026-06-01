@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MessageSquare, Send, Eye, Users, MapPin } from 'lucide-react';
 import type { CoachMessage } from '../../types';
+import { useNotifications } from '../../context/NotificationContext';
 
 export function CoachMessages() {
   const [messages, setMessages] = useState<any[]>([]);
@@ -9,6 +10,7 @@ export function CoachMessages() {
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
   const [players, setPlayers] = useState<Map<number, any>>(new Map());
   const [loading, setLoading] = useState(true);
+  const { showNotification } = useNotifications();
 
   useEffect(() => {
     fetchMessages();
@@ -29,6 +31,7 @@ export function CoachMessages() {
       }
     } catch (error) {
       console.error('Failed to fetch messages:', error);
+      showNotification('error', 'Load Failed', 'Could not load messages. Please refresh.');
     } finally {
       setLoading(false);
     }
@@ -51,11 +54,12 @@ export function CoachMessages() {
       if (response.ok) {
         setNewMessage('');
         setSelectedPlayerId(null);
-        // Refresh messages to show the new one
+        showNotification('success', 'Message Sent', 'Your message has been delivered.');
         fetchMessages();
       }
     } catch (error) {
       console.error('Failed to send message:', error);
+      showNotification('error', 'Send Failed', 'Could not send message. Please try again.');
     }
   };
 
