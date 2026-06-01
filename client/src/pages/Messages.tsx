@@ -60,15 +60,17 @@ function Avatar({ name, size = 36, online }: { name: string; size?: number; onli
 
 export const Messages = () => {
   const [activeId, setActiveId] = useState<number>(1);
+  const [convoList, setConvoList] = useState<Convo[]>([]);
   const [msgs, setMsgs] = useState<Msg[]>(mockMsgs);
   const [draft, setDraft] = useState('');
   const [search, setSearch] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => { setConvoList(convos); }, []);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
 
-  const active = convos.find(c => c.id === activeId)!;
-  const filtered = convos.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
+  const active = convoList.find(c => c.id === activeId) ?? convos[0];
+  const filtered = convoList.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
 
   const send = () => {
     if (!draft.trim()) return;
