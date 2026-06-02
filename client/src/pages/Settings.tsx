@@ -51,82 +51,82 @@ export const Settings = () => {
   const renderProfileTab = () => (
     <div className="space-y-8">
       {/* Profile Picture */}
-      <div className="glass-card p-6">
+      <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
         <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Profile Picture</h3>
         <div className="flex items-center gap-6">
           <div className="relative">
-            <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-brand-500 to-accent p-1">
-              <div className="w-full h-full rounded-[14px] bg-dark-800 overflow-hidden">
+            <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-coral-500 to-green-500 p-1">
+              <div className="w-full h-full rounded-[14px] bg-surface-card overflow-hidden">
                 <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah" alt="Profile" />
               </div>
             </div>
-            <button className="absolute bottom-0 right-0 p-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg transition-colors">
+            <button className="absolute bottom-0 right-0 p-2 bg-coral-500 hover:bg-coral-600 text-white rounded-lg transition-colors">
               <Camera size={16} />
             </button>
           </div>
           <div>
-            <button className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg font-bold uppercase tracking-widest transition-colors mb-2">
+            <button className="px-4 py-2 bg-coral-500 hover:bg-coral-600 text-white rounded-lg font-bold uppercase tracking-widest transition-colors mb-2">
               Change Picture
             </button>
-            <p className="text-sm text-dark-400">JPG, PNG or GIF. Max size 2MB.</p>
+            <p className="text-sm text-ink-muted">JPG, PNG or GIF. Max size 2MB.</p>
           </div>
         </div>
       </div>
 
       {/* Personal Information */}
-      <div className="glass-card p-6">
+      <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
         <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Personal Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-bold text-dark-400 uppercase tracking-widest mb-2">First Name</label>
+            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">First Name</label>
             <input
               type="text"
               defaultValue="Sarah"
-              className="w-full bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500"
+              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-bold text-dark-400 uppercase tracking-widest mb-2">Last Name</label>
+            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Last Name</label>
             <input
               type="text"
               defaultValue="Johnson"
-              className="w-full bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500"
+              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-bold text-dark-400 uppercase tracking-widest mb-2">Email</label>
+            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Email</label>
             <input
               type="email"
               defaultValue="sarah.johnson@email.com"
-              className="w-full bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500"
+              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-bold text-dark-400 uppercase tracking-widest mb-2">Phone</label>
+            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Phone</label>
             <input
               type="tel"
               defaultValue="+1 (555) 123-4567"
-              className="w-full bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500"
+              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-bold text-dark-400 uppercase tracking-widest mb-2">Bio</label>
+            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Bio</label>
             <textarea
               rows={4}
               defaultValue="Passionate quarterback with a love for the game and academics. Leading my team to victory while maintaining straight A's."
-              className="w-full bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500 resize-none"
+              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500 resize-none"
             />
           </div>
         </div>
       </div>
 
       {/* Athletic Information */}
-      <div className="glass-card p-6">
+      <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
         <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Athletic Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-bold text-dark-400 uppercase tracking-widest mb-2">Position</label>
-            <select className="w-full bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500">
+            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Position</label>
+            <select className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500">
               <option>Quarterback</option>
               <option>Running Back</option>
               <option>Wide Receiver</option>
@@ -134,34 +134,34 @@ export const Settings = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-bold text-dark-400 uppercase tracking-widest mb-2">Graduation Year</label>
-            <select className="w-full bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500">
+            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Graduation Year</label>
+            <select className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500">
               <option>2026</option>
               <option>2027</option>
               <option>2028</option>
             </select>
           </div>
           <div>
-            <label className="block text-sm font-bold text-dark-400 uppercase tracking-widest mb-2">Height</label>
+            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Height</label>
               <input
                 type="text"
                 defaultValue="5'8&quot;"
-                className="w-full bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500"
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
               />
           </div>
           <div>
-            <label className="block text-sm font-bold text-dark-400 uppercase tracking-widest mb-2">Weight</label>
+            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Weight</label>
             <input
               type="text"
               defaultValue="145 lbs"
-              className="w-full bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500"
+              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
             />
           </div>
         </div>
       </div>
 
       <div className="flex justify-end">
-        <button className="flex items-center gap-2 px-8 py-4 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold uppercase tracking-widest transition-colors">
+        <button className="flex items-center gap-2 px-8 py-4 bg-coral-500 hover:bg-coral-600 text-white rounded-xl font-bold uppercase tracking-widest transition-colors">
           <Save size={18} />
           Save Changes
         </button>
@@ -171,7 +171,7 @@ export const Settings = () => {
 
   const renderNotificationsTab = () => (
     <div className="space-y-6">
-      <div className="glass-card p-6">
+      <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
         <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Notification Preferences</h3>
 
         <div className="space-y-4">
@@ -182,10 +182,10 @@ export const Settings = () => {
             { key: 'teamUpdates', label: 'Team Updates', description: 'Receive updates about your team and events' },
             { key: 'marketing', label: 'Marketing Communications', description: 'Receive promotional emails and updates' }
           ].map((item) => (
-            <div key={item.key} className="flex items-center justify-between p-4 bg-dark-800/50 rounded-lg">
+            <div key={item.key} className="flex items-center justify-between p-4 bg-surface-card/50 rounded-lg">
               <div>
                 <h4 className="text-white font-bold">{item.label}</h4>
-                <p className="text-sm text-dark-400">{item.description}</p>
+                <p className="text-sm text-ink-muted">{item.description}</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
@@ -194,38 +194,38 @@ export const Settings = () => {
                   onChange={(e) => handleNotificationChange(item.key, e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-dark-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-brand-500/25 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-500"></div>
+                <div className="w-11 h-6 bg-surface-hover peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-coral-500/25 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-coral-500"></div>
               </label>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="glass-card p-6">
+      <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
         <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Notification Schedule</h3>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-bold text-dark-400 uppercase tracking-widest mb-2">Quiet Hours Start</label>
+            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Quiet Hours Start</label>
             <input
               type="time"
               defaultValue="22:00"
-              className="bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500"
+              className="bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-bold text-dark-400 uppercase tracking-widest mb-2">Quiet Hours End</label>
+            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Quiet Hours End</label>
             <input
               type="time"
               defaultValue="08:00"
-              className="bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500"
+              className="bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
             />
           </div>
         </div>
       </div>
 
       <div className="flex justify-end">
-        <button className="flex items-center gap-2 px-8 py-4 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold uppercase tracking-widest transition-colors">
+        <button className="flex items-center gap-2 px-8 py-4 bg-coral-500 hover:bg-coral-600 text-white rounded-xl font-bold uppercase tracking-widest transition-colors">
           <Save size={18} />
           Save Preferences
         </button>
@@ -235,7 +235,7 @@ export const Settings = () => {
 
   const renderPrivacyTab = () => (
     <div className="space-y-6">
-      <div className="glass-card p-6">
+      <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
         <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Privacy Settings</h3>
 
         <div className="space-y-4">
@@ -245,12 +245,12 @@ export const Settings = () => {
             { label: 'Performance Stats', description: 'Who can view your athletic statistics', value: 'Everyone' },
             { label: 'Activity Status', description: 'Show when you\'re online', value: 'Friends Only' }
           ].map((item) => (
-            <div key={item.label} className="flex items-center justify-between p-4 bg-dark-800/50 rounded-lg">
+            <div key={item.label} className="flex items-center justify-between p-4 bg-surface-card/50 rounded-lg">
               <div>
                 <h4 className="text-white font-bold">{item.label}</h4>
-                <p className="text-sm text-dark-400">{item.description}</p>
+                <p className="text-sm text-ink-muted">{item.description}</p>
               </div>
-              <select className="bg-dark-700 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-brand-500">
+              <select className="bg-surface-hover border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-coral-500">
                 <option>{item.value}</option>
                 <option>Public</option>
                 <option>Friends Only</option>
@@ -261,21 +261,21 @@ export const Settings = () => {
         </div>
       </div>
 
-      <div className="glass-card p-6">
+      <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
         <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Security</h3>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-bold text-dark-400 uppercase tracking-widest mb-2">Current Password</label>
+            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Current Password</label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
                 placeholder="Enter current password"
-                className="w-full bg-dark-800 border border-white/10 rounded-lg py-3 px-4 pr-12 text-white placeholder:text-dark-500 focus:outline-none focus:border-brand-500"
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 pr-12 text-white placeholder:text-ink-faint focus:outline-none focus:border-coral-500"
               />
               <button
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-400 hover:text-white"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-white"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -283,20 +283,20 @@ export const Settings = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-dark-400 uppercase tracking-widest mb-2">New Password</label>
+            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">New Password</label>
             <input
               type="password"
               placeholder="Enter new password"
-              className="w-full bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white placeholder:text-dark-500 focus:outline-none focus:border-brand-500"
+              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white placeholder:text-ink-faint focus:outline-none focus:border-coral-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-dark-400 uppercase tracking-widest mb-2">Confirm New Password</label>
+            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Confirm New Password</label>
             <input
               type="password"
               placeholder="Confirm new password"
-              className="w-full bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white placeholder:text-dark-500 focus:outline-none focus:border-brand-500"
+              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white placeholder:text-ink-faint focus:outline-none focus:border-coral-500"
             />
           </div>
         </div>
@@ -307,7 +307,7 @@ export const Settings = () => {
           <Trash2 size={18} />
           Delete Account
         </button>
-        <button className="flex items-center gap-2 px-8 py-4 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold uppercase tracking-widest transition-colors">
+        <button className="flex items-center gap-2 px-8 py-4 bg-coral-500 hover:bg-coral-600 text-white rounded-xl font-bold uppercase tracking-widest transition-colors">
           <Save size={18} />
           Save Changes
         </button>
@@ -317,7 +317,7 @@ export const Settings = () => {
 
   const renderAppearanceTab = () => (
     <div className="space-y-6">
-      <div className="glass-card p-6">
+      <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
         <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Theme</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -330,24 +330,24 @@ export const Settings = () => {
               key={theme.name}
               className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
                 theme.active
-                  ? 'border-brand-500 bg-brand-500/10'
+                  ? 'border-coral-500 bg-coral-500/10'
                   : 'border-white/10 hover:border-white/20'
               }`}
             >
               <h4 className="text-white font-bold mb-2">{theme.name}</h4>
-              <p className="text-sm text-dark-400">{theme.description}</p>
+              <p className="text-sm text-ink-muted">{theme.description}</p>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="glass-card p-6">
+      <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
         <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Language & Region</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-bold text-dark-400 uppercase tracking-widest mb-2">Language</label>
-            <select className="w-full bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500">
+            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Language</label>
+            <select className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500">
               <option>English (US)</option>
               <option>English (UK)</option>
               <option>Spanish</option>
@@ -356,8 +356,8 @@ export const Settings = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-dark-400 uppercase tracking-widest mb-2">Timezone</label>
-            <select className="w-full bg-dark-800 border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-brand-500">
+            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Timezone</label>
+            <select className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500">
               <option>Pacific Time (PT)</option>
               <option>Eastern Time (ET)</option>
               <option>Central Time (CT)</option>
@@ -368,7 +368,7 @@ export const Settings = () => {
       </div>
 
       <div className="flex justify-end">
-        <button className="flex items-center gap-2 px-8 py-4 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold uppercase tracking-widest transition-colors">
+        <button className="flex items-center gap-2 px-8 py-4 bg-coral-500 hover:bg-coral-600 text-white rounded-xl font-bold uppercase tracking-widest transition-colors">
           <Save size={18} />
           Save Preferences
         </button>
@@ -378,54 +378,54 @@ export const Settings = () => {
 
   const renderAccountTab = () => (
     <div className="space-y-6">
-      <div className="glass-card p-6">
+      <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
         <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Account Information</h3>
 
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-dark-800/50 rounded-lg">
+          <div className="flex items-center justify-between p-4 bg-surface-card/50 rounded-lg">
             <div>
               <h4 className="text-white font-bold">Account Status</h4>
-              <p className="text-sm text-dark-400">Your account is active and verified</p>
+              <p className="text-sm text-ink-muted">Your account is active and verified</p>
             </div>
-            <span className="px-3 py-1 bg-accent text-white rounded-full text-sm font-bold">Verified</span>
+            <span className="px-3 py-1 bg-green-500 text-white rounded-full text-sm font-bold">Verified</span>
           </div>
 
-          <div className="flex items-center justify-between p-4 bg-dark-800/50 rounded-lg">
+          <div className="flex items-center justify-between p-4 bg-surface-card/50 rounded-lg">
             <div>
               <h4 className="text-white font-bold">Member Since</h4>
-              <p className="text-sm text-dark-400">January 15, 2023</p>
+              <p className="text-sm text-ink-muted">January 15, 2023</p>
             </div>
-            <span className="text-dark-400">1 year ago</span>
+            <span className="text-ink-muted">1 year ago</span>
           </div>
 
-          <div className="flex items-center justify-between p-4 bg-dark-800/50 rounded-lg">
+          <div className="flex items-center justify-between p-4 bg-surface-card/50 rounded-lg">
             <div>
               <h4 className="text-white font-bold">Account Type</h4>
-              <p className="text-sm text-dark-400">Premium Athlete Account</p>
+              <p className="text-sm text-ink-muted">Premium Athlete Account</p>
             </div>
-            <span className="px-3 py-1 bg-brand-500 text-white rounded-full text-sm font-bold">Premium</span>
+            <span className="px-3 py-1 bg-coral-500 text-white rounded-full text-sm font-bold">Premium</span>
           </div>
         </div>
       </div>
 
-      <div className="glass-card p-6">
+      <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
         <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Data Management</h3>
 
         <div className="space-y-4">
-          <button className="w-full flex items-center justify-between p-4 bg-dark-800/50 hover:bg-dark-800/70 rounded-lg transition-colors">
+          <button className="w-full flex items-center justify-between p-4 bg-surface-card/50 hover:bg-surface-card/70 rounded-lg transition-colors">
             <div>
               <h4 className="text-white font-bold">Download My Data</h4>
-              <p className="text-sm text-dark-400">Get a copy of all your data</p>
+              <p className="text-sm text-ink-muted">Get a copy of all your data</p>
             </div>
-            <Globe size={20} className="text-dark-400" />
+            <Globe size={20} className="text-ink-muted" />
           </button>
 
-          <button className="w-full flex items-center justify-between p-4 bg-dark-800/50 hover:bg-dark-800/70 rounded-lg transition-colors">
+          <button className="w-full flex items-center justify-between p-4 bg-surface-card/50 hover:bg-surface-card/70 rounded-lg transition-colors">
             <div>
               <h4 className="text-white font-bold">Privacy Settings</h4>
-              <p className="text-sm text-dark-400">Manage how your data is used</p>
+              <p className="text-sm text-ink-muted">Manage how your data is used</p>
             </div>
-            <Shield size={20} className="text-dark-400" />
+            <Shield size={20} className="text-ink-muted" />
           </button>
         </div>
       </div>
@@ -460,7 +460,7 @@ export const Settings = () => {
         <h1 className="text-4xl font-black text-white uppercase tracking-tighter mb-4">
           Settings
         </h1>
-        <p className="text-dark-300 text-lg">
+        <p className="text-ink-muted text-lg">
           Manage your account preferences and privacy settings
         </p>
       </div>
@@ -476,8 +476,8 @@ export const Settings = () => {
                 onClick={() => setActiveTab(section.id)}
                 className={`w-full flex items-center gap-4 p-4 rounded-xl text-left transition-all ${
                   activeTab === section.id
-                    ? 'bg-brand-500 text-white'
-                    : 'text-dark-400 hover:text-white hover:bg-white/5'
+                    ? 'bg-coral-500 text-white'
+                    : 'text-ink-muted hover:text-white hover:bg-white/5'
                 }`}
               >
                 <Icon size={20} />

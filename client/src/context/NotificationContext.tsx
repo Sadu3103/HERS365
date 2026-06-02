@@ -49,18 +49,18 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
               exit={{ opacity: 0, x: 20, scale: 0.95 }}
               className="pointer-events-auto"
             >
-              <div className="glass-premium p-5 rounded-2xl border border-white/10 shadow-2xl flex gap-4 items-start relative overflow-hidden group">
+              <div className="bg-surface-card/60 border border-surface-border rounded-2xl backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-2xl flex gap-4 items-start relative overflow-hidden group">
                 {/* Glow Effect */}
                 <div className={`absolute inset-0 opacity-10 blur-2xl -z-10 ${
-                  n.type === 'success' ? 'bg-accent' :
+                  n.type === 'success' ? 'bg-green-500' :
                   n.type === 'error' ? 'bg-red-500' :
-                  'bg-brand-500'
+                  'bg-coral-500'
                 }`} />
 
                 <div className={`p-2 rounded-xl flex-shrink-0 ${
-                  n.type === 'success' ? 'bg-accent/20 text-accent' :
+                  n.type === 'success' ? 'bg-green-500/20 text-green-500' :
                   n.type === 'error' ? 'bg-red-500/20 text-red-400' :
-                  'bg-brand-500/20 text-brand-400'
+                  'bg-coral-500/20 text-coral-400'
                 }`}>
                   {n.type === 'success' && <CheckCircle size={20} />}
                   {n.type === 'error' && <AlertCircle size={20} />}
@@ -70,12 +70,12 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-black uppercase tracking-widest text-white mb-1">{n.title}</h4>
-                  <p className="text-xs text-dark-300 font-medium leading-relaxed">{n.message}</p>
+                  <p className="text-xs text-ink-muted font-medium leading-relaxed">{n.message}</p>
                 </div>
 
                 <button 
                   onClick={() => removeNotification(n.id)}
-                  className="p-1 text-dark-500 hover:text-white transition-colors"
+                  className="p-1 text-ink-muted hover:text-white transition-colors"
                 >
                   <X size={16} />
                 </button>
@@ -86,9 +86,9 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                   animate={{ width: '0%' }}
                   transition={{ duration: 5, ease: 'linear' }}
                   className={`absolute bottom-0 left-0 h-0.5 ${
-                    n.type === 'success' ? 'bg-accent' :
+                    n.type === 'success' ? 'bg-green-500' :
                     n.type === 'error' ? 'bg-red-500' :
-                    'bg-brand-500'
+                    'bg-coral-500'
                   }`}
                 />
               </div>

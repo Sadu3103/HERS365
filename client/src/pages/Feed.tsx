@@ -69,7 +69,7 @@ const PostCard = ({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       onClick={() => onPostClick(post.id)}
-      className="glass-card mb-8 group cursor-pointer hover:bg-white/5 transition-colors"
+      className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl mb-8 group cursor-pointer hover:bg-white/5 transition-colors"
     >
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
@@ -80,14 +80,14 @@ const PostCard = ({
           }}
           className="flex items-center gap-4 cursor-pointer hover:opacity-80 transition-opacity"
         >
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-accent p-0.5 shadow-lg shadow-brand-500/20">
-            <div className="w-full h-full rounded-[14px] bg-dark-800 overflow-hidden">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-coral-500 to-green-500 p-0.5 shadow-lg shadow-coral-500/20">
+            <div className="w-full h-full rounded-[14px] bg-surface-card overflow-hidden">
               <img src={post.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.user.name}`} alt={post.user.name} />
             </div>
           </div>
           <div>
-            <h3 className="text-white font-bold tracking-tight uppercase text-sm hover:text-brand-400 transition-colors">{post.user.name}</h3>
-            <p className="text-xs text-dark-500 font-bold uppercase tracking-widest">{post.time}</p>
+            <h3 className="text-white font-bold tracking-tight uppercase text-sm hover:text-coral-400 transition-colors">{post.user.name}</h3>
+            <p className="text-xs text-ink-muted font-bold uppercase tracking-widest">{post.time}</p>
           </div>
         </button>
         <div className="relative" ref={menuRef}>
@@ -96,7 +96,7 @@ const PostCard = ({
               e.stopPropagation();
               setMenuOpen(!menuOpen);
             }}
-            className="text-dark-500 hover:text-white transition-colors"
+            className="text-ink-muted hover:text-white transition-colors"
           >
             <MoreHorizontal size={20} />
           </button>
@@ -108,7 +108,7 @@ const PostCard = ({
                 initial={{ opacity: 0, y: -10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                className="absolute top-full right-0 mt-2 w-48 bg-dark-800/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-50"
+                className="absolute top-full right-0 mt-2 w-48 bg-surface-card/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-50"
               >
                 <div className="p-2">
                   <button
@@ -129,7 +129,7 @@ const PostCard = ({
                       setMenuOpen(false);
                       showNotification('info', 'Post Hidden', 'This post has been hidden from your feed.');
                     }}
-                    className="w-full text-left px-4 py-3 text-sm text-dark-300 hover:text-white hover:bg-white/5 rounded-xl transition-colors flex items-center gap-3"
+                    className="w-full text-left px-4 py-3 text-sm text-ink-muted hover:text-white hover:bg-white/5 rounded-xl transition-colors flex items-center gap-3"
                   >
                     <EyeOff size={16} />
                     Hide Post
@@ -140,7 +140,7 @@ const PostCard = ({
                       setMenuOpen(false);
                       showNotification('info', 'User Blocked', 'You will no longer see content from this user.');
                     }}
-                    className="w-full text-left px-4 py-3 text-sm text-dark-300 hover:text-white hover:bg-white/5 rounded-xl transition-colors flex items-center gap-3"
+                    className="w-full text-left px-4 py-3 text-sm text-ink-muted hover:text-white hover:bg-white/5 rounded-xl transition-colors flex items-center gap-3"
                   >
                     <UserX size={16} />
                     Block User
@@ -152,12 +152,12 @@ const PostCard = ({
         </div>
       </div>
 
-      <p className="text-dark-200 mb-6 text-base leading-relaxed">
+      <p className="text-ink-muted mb-6 text-base leading-relaxed">
         {post.content}
       </p>
 
       {post.image && (
-        <div className="relative rounded-2xl overflow-hidden border border-white/5 mb-6 aspect-video group-hover:border-brand-500/30 transition-all duration-500">
+        <div className="relative rounded-2xl overflow-hidden border border-white/5 mb-6 aspect-video group-hover:border-coral-500/30 transition-all duration-500">
            <img src={post.image} alt="Post Highlight" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
             {post.highlights && (
               <button
@@ -165,7 +165,7 @@ const PostCard = ({
                   e.stopPropagation();
                   onHighlightClick(post.id);
                 }}
-                className="absolute top-4 right-4 px-3 py-1 bg-brand-500 hover:bg-brand-600 rounded-full flex items-center gap-2 shadow-lg transition-colors cursor-pointer"
+                className="absolute top-4 right-4 px-3 py-1 bg-coral-500 hover:bg-coral-600 rounded-full flex items-center gap-2 shadow-lg transition-colors cursor-pointer"
               >
                  <PlayCircle size={14} className="text-white fill-current" />
                  <span className="text-[10px] font-black uppercase tracking-widest text-white">Watch Highlight</span>
@@ -181,10 +181,10 @@ const PostCard = ({
             onLike(post.id);
           }}
           className={`flex items-center gap-2 transition-all group/btn ${
-            post.isLiked ? 'text-accent' : 'text-dark-400 hover:text-accent'
+            post.isLiked ? 'text-green-500' : 'text-ink-muted hover:text-green-500'
           }`}
         >
-          <Heart size={18} className={`transition-all ${post.isLiked ? 'fill-accent' : 'group-hover/btn:fill-accent'}`} />
+          <Heart size={18} className={`transition-all ${post.isLiked ? 'fill-green-500' : 'group-hover/btn:fill-green-500'}`} />
           <span className="text-xs font-black uppercase tracking-widest">{post.likes}</span>
         </button>
         <button
@@ -192,7 +192,7 @@ const PostCard = ({
             e.stopPropagation();
             onComment(post.id);
           }}
-          className="flex items-center gap-2 text-dark-400 hover:text-white transition-all"
+          className="flex items-center gap-2 text-ink-muted hover:text-white transition-all"
         >
           <MessageCircle size={18} />
           <span className="text-xs font-black uppercase tracking-widest">{post.comments}</span>
@@ -202,7 +202,7 @@ const PostCard = ({
             e.stopPropagation();
             onShare(post.id);
           }}
-          className="flex items-center gap-2 text-dark-400 hover:text-white ml-auto transition-all"
+          className="flex items-center gap-2 text-ink-muted hover:text-white ml-auto transition-all"
         >
           <Share2 size={18} />
         </button>
@@ -289,27 +289,27 @@ export const Feed = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           <button
             onClick={() => navigate('/training')}
-            className="glass-premium p-6 rounded-3xl relative overflow-hidden group cursor-pointer hover:scale-105 transition-all duration-300"
+            className="bg-surface-card/60 border border-surface-border rounded-2xl backdrop-blur-xl p-6 rounded-3xl relative overflow-hidden group cursor-pointer hover:scale-105 transition-all duration-300"
           >
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Zap size={60} className="text-brand-500" />
+              <Zap size={60} className="text-coral-500" />
             </div>
-            <p className="text-xs font-black uppercase tracking-widest text-brand-400 mb-2">Training Streak</p>
+            <p className="text-xs font-black uppercase tracking-widest text-coral-400 mb-2">Training Streak</p>
             <h4 className="text-3xl font-black text-white">12 DAYS</h4>
           </button>
           <button
             onClick={() => navigate('/rankings')}
-            className="glass-premium p-6 rounded-3xl relative overflow-hidden group cursor-pointer hover:scale-105 transition-all duration-300"
+            className="bg-surface-card/60 border border-surface-border rounded-2xl backdrop-blur-xl p-6 rounded-3xl relative overflow-hidden group cursor-pointer hover:scale-105 transition-all duration-300"
           >
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Trophy size={60} className="text-accent" />
+              <Trophy size={60} className="text-green-500" />
             </div>
-            <p className="text-xs font-black uppercase tracking-widest text-accent mb-2">Platform Rank</p>
+            <p className="text-xs font-black uppercase tracking-widest text-green-500 mb-2">Platform Rank</p>
             <h4 className="text-3xl font-black text-white">TOP 5%</h4>
           </button>
           <button
             onClick={() => navigate('/events')}
-            className="glass-premium p-6 rounded-3xl relative overflow-hidden group cursor-pointer hover:scale-105 transition-all duration-300"
+            className="bg-surface-card/60 border border-surface-border rounded-2xl backdrop-blur-xl p-6 rounded-3xl relative overflow-hidden group cursor-pointer hover:scale-105 transition-all duration-300"
           >
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
               <Calendar size={60} className="text-blue-500" />
@@ -329,8 +329,8 @@ export const Feed = () => {
                 onClick={() => setFeedType('recent')}
                 className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-colors ${
                   feedType === 'recent'
-                    ? 'bg-brand-500 text-white'
-                    : 'text-dark-400 hover:text-white'
+                    ? 'bg-coral-500 text-white'
+                    : 'text-ink-muted hover:text-white'
                 }`}
               >
                 Recent
@@ -339,8 +339,8 @@ export const Feed = () => {
                 onClick={() => setFeedType('trending')}
                 className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-colors ${
                   feedType === 'trending'
-                    ? 'bg-brand-500 text-white'
-                    : 'text-dark-400 hover:text-white'
+                    ? 'bg-coral-500 text-white'
+                    : 'text-ink-muted hover:text-white'
                 }`}
               >
                 Trending
@@ -365,9 +365,9 @@ export const Feed = () => {
 
         {/* Right Sidebar */}
         <aside className="w-full lg:w-80 space-y-8">
-          <div className="glass-card p-6">
+          <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
             <h3 className="text-sm font-black uppercase tracking-widest text-white mb-6 flex items-center gap-2">
-              <Award size={16} className="text-brand-500" />
+              <Award size={16} className="text-coral-500" />
               Recommended Drills
             </h3>
             <div className="space-y-4">
@@ -381,35 +381,35 @@ export const Feed = () => {
                   onClick={() => navigate(`/drills?id=${drill.id}`)}
                   className="w-full flex gap-4 group cursor-pointer text-left"
                 >
-                  <div className="w-16 h-16 rounded-xl bg-dark-900 border border-white/5 overflow-hidden flex-shrink-0 group-hover:border-brand-500/50 transition-colors">
+                  <div className="w-16 h-16 rounded-xl bg-surface border border-white/5 overflow-hidden flex-shrink-0 group-hover:border-coral-500/50 transition-colors">
                     {/* Placeholder image */}
-                    <div className="w-full h-full bg-gradient-to-br from-brand-500/20 to-accent/20 flex items-center justify-center">
-                      <PlayCircle size={20} className="text-brand-400" />
+                    <div className="w-full h-full bg-gradient-to-br from-coral-500/20 to-green-500/20 flex items-center justify-center">
+                      <PlayCircle size={20} className="text-coral-400" />
                     </div>
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-white uppercase group-hover:text-brand-400 transition-colors">{drill.name}</h4>
-                    <p className="text-[10px] text-dark-500 font-bold uppercase mt-1">{drill.duration} • {drill.level}</p>
+                    <h4 className="text-xs font-bold text-white uppercase group-hover:text-coral-400 transition-colors">{drill.name}</h4>
+                    <p className="text-[10px] text-ink-muted font-bold uppercase mt-1">{drill.duration} • {drill.level}</p>
                   </div>
                 </button>
               ))}
             </div>
             <button
               onClick={() => navigate('/drills')}
-              className="w-full mt-6 py-3 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-dark-300 hover:text-white hover:bg-white/5 transition-all"
+              className="w-full mt-6 py-3 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-ink-muted hover:text-white hover:bg-white/5 transition-all"
             >
               View All Academy
             </button>
           </div>
 
-          <div className="glass-card p-6 bg-brand-500/5 border-brand-500/20">
-             <h3 className="text-sm font-black uppercase tracking-widest text-brand-400 mb-4 italic">NIL Compliance</h3>
-             <p className="text-xs text-dark-300 leading-relaxed font-medium">
+          <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6 bg-coral-500/5 border-coral-500/20">
+             <h3 className="text-sm font-black uppercase tracking-widest text-coral-400 mb-4 italic">NIL Compliance</h3>
+             <p className="text-xs text-ink-muted leading-relaxed font-medium">
                Make sure your profile information is up to date to remain eligible for upcoming scholarship matches.
              </p>
               <button
                 onClick={() => navigate('/audit')}
-                className="mt-4 text-[10px] font-black uppercase tracking-widest text-brand-400 hover:text-brand-300 transition-colors"
+                className="mt-4 text-[10px] font-black uppercase tracking-widest text-coral-400 hover:text-coral-300 transition-colors"
               >
                  Check Status →
               </button>
