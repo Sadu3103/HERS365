@@ -51,6 +51,7 @@ import { CoachRoster } from './pages/coach/CoachRoster';
 import { CoachPlayerProfile } from './pages/coach/CoachPlayerProfile';
 import { CoachAnalytics } from './pages/coach/CoachAnalytics';
 import { CoachSignup } from './pages/coach/CoachSignup';
+import { CoachSettings } from './pages/coach/CoachSettings';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
@@ -144,6 +145,7 @@ function App() {
               <Route path="/coach/messages" element={<CoachMessages />} />
               <Route path="/coach/roster" element={<CoachRoster />} />
               <Route path="/coach/player/:id" element={<CoachPlayerProfile />} />
+              <Route path="/coach/settings" element={<CoachSettings />} />
             </Route>
           </Routes>
         </Router>
