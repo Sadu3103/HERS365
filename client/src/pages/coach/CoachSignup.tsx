@@ -36,7 +36,7 @@ export const CoachSignup = () => {
 
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/secure/coach/signup', {
+      const res = await fetch('/api/auth/secure/coach/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password, school, sport, division }),
