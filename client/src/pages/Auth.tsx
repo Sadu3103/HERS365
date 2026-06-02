@@ -32,6 +32,7 @@ export const Auth = () => {
       }
       if (data.token) localStorage.setItem('token', data.token);
       if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
+      // New registrations go through onboarding; returning users land on the feed
       navigate(isLogin ? '/feed' : '/onboarding');
     } catch {
       setError('Network error — please try again');

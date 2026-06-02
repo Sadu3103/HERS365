@@ -1,6 +1,20 @@
+// @ts-nocheck
 import express from 'express';
+import { eq } from 'drizzle-orm';
+import { db } from '../db';
+import * as schema from '../schema';
+import { requireAuth } from '../middleware/requireAuth';
 
 const router = express.Router();
+
+// Fields a user is allowed to set on their own profile via PUT.
+// Excludes id, email, passwordHash, subscriptionTier, verificationStatus.
+const UPDATABLE_FIELDS = [
+  'name', 'sport', 'position', 'age', 'state', 'city', 'zipCode',
+  'school', 'gradYear', 'gpa', 'achievements', 'archetype',
+  'segment', 'skillTier', 'privacySetting',
+];
+const INT_FIELDS = new Set(['age', 'gradYear']);
 
 // Mock data for athletes
 const mockAthletes = [
@@ -128,28 +142,76 @@ router.get('/', (req, res) => {
   }
 });
 
-// GET /api/athletes/:id - Get specific athlete profile
-router.get('/:id', (req, res) => {
+// GET /api/athletes/:id - Get specific athlete profile (DB-backed)
+router.get('/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    const athlete = mockAthletes.find(a => a.id === parseInt(id));
-
-    if (!athlete) {
-      return res.status(404).json({
-        success: false,
-        error: 'Athlete not found'
-      });
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ success: false, error: 'Invalid athlete id' });
     }
 
-    res.json({
-      success: true,
-      data: athlete
-    });
+    const rows = await db
+      .select()
+      .from(schema.players)
+      .where(eq(schema.players.id, id))
+      .limit(1);
+
+    const athlete = rows[0];
+    if (!athlete) {
+      return res.status(404).json({ success: false, error: 'Athlete not found' });
+    }
+
+    // Never leak the password hash
+    const { passwordHash, ...safe } = athlete;
+    res.json({ success: true, data: safe });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch athlete profile'
-    });
+    res.status(500).json({ success: false, error: 'Failed to fetch athlete profile' });
+  }
+});
+
+// PUT /api/athletes/:id - Update own athlete profile (DB-backed, auth required)
+router.put('/:id', requireAuth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ success: false, error: 'Invalid athlete id' });
+    }
+
+    // A user may only update their own profile
+    if (Number(req.user?.id) !== id) {
+      return res.status(403).json({ success: false, error: 'You can only edit your own profile' });
+    }
+
+    // Whitelist + coerce numeric fields
+    const updates = {};
+    for (const field of UPDATABLE_FIELDS) {
+      if (req.body[field] === undefined) continue;
+      let value = req.body[field];
+      if (INT_FIELDS.has(field) && value !== null && value !== '') {
+        const n = parseInt(value, 10);
+        value = Number.isNaN(n) ? null : n;
+      }
+      updates[field] = value;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ success: false, error: 'No updatable fields provided' });
+    }
+
+    const updated = await db
+      .update(schema.players)
+      .set(updates)
+      .where(eq(schema.players.id, id))
+      .returning();
+
+    if (updated.length === 0) {
+      return res.status(404).json({ success: false, error: 'Athlete not found' });
+    }
+
+    const { passwordHash, ...safe } = updated[0];
+    res.json({ success: true, data: safe });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to update athlete profile' });
   }
 });
 

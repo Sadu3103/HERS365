@@ -138,6 +138,8 @@ function App() {
             {/* Standalone full-page routes (no nav shell) */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/landing" element={<LandingPage />} />
+
+            {/* Athlete onboarding (full-screen, no nav chrome) */}
             <Route path="/onboarding" element={<Onboarding />} />
 
             {/* Coach Portal Routes */}
