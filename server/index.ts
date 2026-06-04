@@ -14,7 +14,7 @@ import { CosmosAPIService } from './cosmos-api';
 import { ComplianceOrchestrator, ComplianceDashboard } from './compliance-orchestrator';
 import { tracing, metrics } from './observability';
 import { logger } from './logger';
-import { authRouter } from './auth';
+import authRoutesRouter from './authRoutes';
 
 dotenv.config();
 
@@ -25,14 +25,18 @@ tracing;
 const app = express();
 const port = process.env.COSMOS_API_PORT || 4000;
 
-// Session configuration for Passport
+// Body parsing
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// Session configuration
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false,
   saveUninitialized: false,
   cookie: {
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    maxAge: 24 * 60 * 60 * 1000
   }
 }));
 
@@ -191,7 +195,7 @@ app.get('/metrics', (req, res) => {
 });
 
 // Mount authentication routes
-app.use('/api/auth', authRouter);
+app.use('/api/auth', authRoutesRouter);
 
 // Mount Cosmos DB API service
 app.use('/api/v1', cosmosAPIService.getApp());
@@ -213,7 +217,6 @@ app.get('/dashboard/compliance', async (req, res) => {
 // Additional API Routes
 import coachRouter from './coachRoutes';
 import paymentRouter from './paymentRoutes';
-import authRoutesRouter from './authRoutes';
 import { rankingsRouter } from './api/rankings';
 import { athletesRouter } from './api/athletes';
 import { messagesRouter } from './api/messages';
@@ -227,7 +230,6 @@ app.use('/api/training', trainingRouter);
 app.use('/api/users', usersRouter);
 app.use('/coach', coachRouter);
 app.use('/api/payment', paymentRouter);
-app.use('/api/auth/secure', authRoutesRouter);
 
 // Main startup function
 async function startApplication() {
