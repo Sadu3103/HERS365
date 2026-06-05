@@ -241,6 +241,8 @@ import coachRouter from './coachRoutes';
 import paymentRouter from './paymentRoutes';
 import authRoutesRouter from './authRoutes';
 import adminRouter from './adminRoutes';
+import uploadRouter from './uploadRoutes';
+import emailAuthRouter from './emailAuthRoutes';
 import { rankingsRouter } from './api/rankings';
 import { athletesRouter } from './api/athletes';
 import { messagesRouter } from './api/messages';
@@ -260,6 +262,8 @@ app.use('/api/training', trainingRouter);
 app.use('/api/users', usersRouter);
 app.use('/coach', coachRouter);
 app.use('/api/auth/secure', authRoutesRouter);
+app.use('/api/auth/email', emailAuthRouter);
+app.use('/api/upload', uploadRouter);
 app.use('/api/admin', adminRouter);
 
 // Main startup function
