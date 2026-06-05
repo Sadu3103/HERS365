@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, CheckCircle2, AlertCircle, Clock, TrendingUp, FileText, DollarSign, Eye } from 'lucide-react';
+import { Shield, CheckCircle2, AlertCircle, Clock, DollarSign, Eye } from 'lucide-react';
 
 const nilDeals = [
   { id: 1, brand: 'Under Armour',   type: 'Apparel',     value: '$2,400/yr',  status: 'approved', date: '2025-03-15', disclosure: true  },

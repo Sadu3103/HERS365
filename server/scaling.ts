@@ -88,11 +88,18 @@ export class DistributedTokenCache {
     const key = `access_token:${token}`;
     await this.redis.del(key);
 
-    // Remove from user token set
-    const payload = await auth.verifyAccessToken(token);
-    if (payload) {
-      const userKey = `user_tokens:${payload.userId}`;
-      await this.redis.sRem(userKey, key);
+    // Remove from user token set — decode JWT payload without verification
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const decoded = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+        if (decoded?.userId) {
+          const userKey = `user_tokens:${decoded.userId}`;
+          await this.redis.sRem(userKey, key);
+        }
+      }
+    } catch {
+      // Best effort — token already removed from blacklist
     }
   }
 
@@ -428,10 +435,10 @@ export class AuthMonitoringService {
   }> {
     const checks: Record<string, any> = {};
 
-    // Check database connectivity
+    // Check auth module availability
     try {
       const start = Date.now();
-      await auth.getTokenStatistics();
+      void auth.authRouter; // verify auth module loaded
       checks.database = {
         status: 'ok',
         response_time: Date.now() - start

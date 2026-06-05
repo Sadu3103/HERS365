@@ -179,6 +179,7 @@ export class AzureServiceBusClient {
   }
 
   private async createTopicIfNotExists(topicName: string, options: CreateTopicOptions): Promise<void> {
+    if (!this.adminClient) return;
     try {
       await this.adminClient.createTopic(topicName, options);
       logger.info(`Created topic: ${topicName}`);
@@ -190,6 +191,7 @@ export class AzureServiceBusClient {
   }
 
   private async createQueueIfNotExists(queueName: string, options: CreateQueueOptions): Promise<void> {
+    if (!this.adminClient) return;
     try {
       await this.adminClient.createQueue(queueName, options);
       logger.info(`Created queue: ${queueName}`);

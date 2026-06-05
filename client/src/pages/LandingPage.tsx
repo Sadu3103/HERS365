@@ -1,9 +1,15 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Zap, Target, Users, Play, ChevronRight, Globe, Lock } from 'lucide-react';
+import { Shield, Zap, Target, Play, ChevronRight, Globe, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const FeatureCard = ({ icon: Icon, title, description }: any) => (
+interface FeatureCardProps {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  title: string;
+  description: string;
+}
+
+const FeatureCard = ({ icon: Icon, title, description }: FeatureCardProps) => (
   <motion.div 
     whileHover={{ y: -10 }}
     className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-8 group cursor-pointer"
