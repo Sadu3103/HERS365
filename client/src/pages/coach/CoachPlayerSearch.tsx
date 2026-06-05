@@ -111,7 +111,7 @@ export function CoachPlayerSearch() {
     }
   };
 
-  const updateFilter = (key: keyof SearchFilters, value: any) => {
+  const updateFilter = (key: keyof SearchFilters, value: SearchFilters[typeof key]) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 

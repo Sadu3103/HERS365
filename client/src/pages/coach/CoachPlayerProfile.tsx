@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Eye, Heart, MessageSquare, Award, Star, Users, MapPin, GraduationCap, Ruler, Weight, Clock, Target } from 'lucide-react';
+import { Eye, Heart, MessageSquare, Award, Star, Users, MapPin, GraduationCap, Ruler, Weight, Target } from 'lucide-react';
 import type { PlayerProfile } from '../../types';
 import { useNotifications } from '../../context/NotificationContext';
 

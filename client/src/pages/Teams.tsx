@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, MapPin, Trophy, ChevronRight, Plus, CheckCircle2, Shield } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { MapPin, ChevronRight, Plus, CheckCircle2, Shield } from 'lucide-react';
 
 const teams = [
   {
@@ -89,7 +88,6 @@ function Avatar({ name, size = 36 }: { name: string; size?: number }) {
 }
 
 export const Teams = () => {
-  const navigate = useNavigate();
   const [selected, setSelected] = useState<number | null>(1);
   const [division, setDivision] = useState('All');
 

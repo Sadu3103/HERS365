@@ -1,18 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  BarChart3,
   TrendingUp,
   Users,
   Eye,
   MessageSquare,
   MapPin,
-  Calendar,
   Target,
   Award,
-  Search,
   Heart,
-  Activity
 } from 'lucide-react';
 import type { CoachAnalytics as CoachAnalyticsType } from '../../types';
 import { useNotifications } from '../../context/NotificationContext';

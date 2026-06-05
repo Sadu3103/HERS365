@@ -7,7 +7,6 @@ import {
   Palette,
   Globe,
   Lock,
-  MapPin,
   Save,
   Eye,
   EyeOff,

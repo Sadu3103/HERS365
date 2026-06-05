@@ -86,7 +86,7 @@ function Avatar({ name, role, size = 36, online }: { name: string; role: string;
 
 export const Messages = () => {
   const [activeId, setActiveId] = useState<number | null>(null);
-  const [msgs, setMsgs] = useState<Msg[]>([]);
+  const [sentMessages, setSentMessages] = useState<Record<number, Msg[]>>({});
   const [draft, setDraft] = useState('');
   const [search, setSearch] = useState('');
   const [showThread, setShowThread] = useState(false);
@@ -95,12 +95,9 @@ export const Messages = () => {
 
   const filtered = convos.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
   const active = convos.find(c => c.id === activeId) ?? null;
-
-  useEffect(() => {
-    if (activeId !== null) {
-      setMsgs(threadMap[activeId] ?? []);
-    }
-  }, [activeId]);
+  const msgs = activeId !== null
+    ? [...(threadMap[activeId] ?? []), ...(sentMessages[activeId] ?? [])]
+    : [];
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -114,7 +111,10 @@ export const Messages = () => {
 
   const send = () => {
     if (!draft.trim() || activeId === null) return;
-    setMsgs(prev => [...prev, { id: Date.now(), text: draft.trim(), time: 'Just now', fromMe: true, read: false }]);
+    setSentMessages(prev => ({
+      ...prev,
+      [activeId]: [...(prev[activeId] ?? []), { id: Date.now(), text: draft.trim(), time: 'Just now', fromMe: true, read: false }],
+    }));
     setDraft('');
   };
 
