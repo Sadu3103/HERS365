@@ -8,18 +8,18 @@ on:
 
 jobs:
   client:
-    name: Client — typecheck + lint + build
+    name: Client — build + lint
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: hers365-app/client
+        working-directory: client
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: hers365-app/client/package-lock.json
+          cache-dependency-path: client/package-lock.json
       - run: npm ci
       - run: npm run build
       - run: npm run lint
@@ -29,13 +29,13 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: hers365-app/server
+        working-directory: server
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: hers365-app/server/package-lock.json
+          cache-dependency-path: server/package-lock.json
       - run: npm ci
-      - run: npm run build
+      - run: npx tsc --noEmit
