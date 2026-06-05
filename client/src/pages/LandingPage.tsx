@@ -1,129 +1,168 @@
-import React from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Zap, Target, Users, Play, ChevronRight, Globe, Lock } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { Shield, Target, Users, ChevronRight, Trophy, Medal } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const FeatureCard = ({ icon: Icon, title, description }: any) => (
-  <motion.div 
-    whileHover={{ y: -10 }}
-    className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-8 group cursor-pointer"
+interface FeatureCardProps {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+}
+
+const FeatureCard = ({ icon: Icon, title, description }: FeatureCardProps) => (
+  <motion.div
+    whileHover={{ y: -6 }}
+    className="k-card-hover p-8 group"
   >
-    <div className="w-16 h-16 bg-coral-500/20 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-coral-500 transition-colors duration-500">
-      <Icon size={32} className="text-coral-400 group-hover:text-white transition-colors duration-500" />
+    <div className="w-14 h-14 rounded-2xl bg-coral-500/15 flex items-center justify-center mb-6 group-hover:bg-coral-500 transition-colors duration-300">
+      <Icon size={28} className="text-coral-400 group-hover:text-white transition-colors duration-300" aria-hidden="true" />
     </div>
-    <h3 className="text-2xl font-bold mb-4 text-white uppercase tracking-tight">{title}</h3>
+    <h3 className="text-xl font-semibold mb-3 text-ink">{title}</h3>
     <p className="text-ink-muted leading-relaxed">{description}</p>
   </motion.div>
 );
 
+interface MomentumFact {
+  icon: LucideIcon;
+  stat: string;
+  detail: string;
+}
+
+const MOMENTUM_FACTS: MomentumFact[] = [
+  {
+    icon: Medal,
+    stat: '2028 Olympics',
+    detail: 'Flag football joins the Los Angeles Games as a medal sport.',
+  },
+  {
+    icon: Trophy,
+    stat: 'NCAA emerging sport',
+    detail: "Women's flag football is on the NCAA's path to championship status.",
+  },
+  {
+    icon: Shield,
+    stat: 'Varsity and growing',
+    detail: 'Now a sanctioned high-school sport in a growing number of states.',
+  },
+];
+
 export const LandingPage = () => {
   return (
     <div className="min-h-screen bg-surface overflow-x-hidden pt-20">
-      {/* Hero Section */}
-      <section className="relative px-6 py-24 md:py-40 flex flex-col items-center text-center">
-        {/* Background Effects */}
+      {/* Hero */}
+      <section className="relative px-6 py-24 md:py-36 flex flex-col items-center text-center">
+        {/* Coral radial glow */}
         <div className="absolute top-0 w-full h-[1000px] pointer-events-none overflow-hidden opacity-30 select-none">
-          <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-coral-500/20 rounded-full blur-[150px]" />
-          <div className="absolute bottom-0 right-[-10%] w-[50%] h-[50%] bg-green-500/20 rounded-full blur-[150px]" />
+          <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-coral-500/20 blur-[150px]" />
+          <div className="absolute bottom-0 right-[-10%] w-[50%] h-[50%] rounded-full bg-coral-600/15 blur-[150px]" />
         </div>
 
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          className="relative z-10 max-w-5xl"
+          className="relative z-10 max-w-4xl"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface-card/60 border border-surface-border rounded-2xl backdrop-blur-xl mb-8 border-coral-500/20">
-            <Zap size={16} className="text-coral-400 animate-pulse" />
-            <span className="text-xs font-black uppercase tracking-[0.3em] text-coral-400">Future of Women's Football</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface-card/60 border border-coral-500/20 backdrop-blur-xl mb-8">
+            <Medal size={15} className="text-coral-400" aria-hidden="true" />
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-coral-400">
+              Girls&apos; Flag Football Recruiting
+            </span>
           </div>
-          
-          <h1 className="text-6xl md:text-8xl font-black mb-8 tracking-tighter uppercase leading-[0.9]">
-            The Elite <br />
-            <span className="bg-gradient-to-r from-coral-400 to-coral-600 bg-clip-text text-transparent italic">Pipeline</span>
+
+          <h1 className="k-display text-6xl md:text-8xl mb-8 leading-[0.92]">
+            Get seen.
+            <br />
+            <span className="bg-gradient-to-r from-coral-400 to-coral-600 bg-clip-text text-transparent">
+              Get recruited.
+            </span>
           </h1>
-          
-          <p className="text-xl md:text-2xl text-ink-muted mb-12 max-w-3xl mx-auto font-medium leading-relaxed">
-            The world's most advanced platform for female high school athletes, recruiters, and fans. 
-            Bridging talent with opportunity through data, compliance, and community.
+
+          <p className="text-lg md:text-xl text-ink-muted mb-12 max-w-2xl mx-auto leading-relaxed">
+            HERS365 is where high-school girls who play flag football build a verified athlete
+            profile, share game film and stats, and put their game in front of college coaches who
+            are actively recruiting.
           </p>
 
-          <div className="flex flex-col md:flex-row items-center justify-center gap-6">
-            <Link to="/auth">
-              <button className="px-10 py-5 bg-coral-500 hover:bg-coral-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-coral-500/30 flex items-center gap-3 group">
-                Enter Platform
-                <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
-              </button>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link to="/auth" className="px-9 py-4 rounded-xl bg-coral-500 hover:bg-coral-600 text-white font-semibold tracking-wide transition-all shadow-xl shadow-coral-500/25 flex items-center gap-2 group">
+              Create your profile
+              <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" aria-hidden="true" />
             </Link>
-            <button className="px-10 py-5 bg-surface-card/60 border border-surface-border rounded-2xl backdrop-blur-xl hover:bg-white/10 text-white rounded-2xl font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3">
-              <Play size={20} />
-              Watch Demo
-            </button>
+            <Link to="/rankings" className="px-9 py-4 rounded-xl bg-surface-card/60 border border-surface-border backdrop-blur-xl hover:bg-surface-hover text-ink font-semibold tracking-wide transition-all flex items-center gap-2">
+              Browse rankings
+            </Link>
           </div>
         </motion.div>
 
-        {/* Stats Grid */}
+        {/* Momentum facts */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.5, duration: 1 }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-24 mt-32 max-w-6xl mx-auto w-full px-4"
+          transition={{ delay: 0.4, duration: 1 }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-28 max-w-5xl mx-auto w-full"
         >
-          {[
-            { label: 'Athletes', val: '50K+' },
-            { label: 'Recruiters', val: '2.5K' },
-            { label: 'Scholarships', val: '$12M' },
-            { label: 'Matches', val: '100%' },
-          ].map((stat, i) => (
-            <div key={i} className="text-center group">
-              <h4 className="text-4xl md:text-5xl font-black text-white mb-2 group-hover:text-coral-400 transition-colors">{stat.val}</h4>
-              <p className="text-xs uppercase tracking-[0.4em] text-ink-muted font-bold">{stat.label}</p>
-            </div>
-          ))}
+          {MOMENTUM_FACTS.map((fact) => {
+            const Icon = fact.icon;
+            return (
+              <div key={fact.stat} className="k-card p-6 text-left">
+                <Icon size={22} className="text-coral-400 mb-4" aria-hidden="true" />
+                <p className="text-lg font-semibold text-ink mb-1">{fact.stat}</p>
+                <p className="text-sm text-ink-muted leading-relaxed">{fact.detail}</p>
+              </div>
+            );
+          })}
         </motion.div>
       </section>
 
-      {/* Features Section */}
-      <section className="px-6 py-32 bg-surface-card/10 relative">
+      {/* What you get */}
+      <section className="px-6 py-28 bg-surface-card/10 relative">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-20">
-            <span className="text-coral-500 font-black uppercase tracking-[0.5em] text-sm">Enterprise Core</span>
-            <h2 className="text-4xl md:text-6xl font-black text-white mt-4 tracking-tighter uppercase leading-none">
-              Built for the <br />
-              Next Generation
+          <div className="mb-16 max-w-2xl">
+            <span className="k-label text-coral-500">What you get</span>
+            <h2 className="k-display text-4xl md:text-5xl text-ink mt-3 leading-tight">
+              Everything you need to get recruited
             </h2>
+            <p className="text-ink-muted mt-4 leading-relaxed">
+              Built for the athlete first, with the safeguards parents expect and the data coaches
+              actually use to evaluate talent.
+            </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            <FeatureCard 
-              icon={Shield} 
-              title="COPPA Compliant" 
-              description="Privacy-first architecture ensuring safety for high school athletes under 18 with rigorous data protection." 
+          <div className="grid md:grid-cols-3 gap-6">
+            <FeatureCard
+              icon={Shield}
+              title="A verified profile"
+              description="Confirm your stats, positions, and film so coaches can trust what they see. Identity and age safeguards are built in from day one."
             />
-            <FeatureCard 
-              icon={Target} 
-              title="Recruiting Analytics" 
-              description="Proprietary matching algorithms that connect the right athletes with the right college programs." 
+            <FeatureCard
+              icon={Target}
+              title="Real recruiting tracking"
+              description="See which programs viewed your profile, follow the schools recruiting your position, and keep every coach conversation in one place."
             />
-            <FeatureCard 
-              icon={Globe} 
-              title="Global Network" 
-              description="Reach beyond your zip code. Get scouted by coaches from across the nation in our unified ecosystem." 
+            <FeatureCard
+              icon={Users}
+              title="Reach beyond your zip code"
+              description="Your highlights and rankings travel further than a local season ever could, putting your game in front of coaches across the country."
             />
           </div>
         </div>
       </section>
 
-      {/* Trust & Compliance Banner */}
-      <section className="py-20 border-t border-white/5">
-        <div className="max-w-7xl mx-auto px-6 flex flex-wrap items-center justify-center gap-x-16 gap-y-8 opacity-40 grayscale hover:grayscale-0 transition-all duration-700">
-           {/* Add partner/investor logos here */}
-           <div className="text-2xl font-black uppercase text-ink-muted tracking-[0.3em]">Compliance Verified</div>
-           <div className="flex items-center gap-2">
-             <Lock size={20} className="text-coral-500" />
-             <span className="font-bold text-white uppercase tracking-widest">AES-256 Encrypted</span>
-           </div>
-           <div className="text-2xl font-black uppercase text-ink-muted tracking-[0.3em]">NIL Framework v2.0</div>
+      {/* Closing CTA */}
+      <section className="px-6 py-28 border-t border-surface-border">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="k-display text-4xl md:text-5xl text-ink leading-tight mb-5">
+            Your season is recruiting tape
+          </h2>
+          <p className="text-ink-muted leading-relaxed mb-10">
+            The sport is heading to the Olympics and the NCAA. Start building the profile that turns
+            the plays you make this year into your next opportunity.
+          </p>
+          <Link to="/auth" className="px-9 py-4 rounded-xl bg-coral-500 hover:bg-coral-600 text-white font-semibold tracking-wide transition-all shadow-xl shadow-coral-500/25 inline-flex items-center gap-2 group">
+            Create your profile
+            <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" aria-hidden="true" />
+          </Link>
         </div>
       </section>
     </div>
