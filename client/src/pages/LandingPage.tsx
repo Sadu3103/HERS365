@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
 import { Shield, Target, Users, ChevronRight, Trophy, Medal } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Footer } from '../components/Footer';
 
 interface FeatureCardProps {
   icon: LucideIcon;
@@ -165,6 +166,8 @@ export const LandingPage = () => {
           </Link>
         </div>
       </section>
+
+      <Footer />
     </div>
   );
 };
