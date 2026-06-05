@@ -6,9 +6,11 @@
 import express from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { eq } from 'drizzle-orm';
 import { db } from './db';
 import * as schema from './schema';
+import { sendPasswordResetEmail } from './email';
 
 const router = express.Router();
 
@@ -106,6 +108,47 @@ router.post('/login', async (req, res) => {
         subscriptionTier: player.subscriptionTier,
       },
     });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// In-memory reset token store — swap for DB table in production
+const resetTokens = new Map<string, { playerId: number; expiresAt: number }>();
+
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'email is required' });
+
+  try {
+    const rows = await db.select().from(schema.players).where(eq(schema.players.email, email)).limit(1);
+    // Always respond 200 to prevent email enumeration
+    if (!rows.length) return res.json({ message: 'If that email exists, a reset link was sent.' });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    resetTokens.set(token, { playerId: rows[0].id, expiresAt: Date.now() + 60 * 60 * 1000 }); // 1h TTL
+    await sendPasswordResetEmail(email, token);
+    return res.json({ message: 'If that email exists, a reset link was sent.' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/reset-password', async (req, res) => {
+  const { token, password } = req.body || {};
+  if (!token || !password) return res.status(400).json({ error: 'token and password are required' });
+  if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+  const entry = resetTokens.get(token);
+  if (!entry || entry.expiresAt < Date.now()) {
+    return res.status(400).json({ error: 'Reset token is invalid or expired' });
+  }
+
+  try {
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    await db.update(schema.players).set({ passwordHash }).where(eq(schema.players.id, entry.playerId));
+    resetTokens.delete(token);
+    return res.json({ message: 'Password updated successfully' });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

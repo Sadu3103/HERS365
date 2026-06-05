@@ -560,4 +560,53 @@ router.get('/player-clips', (req, res) => {
   res.json({ clips });
 });
 
+/**
+ * GET /coach/profile — Get the authenticated coach's own profile
+ */
+router.get('/profile', async (req, res) => {
+  try {
+    const coachId = req.user?.id;
+    if (!coachId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const rows = await db.select().from(schema.coaches).where(eq(schema.coaches.id, coachId)).limit(1);
+    if (!rows.length) return res.status(404).json({ error: 'Coach profile not found' });
+
+    const { passwordHash: _pw, ...profile } = rows[0];
+    return res.json(profile);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch coach profile' });
+  }
+});
+
+/**
+ * PUT /coach/profile — Update the authenticated coach's own profile
+ */
+router.put('/profile', async (req, res) => {
+  try {
+    const coachId = req.user?.id;
+    if (!coachId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { name, university, division, recruitingPositions, recruitingStates } = req.body || {};
+    const updates: Record<string, any> = {};
+    if (name !== undefined) updates.name = name;
+    if (university !== undefined) updates.university = university;
+    if (division !== undefined) updates.division = division;
+    if (recruitingPositions !== undefined) updates.recruitingPositions = recruitingPositions;
+    if (recruitingStates !== undefined) updates.recruitingStates = recruitingStates;
+
+    if (!Object.keys(updates).length) return res.status(400).json({ error: 'No updatable fields provided' });
+
+    const updated = await db
+      .update(schema.coaches)
+      .set(updates)
+      .where(eq(schema.coaches.id, coachId))
+      .returning();
+
+    const { passwordHash: _pw, ...profile } = updated[0];
+    return res.json(profile);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to update coach profile' });
+  }
+});
+
 export default router;

@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { MessageSquare, Send, Eye, Users, MapPin } from 'lucide-react';
-import type { CoachMessage } from '../../types';
+import { MessageSquare, Send, Users, MapPin } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
 
 export function CoachMessages() {
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Record<string, unknown>[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
-  const [players, setPlayers] = useState<Map<number, any>>(new Map());
   const [loading, setLoading] = useState(true);
   const { showNotification } = useNotifications();
 

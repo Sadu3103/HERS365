@@ -7,6 +7,8 @@
 
 import dotenv from 'dotenv';
 import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
 import session from 'express-session';
 import { serviceOrchestrator } from './microservices';
 import { serviceBusClient } from './service-bus';
@@ -18,12 +20,31 @@ import { authRouter } from './auth';
 
 dotenv.config();
 
+// [D-02] Fail fast on missing required env vars
+const REQUIRED_ENV_VARS = ['DATABASE_URL', 'JWT_SECRET', 'STRIPE_SECRET_KEY'];
+if (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'development') {
+  const missing = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
+  if (missing.length > 0) {
+    console.error(`Missing required environment variables: ${missing.join(', ')}`);
+    process.exit(1);
+  }
+}
+
 // Initialize tracing
 tracing;
 
 // Create main application
 const app = express();
 const port = process.env.COSMOS_API_PORT || 4000;
+
+// [B-20] Security headers via helmet
+app.use(helmet());
+
+// [B-17] CORS — read from env
+app.use(cors({
+  origin: (process.env.CORS_ORIGIN || process.env.ALLOWED_ORIGINS || 'http://localhost:5173').split(',').map(o => o.trim()),
+  credentials: true,
+}));
 
 // Session configuration for Passport
 app.use(session({
@@ -210,15 +231,29 @@ app.get('/dashboard/compliance', async (req, res) => {
   }
 });
 
+// [B-46] Lightweight API health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Additional API Routes
 import coachRouter from './coachRoutes';
 import paymentRouter from './paymentRoutes';
 import authRoutesRouter from './authRoutes';
+import adminRouter from './adminRoutes';
+import uploadRouter from './uploadRoutes';
+import emailAuthRouter from './emailAuthRoutes';
 import { rankingsRouter } from './api/rankings';
 import { athletesRouter } from './api/athletes';
 import { messagesRouter } from './api/messages';
 import { trainingRouter } from './api/training';
 import { usersRouter } from './api/users';
+
+// [B-08] Wire Stripe webhook BEFORE express.json() body parser
+// The webhook route in paymentRouter uses express.raw() internally
+app.use('/api/payments', paymentRouter);
+
+app.use(express.json());
 
 app.use('/api/rankings', rankingsRouter);
 app.use('/api/athletes', athletesRouter);
@@ -226,8 +261,10 @@ app.use('/api/messages', messagesRouter);
 app.use('/api/training', trainingRouter);
 app.use('/api/users', usersRouter);
 app.use('/coach', coachRouter);
-app.use('/api/payment', paymentRouter);
 app.use('/api/auth/secure', authRoutesRouter);
+app.use('/api/auth/email', emailAuthRouter);
+app.use('/api/upload', uploadRouter);
+app.use('/api/admin', adminRouter);
 
 // Main startup function
 async function startApplication() {
