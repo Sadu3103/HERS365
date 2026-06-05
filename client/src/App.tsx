@@ -41,6 +41,8 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { AdminLogin } from './pages/AdminLogin';
 import { StaffDashboard } from './pages/StaffDashboard';
 import { StaticPageLayout } from './pages/StaticPageLayout';
+import { NotFound } from './pages/NotFound';
+import { Onboarding } from './pages/Onboarding';
 
 import { CoachLogin } from './pages/coach/CoachLogin';
 import { CoachDashboard } from './pages/coach/CoachDashboard';
@@ -129,7 +131,8 @@ function App() {
               <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/staff" element={<StaffDashboard />} />
               <Route path="/static/:slug" element={<StaticPageLayout />} />
-              <Route path="*" element={<div className="flex h-full items-center justify-center text-dark-600">Page under construction</div>} />
+              <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="*" element={<NotFound />} />
             </Route>
 
             {/* Coach Portal Routes */}
