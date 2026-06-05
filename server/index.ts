@@ -243,6 +243,7 @@ import authRoutesRouter from './authRoutes';
 import adminRouter from './adminRoutes';
 import uploadRouter from './uploadRoutes';
 import emailAuthRouter from './emailAuthRoutes';
+import mainApiRouter from './routes';
 import { rankingsRouter } from './api/rankings';
 import { athletesRouter } from './api/athletes';
 import { messagesRouter } from './api/messages';
@@ -265,6 +266,7 @@ app.use('/api/auth/secure', authRoutesRouter);
 app.use('/api/auth/email', emailAuthRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api', mainApiRouter);
 
 // Main startup function
 async function startApplication() {

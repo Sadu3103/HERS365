@@ -131,9 +131,11 @@ function App() {
               <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/staff" element={<StaffDashboard />} />
               <Route path="/static/:slug" element={<StaticPageLayout />} />
-              <Route path="/onboarding" element={<Onboarding />} />
               <Route path="*" element={<NotFound />} />
             </Route>
+
+            {/* Standalone full-page routes (no nav shell) */}
+            <Route path="/onboarding" element={<Onboarding />} />
 
             {/* Coach Portal Routes */}
             <Route path="/coach/login" element={<CoachLogin />} />
