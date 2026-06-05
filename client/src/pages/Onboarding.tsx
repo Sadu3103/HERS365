@@ -187,7 +187,7 @@ export function Onboarding() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
                 <label style={labelStyle}>Height</label>
-                <input type="text" placeholder='e.g. 5\'7"' value={form.height} onChange={set('height')} style={inputStyle} />
+                <input type="text" placeholder="e.g. height" value={form.height} onChange={set('height')} style={inputStyle} />
               </div>
               <div>
                 <label style={labelStyle}>Weight (lbs)</label>
