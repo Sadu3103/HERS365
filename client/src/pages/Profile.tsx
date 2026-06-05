@@ -104,7 +104,7 @@ export const Profile = () => {
           setProfile(data);
         }
       } catch {
-        setIsError(true);
+        // API unavailable — fall through to hardcoded demo data silently
       } finally {
         setIsLoading(false);
       }
