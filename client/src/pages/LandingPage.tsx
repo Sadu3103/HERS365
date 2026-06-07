@@ -10,7 +10,7 @@ interface FeatureCardProps {
 }
 
 const FeatureCard = ({ icon: Icon, title, description }: FeatureCardProps) => (
-  <motion.div 
+  <motion.div
     whileHover={{ y: -10 }}
     className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-8 group cursor-pointer"
   >
@@ -25,6 +25,7 @@ const FeatureCard = ({ icon: Icon, title, description }: FeatureCardProps) => (
 export const LandingPage = () => {
   return (
     <div className="min-h-screen bg-surface overflow-x-hidden pt-20">
+
       {/* Hero Section */}
       <section className="relative px-6 py-24 md:py-40 flex flex-col items-center text-center">
         {/* Background Effects */}
@@ -39,53 +40,59 @@ export const LandingPage = () => {
           transition={{ duration: 0.8 }}
           className="relative z-10 max-w-5xl"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface-card/60 border border-surface-border rounded-2xl backdrop-blur-xl mb-8 border-coral-500/20">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface-card/60 border border-surface-border backdrop-blur-xl mb-8 border-coral-500/20">
             <Zap size={16} className="text-coral-400 animate-pulse" />
-            <span className="text-xs font-black uppercase tracking-[0.3em] text-coral-400">Future of Women's Football</span>
+            <span className="text-xs font-black uppercase tracking-[0.3em] text-coral-400">Girls Flag Football Recruiting — Now Open</span>
           </div>
-          
+
           <h1 className="text-6xl md:text-8xl font-black mb-8 tracking-tighter uppercase leading-[0.9]">
-            The Elite <br />
-            <span className="bg-gradient-to-r from-coral-400 to-coral-600 bg-clip-text text-transparent italic">Pipeline</span>
+            Your Film. <br />
+            <span className="bg-gradient-to-r from-coral-400 to-coral-600 bg-clip-text text-transparent italic">Their Offer.</span>
           </h1>
-          
+
           <p className="text-xl md:text-2xl text-ink-muted mb-12 max-w-3xl mx-auto font-medium leading-relaxed">
-            The world's most advanced platform for female high school athletes, recruiters, and fans. 
-            Bridging talent with opportunity through data, compliance, and community.
+            Build your recruiting profile, upload your game film, and get in front of college coaches looking for players exactly like you.
           </p>
 
           <div className="flex flex-col md:flex-row items-center justify-center gap-6">
             <Link to="/auth">
               <button className="px-10 py-5 bg-coral-500 hover:bg-coral-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-coral-500/30 flex items-center gap-3 group">
-                Enter Platform
+                Build Your Profile
                 <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
               </button>
             </Link>
-            <button className="px-10 py-5 bg-surface-card/60 border border-surface-border rounded-2xl backdrop-blur-xl hover:bg-white/10 text-white rounded-2xl font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3">
+            {/* TODO: Replace URL with the real HERS365 demo video before launch */}
+            <button
+              onClick={() => window.open('https://www.youtube.com/watch?v=dQw4w9WgXcQ', '_blank')}
+              className="px-10 py-5 bg-surface-card/60 border border-surface-border backdrop-blur-xl hover:bg-white/10 text-white rounded-2xl font-black uppercase tracking-[0.2em] transition-all flex items-center gap-3"
+            >
               <Play size={20} />
               Watch Demo
             </button>
           </div>
         </motion.div>
 
-        {/* Stats Grid */}
+        {/* Early Adopter Social Proof */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5, duration: 1 }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-24 mt-32 max-w-6xl mx-auto w-full px-4"
+          className="flex flex-col items-center gap-6 mt-32 max-w-2xl mx-auto w-full px-4"
         >
-          {[
-            { label: 'Athletes', val: '50K+' },
-            { label: 'Recruiters', val: '2.5K' },
-            { label: 'Scholarships', val: '$12M' },
-            { label: 'Matches', val: '100%' },
-          ].map((stat, i) => (
-            <div key={i} className="text-center group">
-              <h4 className="text-4xl md:text-5xl font-black text-white mb-2 group-hover:text-coral-400 transition-colors">{stat.val}</h4>
-              <p className="text-xs uppercase tracking-[0.4em] text-ink-muted font-bold">{stat.label}</p>
-            </div>
-          ))}
+          <p className="text-xs uppercase tracking-[0.4em] text-ink-muted font-bold">Be among the first</p>
+          <div className="grid grid-cols-3 gap-12 w-full">
+            {[
+              { label: 'Spots Available', val: '500' },
+              { label: 'States Represented', val: '12' },
+              { label: 'Launch Season', val: "Fall '26" },
+            ].map((stat, i) => (
+              <div key={i} className="text-center group">
+                <h4 className="text-4xl md:text-5xl font-black text-white mb-2 group-hover:text-coral-400 transition-colors">{stat.val}</h4>
+                <p className="text-xs uppercase tracking-[0.4em] text-ink-muted font-bold">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-sm text-ink-muted font-medium">Founding athletes get priority visibility with every coach on the platform.</p>
         </motion.div>
       </section>
 
@@ -93,7 +100,7 @@ export const LandingPage = () => {
       <section className="px-6 py-32 bg-surface-card/10 relative">
         <div className="max-w-7xl mx-auto">
           <div className="mb-20">
-            <span className="text-coral-500 font-black uppercase tracking-[0.5em] text-sm">Enterprise Core</span>
+            <span className="text-coral-500 font-black uppercase tracking-[0.5em] text-sm">Your Recruiting Edge</span>
             <h2 className="text-4xl md:text-6xl font-black text-white mt-4 tracking-tighter uppercase leading-none">
               Built for the <br />
               Next Generation
@@ -101,20 +108,20 @@ export const LandingPage = () => {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            <FeatureCard 
-              icon={Shield} 
-              title="COPPA Compliant" 
-              description="Privacy-first architecture ensuring safety for high school athletes under 18 with rigorous data protection." 
+            <FeatureCard
+              icon={Play}
+              title="Film That Gets Seen"
+              description="Upload your best plays and build a highlight reel coaches can watch in 60 seconds. No email attachments. No lost tapes. Just your game, front and center."
             />
-            <FeatureCard 
-              icon={Target} 
-              title="Recruiting Analytics" 
-              description="Proprietary matching algorithms that connect the right athletes with the right college programs." 
+            <FeatureCard
+              icon={Zap}
+              title="Message Coaches Directly"
+              description="Find programs that fit your size, GPA, and position — then reach out in one click. No middleman. No waiting to get discovered. You make the first move."
             />
-            <FeatureCard 
-              icon={Globe} 
-              title="Global Network" 
-              description="Reach beyond your zip code. Get scouted by coaches from across the nation in our unified ecosystem." 
+            <FeatureCard
+              icon={Target}
+              title="Stats Coaches Trust"
+              description="Link your MaxPreps profile, drop your combine numbers, and log your 40 time. Coaches see verified data, not just your word for it."
             />
           </div>
         </div>
@@ -122,16 +129,22 @@ export const LandingPage = () => {
 
       {/* Trust & Compliance Banner */}
       <section className="py-20 border-t border-white/5">
-        <div className="max-w-7xl mx-auto px-6 flex flex-wrap items-center justify-center gap-x-16 gap-y-8 opacity-40 grayscale hover:grayscale-0 transition-all duration-700">
-           {/* Add partner/investor logos here */}
-           <div className="text-2xl font-black uppercase text-ink-muted tracking-[0.3em]">Compliance Verified</div>
-           <div className="flex items-center gap-2">
-             <Lock size={20} className="text-coral-500" />
-             <span className="font-bold text-white uppercase tracking-widest">AES-256 Encrypted</span>
-           </div>
-           <div className="text-2xl font-black uppercase text-ink-muted tracking-[0.3em]">NIL Framework v2.0</div>
+        <div className="max-w-7xl mx-auto px-6 flex flex-wrap items-center justify-center gap-x-16 gap-y-8">
+          <div className="flex items-center gap-3">
+            <Globe size={20} className="text-coral-500" />
+            <span className="font-bold text-white/60 uppercase tracking-widest text-sm">Free during beta</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Lock size={20} className="text-coral-500" />
+            <span className="font-bold text-white/60 uppercase tracking-widest text-sm">Direct coach contact — no middleman</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Shield size={20} className="text-coral-500" />
+            <span className="font-bold text-white/60 uppercase tracking-widest text-sm">Built specifically for flag football</span>
+          </div>
         </div>
       </section>
+
     </div>
   );
 };
