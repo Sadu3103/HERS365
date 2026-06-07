@@ -14,7 +14,7 @@ interface NavItem {
 }
 
 const nav: NavItem[] = [
-  { icon: LayoutGrid,    label: 'THE GRID',   path: '/' },
+  { icon: LayoutGrid,    label: 'THE GRID',   path: '/feed' },
   { icon: Trophy,        label: 'RANKINGS',   path: '/rankings' },
   { icon: User,          label: 'MY PROFILE', path: '/profile' },
   { icon: Dumbbell,      label: 'TRAINING',   path: '/training' },
