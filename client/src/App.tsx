@@ -90,7 +90,6 @@ function App() {
         <Router>
           <Routes>
             <Route element={<Layout />}>
-              <Route path="/" element={<Feed />} />
               <Route path="/feed" element={<Feed />} />
               <Route path="/rankings" element={<Rankings />} />
               <Route path="/profile" element={<Profile />} />
@@ -135,6 +134,8 @@ function App() {
             </Route>
 
             {/* Standalone full-page routes (no nav shell) */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/landing" element={<LandingPage />} />
             <Route path="/onboarding" element={<Onboarding />} />
 
             {/* Coach Portal Routes */}

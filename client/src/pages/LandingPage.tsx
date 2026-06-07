@@ -24,10 +24,20 @@ const FeatureCard = ({ icon: Icon, title, description }: FeatureCardProps) => (
 
 export const LandingPage = () => {
   return (
-    <div className="min-h-screen bg-surface overflow-x-hidden pt-20">
+    <div className="min-h-screen bg-surface overflow-x-hidden">
+
+      {/* Top Nav */}
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 bg-surface/80 backdrop-blur-xl border-b border-white/5">
+        <span className="font-black text-xl uppercase tracking-tighter text-white">HERS<span className="text-coral-400">365</span></span>
+        <Link to="/auth">
+          <button className="px-5 py-2 bg-coral-500 hover:bg-coral-600 text-white rounded-xl font-black uppercase tracking-[0.15em] text-sm transition-all">
+            Sign Up Free
+          </button>
+        </Link>
+      </nav>
 
       {/* Hero Section */}
-      <section className="relative px-6 py-24 md:py-40 flex flex-col items-center text-center">
+      <section className="relative px-6 pt-40 pb-24 md:pb-40 flex flex-col items-center text-center">
         {/* Background Effects */}
         <div className="absolute top-0 w-full h-[1000px] pointer-events-none overflow-hidden opacity-30 select-none">
           <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-coral-500/20 rounded-full blur-[150px]" />
