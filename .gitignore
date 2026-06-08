@@ -7,3 +7,4 @@ build_output*.txt
 temp*.txt
 temp*.js
 temp_files.txt
+.vercel
