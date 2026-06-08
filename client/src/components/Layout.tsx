@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutGrid, Trophy, User, Dumbbell, Search,
-  Settings, Bell, MessageSquare, Menu, X, Plus
+  Settings, Bell, MessageSquare, Menu, Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MobileNav } from './MobileNav';
