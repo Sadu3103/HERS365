@@ -3,7 +3,7 @@ import { logger } from './logger';
 
 // the newest OpenAI model is "gpt-4o", but user specified "GPT-5". OpenAI has not released GPT-5 but we'll use GPT-4o internally as the closest available if needed, or we mock the interface.
 // Using GPT-4o for all "GPT-5" labeled logic per instruction
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'sk-not-configured' });
 
 export async function assignArchetype(position: string, stats: any): Promise<string> {
   try {

@@ -257,7 +257,7 @@ app.use('/api/athletes', athletesRouter);
 app.use('/api/messages', messagesRouter);
 app.use('/api/training', trainingRouter);
 app.use('/api/users', usersRouter);
-app.use('/coach', coachRouter);
+app.use('/api/coach', coachRouter);
 app.use('/api/auth', authRoutesRouter);
 app.use('/api/auth/secure', authRoutesRouter);
 app.use('/api/auth/email', emailAuthRouter);
