@@ -20,6 +20,8 @@ export const players = pgTable('players', {
   level: integer('level').default(1),
   archetype: text('archetype'),
   gpa: text('gpa'),
+  sport: text('sport'),
+  achievements: text('achievements'),
   collegeOffers: jsonb('college_offers'),
   verificationStatus: text('verification_status').default('unverified'),
   subscriptionTier: text('subscription_tier').default('free'),

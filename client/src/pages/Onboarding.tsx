@@ -1,342 +1,331 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, ChevronLeft, Check, Upload, User, Activity, BookOpen, Camera } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Zap, ChevronRight, ChevronLeft, Check, Trophy,
+  GraduationCap, MapPin, Target,
+} from 'lucide-react';
+import { useNotifications } from '../context/NotificationContext';
 
-const POSITIONS = ['QB', 'WR', 'Center', 'Rusher', 'Safety', 'Corner', 'Linebacker', 'Kicker'];
-const GRAD_YEARS = ['2025', '2026', '2027', '2028', '2029', '2030'];
-
-interface FormData {
-  position: string;
-  gradYear: string;
-  school: string;
-  height: string;
-  weight: string;
-  fortyTime: string;
-  gpa: string;
-  major: string;
-  satScore: string;
-  photoUploaded: boolean;
-}
-
-const steps = [
-  { label: 'Position', icon: User },
-  { label: 'Physical', icon: Activity },
-  { label: 'Academic', icon: BookOpen },
-  { label: 'Photo', icon: Camera },
+const SPORTS = ['Flag Football', '7v7 Flag', 'Tackle Football'];
+const POSITIONS = ['QB', 'WR', 'RB', 'Center', 'Rusher', 'Safety', 'Cornerback', 'Blitzer'];
+const GRAD_YEARS = ['2025', '2026', '2027', '2028', '2029', '2030', '2031'];
+const STATES = [
+  'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS',
+  'KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY',
+  'NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY',
 ];
+
+const TOTAL_STEPS = 4;
+
+const labelCls = 'text-xs font-black uppercase tracking-[0.2em] text-ink-muted ml-1';
+const inputCls =
+  'w-full bg-surface px-4 py-3.5 rounded-2xl border border-surface-border text-ink ' +
+  'placeholder:text-ink-faint focus:border-coral-500 focus:outline-none transition-colors';
 
 export function Onboarding() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(0);
-  const [form, setForm] = useState<FormData>({
+  const { showNotification } = useNotifications();
+
+  const [step, setStep] = useState(1);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    sport: 'Flag Football',
     position: '',
-    gradYear: '',
     school: '',
-    height: '',
-    weight: '',
-    fortyTime: '',
+    gradYear: '',
+    state: '',
     gpa: '',
-    major: '',
-    satScore: '',
-    photoUploaded: false,
+    achievements: '',
   });
 
-  const set = (key: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setForm(f => ({ ...f, [key]: e.target.value }));
+  const set = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
 
-  const canAdvance = () => {
-    if (step === 0) return form.position && form.gradYear && form.school.trim();
-    if (step === 1) return form.height && form.weight;
-    if (step === 2) return form.gpa;
-    return true;
-  };
+  const next = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS));
+  const back = () => setStep((s) => Math.max(s - 1, 1));
 
-  const finish = async () => {
+  const canAdvance =
+    (step === 1 && form.sport && form.position) ||
+    (step === 2 && form.school && form.gradYear && form.state) ||
+    step === 3 ||
+    step === 4;
+
+  const handleComplete = async () => {
+    const userStr = localStorage.getItem('user');
+    const token = localStorage.getItem('token');
+    const user = userStr ? JSON.parse(userStr) : null;
+
+    if (!user?.id || !token) {
+      showNotification('error', 'Not signed in', 'Please log in again to finish setup.');
+      navigate('/auth');
+      return;
+    }
+
+    setSaving(true);
     try {
-      const token = localStorage.getItem('token');
-      await fetch('/api/profile/onboarding', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      const res = await fetch(`/api/athletes/${user.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(form),
       });
+      const data = await res.json();
+
+      if (!res.ok || data.success === false) {
+        showNotification('error', 'Could not save', data.error || 'Something went wrong.');
+        setSaving(false);
+        return;
+      }
+
+      showNotification('success', 'Profile complete', 'Your recruiting profile is live.');
+      setStep(4);
     } catch {
-      // non-blocking — navigate regardless
+      showNotification('error', 'Network error', 'Check your connection and try again.');
+    } finally {
+      setSaving(false);
     }
-    navigate('/profile');
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#0a0a0a',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '24px 16px',
-      fontFamily: 'DM Sans, sans-serif',
-    }}>
-      {/* Wordmark */}
-      <div style={{ marginBottom: 40, textAlign: 'center' }}>
-        <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 900, fontSize: 28, color: '#ff5a2d', letterSpacing: 2 }}>
-          HERS365
-        </div>
-        <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 4 }}>
-          Set up your athlete profile
-        </div>
+    <div className="min-h-screen bg-surface flex items-center justify-center p-6">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[700px] h-[700px] bg-coral-500/10 rounded-full blur-[140px]" />
       </div>
 
-      {/* Step indicators */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 40 }}>
-        {steps.map((s, i) => {
-          const Icon = s.icon;
-          const done = i < step;
-          const active = i === step;
-          return (
-            <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
-              <div style={{
-                width: 36,
-                height: 36,
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: done ? '#ff5a2d' : active ? 'rgba(255,90,45,0.15)' : 'rgba(255,255,255,0.05)',
-                border: `2px solid ${done || active ? '#ff5a2d' : 'rgba(255,255,255,0.1)'}`,
-                transition: 'all 0.2s',
-              }}>
-                {done ? <Check size={16} color="#fff" /> : <Icon size={16} color={active ? '#ff5a2d' : 'rgba(255,255,255,0.3)'} />}
-              </div>
-              {i < steps.length - 1 && (
-                <div style={{
-                  width: 48,
-                  height: 2,
-                  background: i < step ? '#ff5a2d' : 'rgba(255,255,255,0.08)',
-                  transition: 'background 0.3s',
-                }} />
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Card */}
-      <div style={{
-        width: '100%',
-        maxWidth: 480,
-        background: '#111',
-        border: '1px solid rgba(255,255,255,0.07)',
-        borderRadius: 16,
-        padding: '32px 28px',
-      }}>
-        <div style={{ marginBottom: 28 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, color: '#ff5a2d', textTransform: 'uppercase', marginBottom: 6 }}>
-            Step {step + 1} of {steps.length}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+        className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl max-w-xl w-full p-8 md:p-12 relative z-10"
+      >
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-12 h-12 bg-coral-500 rounded-2xl flex items-center justify-center shadow-lg shadow-coral-500/30">
+            <Zap className="text-white fill-current" size={24} />
           </div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#fff' }}>{steps[step].label}</div>
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-coral-400">HERS365</p>
+            <h1 className="text-xl font-black text-ink uppercase tracking-tight font-display">
+              Build your profile
+            </h1>
+          </div>
         </div>
 
-        {/* Step 0 — Position */}
-        {step === 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div>
-              <label style={labelStyle}>Position</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-                {POSITIONS.map(p => (
-                  <button
-                    key={p}
-                    onClick={() => setForm(f => ({ ...f, position: p }))}
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: 8,
-                      border: `1.5px solid ${form.position === p ? '#ff5a2d' : 'rgba(255,255,255,0.1)'}`,
-                      background: form.position === p ? 'rgba(255,90,45,0.12)' : 'transparent',
-                      color: form.position === p ? '#ff5a2d' : 'rgba(255,255,255,0.6)',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                    }}
-                  >{p}</button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label style={labelStyle}>Graduation Year</label>
-              <select value={form.gradYear} onChange={set('gradYear')} style={selectStyle}>
-                <option value="">Select year</option>
-                {GRAD_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>High School / College</label>
-              <input
-                type="text"
-                placeholder="School name"
-                value={form.school}
-                onChange={set('school')}
-                style={inputStyle}
+        {/* Progress bar */}
+        <div className="flex items-center gap-2 mb-10">
+          {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+            <div key={i} className="flex-1 h-1.5 rounded-full bg-surface-hover overflow-hidden">
+              <motion.div
+                className="h-full bg-coral-500"
+                initial={false}
+                animate={{ width: i < step ? '100%' : '0%' }}
+                transition={{ duration: 0.4 }}
               />
             </div>
-          </div>
-        )}
-
-        {/* Step 1 — Physical */}
-        {step === 1 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div>
-                <label style={labelStyle}>Height</label>
-                <input type="text" placeholder="e.g. height" value={form.height} onChange={set('height')} style={inputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}>Weight (lbs)</label>
-                <input type="number" placeholder="135" value={form.weight} onChange={set('weight')} style={inputStyle} />
-              </div>
-            </div>
-            <div>
-              <label style={labelStyle}>40-Yard Dash (optional)</label>
-              <input type="text" placeholder="e.g. 4.65" value={form.fortyTime} onChange={set('fortyTime')} style={inputStyle} />
-            </div>
-          </div>
-        )}
-
-        {/* Step 2 — Academic */}
-        {step === 2 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div>
-              <label style={labelStyle}>GPA</label>
-              <input type="text" placeholder="e.g. 3.8" value={form.gpa} onChange={set('gpa')} style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Intended Major (optional)</label>
-              <input type="text" placeholder="e.g. Kinesiology" value={form.major} onChange={set('major')} style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>SAT / ACT Score (optional)</label>
-              <input type="text" placeholder="SAT 1200 or ACT 26" value={form.satScore} onChange={set('satScore')} style={inputStyle} />
-            </div>
-          </div>
-        )}
-
-        {/* Step 3 — Photo */}
-        {step === 3 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, alignItems: 'center' }}>
-            <div
-              onClick={() => setForm(f => ({ ...f, photoUploaded: true }))}
-              style={{
-                width: 140,
-                height: 140,
-                borderRadius: '50%',
-                border: `2px dashed ${form.photoUploaded ? '#ff5a2d' : 'rgba(255,255,255,0.15)'}`,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 10,
-                cursor: 'pointer',
-                background: form.photoUploaded ? 'rgba(255,90,45,0.08)' : 'rgba(255,255,255,0.03)',
-                transition: 'all 0.2s',
-              }}
-            >
-              {form.photoUploaded
-                ? <Check size={32} color="#ff5a2d" />
-                : <Upload size={28} color="rgba(255,255,255,0.3)" />}
-              <span style={{ fontSize: 12, color: form.photoUploaded ? '#ff5a2d' : 'rgba(255,255,255,0.3)' }}>
-                {form.photoUploaded ? 'Photo ready' : 'Upload photo'}
-              </span>
-            </div>
-            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, textAlign: 'center', maxWidth: 300 }}>
-              A clear headshot helps coaches recognize you. You can skip this and add it later.
-            </p>
-          </div>
-        )}
-
-        {/* Nav */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 32 }}>
-          {step > 0 ? (
-            <button onClick={() => setStep(s => s - 1)} style={ghostBtnStyle}>
-              <ChevronLeft size={16} /> Back
-            </button>
-          ) : <div />}
-
-          {step < steps.length - 1 ? (
-            <button
-              onClick={() => setStep(s => s + 1)}
-              disabled={!canAdvance()}
-              style={{ ...primaryBtnStyle, opacity: canAdvance() ? 1 : 0.4 }}
-            >
-              Continue <ChevronRight size={16} />
-            </button>
-          ) : (
-            <button onClick={finish} style={primaryBtnStyle}>
-              Go to Profile <ChevronRight size={16} />
-            </button>
-          )}
+          ))}
         </div>
-      </div>
 
-      {/* Skip */}
-      <button
-        onClick={() => navigate('/profile')}
-        style={{ marginTop: 20, background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: 13, cursor: 'pointer' }}
-      >
-        Skip for now
-      </button>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.3 }}
+          >
+            {step === 1 && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 text-coral-400">
+                  <Target size={18} />
+                  <span className="text-sm font-black uppercase tracking-wider">Step 1 — Your game</span>
+                </div>
+                <div className="space-y-2">
+                  <label className={labelCls}>Sport</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {SPORTS.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => set('sport', s)}
+                        className={`py-3 px-2 rounded-2xl text-sm font-bold transition-colors border ${
+                          form.sport === s
+                            ? 'bg-coral-500 border-coral-500 text-white'
+                            : 'bg-surface border-surface-border text-ink-muted hover:border-coral-500/50'
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className={labelCls}>Position</label>
+                  <select
+                    value={form.position}
+                    onChange={(e) => set('position', e.target.value)}
+                    className={inputCls}
+                  >
+                    <option value="">Select your position</option>
+                    {POSITIONS.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 text-coral-400">
+                  <GraduationCap size={18} />
+                  <span className="text-sm font-black uppercase tracking-wider">Step 2 — School</span>
+                </div>
+                <div className="space-y-2">
+                  <label className={labelCls}>School</label>
+                  <input
+                    value={form.school}
+                    onChange={(e) => set('school', e.target.value)}
+                    placeholder="e.g. Lincoln High School"
+                    className={inputCls}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className={labelCls}>Grad year</label>
+                    <select
+                      value={form.gradYear}
+                      onChange={(e) => set('gradYear', e.target.value)}
+                      className={inputCls}
+                    >
+                      <option value="">Year</option>
+                      {GRAD_YEARS.map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className={labelCls}>State</label>
+                    <select
+                      value={form.state}
+                      onChange={(e) => set('state', e.target.value)}
+                      className={inputCls}
+                    >
+                      <option value="">State</option>
+                      {STATES.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 text-coral-400">
+                  <Trophy size={18} />
+                  <span className="text-sm font-black uppercase tracking-wider">Step 3 — Stand out</span>
+                </div>
+                <div className="space-y-2">
+                  <label className={labelCls}>GPA <span className="text-ink-faint normal-case tracking-normal">(optional)</span></label>
+                  <input
+                    value={form.gpa}
+                    onChange={(e) => set('gpa', e.target.value)}
+                    placeholder="e.g. 3.8"
+                    className={inputCls}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className={labelCls}>Achievements <span className="text-ink-faint normal-case tracking-normal">(optional)</span></label>
+                  <textarea
+                    value={form.achievements}
+                    onChange={(e) => set('achievements', e.target.value)}
+                    placeholder="State champion, team captain, All-Conference..."
+                    rows={4}
+                    className={`${inputCls} resize-none`}
+                  />
+                </div>
+              </div>
+            )}
+
+            {step === 4 && (
+              <div className="text-center py-6 space-y-6">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 14 }}
+                  className="w-20 h-20 bg-coral-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-coral-500/40"
+                >
+                  <Check className="text-white" size={40} strokeWidth={3} />
+                </motion.div>
+                <div>
+                  <h2 className="text-3xl font-black text-ink uppercase tracking-tight font-display">
+                    You're on the board
+                  </h2>
+                  <p className="text-ink-muted mt-2">
+                    Your recruiting profile is live. Coaches can find you now.
+                  </p>
+                </div>
+                <button
+                  onClick={() => navigate('/profile')}
+                  className="w-full py-4 bg-coral-500 hover:bg-coral-600 text-white rounded-2xl font-black uppercase tracking-[0.15em] transition-colors flex items-center justify-center gap-2"
+                >
+                  Go to your profile <ChevronRight size={20} />
+                </button>
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Nav buttons (hidden on the done screen) */}
+        {step < 4 && (
+          <div className="flex items-center justify-between mt-10">
+            <button
+              onClick={back}
+              disabled={step === 1}
+              className="flex items-center gap-1 px-4 py-2.5 rounded-2xl text-ink-muted font-bold uppercase tracking-wider text-sm transition-colors hover:text-ink disabled:opacity-0 disabled:pointer-events-none"
+            >
+              <ChevronLeft size={18} /> Back
+            </button>
+
+            {step < 3 ? (
+              <button
+                onClick={next}
+                disabled={!canAdvance}
+                className="flex items-center gap-2 px-8 py-3.5 bg-coral-500 hover:bg-coral-600 text-white rounded-2xl font-black uppercase tracking-[0.15em] text-sm transition-colors disabled:opacity-40 disabled:pointer-events-none"
+              >
+                Continue <ChevronRight size={18} />
+              </button>
+            ) : (
+              <button
+                onClick={handleComplete}
+                disabled={saving}
+                className="flex items-center gap-2 px-8 py-3.5 bg-coral-500 hover:bg-coral-600 text-white rounded-2xl font-black uppercase tracking-[0.15em] text-sm transition-colors disabled:opacity-60 disabled:pointer-events-none"
+              >
+                {saving ? 'Saving...' : 'Finish'} <Check size={18} />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Skip for now */}
+        {step < 4 && (
+          <div className="text-center mt-6">
+            <button
+              onClick={() => navigate('/profile')}
+              className="text-ink-faint hover:text-ink-muted text-sm font-medium transition-colors"
+            >
+              Skip for now
+            </button>
+          </div>
+        )}
+      </motion.div>
+
     </div>
   );
 }
 
-const labelStyle: React.CSSProperties = {
-  display: 'block',
-  fontSize: 11,
-  fontWeight: 600,
-  letterSpacing: 1.5,
-  textTransform: 'uppercase',
-  color: 'rgba(255,255,255,0.45)',
-  marginBottom: 6,
-};
+export default Onboarding;
 
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '10px 14px',
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.1)',
-  borderRadius: 8,
-  color: '#fff',
-  fontSize: 14,
-  outline: 'none',
-  boxSizing: 'border-box',
-};
-
-const selectStyle: React.CSSProperties = {
-  ...inputStyle,
-  cursor: 'pointer',
-};
-
-const primaryBtnStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 6,
-  padding: '10px 20px',
-  background: '#ff5a2d',
-  border: 'none',
-  borderRadius: 8,
-  color: '#fff',
-  fontSize: 14,
-  fontWeight: 700,
-  cursor: 'pointer',
-};
-
-const ghostBtnStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 6,
-  padding: '10px 16px',
-  background: 'transparent',
-  border: '1px solid rgba(255,255,255,0.1)',
-  borderRadius: 8,
-  color: 'rgba(255,255,255,0.6)',
-  fontSize: 14,
-  cursor: 'pointer',
-};
