@@ -568,6 +568,13 @@ router.get('/profile', async (req, res) => {
     const coachId = req.user?.id;
     if (!coachId) return res.status(401).json({ error: 'Unauthorized' });
 
+    // Mock coach fallback
+    const mockCoaches = [
+      { id: 101, email: 'coach@texas.edu', name: 'Coach Williams', school: 'University of Texas', division: 'D1' }
+    ];
+    const mockCoach = mockCoaches.find(c => c.id === coachId);
+    if (mockCoach) return res.json(mockCoach);
+
     const rows = await db.select().from(schema.coaches).where(eq(schema.coaches.id, coachId)).limit(1);
     if (!rows.length) return res.status(404).json({ error: 'Coach profile not found' });
 

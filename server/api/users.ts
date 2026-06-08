@@ -326,4 +326,24 @@ router.delete('/account', (req, res) => {
   }
 });
 
+// GET /api/users/export - Export user data
+router.get('/export', (req, res) => {
+  try {
+    // In a real app, generate and return user data export
+    res.json({
+      success: true,
+      message: 'Data export ready',
+      data: {
+        user: mockUser,
+        exportUrl: '/api/users/export/download'
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to export data'
+    });
+  }
+});
+
 export { router as usersRouter };

@@ -27,6 +27,14 @@ export const players = pgTable('players', {
   segment: text('segment').default('high_school'), // youth, high_school, college, elite
   skillTier: text('skill_tier').default('beginner'), // beginner, intermediate, advanced, elite
   isRecreational: boolean('is_recreational').default(false),
+  bio: text('bio'),
+  phone: text('phone'),
+  height: text('height'),
+  weight: text('weight'),
+  fortyTime: text('forty_time'),
+  major: text('major'),
+  satScore: text('sat_score'),
+  avatarUrl: text('avatar_url'),
   createdAt: timestamp('created_at').default(sql`now()`),
 });
 

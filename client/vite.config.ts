@@ -17,7 +17,6 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': 'http://localhost:4000',
-      '/coach': 'http://localhost:4000',
       '/compliance': 'http://localhost:4000'
     }
   }

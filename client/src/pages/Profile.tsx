@@ -95,13 +95,28 @@ export const Profile = () => {
       setIsError(false);
       setIsEmpty(false);
       try {
-        const res = await fetch('/api/profile');
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/profile', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
         if (!res.ok) throw new Error('Failed to load profile');
-        const data: ProfileData | null = await res.json();
+const data = await res.json();
         if (!data || !data.name) {
           setIsEmpty(true);
         } else {
-          setProfile(data);
+          setProfile({
+            ...HARDCODED_PROFILE,
+            ...data,
+            graduationYear: data.gradYear || data.graduationYear || HARDCODED_PROFILE.graduationYear,
+            location: (data.city && data.state) ? `${data.city}, ${data.state}` : data.location || HARDCODED_PROFILE.location,
+            fortyYard: data.fortyYard || data.fortyTime || HARDCODED_PROFILE.fortyYard,
+            score: data.score ?? HARDCODED_PROFILE.score,
+            rank: data.rank ?? HARDCODED_PROFILE.rank,
+            verified: data.verified !== undefined ? data.verified : (data.verificationStatus === 'verified') ? true : HARDCODED_PROFILE.verified,
+            stats: data.stats || HARDCODED_PROFILE.stats,
+            achievements: data.achievements || HARDCODED_PROFILE.achievements,
+            recentActivity: data.recentActivity || HARDCODED_PROFILE.recentActivity,
+          });
         }
       } catch {
         // API unavailable — fall through to hardcoded demo data silently
@@ -190,7 +205,7 @@ export const Profile = () => {
 
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => navigate('/messages')} className="k-btn k-btn-primary"><MessageSquare size={14} /> Message</button>
-              <button className="k-btn k-btn-ghost"><Edit3 size={14} /> Edit Profile</button>
+              <button onClick={() => navigate('/settings')} className="k-btn k-btn-ghost"><Edit3 size={14} /> Edit Profile</button>
               <ShareButton />
             </div>
           </div>
@@ -198,10 +213,10 @@ export const Profile = () => {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, marginTop: 20, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
           {[
-            { label: '40YD', value: `${profile.fortyYard}s` },
-            { label: 'GPA',  value: profile.gpa.toFixed(1) },
-            { label: 'HGT',  value: profile.height },
-            { label: 'WGT',  value: profile.weight },
+            { label: '40YD', value: profile.fortyYard ? `${profile.fortyYard}s` : '—' },
+            { label: 'GPA',  value: profile.gpa ? (typeof profile.gpa === 'number' ? profile.gpa.toFixed(1) : profile.gpa) : '—' },
+            { label: 'HGT',  value: profile.height || '—' },
+            { label: 'WGT',  value: profile.weight || '—' },
           ].map(({ label, value }, i, arr) => (
             <div key={label} style={{ textAlign: 'center', borderRight: i < arr.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none', padding: '0 8px' }}>
               <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#444', marginBottom: 4 }}>{label}</div>

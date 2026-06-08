@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { db } from './db';
 import * as schema from './schema';
+import { eq } from 'drizzle-orm';
 
 async function seed() {
   console.log('🌱 Seeding database...');
@@ -134,8 +135,22 @@ async function seed() {
     }
   }
 
-  // Seed Athletes (Players)
-  const playersData = [
+// Seed Coaches
+const coachesData = [
+  { name: 'Coach Williams', email: 'coach@texas.edu', university: 'University of Texas', division: 'D1', recruitingPositions: 'QB,WR', recruitingStates: 'TX,OK,AR' },
+  { name: 'Coach Anderson', email: 'coach@alabama.edu', university: 'University of Alabama', division: 'D1', recruitingPositions: 'RB,TE', recruitingStates: 'AL,MS,LA' },
+];
+
+for (const c of coachesData) {
+  const existing = await db.select().from(schema.coaches).where(eq(schema.coaches.email, c.email));
+  if (existing.length === 0) {
+    await db.insert(schema.coaches).values(c);
+    console.log(`✅ Created coach: ${c.name}`);
+  }
+}
+
+// Seed Athletes (Players)
+const playersData = [
     { name: 'Tyson Carter', email: 'tyson@example.com', position: 'QB', state: 'TX', age: 17, school: 'Westlake High', gradYear: 2026, g5Rating: 5, archetype: 'Dual-Threat', subscriptionTier: 'free' },
     { name: 'Marcus Johnson', email: 'marcus@example.com', position: 'WR', state: 'FL', age: 16, school: 'Miami Southridge', gradYear: 2027, g5Rating: 5, archetype: 'Speedster', subscriptionTier: 'pro' },
     { name: 'Elijah Smith', email: 'elijah@example.com', position: 'CB', state: 'CA', age: 17, school: 'Crenshaw High', gradYear: 2026, g5Rating: 5, archetype: 'Lockdown', subscriptionTier: 'elite' },

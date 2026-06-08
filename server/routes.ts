@@ -103,13 +103,31 @@ router.post('/player-subscription', async (req: Request, res: CustomResponse) =>
 router.get('/profile', async (req: AuthenticatedRequest, res: CustomResponse) => {
   try {
     const userId = req.user?.id;
+    let player = null;
+    
     if (!userId) {
       // No auth — return demo profile so the page renders
       const demoPlayers = await db.select().from(schema.players).limit(1);
-      return res.json(demoPlayers[0] || null);
+      player = demoPlayers[0] || null;
+    } else {
+      const rows = await db.select().from(schema.players).where(eq(schema.players.id, userId)).limit(1);
+      player = rows[0] || null;
     }
-    const rows = await db.select().from(schema.players).where(eq(schema.players.id, userId)).limit(1);
-    return res.json(rows[0] || null);
+    
+    if (!player) {
+      return res.json(null);
+    }
+    
+    // Get ranking data if available
+    const rankingRows = await db.select().from(schema.athleteRankings).where(eq(schema.athleteRankings.playerId, player.id)).limit(1);
+    const ranking = rankingRows[0] || null;
+    
+    return res.json({
+      ...player,
+      score: ranking?.overallScore ? Math.round(ranking.overallScore) : 95,
+      rank: ranking?.nationalRank ?? 1,
+      verified: player.verificationStatus === 'verified'
+    });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
@@ -119,14 +137,44 @@ router.put('/profile', async (req: AuthenticatedRequest, res: CustomResponse) =>
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-    const { name, bio, position, school, state, gradYear } = req.body;
+    const { name, email, phone, bio, position, school, state, gradYear, height, weight, gpa, avatarUrl } = req.body;
     const updates: Record<string, any> = {};
     if (name !== undefined) updates.name = name;
+    if (email !== undefined) updates.email = email;
+    if (phone !== undefined) updates.phone = phone;
     if (bio !== undefined) updates.bio = bio;
     if (position !== undefined) updates.position = position;
     if (school !== undefined) updates.school = school;
     if (state !== undefined) updates.state = state;
     if (gradYear !== undefined) updates.gradYear = gradYear;
+    if (height !== undefined) updates.height = height;
+    if (weight !== undefined) updates.weight = weight;
+    if (gpa !== undefined) updates.gpa = gpa;
+    if (avatarUrl !== undefined) updates.avatarUrl = avatarUrl;
+    const updated = await db.update(schema.players).set(updates).where(eq(schema.players.id, userId)).returning();
+    return res.json(updated[0]);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/profile/onboarding', async (req: AuthenticatedRequest, res: CustomResponse) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const { position, gradYear, school, height, weight, fortyTime, gpa, major, satScore } = req.body;
+    const updates: Record<string, any> = {};
+    if (position !== undefined) updates.position = position;
+    if (gradYear !== undefined) updates.gradYear = parseInt(gradYear);
+    if (school !== undefined) updates.school = school;
+    if (height !== undefined) updates.height = height;
+    if (weight !== undefined) updates.weight = weight;
+    if (fortyTime !== undefined) updates.fortyTime = fortyTime;
+    if (gpa !== undefined) updates.gpa = gpa;
+    if (major !== undefined) updates.major = major;
+    if (satScore !== undefined) updates.satScore = satScore;
+
     const updated = await db.update(schema.players).set(updates).where(eq(schema.players.id, userId)).returning();
     return res.json(updated[0]);
   } catch (err: any) {
