@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useAnimationControls } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   Send, Search, Check, CheckCheck, Plus, X, Star, BellOff, MoreHorizontal,
-  ClipboardList, ChevronLeft, Inbox, Paperclip, Smile, BarChart3, GraduationCap,
+  ClipboardList, ChevronLeft, Inbox, Paperclip, Smile, BarChart3, GraduationCap, Film,
 } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
 
@@ -25,7 +25,10 @@ interface Thread {
   messages: RawMessage[];
   lastAt: string;
   unread: number;
+  draft?: boolean; // synthetic row for an opened-but-not-yet-started conversation
 }
+
+interface Highlight { title: string; url: string; locked?: boolean }
 
 interface PlayerResult {
   id: number;
@@ -43,6 +46,7 @@ interface PlayerResult {
   archetype?: string;
   stats?: Record<string, number | string>;
   combineStats?: Record<string, number | string>;
+  highlights?: Highlight[];
 }
 
 /* ───────────────────────── Design tokens ───────────────────────── */
@@ -66,6 +70,50 @@ const C = {
 };
 
 const EMOJI = ['🔥', '💪', '🏈', '⚡️', '🎯', '🙌', '👏', '✅', '⭐️', '📈', '💯', '🤝'];
+
+/* ───────────────────────── Persistence ───────────────────────── */
+
+const PREFS_KEY = 'hers365.coach.messages.prefs.v1';
+
+interface Prefs { starred: number[]; muted: number[]; archived: number[] }
+
+function loadPrefs(): Prefs {
+  try {
+    const p = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}');
+    return { starred: p.starred || [], muted: p.muted || [], archived: p.archived || [] };
+  } catch { return { starred: [], muted: [], archived: [] }; }
+}
+
+/* ───────────────────────── Combine stat formatting ───────────────────────── */
+
+const STAT_LABELS: Record<string, string> = {
+  fortyYard: '40-yd', vertical: 'Vert', broadJump: 'Broad', broad: 'Broad', shuttle: 'Shuttle',
+  receptions: 'Rec', receivingYards: 'Rec Yds', receivingTouchdowns: 'Rec TD', ydsPerCatch: 'Y/C',
+};
+
+function formatBroad(v: string) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return v;
+  const ft = Math.floor(n / 12);
+  const inch = Math.round(n % 12);
+  return ft > 0 ? `${ft}'${inch}"` : `${inch}"`;
+}
+
+function formatStat(key: string, raw: number | string): string {
+  const v = String(raw);
+  switch (key) {
+    case 'fortyYard':
+    case 'shuttle':
+      return `${v}s`;
+    case 'vertical':
+      return `${v}"`;
+    case 'broad':
+    case 'broadJump':
+      return formatBroad(v);
+    default:
+      return v;
+  }
+}
 
 /* ───────────────────────── Time helpers ───────────────────────── */
 
@@ -125,7 +173,7 @@ function Stars({ n, size = 12 }: { n: number; size?: number }) {
 
 /* ───────────────────────── Component ───────────────────────── */
 
-type FilterKey = 'all' | 'unread';
+type FilterKey = 'all' | 'unread' | 'archived';
 
 export function CoachMessages() {
   const navigate = useNavigate();
@@ -144,9 +192,10 @@ export function CoachMessages() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(true);
-  const [starred, setStarred] = useState<Set<number>>(new Set());
-  const [muted, setMuted] = useState<Set<number>>(new Set());
-  const [sendPulse, setSendPulse] = useState(0);
+  const initialPrefs = useMemo(loadPrefs, []);
+  const [starred, setStarred] = useState<Set<number>>(new Set(initialPrefs.starred));
+  const [muted, setMuted] = useState<Set<number>>(new Set(initialPrefs.muted));
+  const [archived, setArchived] = useState<Set<number>>(new Set(initialPrefs.archived));
   const [isNarrow, setIsNarrow] = useState(false);
   const [paneThread, setPaneThread] = useState(false);
 
@@ -155,9 +204,16 @@ export function CoachMessages() {
   const searchRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const emojiRef = useRef<HTMLDivElement>(null);
+  const sendControls = useAnimationControls();
 
   const token = localStorage.getItem('coachToken');
   const headers = useMemo(() => ({ Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }), [token]);
+
+  /* persist star/mute/archive across reloads */
+  useEffect(() => {
+    const prefs: Prefs = { starred: [...starred], muted: [...muted], archived: [...archived] };
+    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  }, [starred, muted, archived]);
 
   /* responsive */
   useEffect(() => {
@@ -246,35 +302,54 @@ export function CoachMessages() {
 
   const send = async () => {
     if (!draft.trim() || activeId == null) return;
+    const id = activeId;
     const text = draft.trim();
+    const optimisticId = Date.now();
     setDraft('');
     setEmojiOpen(false);
-    setSendPulse(p => p + 1);
+    sendControls.start({ scale: [1, 1.14, 1] }, { duration: 0.22 });
     const optimistic: RawMessage = {
-      id: Date.now(), athleteId: activeId, athleteName: activeName,
+      id: optimisticId, athleteId: id, athleteName: activeName,
       senderType: 'coach', content: text, read: false, createdAt: new Date().toISOString(),
     };
     // optimistic into the right place
-    setThreads(prev => {
-      const exists = prev.find(t => t.athleteId === activeId);
-      if (!exists) return prev;
-      return prev.map(t => t.athleteId === activeId
-        ? { ...t, messages: [...t.messages, optimistic], lastAt: optimistic.createdAt }
-        : t);
-    });
+    setThreads(prev => prev.map(t => t.athleteId === id
+      ? { ...t, messages: [...t.messages, optimistic], lastAt: optimistic.createdAt }
+      : t));
     setExtraMsgs(prev => [...prev, optimistic]);
+
+    const rollback = () => {
+      // remove the ghost and give the coach their text back to retry
+      setExtraMsgs(prev => prev.filter(m => m.id !== optimisticId));
+      setThreads(prev => prev.map(t => t.athleteId === id
+        ? { ...t, messages: t.messages.filter(m => m.id !== optimisticId) }
+        : t));
+      setDraft(d => (d ? d : text));
+    };
+
     try {
-      const res = await fetch(`/coach/message/${activeId}`, { method: 'POST', headers, body: JSON.stringify({ message: text }) });
+      const res = await fetch(`/coach/message/${id}`, { method: 'POST', headers, body: JSON.stringify({ message: text }) });
       if (res.ok) { await fetchThreads(); setExtraMsgs([]); }
-      else showNotification('error', 'Send failed', 'Could not deliver the message.');
+      else { rollback(); showNotification('error', 'Send failed', 'Could not deliver — your message was restored to the box.'); }
     } catch {
-      showNotification('error', 'Send failed', 'Network error — try again.');
+      rollback();
+      showNotification('error', 'Send failed', 'Network error — your message was restored to the box.');
     }
     inputRef.current?.focus();
   };
 
   const toggleSet = (setter: React.Dispatch<React.SetStateAction<Set<number>>>, id: number) =>
     setter(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+
+  const archiveConvo = (id: number) => {
+    setArchived(prev => { const n = new Set(prev); n.add(id); return n; });
+    if (activeId === id) { setActiveId(null); setPaneThread(false); }
+    setMenuOpen(false);
+  };
+  const unarchiveConvo = (id: number) => {
+    setArchived(prev => { const n = new Set(prev); n.delete(id); return n; });
+    setMenuOpen(false);
+  };
 
   const addToBoard = async (id: number) => {
     try {
@@ -296,18 +371,28 @@ export function CoachMessages() {
   }, [activeThread, extraMsgs]);
 
   const visibleThreads = useMemo(() => {
-    let list = threads;
+    let list = filter === 'archived'
+      ? threads.filter(t => archived.has(t.athleteId))
+      : threads.filter(t => !archived.has(t.athleteId));
     if (search.trim()) list = list.filter(t => t.athleteName.toLowerCase().includes(search.toLowerCase()));
     if (filter === 'unread') list = list.filter(t => t.unread > 0);
-    return [...list].sort((a, b) => {
+    const sorted = [...list].sort((a, b) => {
       const sa = starred.has(a.athleteId) ? 1 : 0;
       const sb = starred.has(b.athleteId) ? 1 : 0;
       if (sa !== sb) return sb - sa;
       return new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime();
     });
-  }, [threads, search, filter, starred]);
+    // If a conversation is open that has no real thread yet (just composed),
+    // surface it as a "draft" row so the inbox reflects the open thread.
+    const hasReal = activeId != null && threads.some(t => t.athleteId === activeId);
+    const matchesSearch = !search.trim() || activeName.toLowerCase().includes(search.toLowerCase());
+    if (activeId != null && !hasReal && !archived.has(activeId) && filter === 'all' && matchesSearch) {
+      sorted.unshift({ athleteId: activeId, athleteName: activeName, messages: [], lastAt: '', unread: 0, draft: true });
+    }
+    return sorted;
+  }, [threads, search, filter, starred, archived, activeId, activeName]);
 
-  const totalUnread = threads.reduce((s, t) => s + t.unread, 0);
+  const totalUnread = threads.filter(t => !archived.has(t.athleteId)).reduce((s, t) => s + t.unread, 0);
   const firstUnreadIdx = useMemo(() => {
     if (!activeThread || activeThread.unread === 0) return -1;
     return threadMsgs.findIndex(m => m.senderType === 'athlete' && !m.read);
@@ -316,6 +401,8 @@ export function CoachMessages() {
   const showList = !isNarrow || !paneThread;
   const showThread = !isNarrow || paneThread;
   const hasActive = activeId != null;
+  const hasRealThread = !!activeThread;
+  const isArchivedActive = activeId != null && archived.has(activeId);
 
   const FilterChip = ({ k, label }: { k: FilterKey; label: string }) => {
     const on = filter === k;
@@ -349,14 +436,15 @@ export function CoachMessages() {
             </div>
             <div style={{ position: 'relative', marginBottom: 12 }}>
               <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: C.inkFaint, pointerEvents: 'none' }} />
-              <input ref={searchRef} type="text" placeholder="Search athletes" value={search} onChange={e => setSearch(e.target.value)}
+              <input ref={searchRef} type="text" placeholder="Search conversations" value={search} onChange={e => setSearch(e.target.value)}
                 style={{ width: '100%', background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 12px 10px 36px', color: C.ink, fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.15s' }}
                 onFocus={e => (e.currentTarget.style.borderColor = 'rgba(255,90,45,0.45)')}
                 onBlur={e => (e.currentTarget.style.borderColor = C.border)} />
             </div>
-            <div style={{ display: 'flex', gap: 7 }}>
+            <div style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 2 }}>
               <FilterChip k="all" label="All" />
               <FilterChip k="unread" label={totalUnread > 0 ? `Unread · ${totalUnread}` : 'Unread'} />
+              {archived.size > 0 && <FilterChip k="archived" label={`Archived · ${archived.size}`} />}
             </div>
           </div>
 
@@ -365,7 +453,7 @@ export function CoachMessages() {
               <ListSkeleton />
             ) : visibleThreads.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center', color: C.inkFaint, fontSize: '0.84rem' }}>
-                {threads.length === 0 ? 'No conversations yet. Start scouting.' : 'Nothing here.'}
+                {filter === 'archived' ? 'No archived conversations.' : threads.length === 0 ? 'No conversations yet. Start scouting.' : 'Nothing here.'}
               </div>
             ) : visibleThreads.map(t => {
               const on = activeId === t.athleteId;
@@ -381,17 +469,17 @@ export function CoachMessages() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                       <span style={{ fontSize: '0.9rem', fontWeight: 700, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.athleteName}</span>
                       {isStar && <Star size={11} fill={C.coral} color={C.coral} style={{ flexShrink: 0 }} />}
-                      <span style={{ marginLeft: 'auto', fontSize: '0.66rem', color: t.unread > 0 ? C.coral : C.inkFaint, fontWeight: t.unread > 0 ? 700 : 500, flexShrink: 0 }}>{relTime(t.lastAt)}</span>
+                      {!t.draft && <span style={{ marginLeft: 'auto', fontSize: '0.66rem', color: t.unread > 0 ? C.coral : C.inkFaint, fontWeight: t.unread > 0 ? 700 : 500, flexShrink: 0 }}>{relTime(t.lastAt)}</span>}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ flex: 1, minWidth: 0, fontSize: '0.78rem', color: t.unread > 0 ? C.ink : C.inkMuted, fontWeight: t.unread > 0 ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {last?.senderType === 'coach' && <span style={{ color: C.inkFaint }}>You: </span>}{last?.content}
+                      <span style={{ flex: 1, minWidth: 0, fontSize: '0.78rem', color: t.draft ? C.inkFaint : t.unread > 0 ? C.ink : C.inkMuted, fontStyle: t.draft ? 'italic' : 'normal', fontWeight: t.unread > 0 ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {t.draft ? 'New conversation — say hello' : (<>{last?.senderType === 'coach' && <span style={{ color: C.inkFaint }}>You: </span>}{last?.content}</>)}
                       </span>
                       {t.unread > 0 && (
                         <span style={{ background: C.coral, color: '#fff', fontSize: '0.62rem', fontWeight: 800, minWidth: 18, height: 18, borderRadius: 999, padding: '0 5px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{t.unread}</span>
                       )}
                     </div>
-                    <span style={{ display: 'inline-block', marginTop: 5, fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.athlete, background: C.athleteTint, padding: '2px 7px', borderRadius: 5 }}>Athlete</span>
+                    <span style={{ display: 'inline-block', marginTop: 5, fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', color: t.draft ? C.coral : C.athlete, background: t.draft ? C.coralSoft : C.athleteTint, padding: '2px 7px', borderRadius: 5 }}>{t.draft ? 'Draft' : 'Athlete'}</span>
                   </div>
                 </button>
               );
@@ -441,8 +529,10 @@ export function CoachMessages() {
                         <MenuItem onClick={() => { navigate(`/coach/player/${activeId}`); setMenuOpen(false); }}>View full profile</MenuItem>
                         <MenuItem onClick={() => { addToBoard(activeId!); setMenuOpen(false); }}>Add to scouting board</MenuItem>
                         <MenuItem onClick={() => { toggleSet(setMuted, activeId!); setMenuOpen(false); }}>{muted.has(activeId!) ? 'Unmute notifications' : 'Mute notifications'}</MenuItem>
-                        <div style={{ height: 1, background: C.borderSoft, margin: '5px 4px' }} />
-                        <MenuItem danger onClick={() => { setThreads(p => p.filter(t => t.athleteId !== activeId)); setActiveId(null); setPaneThread(false); setMenuOpen(false); }}>Archive conversation</MenuItem>
+                        {(hasRealThread || isArchivedActive) && <div style={{ height: 1, background: C.borderSoft, margin: '5px 4px' }} />}
+                        {isArchivedActive
+                          ? <MenuItem onClick={() => unarchiveConvo(activeId!)}>Unarchive</MenuItem>
+                          : hasRealThread && <MenuItem danger onClick={() => archiveConvo(activeId!)}>Archive conversation</MenuItem>}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -543,8 +633,8 @@ export function CoachMessages() {
                   <button aria-label="Emoji" onClick={() => setEmojiOpen(o => !o)} style={{ background: 'none', border: 'none', color: emojiOpen ? C.coral : C.inkMuted, cursor: 'pointer', padding: 8, display: 'flex', alignSelf: 'flex-end' }}>
                     <Smile size={19} />
                   </button>
-                  <motion.button key={sendPulse} onClick={send} disabled={!draft.trim()} aria-label="Send"
-                    whileTap={{ scale: 0.85 }} animate={sendPulse ? { scale: [1, 1.12, 1] } : {}} transition={{ duration: 0.22 }}
+                  <motion.button onClick={send} disabled={!draft.trim()} aria-label="Send"
+                    whileTap={{ scale: 0.85 }} animate={sendControls}
                     style={{ width: 40, height: 40, borderRadius: 12, border: 'none', flexShrink: 0, alignSelf: 'flex-end', display: 'flex', alignItems: 'center', justifyContent: 'center', background: draft.trim() ? C.coral : '#222', cursor: draft.trim() ? 'pointer' : 'not-allowed', boxShadow: draft.trim() ? '0 4px 16px rgba(255,90,45,0.4)' : 'none', transition: 'background 0.15s' }}>
                     <Send size={17} color={draft.trim() ? '#fff' : C.inkFaint} />
                   </motion.button>
@@ -640,12 +730,10 @@ function ScoutPanel({ name, scout, onProfile, onSave }: { name: string; scout: P
     if (!scout) return [];
     const src = scout.combineStats && Object.keys(scout.combineStats).length ? scout.combineStats : scout.stats;
     if (!src) return [];
-    const labelMap: Record<string, string> = {
-      fortyYard: '40-yd', vertical: 'Vert', broadJump: 'Broad', shuttle: 'Shuttle',
-      receptions: 'Rec', receivingYards: 'Rec Yds', receivingTouchdowns: 'Rec TD', ydsPerCatch: 'Y/C',
-    };
-    return Object.entries(src).slice(0, 4).map(([k, v]) => ({ label: labelMap[k] || k, value: String(v) }));
+    return Object.entries(src).slice(0, 4).map(([k, v]) => ({ label: STAT_LABELS[k] || k, value: formatStat(k, v) }));
   }, [scout]);
+
+  const filmCount = scout?.highlights?.length ?? 0;
 
   return (
     <div style={{ padding: '24px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -702,9 +790,15 @@ function ScoutPanel({ name, scout, onProfile, onSave }: { name: string; scout: P
         </div>
       )}
 
-      <button onClick={onProfile} style={{ width: '100%', marginTop: 18, padding: '11px', borderRadius: 11, border: 'none', cursor: 'pointer', background: C.coral, color: '#fff', fontWeight: 700, fontSize: '0.82rem', boxShadow: '0 4px 16px rgba(255,90,45,0.3)' }}>
-        View Full Profile
-      </button>
+      {filmCount > 0 ? (
+        <button onClick={onProfile} style={{ width: '100%', marginTop: 18, padding: '11px', borderRadius: 11, border: 'none', cursor: 'pointer', background: C.coral, color: '#fff', fontWeight: 700, fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 4px 16px rgba(255,90,45,0.3)' }}>
+          <Film size={16} /> Watch Film · {filmCount}
+        </button>
+      ) : (
+        <button onClick={onProfile} style={{ width: '100%', marginTop: 18, padding: '11px', borderRadius: 11, border: 'none', cursor: 'pointer', background: C.coral, color: '#fff', fontWeight: 700, fontSize: '0.82rem', boxShadow: '0 4px 16px rgba(255,90,45,0.3)' }}>
+          View Full Profile
+        </button>
+      )}
       <button onClick={onSave} style={{ width: '100%', marginTop: 9, padding: '11px', borderRadius: 11, cursor: 'pointer', background: 'transparent', color: C.ink, fontWeight: 600, fontSize: '0.82rem', border: `1px solid ${C.border}` }}>
         Add to Scouting Board
       </button>
