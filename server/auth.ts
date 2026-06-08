@@ -1,128 +1,92 @@
-import express from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
+import type { Request, Response, NextFunction } from 'express';
 
-const passport = require('passport');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const GitHubStrategy = require('passport-github2').Strategy;
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
+const JWT_EXPIRES = (process.env.JWT_EXPIRES || '7d') as string;
 
-// Configure Passport Google Strategy
-passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_CLIENT_ID || '',
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-  callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:4000/api/auth/google/callback'
-}, async (accessToken: any, refreshToken: any, profile: any, done: any) => {
+export type UserRole = 'athlete' | 'coach' | 'parent' | 'admin';
+
+export interface TokenPayload {
+  userId: number;
+  email: string;
+  role: UserRole;
+  name: string;
+}
+
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 12);
+}
+
+export async function comparePassword(plain: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(plain, hash);
+}
+
+export function signToken(payload: TokenPayload): string {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES } as any);
+}
+
+export function verifyToken(token: string): TokenPayload {
+  return jwt.verify(token, JWT_SECRET) as TokenPayload;
+}
+
+export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+  const header = req.headers.authorization ?? '';
+  const [scheme, token] = header.split(' ');
+  if (scheme !== 'Bearer' || !token) {
+    res.status(401).json({ error: 'Missing or malformed Authorization header' });
+    return;
+  }
   try {
-    console.log('Google OAuth successful for user:', profile.displayName);
-
-    const user = {
-      id: profile.id,
-      email: profile.emails?.[0]?.value,
-      name: profile.displayName,
-      avatar: profile.photos?.[0]?.value,
-      provider: 'google'
-    };
-
-    return done(null, user);
-  } catch (error) {
-    console.error('Google OAuth error:', error);
-    return done(error, null);
+    const decoded = verifyToken(token);
+    (req as any).user = decoded;
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired token' });
   }
-}));
+}
 
-// Configure Passport GitHub Strategy
-passport.use(new GitHubStrategy({
-  clientID: process.env.GITHUB_CLIENT_ID || '',
-  clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
-  callbackURL: process.env.GITHUB_CALLBACK_URL || 'http://localhost:4000/api/auth/github/callback'
-}, async (accessToken: any, refreshToken: any, profile: any, done: any) => {
-  try {
-    console.log('GitHub OAuth successful for user:', profile.displayName);
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+  requireAuth(req, res, () => {
+    const user = (req as any).user as TokenPayload;
+    if (user?.role !== 'admin') {
+      res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+    next();
+  });
+}
 
-    const user = {
-      id: profile.id,
-      email: profile.emails?.[0]?.value,
-      name: profile.displayName,
-      avatar: profile.photos?.[0]?.value,
-      provider: 'github'
-    };
+export interface AuthenticatedRequest extends Request {
+  user: TokenPayload;
+}
 
-    return done(null, user);
-  } catch (error) {
-    console.error('GitHub OAuth error:', error);
-    return done(error, null);
-  }
-}));
+export function requireCoach(req: Request, res: Response, next: NextFunction): void {
+  requireAuth(req, res, () => {
+    const user = (req as any).user as TokenPayload;
+    if (user?.role !== 'coach') {
+      res.status(403).json({ error: 'Coach access required' });
+      return;
+    }
+    next();
+  });
+}
 
-// Serialize user for session
-passport.serializeUser((user: any, done: any) => {
-  done(null, user);
-});
-
-// Deserialize user from session
-passport.deserializeUser((user: any, done: any) => {
-  done(null, user);
-});
-
-// Create auth router
-const authRouter = express.Router();
-
-// Initialize Passport
-authRouter.use(passport.initialize());
-authRouter.use(passport.session());
-
-// Google OAuth routes
-authRouter.get('/google', (req, res, next) => {
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-    return res.status(500).json({
-      error: 'OAuth configuration missing',
-      message: 'Google OAuth is not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.'
-    });
-  }
-  passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
-});
-
-authRouter.get('/google/callback',
-  passport.authenticate('google', { failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth` }),
-  (req: any, res: any) => {
-    const user = req.user as any;
-
-    const userData = encodeURIComponent(JSON.stringify({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      avatar: user.avatar,
-      provider: user.provider
-    }));
-
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/?user=${userData}`);
-  }
-);
-
-// GitHub OAuth routes
-authRouter.get('/github', (req, res, next) => {
-  if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
-    return res.status(500).json({
-      error: 'OAuth configuration missing',
-      message: 'GitHub OAuth is not configured. Please set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET environment variables.'
-    });
-  }
-  passport.authenticate('github', { scope: ['user:email'] })(req, res, next);
-});
-
-authRouter.get('/github/callback',
-  passport.authenticate('github', { failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth` }),
-  (req: any, res: any) => {
-    const user = req.user as any;
-
-    const userData = encodeURIComponent(JSON.stringify({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      avatar: user.avatar,
-      provider: user.provider
-    }));
-
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/?user=${userData}`);
-  }
-);
-
-export { authRouter, passport };
+export async function verifyGoogleToken(credential: string): Promise<{
+  email: string;
+  name: string;
+  picture: string;
+}> {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (!clientId) throw new Error('GOOGLE_CLIENT_ID not configured');
+  const client = new OAuth2Client(clientId);
+  const ticket = await client.verifyIdToken({ idToken: credential, audience: clientId });
+  const payload = ticket.getPayload();
+  if (!payload?.email) throw new Error('No email returned from Google');
+  return {
+    email: payload.email,
+    name: payload.name ?? '',
+    picture: payload.picture ?? '',
+  };
+}
