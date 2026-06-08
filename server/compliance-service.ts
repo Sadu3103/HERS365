@@ -38,7 +38,7 @@ export class ComplianceService {
     serviceBusClient: ServiceBusClient | undefined
   ) {
     this.cosmosClient = cosmosClient;
-    this.serviceBusClient = serviceBusClient;
+    this.serviceBusClient = serviceBusClient!;
     this.auditChain = new AuditChain();
     this.app = express();
 

@@ -490,6 +490,35 @@ router.delete('/subscription-plans/:id', requireAdmin, async (req, res) => {
 });
 
 // ----------------------
+// ATHLETE VERIFICATION [B-29]
+// ----------------------
+
+// POST /admin/athletes/:id/verify - Verify an athlete profile
+router.post('/athletes/:id/verify', requireAdmin, async (req, res) => {
+  try {
+    const athleteId = parseInt(req.params.id);
+    const { verified } = req.body;
+
+    if (typeof verified !== 'boolean') {
+      return res.status(400).json({ error: '"verified" boolean field is required' });
+    }
+
+    const updated = await db.update(schema.players)
+      .set({ verificationStatus: verified ? 'verified' : 'unverified' })
+      .where(eq(schema.players.id, athleteId))
+      .returning();
+
+    if (!updated[0]) {
+      return res.status(404).json({ error: 'Athlete not found' });
+    }
+
+    res.json(updated[0]);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ----------------------
 // COACH MANAGEMENT
 // ----------------------
 

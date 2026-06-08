@@ -7,9 +7,7 @@ import {
   BarChart3,
   Heart,
   Eye,
-  TrendingUp,
   MapPin,
-  Calendar,
   Star,
   ChevronRight
 } from 'lucide-react';

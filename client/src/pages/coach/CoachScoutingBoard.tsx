@@ -126,7 +126,7 @@ export function CoachScoutingBoard() {
 
       if (response.ok) {
         setBoard(prev => prev.map(item =>
-          item.playerId === playerId ? { ...item, tier: newTier as any } : item
+          item.playerId === playerId ? { ...item, tier: newTier as ScoutingBoardItem['tier'] } : item
         ));
       }
     } catch (error) {

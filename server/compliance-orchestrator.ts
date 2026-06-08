@@ -254,7 +254,7 @@ export class ComplianceOrchestrator {
     }
 
     // Close clients
-    await this.serviceBusClient.close();
+    await this.serviceBusClient?.close();
 
     logger.info('✅ Compliance orchestrator stopped');
   }

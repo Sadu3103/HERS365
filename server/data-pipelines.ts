@@ -31,8 +31,8 @@ export class DataExportPipeline {
     serviceBusClient: ServiceBusClient | undefined
   ) {
     this.cosmosClient = cosmosClient;
-    this.blobService = blobService;
-    this.serviceBusClient = serviceBusClient;
+    this.blobService = blobService!;
+    this.serviceBusClient = serviceBusClient!;
   }
 
   /**
@@ -398,7 +398,7 @@ export class DataDeletionPipeline {
     serviceBusClient: ServiceBusClient | undefined
   ) {
     this.cosmosClient = cosmosClient;
-    this.serviceBusClient = serviceBusClient;
+    this.serviceBusClient = serviceBusClient!;
   }
 
   /**

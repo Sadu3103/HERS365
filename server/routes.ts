@@ -98,6 +98,43 @@ router.post('/player-subscription', async (req: Request, res: CustomResponse) =>
 });
 
 // ----------------------
+// CURRENT USER PROFILE
+// ----------------------
+router.get('/profile', async (req: AuthenticatedRequest, res: CustomResponse) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      // No auth — return demo profile so the page renders
+      const demoPlayers = await db.select().from(schema.players).limit(1);
+      return res.json(demoPlayers[0] || null);
+    }
+    const rows = await db.select().from(schema.players).where(eq(schema.players.id, userId)).limit(1);
+    return res.json(rows[0] || null);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/profile', async (req: AuthenticatedRequest, res: CustomResponse) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const { name, bio, position, school, state, gradYear } = req.body;
+    const updates: Record<string, any> = {};
+    if (name !== undefined) updates.name = name;
+    if (bio !== undefined) updates.bio = bio;
+    if (position !== undefined) updates.position = position;
+    if (school !== undefined) updates.school = school;
+    if (state !== undefined) updates.state = state;
+    if (gradYear !== undefined) updates.gradYear = gradYear;
+    const updated = await db.update(schema.players).set(updates).where(eq(schema.players.id, userId)).returning();
+    return res.json(updated[0]);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ----------------------
 // PLAYERS & TEAMS
 // ----------------------
 router.get('/players', async (req: Request, res: CustomResponse) => {

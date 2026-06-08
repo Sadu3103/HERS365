@@ -250,7 +250,7 @@ export const Feed = () => {
     );
   };
 
-  const handleComment = (postId: number) => {
+  const handleComment = (_postId: number) => {
     showNotification('info', 'Coming Soon', 'Comments are on the way — stay tuned!');
   };
 
@@ -268,7 +268,7 @@ export const Feed = () => {
     navigate(`/profile/${encodeURIComponent(userName)}`);
   };
 
-  const handleMenuClick = (postId: number) => {
+  const handleMenuClick = (_postId: number) => {
     // Handle menu actions (report, hide, block)
     // This is handled in the individual menu buttons
   };

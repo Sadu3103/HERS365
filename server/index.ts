@@ -7,6 +7,8 @@
 
 import dotenv from 'dotenv';
 import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
 import session from 'express-session';
 import { serviceOrchestrator } from './microservices';
 import { serviceBusClient } from './service-bus';
@@ -14,9 +16,19 @@ import { CosmosAPIService } from './cosmos-api';
 import { ComplianceOrchestrator, ComplianceDashboard } from './compliance-orchestrator';
 import { tracing, metrics } from './observability';
 import { logger } from './logger';
-import authRoutesRouter from './authRoutes';
+import { authRouter } from './auth';
 
 dotenv.config();
+
+// [D-02] Fail fast on missing required env vars
+const REQUIRED_ENV_VARS = ['DATABASE_URL', 'JWT_SECRET', 'STRIPE_SECRET_KEY'];
+if (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'development') {
+  const missing = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
+  if (missing.length > 0) {
+    console.error(`Missing required environment variables: ${missing.join(', ')}`);
+    process.exit(1);
+  }
+}
 
 // Initialize tracing
 tracing;
@@ -25,18 +37,23 @@ tracing;
 const app = express();
 const port = process.env.COSMOS_API_PORT || 4000;
 
-// Body parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+// [B-20] Security headers via helmet
+app.use(helmet());
 
-// Session configuration
+// [B-17] CORS — read from env
+app.use(cors({
+  origin: (process.env.CORS_ORIGIN || process.env.ALLOWED_ORIGINS || 'http://localhost:5173').split(',').map(o => o.trim()),
+  credentials: true,
+}));
+
+// Session configuration for Passport
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false,
   saveUninitialized: false,
   cookie: {
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }));
 
@@ -195,7 +212,7 @@ app.get('/metrics', (req, res) => {
 });
 
 // Mount authentication routes
-app.use('/api/auth', authRoutesRouter);
+app.use('/api/auth', authRouter);
 
 // Mount Cosmos DB API service
 app.use('/api/v1', cosmosAPIService.getApp());
@@ -214,14 +231,30 @@ app.get('/dashboard/compliance', async (req, res) => {
   }
 });
 
+// [B-46] Lightweight API health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Additional API Routes
 import coachRouter from './coachRoutes';
 import paymentRouter from './paymentRoutes';
+import authRoutesRouter from './authRoutes';
+import adminRouter from './adminRoutes';
+import uploadRouter from './uploadRoutes';
+import emailAuthRouter from './emailAuthRoutes';
+import mainApiRouter from './routes';
 import { rankingsRouter } from './api/rankings';
 import { athletesRouter } from './api/athletes';
 import { messagesRouter } from './api/messages';
 import { trainingRouter } from './api/training';
 import { usersRouter } from './api/users';
+
+// [B-08] Wire Stripe webhook BEFORE express.json() body parser
+// The webhook route in paymentRouter uses express.raw() internally
+app.use('/api/payments', paymentRouter);
+
+app.use(express.json());
 
 app.use('/api/rankings', rankingsRouter);
 app.use('/api/athletes', athletesRouter);
@@ -229,7 +262,11 @@ app.use('/api/messages', messagesRouter);
 app.use('/api/training', trainingRouter);
 app.use('/api/users', usersRouter);
 app.use('/coach', coachRouter);
-app.use('/api/payment', paymentRouter);
+app.use('/api/auth/secure', authRoutesRouter);
+app.use('/api/auth/email', emailAuthRouter);
+app.use('/api/upload', uploadRouter);
+app.use('/api/admin', adminRouter);
+app.use('/api', mainApiRouter);
 
 // Main startup function
 async function startApplication() {

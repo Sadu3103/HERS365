@@ -42,6 +42,7 @@ import { AdminLogin } from './pages/AdminLogin';
 import { StaffDashboard } from './pages/StaffDashboard';
 import { StaticPageLayout } from './pages/StaticPageLayout';
 import { NotFound } from './pages/NotFound';
+import { Onboarding } from './pages/Onboarding';
 
 import { CoachLogin } from './pages/coach/CoachLogin';
 import { CoachDashboard } from './pages/coach/CoachDashboard';
@@ -52,7 +53,6 @@ import { CoachRoster } from './pages/coach/CoachRoster';
 import { CoachPlayerProfile } from './pages/coach/CoachPlayerProfile';
 import { CoachAnalytics } from './pages/coach/CoachAnalytics';
 import { CoachSignup } from './pages/coach/CoachSignup';
-import { CoachSettings } from './pages/coach/CoachSettings';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
@@ -90,7 +90,6 @@ function App() {
         <Router>
           <Routes>
             <Route element={<Layout />}>
-              <Route path="/" element={<Feed />} />
               <Route path="/feed" element={<Feed />} />
               <Route path="/rankings" element={<Rankings />} />
               <Route path="/profile" element={<Profile />} />
@@ -134,6 +133,11 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Route>
 
+            {/* Standalone full-page routes (no nav shell) */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/landing" element={<LandingPage />} />
+            <Route path="/onboarding" element={<Onboarding />} />
+
             {/* Coach Portal Routes */}
             <Route path="/coach/login" element={<CoachLogin />} />
             <Route path="/coach/signup" element={<CoachSignup />} />
@@ -146,7 +150,6 @@ function App() {
               <Route path="/coach/messages" element={<CoachMessages />} />
               <Route path="/coach/roster" element={<CoachRoster />} />
               <Route path="/coach/player/:id" element={<CoachPlayerProfile />} />
-              <Route path="/coach/settings" element={<CoachSettings />} />
             </Route>
           </Routes>
         </Router>

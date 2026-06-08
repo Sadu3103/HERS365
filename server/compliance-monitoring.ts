@@ -31,7 +31,7 @@ export class ComplianceMonitor {
     serviceBusClient: ServiceBusClient | undefined
   ) {
     this.cosmosClient = cosmosClient;
-    this.serviceBusClient = serviceBusClient;
+    this.serviceBusClient = serviceBusClient!;
     this.requirements = this.loadComplianceRequirements();
   }
 

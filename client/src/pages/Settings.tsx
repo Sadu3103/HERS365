@@ -1,6 +1,5 @@
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import {
   User,
   Bell,
@@ -8,9 +7,6 @@ import {
   Palette,
   Globe,
   Lock,
-  Mail,
-  Phone,
-  MapPin,
   Save,
   Eye,
   EyeOff,
