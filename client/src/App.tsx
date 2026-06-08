@@ -4,6 +4,7 @@ import { CoachLayout } from './components/CoachLayout';
 import { Feed } from './pages/Feed';
 import { Rankings } from './pages/Rankings';
 import { Profile } from './pages/Profile';
+import { PlayerProfile } from './pages/PlayerProfile';
 import { Training } from './pages/Training';
 import { Recruiting } from './pages/Recruiting';
 import { Teams } from './pages/Teams';
@@ -93,6 +94,7 @@ function App() {
               <Route path="/feed" element={<Feed />} />
               <Route path="/rankings" element={<Rankings />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/profile/:id" element={<PlayerProfile />} />
               <Route path="/training" element={<Training />} />
               <Route path="/recruiting" element={<Recruiting />} />
               <Route path="/teams" element={<Teams />} />
