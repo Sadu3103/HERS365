@@ -16,7 +16,6 @@ import { CosmosAPIService } from './cosmos-api';
 import { ComplianceOrchestrator, ComplianceDashboard } from './compliance-orchestrator';
 import { tracing, metrics } from './observability';
 import { logger } from './logger';
-import { authRouter } from './auth';
 
 dotenv.config();
 
@@ -211,9 +210,6 @@ app.get('/metrics', (req, res) => {
   res.send(metrics.exportPrometheus());
 });
 
-// Mount authentication routes
-app.use('/api/auth', authRouter);
-
 // Mount Cosmos DB API service
 app.use('/api/v1', cosmosAPIService.getApp());
 
@@ -262,6 +258,7 @@ app.use('/api/messages', messagesRouter);
 app.use('/api/training', trainingRouter);
 app.use('/api/users', usersRouter);
 app.use('/coach', coachRouter);
+app.use('/api/auth', authRoutesRouter);
 app.use('/api/auth/secure', authRoutesRouter);
 app.use('/api/auth/email', emailAuthRouter);
 app.use('/api/upload', uploadRouter);
