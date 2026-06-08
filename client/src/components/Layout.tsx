@@ -5,6 +5,7 @@ import {
   Settings, Bell, MessageSquare, Menu, X, Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MobileNav } from './MobileNav';
 
 interface NavItem {
   icon: React.ElementType;
@@ -201,8 +202,8 @@ export const Layout = () => {
           {/* Mobile menu */}
           <button
             onClick={() => setMobileOpen(true)}
-            style={{ display: 'none', color: '#666', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}
-            className="md-hidden-mobile-btn"
+            style={{ color: '#666', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}
+            className="flex md:hidden"
           >
             <Menu size={22} />
           </button>
@@ -330,41 +331,11 @@ export const Layout = () => {
         </main>
       </div>
 
-      {/* Mobile menu overlay */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setMobileOpen(false)}
-              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 30 }}
-            />
-            <motion.nav
-              initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
-              transition={{ type: 'tween', duration: 0.22 }}
-              style={{
-                position: 'fixed', inset: '0 auto 0 0', width: 260,
-                background: '#111', zIndex: 40, padding: 24,
-                display: 'flex', flexDirection: 'column', gap: 4,
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 900, fontSize: '1.4rem', letterSpacing: '0.04em' }}>HERS 365</span>
-                <button onClick={() => setMobileOpen(false)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer' }}>
-                  <X size={20} />
-                </button>
-              </div>
-              {nav.map(({ icon: Icon, label, path }) => (
-                <Link key={path} to={path} onClick={() => setMobileOpen(false)} className="nav-item"
-                  style={location.pathname === path ? { color: '#ff5a2d', background: 'rgba(255,90,45,0.1)', fontWeight: 700, fontSize: '0.78rem' } : { fontWeight: 700, fontSize: '0.78rem' }}>
-                  <Icon size={17} />
-                  {label}
-                </Link>
-              ))}
-            </motion.nav>
-          </>
-        )}
-      </AnimatePresence>
+      <MobileNav
+        isOpen={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        items={nav}
+      />
     </div>
   );
 };
