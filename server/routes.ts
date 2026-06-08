@@ -9,6 +9,12 @@ import { AuthenticatedRequest, requireAuth, requireAdmin } from './auth';
 
 const router = express.Router();
 
+function stripPlayer(p: any) {
+  if (!p) return p;
+  const { passwordHash, ...rest } = p;
+  return rest;
+}
+
 // SUBSCRIPTION PLANS
 router.get('/subscription-plans', async (req: Request, res: Response) => {
   try {
@@ -85,7 +91,7 @@ router.post('/player-subscription', requireAuth, async (req: AuthenticatedReques
 router.get('/profile', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const rows = await db.select().from(schema.players).where(eq(schema.players.id, req.user.userId)).limit(1);
-    res.json(rows[0] || null);
+    res.json(stripPlayer(rows[0]) || null);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -102,7 +108,7 @@ router.put('/profile', requireAuth, async (req: AuthenticatedRequest, res: Respo
     if (state !== undefined) updates.state = state;
     if (gradYear !== undefined) updates.gradYear = gradYear;
     const updated = await db.update(schema.players).set(updates).where(eq(schema.players.id, req.user.userId)).returning();
-    res.json(updated[0]);
+    res.json(stripPlayer(updated[0]));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -112,7 +118,7 @@ router.put('/profile', requireAuth, async (req: AuthenticatedRequest, res: Respo
 router.get('/players', async (req: Request, res: Response) => {
   try {
     const allPlayers = await db.select().from(schema.players);
-    res.json(allPlayers);
+    res.json(allPlayers.map(stripPlayer));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -123,7 +129,7 @@ router.get('/players/:id', async (req: Request, res: Response) => {
     const pId = parseInt(req.params.id);
     if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
     const player = await db.select().from(schema.players).where(eq(schema.players.id, pId));
-    res.json(player[0] || null);
+    res.json(stripPlayer(player[0]) || null);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
