@@ -37,6 +37,8 @@ export const CoachLayout = () => {
     { id: 3, title: 'Team Meeting', message: 'Scheduled for tomorrow at 3 PM', time: '2h ago', unread: false, action: '/coach/messages' },
   ];
 
+  const unreadCount = coachNotifications.filter(n => n.unread).length;
+
   const menuItems = [
     { icon: CircleGauge, label: 'Dashboard', path: '/coach/dashboard' },
     { icon: Search, label: 'Player Search', path: '/coach/search' },
@@ -110,18 +112,25 @@ export const CoachLayout = () => {
           </h1>
 
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-full">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-ping" />
-              <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">System Active</span>
-            </div>
+            {unreadCount > 0 ? (
+              <div className="flex items-center gap-2 px-4 py-2 bg-coral-500/10 border border-coral-500/20 rounded-full">
+                <div className="w-2 h-2 bg-coral-500 rounded-full animate-ping" />
+                <span className="text-[10px] font-black text-coral-500 uppercase tracking-widest">{unreadCount} New</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-full">
+                <div className="w-2 h-2 bg-green-500 rounded-full" />
+                <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">All caught up</span>
+              </div>
+            )}
             <div className="relative" ref={notificationsRef}>
               <button
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
                 className="relative text-ink-muted hover:text-white transition-colors"
               >
                 <Bell size={20} />
-                {coachNotifications.filter(n => n.unread).length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full shadow-[0_0_10px_rgba(34,197,94,0.8)]" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-coral-500 rounded-full shadow-[0_0_10px_rgba(255,90,45,0.8)]" />
                 )}
               </button>
 
