@@ -99,9 +99,9 @@ export const Recruiting = () => {
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
             style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-              <select value={pos}  onChange={e => setPos(e.target.value)}  style={sel}>{positions.map(p => <option key={p}>{p === 'All' ? 'All Positions' : p}</option>)}</select>
-              <select value={loc}  onChange={e => setLoc(e.target.value)}  style={sel}>{locations.map(l => <option key={l}>{l === 'All' ? 'All Locations' : l}</option>)}</select>
-              <select value={year} onChange={e => setYear(e.target.value)} style={sel}>{years.map(y => <option key={y}>{y === 'All' ? 'All Years' : `Class of ${y}`}</option>)}</select>
+              <select value={pos}  onChange={e => setPos(e.target.value)}  style={sel}>{positions.map(p => <option key={p} value={p}>{p === 'All' ? 'All Positions' : p}</option>)}</select>
+              <select value={loc}  onChange={e => setLoc(e.target.value)}  style={sel}>{locations.map(l => <option key={l} value={l}>{l === 'All' ? 'All Locations' : l}</option>)}</select>
+              <select value={year} onChange={e => setYear(e.target.value)} style={sel}>{years.map(y => <option key={y} value={y}>{y === 'All' ? 'All Years' : `Class of ${y}`}</option>)}</select>
             </div>
           </motion.div>
         )}
