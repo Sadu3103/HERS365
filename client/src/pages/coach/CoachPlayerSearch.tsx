@@ -59,7 +59,7 @@ export function CoachPlayerSearch() {
       queryParams.set('limit', '50');
 
       const token = localStorage.getItem('coachToken');
-      const response = await fetch(`/coach/players/search?${queryParams}`, {
+      const response = await fetch(`/api/coach/players/search?${queryParams}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -83,7 +83,7 @@ export function CoachPlayerSearch() {
 
     try {
       if (isSaved) {
-        await fetch(`/coach/players/${playerId}/save`, {
+        await fetch(`/api/coach/players/${playerId}/save`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -95,7 +95,7 @@ export function CoachPlayerSearch() {
           return newSet;
         });
       } else {
-        await fetch(`/coach/players/${playerId}/save`, {
+        await fetch(`/api/coach/players/${playerId}/save`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,

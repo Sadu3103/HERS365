@@ -28,7 +28,7 @@ export function CoachDashboard() {
   const fetchAnalytics = async () => {
     try {
       const token = localStorage.getItem('coachToken');
-      const response = await fetch('/coach/analytics', {
+      const response = await fetch('/api/coach/analytics', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -47,7 +47,7 @@ export function CoachDashboard() {
   const fetchClips = async () => {
     try {
       const token = localStorage.getItem('coachToken');
-      const response = await fetch('/coach/player-clips', {
+      const response = await fetch('/api/coach/player-clips', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

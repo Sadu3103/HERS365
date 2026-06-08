@@ -25,7 +25,7 @@ export function CoachAnalytics() {
   const fetchAnalytics = async () => {
     try {
       const token = localStorage.getItem('coachToken');
-      const response = await fetch('/coach/analytics', {
+      const response = await fetch('/api/coach/analytics', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

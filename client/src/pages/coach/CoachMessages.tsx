@@ -17,7 +17,7 @@ export function CoachMessages() {
   const fetchMessages = async () => {
     try {
       const token = localStorage.getItem('coachToken');
-      const response = await fetch('/coach/messages', {
+      const response = await fetch('/api/coach/messages', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -40,7 +40,7 @@ export function CoachMessages() {
 
     try {
       const token = localStorage.getItem('coachToken');
-      const response = await fetch(`/coach/message/${playerId}`, {
+      const response = await fetch(`/api/coach/message/${playerId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

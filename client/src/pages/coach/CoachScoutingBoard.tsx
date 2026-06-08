@@ -26,7 +26,7 @@ export function CoachScoutingBoard() {
   const fetchScoutingBoard = async () => {
     try {
       const token = localStorage.getItem('coachToken');
-      const response = await fetch('/coach/board', {
+      const response = await fetch('/api/coach/board', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -39,7 +39,7 @@ export function CoachScoutingBoard() {
         // Fetch player details for each board item
         const playerPromises = data.board.map(async (item: ScoutingBoardItem) => {
           try {
-            const playerResponse = await fetch(`/coach/players/${item.playerId}`, {
+            const playerResponse = await fetch(`/api/coach/players/${item.playerId}`, {
               headers: {
                 'Authorization': `Bearer ${token}`,
               },
@@ -98,7 +98,7 @@ export function CoachScoutingBoard() {
   const removeFromBoard = async (playerId: number) => {
     try {
       const token = localStorage.getItem('coachToken');
-      await fetch(`/coach/players/${playerId}/save`, {
+      await fetch(`/api/coach/players/${playerId}/save`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -115,7 +115,7 @@ export function CoachScoutingBoard() {
   const updateTier = async (playerId: number, newTier: string) => {
     try {
       const token = localStorage.getItem('coachToken');
-      const response = await fetch(`/coach/players/${playerId}/tier`, {
+      const response = await fetch(`/api/coach/players/${playerId}/tier`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -138,7 +138,7 @@ export function CoachScoutingBoard() {
   const updateNotes = async (playerId: number, notes: string) => {
     try {
       const token = localStorage.getItem('coachToken');
-      await fetch(`/coach/players/${playerId}/notes`, {
+      await fetch(`/api/coach/players/${playerId}/notes`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,

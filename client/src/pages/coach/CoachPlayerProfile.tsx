@@ -21,7 +21,7 @@ export function CoachPlayerProfile() {
   const fetchPlayerProfile = async (playerId: number) => {
     try {
       const token = localStorage.getItem('coachToken');
-      const response = await fetch(`/coach/players/${playerId}`, {
+      const response = await fetch(`/api/coach/players/${playerId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -45,7 +45,7 @@ export function CoachPlayerProfile() {
     try {
       const token = localStorage.getItem('coachToken');
       if (isSaved) {
-        await fetch(`/coach/players/${player.id}/save`, {
+        await fetch(`/api/coach/players/${player.id}/save`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -53,7 +53,7 @@ export function CoachPlayerProfile() {
         });
         setIsSaved(false);
       } else {
-        await fetch(`/coach/players/${player.id}/save`, {
+        await fetch(`/api/coach/players/${player.id}/save`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -76,7 +76,7 @@ export function CoachPlayerProfile() {
 
     try {
       const token = localStorage.getItem('coachToken');
-      await fetch(`/coach/message/${player.id}`, {
+      await fetch(`/api/coach/message/${player.id}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
