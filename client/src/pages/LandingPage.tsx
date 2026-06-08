@@ -47,6 +47,30 @@ const MOMENTUM_FACTS: MomentumFact[] = [
   },
 ];
 
+interface Step {
+  title: string;
+  description: string;
+}
+
+const STEPS: Step[] = [
+  {
+    title: 'Build your profile',
+    description: 'Add your positions, stats, school, and class year to a verified athlete profile.',
+  },
+  {
+    title: 'Upload your film',
+    description: 'Post game film and highlights that college coaches can actually evaluate.',
+  },
+  {
+    title: 'Climb the rankings',
+    description: 'Your stats and film feed your ranking so coaches can discover you by position.',
+  },
+  {
+    title: 'Connect with coaches',
+    description: 'Message college programs directly and keep every recruiting conversation in one place.',
+  },
+];
+
 export const LandingPage = () => {
   return (
     <div className="min-h-screen bg-surface overflow-x-hidden pt-20">
@@ -146,6 +170,37 @@ export const LandingPage = () => {
               title="Reach beyond your zip code"
               description="Your highlights and rankings travel further than a local season ever could, putting your game in front of coaches across the country."
             />
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="px-6 py-28">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-16 max-w-2xl">
+            <span className="k-label text-coral-500">How it works</span>
+            <h2 className="k-display text-4xl md:text-5xl text-ink mt-3 leading-tight">
+              From first profile to first offer
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-4 gap-6">
+            {STEPS.map((step, i) => (
+              <motion.div
+                key={step.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1, duration: 0.5 }}
+                className="k-card p-8"
+              >
+                <div className="w-14 h-14 rounded-2xl bg-coral-500/15 flex items-center justify-center mb-6" aria-hidden="true">
+                  <span className="text-xl font-bold text-coral-400">{i + 1}</span>
+                </div>
+                <h3 className="text-xl font-semibold mb-3 text-ink">{step.title}</h3>
+                <p className="text-ink-muted leading-relaxed">{step.description}</p>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
