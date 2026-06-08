@@ -438,7 +438,7 @@ export class AuthMonitoringService {
     // Check auth module availability
     try {
       const start = Date.now();
-      void auth.authRouter; // verify auth module loaded
+      void auth.requireAuth; // verify auth module loaded
       checks.database = {
         status: 'ok',
         response_time: Date.now() - start
