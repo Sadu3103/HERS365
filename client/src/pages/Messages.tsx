@@ -5,6 +5,7 @@ import {
   Send, Search, Check, CheckCheck, Paperclip, Smile, Plus, X,
   Star, BellOff, MoreHorizontal, ShieldCheck, ChevronLeft, Inbox, Trophy,
   Archive, ArchiveRestore, MessageSquare, Clock, ArrowUpRight, ArrowDownLeft,
+  Pin, PinOff, Trash2,
 } from 'lucide-react';
 
 /* ───────────────────────── Types ───────────────────────── */
@@ -63,13 +64,40 @@ const EMOJI = ['🔥', '💪', '🏈', '⚡️', '🎯', '🙌', '👏', '✅', 
 
 const PREFS_KEY = 'hers365.messages.prefs.v1';
 
-interface Prefs { starred: number[]; muted: number[]; archived: number[] }
+interface Prefs {
+  starred: number[];
+  muted: number[];
+  archived: number[];
+  pins: Record<number, number[]>;
+  deleted: Record<number, number[]>;
+}
 
 function loadPrefs(): Prefs {
   try {
     const p = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}');
-    return { starred: p.starred || [], muted: p.muted || [], archived: p.archived || [] };
-  } catch { return { starred: [], muted: [], archived: [] }; }
+    return {
+      starred: p.starred || [],
+      muted: p.muted || [],
+      archived: p.archived || [],
+      pins: p.pins || {},
+      deleted: p.deleted || {},
+    };
+  } catch { return { starred: [], muted: [], archived: [], pins: {}, deleted: {} }; }
+}
+
+function recordToSetMap(rec: Record<number, number[]>): Record<number, Set<number>> {
+  const out: Record<number, Set<number>> = {};
+  for (const k of Object.keys(rec)) out[Number(k)] = new Set(rec[Number(k)]);
+  return out;
+}
+
+function setMapToRecord(map: Record<number, Set<number>>): Record<number, number[]> {
+  const out: Record<number, number[]> = {};
+  for (const k of Object.keys(map)) {
+    const arr = [...map[Number(k)]];
+    if (arr.length) out[Number(k)] = arr;
+  }
+  return out;
 }
 
 /* ───────────────────────── Time helpers ───────────────────────── */
@@ -170,6 +198,13 @@ export const Messages = () => {
   const [starred, setStarred] = useState<Set<number>>(new Set(initialPrefs.starred));
   const [muted, setMuted] = useState<Set<number>>(new Set(initialPrefs.muted));
   const [archived, setArchived] = useState<Set<number>>(new Set(initialPrefs.archived));
+  const [pins, setPins] = useState<Record<number, Set<number>>>(() => recordToSetMap(initialPrefs.pins));
+  const [deleted, setDeleted] = useState<Record<number, Set<number>>>(() => recordToSetMap(initialPrefs.deleted));
+
+  // per-message interaction state
+  const [hoveredMsgId, setHoveredMsgId] = useState<number | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [pinsOpen, setPinsOpen] = useState(false);
 
   const [isNarrow, setIsNarrow] = useState(false);
   const [paneThread, setPaneThread] = useState(false);
@@ -179,6 +214,7 @@ export const Messages = () => {
   const threadSearchRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const emojiRef = useRef<HTMLDivElement>(null);
+  const pinsRef = useRef<HTMLDivElement>(null);
   const sendControls = useAnimationControls();
 
   const token = localStorage.getItem('token');
@@ -186,9 +222,15 @@ export const Messages = () => {
 
   /* persist prefs whenever they change */
   useEffect(() => {
-    const prefs: Prefs = { starred: [...starred], muted: [...muted], archived: [...archived] };
+    const prefs: Prefs = {
+      starred: [...starred],
+      muted: [...muted],
+      archived: [...archived],
+      pins: setMapToRecord(pins),
+      deleted: setMapToRecord(deleted),
+    };
     localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
-  }, [starred, muted, archived]);
+  }, [starred, muted, archived, pins, deleted]);
 
   /* responsive */
   useEffect(() => {
@@ -218,7 +260,9 @@ export const Messages = () => {
       const res = await fetch(`/api/messages/conversations/${id}/messages`, { headers });
       if (res.ok) {
         const data = await res.json();
-        const ordered: Msg[] = (data.data || []).slice().reverse();
+        const del = deleted[id];
+        let ordered: Msg[] = (data.data || []).slice().reverse();
+        if (del && del.size) ordered = ordered.filter(m => !del.has(m.id));
         setMsgs(ordered);
         // snapshot the unread boundary ONCE at open (server truth), not derived live
         const boundary = ordered.find(m => !m.isFromMe && !m.isRead);
@@ -227,7 +271,7 @@ export const Messages = () => {
     } finally {
       setLoadingMsgs(false);
     }
-  }, [headers]);
+  }, [headers, deleted]);
 
   const markRead = useCallback(async (id: number) => {
     await fetch('/api/messages/read', { method: 'PUT', headers, body: JSON.stringify({ conversationId: id }) });
@@ -262,6 +306,7 @@ export const Messages = () => {
     const h = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
       if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) setEmojiOpen(false);
+      if (pinsRef.current && !pinsRef.current.contains(e.target as Node)) setPinsOpen(false);
     };
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
@@ -283,14 +328,15 @@ export const Messages = () => {
     setEmojiOpen(false);
     sendControls.start({ scale: [1, 1.14, 1] }, { duration: 0.22 });
     const optimistic: Msg = { id: Date.now(), text, timestamp: new Date().toISOString(), isFromMe: true, isRead: false };
-    setMsgs(prev => [...prev, optimistic]);
+    const del = deleted[activeId];
+    setMsgs(prev => [...prev, optimistic].filter(m => !(del && del.has(m.id))));
     setConvos(prev => prev.map(c => c.id === activeId
       ? { ...c, lastMessage: { text, timestamp: optimistic.timestamp, isFromMe: true, isRead: false } }
       : c));
     const res = await fetch('/api/messages', { method: 'POST', headers, body: JSON.stringify({ conversationId: activeId, text }) });
     if (res.ok) {
       const data = await res.json();
-      setMsgs(prev => prev.map(m => (m.id === optimistic.id ? data.data : m)));
+      setMsgs(prev => prev.map(m => (m.id === optimistic.id ? data.data : m)).filter(m => !(del && del.has(m.id))));
     }
     inputRef.current?.focus();
   };
@@ -301,6 +347,9 @@ export const Messages = () => {
     setMenuOpen(false);
     setThreadSearchOpen(false);
     setThreadQuery('');
+    setHoveredMsgId(null);
+    setConfirmDeleteId(null);
+    setPinsOpen(false);
     setTimeout(() => inputRef.current?.focus(), 120);
   };
 
@@ -321,6 +370,40 @@ export const Messages = () => {
     setThreadSearchOpen(true);
     setMenuOpen(false);
     setTimeout(() => threadSearchRef.current?.focus(), 60);
+  };
+
+  /* per-message pin */
+  const togglePin = (convoId: number, msgId: number) =>
+    setPins(prev => {
+      const next = { ...prev };
+      const set = new Set(next[convoId] || []);
+      if (set.has(msgId)) set.delete(msgId); else set.add(msgId);
+      next[convoId] = set;
+      return next;
+    });
+
+  /* per-message delete (optimistic + persisted + best-effort backend) */
+  const deleteMsg = async (convoId: number, msgId: number) => {
+    setMsgs(prev => prev.filter(m => m.id !== msgId));
+    setDeleted(prev => {
+      const next = { ...prev };
+      const set = new Set(next[convoId] || []);
+      set.add(msgId);
+      next[convoId] = set;
+      return next;
+    });
+    setPins(prev => {
+      const set = prev[convoId];
+      if (!set || !set.has(msgId)) return prev;
+      const nextSet = new Set(set);
+      nextSet.delete(msgId);
+      return { ...prev, [convoId]: nextSet };
+    });
+    setConfirmDeleteId(null);
+    setHoveredMsgId(null);
+    try {
+      await fetch(`/api/messages/${msgId}`, { method: 'DELETE', headers });
+    } catch { /* endpoint may not exist — local removal already done */ }
   };
 
   /* derived */
@@ -355,6 +438,16 @@ export const Messages = () => {
   }, [msgs, threadSearchOpen, threadQuery]);
 
   const searching = threadSearchOpen && threadQuery.trim().length > 0;
+
+  // pinned message ids for the active conversation
+  const activePins = useMemo(
+    () => (activeId != null ? pins[activeId] : undefined) ?? new Set<number>(),
+    [pins, activeId],
+  );
+  const pinnedMsgs = useMemo(
+    () => msgs.filter(m => activePins.has(m.id)),
+    [msgs, activePins],
+  );
 
   const FilterChip = ({ k, label }: { k: FilterKey; label: string }) => {
     const on = filter === k;
@@ -472,6 +565,35 @@ export const Messages = () => {
               </div>
 
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+                {activePins.size > 0 && (
+                  <div style={{ position: 'relative' }} ref={pinsRef}>
+                    <button onClick={() => setPinsOpen(o => !o)} aria-label={`${activePins.size} pinned message${activePins.size === 1 ? '' : 's'}`} title="Pinned messages"
+                      style={{ display: 'flex', alignItems: 'center', gap: 5, height: 32, padding: '0 10px', borderRadius: 999, cursor: 'pointer', background: pinsOpen ? C.coralSoft : 'transparent', border: `1px solid ${pinsOpen ? 'rgba(255,90,45,0.3)' : C.border}`, color: C.coral, fontSize: '0.74rem', fontWeight: 700, transition: 'background 0.13s, border-color 0.13s' }}
+                      onMouseEnter={e => { if (!pinsOpen) e.currentTarget.style.background = C.hover; }}
+                      onMouseLeave={e => { if (!pinsOpen) e.currentTarget.style.background = 'transparent'; }}>
+                      <Pin size={14} fill={C.coral} color={C.coral} /> {activePins.size}
+                    </button>
+                    <AnimatePresence>
+                      {pinsOpen && (
+                        <motion.div initial={{ opacity: 0, y: -6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                          style={{ position: 'absolute', top: '120%', right: 0, width: 268, background: '#141414', border: `1px solid ${C.border}`, borderRadius: 12, padding: 6, zIndex: 50, boxShadow: '0 18px 48px rgba(0,0,0,0.65)' }}>
+                          <div style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.inkFaint, padding: '6px 8px 8px' }}>Pinned</div>
+                          {pinnedMsgs.length === 0 ? (
+                            <div style={{ padding: '8px 8px 12px', fontSize: '0.78rem', color: C.inkMuted }}>No pinned messages.</div>
+                          ) : pinnedMsgs.map(m => (
+                            <button key={m.id} onClick={() => setPinsOpen(false)}
+                              style={{ width: '100%', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 3, padding: '8px 10px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'transparent' }}
+                              onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+                              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                              <span style={{ fontSize: '0.8rem', color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{m.text}</span>
+                              <span style={{ fontSize: '0.64rem', color: C.inkFaint }}>{clockTime(m.timestamp)}</span>
+                            </button>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
                 <IconBtn label="Search in conversation" onClick={openThreadSearch} active={threadSearchOpen}>
                   <Search size={18} color={threadSearchOpen ? C.coral : undefined} />
                 </IconBtn>
@@ -571,18 +693,68 @@ export const Messages = () => {
                             </div>
                           )}
                           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.14 }}
+                            onMouseEnter={() => setHoveredMsgId(m.id)}
+                            onMouseLeave={() => { setHoveredMsgId(h => (h === m.id ? null : h)); if (confirmDeleteId === m.id) setConfirmDeleteId(null); }}
                             style={{ display: 'flex', justifyContent: m.isFromMe ? 'flex-end' : 'flex-start', marginTop: sameRunPrev ? 2 : 10 }}>
                             <div style={{ maxWidth: '74%', display: 'flex', flexDirection: 'column', alignItems: m.isFromMe ? 'flex-end' : 'flex-start' }}>
-                              <div style={{
-                                padding: '9px 13px', fontSize: '0.88rem', lineHeight: 1.5, wordBreak: 'break-word',
-                                color: m.isFromMe ? '#fff' : C.bubbleInText,
-                                background: m.isFromMe ? 'linear-gradient(135deg, #ff6a3d, #ef4a1d)' : C.bubbleIn,
-                                border: m.isFromMe ? 'none' : `1px solid ${C.border}`,
-                                borderRadius: 18,
-                                borderBottomRightRadius: m.isFromMe && !sameRunNext ? 5 : 18,
-                                borderBottomLeftRadius: !m.isFromMe && !sameRunNext ? 5 : 18,
-                                boxShadow: m.isFromMe ? '0 2px 14px rgba(255,90,45,0.22)' : 'none',
-                              }}>{m.text}</div>
+                              <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-start' }}>
+                                <div style={{
+                                  padding: '9px 13px', fontSize: '0.88rem', lineHeight: 1.5, wordBreak: 'break-word',
+                                  color: m.isFromMe ? '#fff' : C.bubbleInText,
+                                  background: m.isFromMe ? 'linear-gradient(135deg, #ff6a3d, #ef4a1d)' : C.bubbleIn,
+                                  border: m.isFromMe ? 'none' : `1px solid ${C.border}`,
+                                  borderRadius: 18,
+                                  borderBottomRightRadius: m.isFromMe && !sameRunNext ? 5 : 18,
+                                  borderBottomLeftRadius: !m.isFromMe && !sameRunNext ? 5 : 18,
+                                  boxShadow: m.isFromMe ? '0 2px 14px rgba(255,90,45,0.22)' : 'none',
+                                }}>{m.text}</div>
+                                {activePins.has(m.id) && (
+                                  <Pin size={12} fill={C.coral} color={C.coral} aria-label="Pinned"
+                                    style={{ position: 'absolute', top: -5, [m.isFromMe ? 'right' : 'left']: -4, transform: 'rotate(45deg)' } as React.CSSProperties} />
+                                )}
+                                {!searching && (hoveredMsgId === m.id || confirmDeleteId === m.id) && (
+                                  <div
+                                    onMouseEnter={() => setHoveredMsgId(m.id)}
+                                    style={{
+                                    position: 'absolute', top: -14, zIndex: 5,
+                                    [m.isFromMe ? 'right' : 'left']: '100%',
+                                    [m.isFromMe ? 'paddingRight' : 'paddingLeft']: 8,
+                                    display: 'flex', alignItems: 'center', gap: 2,
+                                    whiteSpace: 'nowrap',
+                                  } as React.CSSProperties}>
+                                  <div style={{
+                                    display: 'flex', alignItems: 'center', gap: 2, padding: 2,
+                                    background: '#141414', border: `1px solid ${C.border}`, borderRadius: 9,
+                                    boxShadow: '0 6px 20px rgba(0,0,0,0.55)',
+                                  }}>
+                                    {confirmDeleteId === m.id ? (
+                                      <>
+                                        <span style={{ fontSize: '0.7rem', fontWeight: 600, color: C.inkMuted, padding: '0 4px 0 6px' }}>Delete?</span>
+                                        <button onClick={() => deleteMsg(active.id, m.id)} aria-label="Confirm delete" title="Delete"
+                                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 7, border: 'none', cursor: 'pointer', background: 'rgba(248,113,113,0.14)', color: '#f87171' }}>
+                                          <Check size={14} />
+                                        </button>
+                                        <button onClick={() => setConfirmDeleteId(null)} aria-label="Cancel delete" title="Cancel"
+                                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 7, border: 'none', cursor: 'pointer', background: 'transparent', color: C.inkMuted }}
+                                          onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+                                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                                          <X size={14} />
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <MsgAction label={activePins.has(m.id) ? 'Unpin message' : 'Pin message'} onClick={() => togglePin(active.id, m.id)} accent={activePins.has(m.id)}>
+                                          {activePins.has(m.id) ? <PinOff size={14} /> : <Pin size={14} />}
+                                        </MsgAction>
+                                        <MsgAction label="Delete message" onClick={() => setConfirmDeleteId(m.id)}>
+                                          <Trash2 size={14} />
+                                        </MsgAction>
+                                      </>
+                                    )}
+                                  </div>
+                                  </div>
+                                )}
+                              </div>
                               {!sameRunNext && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4, padding: '0 4px' }}>
                                   <span style={{ fontSize: '0.62rem', color: C.inkFaint }}>{clockTime(m.timestamp)}</span>
@@ -676,6 +848,17 @@ function IconBtn({ children, label, onClick, active }: { children: React.ReactNo
       style={{ width: 36, height: 36, borderRadius: 9, border: 'none', cursor: 'pointer', background: active ? C.coralSoft : 'transparent', color: active ? C.coral : C.inkMuted, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.13s, color 0.13s' }}
       onMouseEnter={e => { if (!active) e.currentTarget.style.background = C.hover; }}
       onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}>
+      {children}
+    </button>
+  );
+}
+
+function MsgAction({ children, label, onClick, accent }: { children: React.ReactNode; label: string; onClick: () => void; accent?: boolean }) {
+  return (
+    <button onClick={onClick} aria-label={label} title={label}
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 7, border: 'none', cursor: 'pointer', background: accent ? C.coralSoft : 'transparent', color: accent ? C.coral : C.inkMuted, transition: 'background 0.13s, color 0.13s' }}
+      onMouseEnter={e => { if (!accent) { e.currentTarget.style.background = C.hover; e.currentTarget.style.color = C.ink; } }}
+      onMouseLeave={e => { if (!accent) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = C.inkMuted; } }}>
       {children}
     </button>
   );
