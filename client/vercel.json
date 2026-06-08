@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://hers365-production.up.railway.app/api/:path*"
+      "destination": "https://hers365-api-production.up.railway.app/api/:path*"
     },
     {
       "source": "/(.*)",
