@@ -20,6 +20,16 @@ export const CoachLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const coachUser: { name?: string; email?: string; school?: string; division?: string; subscriptionTier?: string; role?: string } = (() => {
+    try { return JSON.parse(localStorage.getItem('coachUser') || '{}'); } catch { return {}; }
+  })();
+  const coachName = coachUser.name || 'Coach';
+  const coachInitials = coachName.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+  const tierLabel = coachUser.subscriptionTier
+    ? `${coachUser.subscriptionTier.charAt(0).toUpperCase()}${coachUser.subscriptionTier.slice(1)} Plan`
+    : null;
+  const coachSubtitle = coachUser.school || coachUser.division || tierLabel || 'Coach';
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
@@ -89,12 +99,14 @@ export const CoachLayout = () => {
             <span className="font-medium">Settings</span>
           </Link>
           <div className="p-4 bg-white/5 rounded-2xl border border-white/5 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-surface-hover flex items-center justify-center border border-white/10">
-              <UserCircle className="text-ink-muted" size={24} />
+            <div className="w-10 h-10 rounded-full bg-surface-hover flex items-center justify-center border border-white/10 shrink-0">
+              {coachInitials
+                ? <span className="text-xs font-black text-white tracking-wide">{coachInitials}</span>
+                : <UserCircle className="text-ink-muted" size={24} />}
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-bold truncate text-white">Coach Anderson</p>
-              <p className="text-[10px] text-green-500 font-bold uppercase tracking-wider">Premium Access</p>
+              <p className="text-sm font-bold truncate text-white">{coachName}</p>
+              <p className="text-[10px] text-green-500 font-bold uppercase tracking-wider truncate">{coachSubtitle}</p>
             </div>
           </div>
         </div>
