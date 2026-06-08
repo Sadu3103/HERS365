@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Zap, ChevronRight, ChevronLeft, Check, Trophy,
-  GraduationCap, MapPin, Target,
+  GraduationCap, Target,
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 
