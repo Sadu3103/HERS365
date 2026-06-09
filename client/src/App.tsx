@@ -60,26 +60,33 @@ import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-route
 import { NotificationProvider } from './context/NotificationContext';
 const queryClient = new QueryClient();
 
-// Simple role-based guard for coach routes
+// Simple role-based guard for coach routes.
+// Auth is resolved synchronously before any children render so protected
+// content (athlete PII, scouting data) never flashes for unauthenticated users.
 function CoachRouteGuard({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const token = localStorage.getItem('coachToken');
   const userStr = localStorage.getItem('coachUser');
 
-  useEffect(() => {
-    if (!token || !userStr) {
-      navigate('/coach/login');
-      return;
-    }
+  let isAuthorized = false;
+  if (token && userStr) {
     try {
       const user = JSON.parse(userStr);
-      if (user.role !== 'coach' && user.role !== 'admin') {
-        navigate('/coach/login');
-      }
+      isAuthorized = user.role === 'coach' || user.role === 'admin';
     } catch {
+      isAuthorized = false;
+    }
+  }
+
+  useEffect(() => {
+    if (!isAuthorized) {
       navigate('/coach/login');
     }
-  }, [navigate, token, userStr]);
+  }, [navigate, isAuthorized]);
+
+  if (!isAuthorized) {
+    return null;
+  }
 
   return <>{children}</>;
 }
