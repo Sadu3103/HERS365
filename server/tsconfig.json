@@ -12,10 +12,7 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "sourceMap": true,
-    "declaration": true,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "noImplicitAny": false
+    "declaration": true
   },
   "include": ["./**/*.ts"],
   "exclude": ["node_modules", "dist"]
