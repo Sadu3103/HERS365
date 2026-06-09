@@ -3,7 +3,7 @@ services:
     name: hers365-api
     env: node
     plan: free
-    rootDir: hers365-app/server
+    rootDir: server
     buildCommand: npm install && npm run build
     startCommand: node dist/index.js
     envVars:
@@ -43,7 +43,7 @@ services:
     name: hers365-client
     env: static
     plan: free
-    rootDir: hers365-app/client
+    rootDir: client
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     envVars:
