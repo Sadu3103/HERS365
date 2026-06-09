@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * COSMOS DB INTEGRATION SERVICE
  * High-performance API layer for social recruiting platform

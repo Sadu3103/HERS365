@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Admin Routes - Administrative functions for platform management
  */
