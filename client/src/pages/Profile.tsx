@@ -13,7 +13,7 @@ interface ApiProfile {
   city: string;
   school: string;
   gradYear: number;
-  gpa: string;
+  gpa: string | null;
   achievements: string;
   verificationStatus: string;
   g5Rating: number;
@@ -108,7 +108,7 @@ export const Profile = () => {
   if (!profile) return null;
 
   const location = [profile.city, profile.state].filter(Boolean).join(', ');
-  const score = profile.g5Rating ? profile.g5Rating * 20 : '--';
+  const score = profile.g5Rating != null ? String(profile.g5Rating * 20) : '--';
   const verified = profile.verificationStatus === 'verified';
   const achievementList = profile.achievements
     ? profile.achievements.split(/[\n,]+/).map(a => a.trim()).filter(Boolean)
@@ -217,7 +217,7 @@ export const Profile = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0, marginTop: 20, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
           {[
             { label: '40YD', value: '--' },
-            { label: 'GPA',  value: profile.gpa },
+            { label: 'GPA',  value: profile.gpa ?? '--' },
             { label: 'HGT',  value: '--' },
           ].map(({ label, value }, i, arr) => (
             <div key={label} style={{ textAlign: 'center', borderRight: i < arr.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none', padding: '0 8px' }}>
