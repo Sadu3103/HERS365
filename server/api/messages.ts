@@ -125,6 +125,15 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, error: 'partnerId and content are required' });
     }
 
+    const partnerTable = isCoach ? schema.players : schema.coaches;
+    const [partner] = await db.select({ id: partnerTable.id })
+      .from(partnerTable)
+      .where(eq(partnerTable.id, Number(partnerId)))
+      .limit(1);
+    if (!partner) {
+      return res.status(404).json({ success: false, error: 'Partner not found' });
+    }
+
     const [row] = await db
       .insert(schema.messages)
       .values({
