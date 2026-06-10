@@ -15,6 +15,31 @@ async function approveContact(athleteId: number, coachId: number, parentId: numb
   });
 }
 
+describe('parent-gating of the coach direct-message route', () => {
+  it('blocks POST /api/coach/message/:playerId with no approved link', async () => {
+    const coach = await makeCoach();
+    const athlete = await makeAthlete();
+    const res = await request(app)
+      .post(`/api/coach/message/${athlete.id}`)
+      .set('Authorization', `Bearer ${tokenFor(coach, 'coach')}`)
+      .send({ message: 'hi' });
+    expect(res.status).toBe(403);
+  });
+
+  it('allows it once a parent-approved link exists', async () => {
+    const coach = await makeCoach();
+    const athlete = await makeAthlete();
+    const parent = await makeParent();
+    await linkParentChild(parent.id, athlete.id);
+    await approveContact(athlete.id, coach.id, parent.id);
+    const res = await request(app)
+      .post(`/api/coach/message/${athlete.id}`)
+      .set('Authorization', `Bearer ${tokenFor(coach, 'coach')}`)
+      .send({ message: 'welcome' });
+    expect([200, 201]).toContain(res.status);
+  });
+});
+
 describe('parent-gating of coach↔athlete messaging', () => {
   it('blocks a coach messaging an athlete with no approved link', async () => {
     const coach = await makeCoach();

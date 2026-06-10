@@ -116,7 +116,7 @@ router.get('/conversations/:partnerId/messages', async (req, res) => {
 
 // CLAUDE.md: all coach↔athlete contact is gated through parents. A pair may
 // message only after a message_request was approved WITH a parent attached.
-async function hasParentApprovedLink(athleteId: number, coachId: number): Promise<boolean> {
+export async function hasParentApprovedLink(athleteId: number, coachId: number): Promise<boolean> {
   const [link] = await db.select({ id: schema.messageRequests.id })
     .from(schema.messageRequests)
     .where(and(
