@@ -124,11 +124,15 @@ router.post('/', async (req, res) => {
     if (!partnerId || !content) {
       return res.status(400).json({ success: false, error: 'partnerId and content are required' });
     }
+    const partnerIdNum = Number(partnerId);
+    if (Number.isNaN(partnerIdNum)) {
+      return res.status(400).json({ success: false, error: 'Invalid partner id' });
+    }
 
     const partnerTable = isCoach ? schema.players : schema.coaches;
     const [partner] = await db.select({ id: partnerTable.id })
       .from(partnerTable)
-      .where(eq(partnerTable.id, Number(partnerId)))
+      .where(eq(partnerTable.id, partnerIdNum))
       .limit(1);
     if (!partner) {
       return res.status(404).json({ success: false, error: 'Partner not found' });
@@ -137,8 +141,8 @@ router.post('/', async (req, res) => {
     const [row] = await db
       .insert(schema.messages)
       .values({
-        coachId: isCoach ? userId : Number(partnerId),
-        athleteId: isCoach ? Number(partnerId) : userId,
+        coachId: isCoach ? userId : partnerIdNum,
+        athleteId: isCoach ? partnerIdNum : userId,
         senderId: userId,
         senderType: isCoach ? 'coach' : 'athlete',
         content: String(content),

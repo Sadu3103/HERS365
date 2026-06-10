@@ -38,6 +38,15 @@ describe('messaging access', () => {
     expect(res.status).toBe(404);
   });
 
+  it('sending to a non-numeric partner id is a 400, not a 500', async () => {
+    const coach = await makeCoach();
+    const res = await request(app)
+      .post('/api/messages')
+      .set('Authorization', `Bearer ${tokenFor(coach, 'coach')}`)
+      .send({ partnerId: 'abc', content: 'hello?' });
+    expect(res.status).toBe(400);
+  });
+
   it("cannot respond to another user's message request", async () => {
     const coach = await makeCoach();
     const otherCoach = await makeCoach();
