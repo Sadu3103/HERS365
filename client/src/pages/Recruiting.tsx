@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Heart, CheckCircle2, MapPin } from 'lucide-react';
+import { Search, Filter, Heart, CheckCircle2, MapPin, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { apiFetch } from '../lib/api';
 
 interface Athlete {
   id: number;
@@ -17,15 +18,6 @@ interface Athlete {
   verified: boolean;
   isFavorited: boolean;
 }
-
-const mockAthletes: Athlete[] = [
-  { id: 1, name: 'Sarah Watkins',   school: 'Westlake HS, TX',          position: 'QB', score: 95, location: 'Texas',      graduationYear: 2026, height: "5'9\"", fortyYardTime: 4.72, gpa: 3.9,  verified: true,  isFavorited: false },
-  { id: 2, name: 'Maya Johnson',    school: "St. Mary's Academy, FL",   position: 'WR', score: 92, location: 'Florida',     graduationYear: 2026, height: "5'7\"", fortyYardTime: 4.71, gpa: 3.7,  verified: true,  isFavorited: true  },
-  { id: 3, name: 'Isabella Reyes',  school: 'Centennial HS, CA',        position: 'DB', score: 91, location: 'California',  graduationYear: 2027, height: "5'6\"", fortyYardTime: 4.68, gpa: 4.0,  verified: true,  isFavorited: false },
-  { id: 4, name: 'Chloe Zhang',     school: 'Northwood HS, GA',         position: 'RB', score: 90, location: 'Georgia',     graduationYear: 2026, height: "5'5\"", fortyYardTime: 4.65, gpa: 3.8,  verified: true,  isFavorited: false },
-  { id: 5, name: "Emma O'Connor",   school: 'Summit Prep, CO',          position: 'QB', score: 89, location: 'Colorado',    graduationYear: 2027, height: "5'8\"", fortyYardTime: 4.88, gpa: 3.95, verified: false, isFavorited: false },
-  { id: 6, name: 'Ava Mitchell',    school: 'Harrison HS, AL',          position: 'LB', score: 89, location: 'Alabama',     graduationYear: 2026, height: "5'9\"", fortyYardTime: 4.75, gpa: 3.6,  verified: true,  isFavorited: false },
-];
 
 const positions = ['All', 'QB', 'RB', 'WR', 'TE', 'LB', 'DB'];
 const locations  = ['All', 'California', 'Texas', 'Florida', 'Georgia', 'Colorado', 'Alabama'];
@@ -43,12 +35,41 @@ function Avatar({ name, size = 48 }: { name: string; size?: number }) {
 
 export const Recruiting = () => {
   const navigate = useNavigate();
-  const [athletes, setAthletes] = useState<Athlete[]>(mockAthletes);
+  const [athletes, setAthletes] = useState<Athlete[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [search, setSearch] = useState('');
   const [pos, setPos] = useState('All');
   const [loc, setLoc] = useState('All');
   const [year, setYear] = useState('All');
   const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await apiFetch<{ success: boolean; data: any[] }>('/api/athletes');
+        setAthletes(res.data.map(row => ({
+          id: row.id,
+          name: row.name,
+          school: row.school ?? '',
+          position: row.position ?? '',
+          score: row.g5Rating ? row.g5Rating * 20 : 0,
+          location: row.state ?? '',
+          graduationYear: row.gradYear ?? 0,
+          height: '—',
+          fortyYardTime: 0,
+          gpa: parseFloat(String(row.gpa)) || 0,
+          verified: row.verificationStatus === 'verified',
+          isFavorited: false,
+        })));
+      } catch {
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
   const filtered = athletes.filter(a => {
     const q = search.toLowerCase();
@@ -57,6 +78,29 @@ export const Recruiting = () => {
   }).sort((a, b) => b.score - a.score);
 
   const toggleFav = (id: number) => setAthletes(prev => prev.map(a => a.id === id ? { ...a, isFavorited: !a.isFavorited } : a));
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a', color: '#888', gap: 16 }}>
+        <Loader2 size={40} color="#ff5a2d" style={{ animation: 'spin 1s linear infinite' }} />
+        <p style={{ fontSize: '0.9rem', letterSpacing: '0.05em' }}>Loading athletes...</p>
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a', color: '#888', gap: 16 }}>
+        <div className="k-card" style={{ padding: 32, textAlign: 'center', maxWidth: 360 }}>
+          <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '1.2rem', fontWeight: 700, color: '#fff', marginBottom: 8 }}>Failed to load athletes</div>
+          <button onClick={() => window.location.reload()} style={{ marginTop: 12, background: '#ff5a2d', border: 'none', borderRadius: 8, padding: '10px 24px', color: '#fff', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}>
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const sel: React.CSSProperties = {
     background: '#161616', border: '1px solid rgba(255,255,255,0.08)',
