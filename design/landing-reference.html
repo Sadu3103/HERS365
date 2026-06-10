@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HERS 365 — The Recruiting Grid for Girls Flag Football</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#0a0a0a;
+    --ink-2:#111111;
+    --ink-3:#161616;
+    --line:rgba(255,255,255,.07);
+    --line-2:rgba(255,255,255,.12);
+    --fg:#f4f4f2;
+    --muted:#8a8a86;
+    --muted-2:#5a5a56;
+    --flame:#ff5a2d;
+    --flame-soft:#ff8c66;
+    --up:#ff8c66;
+    --disp:'Barlow Condensed', sans-serif;
+    --body:'Hanken Grotesk', sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--ink);
+    color:var(--fg);
+    font-family:var(--body);
+    font-size:17px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  /* grain overlay */
+  body::before{
+    content:'';
+    position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:.04;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 28px}
+  .disp{font-family:var(--disp);text-transform:uppercase;line-height:.92;letter-spacing:.01em}
+
+  /* ── NAV ── */
+  nav{
+    position:fixed;top:0;left:0;right:0;z-index:100;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 28px;
+    background:rgba(10,10,10,.55);backdrop-filter:blur(14px);
+    border-bottom:1px solid transparent;transition:border-color .3s, background .3s;
+  }
+  nav.scrolled{border-bottom-color:var(--line);background:rgba(10,10,10,.82)}
+  .logo{font-family:var(--disp);font-weight:900;font-size:1.5rem;letter-spacing:.04em}
+  .logo b{color:var(--flame)}
+  .nav-links{display:flex;gap:30px;align-items:center}
+  .nav-links a{font-weight:600;font-size:.84rem;color:var(--muted);transition:color .2s}
+  .nav-links a:hover{color:var(--fg)}
+  .btn{
+    font-family:var(--disp);font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+    font-size:.92rem;padding:11px 22px;border-radius:999px;cursor:pointer;border:none;
+    display:inline-flex;align-items:center;gap:9px;transition:transform .15s, box-shadow .2s, background .2s;
+  }
+  .btn-primary{background:var(--flame);color:#fff;box-shadow:0 6px 22px rgba(255,90,45,.32)}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(255,90,45,.5)}
+  .btn-ghost{background:transparent;color:var(--fg);border:1px solid var(--line-2)}
+  .btn-ghost:hover{border-color:var(--flame);color:var(--flame)}
+
+  /* ── HERO ── */
+  header{position:relative;padding:160px 0 90px;overflow:hidden}
+  .glow{
+    position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;pointer-events:none;
+  }
+  .glow-1{width:620px;height:620px;background:radial-gradient(circle,rgba(255,90,45,.55),transparent 65%);top:-180px;right:-120px}
+  .glow-2{width:480px;height:480px;background:radial-gradient(circle,rgba(255,90,45,.22),transparent 65%);bottom:-220px;left:-160px}
+  .grid-lines{
+    position:absolute;inset:0;opacity:.5;pointer-events:none;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:64px 64px;
+    mask-image:radial-gradient(circle at 70% 20%,#000 0%,transparent 70%);
+  }
+  .hero-grid{position:relative;display:grid;grid-template-columns:1.15fr .85fr;gap:48px;align-items:center}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:9px;
+    font-family:var(--disp);font-weight:700;text-transform:uppercase;letter-spacing:.18em;
+    font-size:.8rem;color:var(--flame);margin-bottom:24px;
+    border:1px solid rgba(255,90,45,.3);padding:7px 14px;border-radius:999px;background:rgba(255,90,45,.06);
+  }
+  .pulse{width:7px;height:7px;border-radius:50%;background:var(--flame);box-shadow:0 0 0 0 rgba(255,90,45,.7);animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,90,45,.6)}70%{box-shadow:0 0 0 9px rgba(255,90,45,0)}100%{box-shadow:0 0 0 0 rgba(255,90,45,0)}}
+  h1{font-family:var(--disp);font-weight:900;text-transform:uppercase;font-size:clamp(3.4rem,8vw,6.6rem);line-height:.86;letter-spacing:-.005em}
+  h1 em{font-style:italic;color:var(--flame);position:relative}
+  .hero-sub{color:var(--muted);font-size:1.18rem;max-width:480px;margin:28px 0 36px}
+  .hero-cta{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  .trust{margin-top:30px;display:flex;align-items:center;gap:14px;color:var(--muted-2);font-size:.86rem}
+  .avatars{display:flex}
+  .avatars span{width:34px;height:34px;border-radius:50%;border:2px solid var(--ink);margin-left:-10px;background-size:cover;background-position:center}
+  .avatars span:first-child{margin-left:0}
+
+  /* hero card */
+  .hero-card{
+    position:relative;background:linear-gradient(160deg,var(--ink-3),var(--ink-2));
+    border:1px solid var(--line);border-radius:22px;padding:24px;
+    box-shadow:0 30px 80px rgba(0,0,0,.6);
+  }
+  .hc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+  .hc-name{font-family:var(--disp);font-weight:800;font-size:1.35rem;letter-spacing:.02em}
+  .hc-pos{color:var(--muted);font-size:.8rem;font-weight:600}
+  .hc-score{font-family:var(--disp);font-weight:900;font-size:2.6rem;color:var(--flame);line-height:1}
+  .hc-score small{display:block;font-size:.62rem;letter-spacing:.16em;color:var(--muted-2);text-align:right;font-weight:700}
+  .hc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+  .hc-stat{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:13px 12px}
+  .hc-stat .v{font-family:var(--disp);font-weight:800;font-size:1.5rem}
+  .hc-stat .l{font-size:.64rem;letter-spacing:.1em;color:var(--muted-2);text-transform:uppercase;font-weight:700;margin-top:2px}
+  .hc-bar{height:8px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;margin-bottom:8px}
+  .hc-bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--flame),var(--flame-soft));width:0;transition:width 1.4s cubic-bezier(.2,.8,.2,1)}
+  .hc-bar-label{display:flex;justify-content:space-between;font-size:.74rem;color:var(--muted);font-weight:600}
+  .hc-badge{position:absolute;top:-14px;right:24px;background:var(--flame);color:#fff;font-family:var(--disp);font-weight:800;font-size:.74rem;letter-spacing:.1em;padding:6px 13px;border-radius:999px;text-transform:uppercase;box-shadow:0 8px 20px rgba(255,90,45,.4)}
+
+  /* ── STAT BAND ── */
+  .band{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--ink-2)}
+  .band-grid{display:grid;grid-template-columns:repeat(4,1fr)}
+  .band-item{padding:38px 24px;text-align:center;border-right:1px solid var(--line)}
+  .band-item:last-child{border-right:none}
+  .band-item .n{font-family:var(--disp);font-weight:900;font-size:3.1rem;color:var(--fg);line-height:1}
+  .band-item .n em{color:var(--flame);font-style:normal}
+  .band-item .c{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-top:8px}
+
+  /* ── SECTIONS ── */
+  section{padding:110px 0}
+  .sec-head{max-width:640px;margin-bottom:60px}
+  .kicker{font-family:var(--disp);font-weight:700;text-transform:uppercase;letter-spacing:.2em;font-size:.84rem;color:var(--flame);margin-bottom:16px}
+  h2{font-family:var(--disp);font-weight:900;text-transform:uppercase;font-size:clamp(2.4rem,5vw,4rem);line-height:.92;letter-spacing:-.01em}
+  .sec-head p{color:var(--muted);font-size:1.1rem;margin-top:20px}
+
+  .triad{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .card{
+    position:relative;background:var(--ink-2);border:1px solid var(--line);border-radius:20px;padding:32px;
+    overflow:hidden;transition:transform .3s, border-color .3s;
+  }
+  .card:hover{transform:translateY(-6px);border-color:rgba(255,90,45,.35)}
+  .card::after{content:'';position:absolute;top:-40%;right:-40%;width:70%;height:70%;background:radial-gradient(circle,rgba(255,90,45,.16),transparent 70%);opacity:0;transition:opacity .3s}
+  .card:hover::after{opacity:1}
+  .card .icon{width:52px;height:52px;border-radius:14px;background:rgba(255,90,45,.12);border:1px solid rgba(255,90,45,.25);display:flex;align-items:center;justify-content:center;margin-bottom:22px;color:var(--flame)}
+  .card h3{font-family:var(--disp);font-weight:800;text-transform:uppercase;font-size:1.6rem;letter-spacing:.01em;margin-bottom:12px}
+  .card p{color:var(--muted);font-size:1rem}
+  .card .num{position:absolute;bottom:18px;right:24px;font-family:var(--disp);font-weight:900;font-size:3.4rem;color:rgba(255,255,255,.04)}
+
+  /* ── SPLIT FEATURE ── */
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+  .feat-list{margin-top:32px;display:flex;flex-direction:column;gap:18px}
+  .feat-row{display:flex;gap:16px;align-items:flex-start}
+  .feat-row .dot{flex-shrink:0;width:26px;height:26px;border-radius:50%;background:rgba(255,90,45,.12);border:1px solid rgba(255,90,45,.3);display:flex;align-items:center;justify-content:center;color:var(--flame);margin-top:3px}
+  .feat-row h4{font-family:var(--disp);font-weight:800;text-transform:uppercase;font-size:1.15rem;letter-spacing:.02em}
+  .feat-row p{color:var(--muted);font-size:.96rem}
+  .phone{
+    position:relative;background:linear-gradient(160deg,var(--ink-3),var(--ink));
+    border:1px solid var(--line-2);border-radius:30px;padding:18px;box-shadow:0 40px 90px rgba(0,0,0,.6)
+  }
+  .phone-screen{background:var(--ink);border-radius:20px;border:1px solid var(--line);overflow:hidden}
+  .ps-head{padding:18px 18px 12px;border-bottom:1px solid var(--line)}
+  .ps-title{font-family:var(--disp);font-weight:900;font-size:1.3rem;letter-spacing:.04em}
+  .ps-title b{color:var(--flame)}
+  .feed-item{display:flex;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line);align-items:center}
+  .feed-av{width:40px;height:40px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--flame),var(--flame-soft))}
+  .feed-name{font-weight:700;font-size:.9rem}
+  .feed-meta{color:var(--muted-2);font-size:.76rem}
+  .feed-rank{margin-left:auto;font-family:var(--disp);font-weight:900;font-size:1.3rem;color:var(--flame)}
+  .feed-rank.up::before{content:'▲ ';font-size:.6rem;color:var(--up)}
+
+  /* ── CTA ── */
+  .cta-wrap{position:relative;border-radius:28px;overflow:hidden;background:linear-gradient(135deg,#1a0f0a,#0a0a0a);border:1px solid rgba(255,90,45,.25);padding:80px 40px;text-align:center}
+  .cta-wrap .glow-1{top:-260px;right:30%;opacity:.6}
+  .cta-wrap h2{position:relative}
+  .cta-wrap p{position:relative;color:var(--muted);font-size:1.15rem;max-width:520px;margin:20px auto 36px}
+  .cta-form{position:relative;display:flex;gap:12px;max-width:480px;margin:0 auto;flex-wrap:wrap;justify-content:center}
+  .cta-form input{
+    flex:1;min-width:240px;background:var(--ink-3);border:1px solid var(--line-2);border-radius:999px;
+    padding:15px 22px;color:var(--fg);font-family:var(--body);font-size:1rem;outline:none;transition:border-color .2s
+  }
+  .cta-form input:focus{border-color:var(--flame)}
+  .cta-note{position:relative;margin-top:18px;color:var(--muted-2);font-size:.84rem}
+
+  /* ── FOOTER ── */
+  footer{border-top:1px solid var(--line);padding:48px 0 38px;margin-top:40px}
+  .foot-grid{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px}
+  .foot-links{display:flex;gap:26px}
+  .foot-links a{color:var(--muted);font-size:.86rem;font-weight:600;transition:color .2s}
+  .foot-links a:hover{color:var(--flame)}
+  .copy{color:var(--muted-2);font-size:.82rem}
+
+  /* reveal */
+  .reveal{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.2,.8,.2,1),transform .7s cubic-bezier(.2,.8,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+
+  @media(max-width:900px){
+    .hero-grid,.split{grid-template-columns:1fr;gap:40px}
+    .band-grid{grid-template-columns:repeat(2,1fr)}
+    .band-item:nth-child(2){border-right:none}
+    .band-item:nth-child(1),.band-item:nth-child(2){border-bottom:1px solid var(--line)}
+    .triad{grid-template-columns:1fr}
+    .nav-links{display:none}
+  }
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="logo">HERS<b>365</b></div>
+  <div class="nav-links">
+    <a href="#how">The Grid</a>
+    <a href="#features">Features</a>
+    <a href="#rankings">Rankings</a>
+    <a href="#join">For Coaches</a>
+  </div>
+  <button class="btn btn-primary" onclick="document.getElementById('join').scrollIntoView()">Get Recruited →</button>
+</nav>
+
+<header>
+  <div class="glow glow-1"></div>
+  <div class="glow glow-2"></div>
+  <div class="grid-lines"></div>
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow"><span class="pulse"></span> Girls Flag Football · Class of 2026</span>
+      <h1 class="anim">Get Seen.<br>Get Ranked.<br>Get <em>Recruited.</em></h1>
+      <p class="hero-sub anim">The recruiting platform built for girls flag football. Post your film, climb the rankings, and put your game in front of every coach that matters — 365 days a year.</p>
+      <div class="hero-cta anim">
+        <button class="btn btn-primary" onclick="document.getElementById('join').scrollIntoView()">Claim Your Profile</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('how').scrollIntoView()">▶ See How It Works</button>
+      </div>
+      <div class="trust anim">
+        <div class="avatars">
+          <span style="background-image:url('https://randomuser.me/api/portraits/women/44.jpg')"></span>
+          <span style="background-image:url('https://randomuser.me/api/portraits/women/68.jpg')"></span>
+          <span style="background-image:url('https://randomuser.me/api/portraits/women/12.jpg')"></span>
+          <span style="background-image:url('https://randomuser.me/api/portraits/women/90.jpg')"></span>
+        </div>
+        <span>Join <b style="color:var(--fg)">4,200+</b> athletes already on the grid</span>
+      </div>
+    </div>
+
+    <div class="hero-card anim">
+      <div class="hc-badge">Top 5%</div>
+      <div class="hc-top">
+        <div>
+          <div class="hc-name">Sarah Watkins</div>
+          <div class="hc-pos">QB · Class of 2026</div>
+        </div>
+        <div class="hc-score">95<small>HERS RATING</small></div>
+      </div>
+      <div class="hc-stats">
+        <div class="hc-stat"><div class="v">4.6s</div><div class="l">40 Dash</div></div>
+        <div class="hc-stat"><div class="v">28</div><div class="l">TDs</div></div>
+        <div class="hc-stat"><div class="v">12</div><div class="l">Offers</div></div>
+      </div>
+      <div class="hc-bar"><i data-w="92%"></i></div>
+      <div class="hc-bar-label"><span>Recruiting Visibility</span><span style="color:var(--flame)">92%</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="band">
+  <div class="wrap band-grid">
+    <div class="band-item reveal"><div class="n"><em>4.2</em>K</div><div class="c">Athletes Ranked</div></div>
+    <div class="band-item reveal"><div class="n"><em>380</em>+</div><div class="c">Coaches Scouting</div></div>
+    <div class="band-item reveal"><div class="n"><em>1.1</em>K</div><div class="c">Offers Made</div></div>
+    <div class="band-item reveal"><div class="n"><em>365</em></div><div class="c">Days A Year</div></div>
+  </div>
+</div>
+
+<section id="how">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="kicker">Three Ways To Win</div>
+      <h2>Your highlight reel<br>shouldn't sit in a folder.</h2>
+      <p>Stop hoping a coach finds your film. HERS 365 turns every rep into ranking — and every ranking into a reason to get recruited.</p>
+    </div>
+    <div class="triad">
+      <div class="card reveal">
+        <div class="icon"><svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v6m0 0l3-3m-3 3L9 5M5 12H2m20 0h-3M12 22v-6m-7 3l2-2m12 2l-2-2"/><circle cx="12" cy="12" r="3"/></svg></div>
+        <h3>Achieve Your Goals</h3>
+        <p>Log combines, drills and game film. Our HERS Rating turns your work into a verified score coaches trust.</p>
+        <div class="num">01</div>
+      </div>
+      <div class="card reveal">
+        <div class="icon"><svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 11-5.8-1.6"/></svg></div>
+        <h3>Challenge Your Friends</h3>
+        <p>Climb the live leaderboard. Go head-to-head on the grid and watch your rank rise every single week.</p>
+        <div class="num">02</div>
+      </div>
+      <div class="card reveal">
+        <div class="icon"><svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg></div>
+        <h3>Share Your Journey</h3>
+        <p>Post highlights to your profile, get discovered by 380+ scouting coaches, and let your tape do the talking.</p>
+        <div class="num">03</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features" style="background:var(--ink-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap split">
+    <div class="reveal">
+      <div class="kicker">The Grid</div>
+      <h2>Every athlete.<br>One leaderboard.</h2>
+      <p style="color:var(--muted);font-size:1.1rem;margin-top:20px">A living ranking of girls flag football talent — updated daily, visible to every coach, impossible to ignore.</p>
+      <div class="feat-list">
+        <div class="feat-row"><div class="dot"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="3"><path d="M2 7l3 3 6-7"/></svg></div><div><h4>Verified HERS Rating</h4><p>A single, trusted score built from real performance data — not hype.</p></div></div>
+        <div class="feat-row"><div class="dot"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="3"><path d="M2 7l3 3 6-7"/></svg></div><div><h4>Real-time rankings</h4><p>Climb position by position. Your rank moves the moment you do.</p></div></div>
+        <div class="feat-row"><div class="dot"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="3"><path d="M2 7l3 3 6-7"/></svg></div><div><h4>Coach-facing profiles</h4><p>Film, stats and contact in one place — built for how coaches actually scout.</p></div></div>
+      </div>
+    </div>
+    <div class="phone reveal">
+      <div class="phone-screen">
+        <div class="ps-head"><div class="ps-title">THE <b>GRID</b> · TOP QBs</div></div>
+        <div class="feed-item"><div class="feed-av" style="background:linear-gradient(135deg,#ff5a2d,#ff8c66)"></div><div><div class="feed-name">Sarah Watkins</div><div class="feed-meta">QB · 2026 · 12 offers</div></div><div class="feed-rank up">95</div></div>
+        <div class="feed-item"><div class="feed-av" style="background:linear-gradient(135deg,#3a3a3a,#1c1c1c)"></div><div><div class="feed-name">Maya Johnson</div><div class="feed-meta">QB · 2026 · 8 offers</div></div><div class="feed-rank up">93</div></div>
+        <div class="feed-item"><div class="feed-av" style="background:linear-gradient(135deg,#2a2a2a,#161616)"></div><div><div class="feed-name">Jordan Reyes</div><div class="feed-meta">QB · 2027 · 5 offers</div></div><div class="feed-rank">91</div></div>
+        <div class="feed-item" style="border-bottom:none"><div class="feed-av" style="background:linear-gradient(135deg,#222,#111)"></div><div><div class="feed-name">Taylor Brooks</div><div class="feed-meta">QB · 2026 · 4 offers</div></div><div class="feed-rank up">88</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="join">
+  <div class="wrap">
+    <div class="cta-wrap reveal">
+      <div class="glow glow-1"></div>
+      <div class="kicker" style="position:relative">Finally — recruiting built for her</div>
+      <h2>Your tape is ready.<br>Are the coaches?</h2>
+      <p>Drop your number and we'll text you a link to claim your profile. Free to start. Built for the class of 2026 and beyond.</p>
+      <form class="cta-form" onsubmit="event.preventDefault();this.querySelector('input').value='';this.nextElementSibling.textContent='🔥 You\\'re on the grid — check your texts!';">
+        <input type="tel" placeholder="Your phone number" required />
+        <button class="btn btn-primary" type="submit">Let's Text You</button>
+      </form>
+      <div class="cta-note">No spam. No pressure. Just your shot in front of the right coaches.</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-grid">
+    <div class="logo">HERS<b>365</b></div>
+    <div class="foot-links">
+      <a href="#how">The Grid</a>
+      <a href="#features">Features</a>
+      <a href="#join">For Coaches</a>
+      <a href="#">Privacy</a>
+    </div>
+    <div class="copy">© 2026 HERS 365 · Girls Flag Football Recruiting</div>
+  </div>
+</footer>
+
+<script>
+  // nav scrolled state
+  const nav=document.getElementById('nav');
+  addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>20));
+
+  // staggered hero load
+  document.querySelectorAll('.anim').forEach((el,i)=>{
+    el.style.opacity=0;el.style.transform='translateY(24px)';
+    el.style.transition='opacity .8s cubic-bezier(.2,.8,.2,1) '+(i*.1)+'s, transform .8s cubic-bezier(.2,.8,.2,1) '+(i*.1)+'s';
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{el.style.opacity=1;el.style.transform='none';}));
+  });
+
+  // scroll reveal
+  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.15});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+  // animate the visibility bar when hero card is shown
+  setTimeout(()=>{document.querySelectorAll('.hc-bar i').forEach(b=>b.style.width=b.dataset.w);},700);
+</script>
+</body>
+</html>
