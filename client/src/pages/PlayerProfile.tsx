@@ -27,14 +27,6 @@ interface Stat {
   [key: string]: any;
 }
 
-const MOCK_MAP: Record<number, Partial<Player>> = {
-  1: { name: 'Sarah Watkins',   position: 'QB', school: 'Westlake HS, TX',         state: 'Texas',      gradYear: 2026, height: "5'9\"", gpa: 3.9  },
-  2: { name: 'Maya Johnson',    position: 'WR', school: "St. Mary's Academy, FL",  state: 'Florida',    gradYear: 2026, height: "5'7\"", gpa: 3.7  },
-  3: { name: 'Isabella Reyes',  position: 'DB', school: 'Centennial HS, CA',       state: 'California', gradYear: 2027, height: "5'6\"", gpa: 4.0  },
-  4: { name: 'Chloe Zhang',     position: 'RB', school: 'Northwood HS, GA',        state: 'Georgia',    gradYear: 2026, height: "5'5\"", gpa: 3.8  },
-  5: { name: "Emma O'Connor",   position: 'QB', school: 'Summit Prep, CO',         state: 'Colorado',   gradYear: 2027, height: "5'8\"", gpa: 3.95 },
-  6: { name: 'Ava Mitchell',    position: 'LB', school: 'Harrison HS, AL',         state: 'Alabama',    gradYear: 2026, height: "5'9\"", gpa: 3.6  },
-};
 
 export const PlayerProfile = () => {
   const { id } = useParams<{ id: string }>();
@@ -53,23 +45,13 @@ export const PlayerProfile = () => {
         const res = await fetch(`/api/players/${playerId}`);
         if (res.ok) {
           const data = await res.json();
-          if (data) {
-            setPlayer(data);
-          } else {
-            // API returned null — fall back to mock if available
-            const mock = MOCK_MAP[playerId];
-            if (mock) setPlayer({ id: playerId, ...mock } as Player);
-            else setNotFound(true);
-          }
-        } else {
-          const mock = MOCK_MAP[playerId];
-          if (mock) setPlayer({ id: playerId, ...mock } as Player);
+          if (data) setPlayer(data);
           else setNotFound(true);
+        } else {
+          setNotFound(true);
         }
       } catch {
-        const mock = MOCK_MAP[playerId];
-        if (mock) setPlayer({ id: playerId, ...mock } as Player);
-        else setNotFound(true);
+        setNotFound(true);
       }
 
       try {
