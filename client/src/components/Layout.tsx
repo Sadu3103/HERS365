@@ -5,13 +5,15 @@ import {
   Settings, Bell, MessageSquare, Menu, Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import { MobileNav } from './MobileNav';
+import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../lib/api';
 
 interface NavItem {
   icon: React.ElementType;
   label: string;
   path: string;
-  badge?: number;
 }
 
 const nav: NavItem[] = [
@@ -20,7 +22,7 @@ const nav: NavItem[] = [
   { icon: User,          label: 'MY PROFILE', path: '/profile' },
   { icon: Dumbbell,      label: 'TRAINING',   path: '/training' },
   { icon: Search,        label: 'RECRUITING', path: '/recruiting' },
-  { icon: MessageSquare, label: 'MESSAGES',   path: '/messages', badge: 3 },
+  { icon: MessageSquare, label: 'MESSAGES',   path: '/messages' },
 ];
 
 export const Layout = () => {
@@ -30,6 +32,24 @@ export const Layout = () => {
   const [notifOpen,  setNotifOpen]  = useState(false);
   const [mode,       setMode]       = useState<'athlete' | 'coach'>('athlete');
   const notifRef = useRef<HTMLDivElement>(null);
+
+  const { user } = useAuth();
+
+  const { data: profile } = useQuery({
+    queryKey: ['profile'],
+    queryFn: () => apiFetch<{ success: boolean; data: any }>('/api/users/profile'),
+    enabled: !!user,
+  });
+
+  const { data: unread } = useQuery({
+    queryKey: ['unread-count'],
+    queryFn: () => apiFetch<{ success: boolean; data: { totalUnread: number } }>('/api/messages/unread-count'),
+    enabled: !!user,
+    refetchInterval: 30000,
+  });
+
+  const unreadMessages = unread?.data?.totalUnread ?? 0;
+  const p = profile?.data ?? {};
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -71,7 +91,7 @@ export const Layout = () => {
           }}>HERS 365</span>
         </div>
 
-        {/* ATHLETE / COACH toggle */}
+        {/* ATHLETE / COACH switch */}
         <div style={{
           display: 'flex',
           background: '#161616',
@@ -79,34 +99,39 @@ export const Layout = () => {
           padding: 3,
           marginBottom: 32,
         }}>
-          {(['athlete', 'coach'] as const).map(m => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              style={{
-                flex: 1,
-                padding: '6px 0',
-                borderRadius: 9999,
-                background: mode === m ? '#ff5a2d' : 'transparent',
-                color: mode === m ? '#fff' : '#555',
-                fontSize: '0.68rem',
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-              }}
-            >
-              {m === 'athlete' ? 'ATHLETE' : 'COACH'}
-            </button>
-          ))}
+          <button
+            onClick={() => setMode('athlete')}
+            style={{
+              flex: 1, padding: '6px 0', borderRadius: 9999,
+              background: mode === 'athlete' ? '#ff5a2d' : 'transparent',
+              color: mode === 'athlete' ? '#fff' : '#555',
+              fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em',
+              textTransform: 'uppercase', border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+            }}
+          >
+            ATHLETE
+          </button>
+          <button
+            onClick={() => {
+              const hasCoach = localStorage.getItem('coachToken');
+              navigate(hasCoach ? '/coach/dashboard' : '/coach/login');
+            }}
+            style={{
+              flex: 1, padding: '6px 0', borderRadius: 9999,
+              background: 'transparent', color: '#555',
+              fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em',
+              textTransform: 'uppercase', border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+            }}
+          >
+            COACH
+          </button>
         </div>
 
         {/* Nav */}
         <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {nav.map(({ icon: Icon, label, path, badge }) => {
+          {nav.map(({ icon: Icon, label, path }) => {
             const active = location.pathname === path;
+            const badge = path === '/messages' && unreadMessages > 0 ? unreadMessages : undefined;
             return (
               <Link
                 key={path}
@@ -167,7 +192,7 @@ export const Layout = () => {
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <img
                 src="https://randomuser.me/api/portraits/women/44.jpg"
-                alt="Sarah Watkins"
+                alt={user?.name ?? 'Profile'}
                 style={{ width: 32, height: 32, borderRadius: '50%', background: '#1c1c1c', border: '1.5px solid rgba(255,90,45,0.4)', objectFit: 'cover' }}
               />
               <div style={{
@@ -177,10 +202,16 @@ export const Layout = () => {
               }} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '0.83rem', fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Sarah Watkins</div>
-              <div style={{ fontSize: '0.68rem', color: '#555', marginTop: 1 }}>QB | 2026</div>
+              <div style={{ fontSize: '0.83rem', fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user?.name ?? 'Your Profile'}
+              </div>
+              <div style={{ fontSize: '0.68rem', color: '#555', marginTop: 1 }}>
+                {[p.position, p.gradYear].filter(Boolean).join(' | ') || 'Complete your profile'}
+              </div>
             </div>
-            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '0.9rem', color: '#ff5a2d', flexShrink: 0 }}>95</div>
+            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '0.9rem', color: '#ff5a2d', flexShrink: 0 }}>
+              {p.g5Rating ?? '—'}
+            </div>
           </button>
         </div>
       </aside>

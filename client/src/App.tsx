@@ -58,6 +58,7 @@ import { CoachSignup } from './pages/coach/CoachSignup';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { NotificationProvider } from './context/NotificationContext';
+import { AuthProvider } from './context/AuthContext';
 const queryClient = new QueryClient();
 
 // Simple role-based guard for coach routes.
@@ -94,8 +95,9 @@ function CoachRouteGuard({ children }: { children: React.ReactNode }) {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <NotificationProvider>
-        <Router>
+      <AuthProvider>
+        <NotificationProvider>
+          <Router>
           <Routes>
             <Route element={<Layout />}>
               <Route path="/feed" element={<Feed />} />
@@ -163,8 +165,9 @@ function App() {
               <Route path="/coach/player/:id" element={<CoachPlayerProfile />} />
             </Route>
           </Routes>
-        </Router>
-      </NotificationProvider>
+          </Router>
+        </NotificationProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
