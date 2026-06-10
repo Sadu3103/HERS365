@@ -11,7 +11,7 @@ interface Athlete {
   position: string;
   score: number;
   location: string;
-  graduationYear: number;
+  graduationYear: number | null;
   height: string;
   fortyYardTime: number;
   gpa: number;
@@ -48,14 +48,14 @@ export const Recruiting = () => {
     const load = async () => {
       try {
         const res = await apiFetch<{ success: boolean; data: any[] }>('/api/athletes');
-        setAthletes(res.data.map(row => ({
+        setAthletes((res.data ?? []).map(row => ({
           id: row.id,
           name: row.name,
           school: row.school ?? '',
           position: row.position ?? '',
           score: row.g5Rating ? row.g5Rating * 20 : 0,
           location: row.state ?? '',
-          graduationYear: row.gradYear ?? 0,
+          graduationYear: row.gradYear ?? null,
           height: '—',
           fortyYardTime: 0,
           gpa: parseFloat(String(row.gpa)) || 0,
@@ -73,8 +73,8 @@ export const Recruiting = () => {
 
   const filtered = athletes.filter(a => {
     const q = search.toLowerCase();
-    const matchQ = !q || a.name.toLowerCase().includes(q) || a.school.toLowerCase().includes(q) || a.position.toLowerCase().includes(q);
-    return matchQ && (pos === 'All' || a.position === pos) && (loc === 'All' || a.location === loc) && (year === 'All' || a.graduationYear.toString() === year);
+    const matchQ = !q || (a.name ?? '').toLowerCase().includes(q) || (a.school ?? '').toLowerCase().includes(q) || (a.position ?? '').toLowerCase().includes(q);
+    return matchQ && (pos === 'All' || a.position === pos) && (loc === 'All' || a.location === loc) && (year === 'All' || (a.graduationYear?.toString() ?? '') === year);
   }).sort((a, b) => b.score - a.score);
 
   const toggleFav = (id: number) => setAthletes(prev => prev.map(a => a.id === id ? { ...a, isFavorited: !a.isFavorited } : a));
@@ -182,11 +182,11 @@ export const Recruiting = () => {
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <span style={{ background: 'rgba(255,90,45,0.1)', color: '#ff5a2d', fontSize: '0.7rem', fontWeight: 700, padding: '3px 8px', borderRadius: 4, letterSpacing: '0.06em' }}>{a.position}</span>
-              <span style={{ fontSize: '0.72rem', color: '#555' }}>Class of {a.graduationYear}</span>
+              {a.graduationYear && <span style={{ fontSize: '0.72rem', color: '#555' }}>Class of {a.graduationYear}</span>}
             </div>
 
             <div style={{ display: 'flex', background: '#0d0d0d', borderRadius: 8, overflow: 'hidden', marginBottom: 12, border: '1px solid rgba(255,255,255,0.04)' }}>
-              {[{ label: '40YD', value: `${a.fortyYardTime.toFixed(2)}s` }, { label: 'GPA', value: a.gpa.toFixed(1) }, { label: 'HGT', value: a.height }].map(({ label, value }, idx, arr) => (
+              {[{ label: '40YD', value: a.fortyYardTime ? `${a.fortyYardTime.toFixed(2)}s` : '—' }, { label: 'GPA', value: a.gpa.toFixed(1) }, { label: 'HGT', value: a.height }].map(({ label, value }, idx, arr) => (
                 <div key={label} style={{ flex: 1, padding: '10px 8px', textAlign: 'center', borderRight: idx < arr.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
                   <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#444', marginBottom: 3 }}>{label}</div>
                   <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#ddd' }}>{value}</div>
