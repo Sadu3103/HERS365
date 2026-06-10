@@ -31,7 +31,7 @@ interface Stat {
 export const PlayerProfile = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const playerId = parseInt(id || '0');
+  const playerId = parseInt(id ?? '', 10);
 
   const [player, setPlayer] = useState<Player | null>(null);
   const [stats, setStats] = useState<Stat[]>([]);
@@ -41,6 +41,11 @@ export const PlayerProfile = () => {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      if (!id || isNaN(playerId)) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
       try {
         const res = await fetch(`/api/players/${playerId}`);
         if (res.ok) {
@@ -141,7 +146,7 @@ export const PlayerProfile = () => {
       </div>
 
       {/* Quick stats */}
-      {(player.height || player.gpa) && (
+      {(player.height || player.gpa != null) && (
         <div className="k-card" style={{ padding: 20, marginBottom: 16 }}>
           <h2 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '1rem', textTransform: 'uppercase', color: '#666', marginBottom: 16, letterSpacing: '0.08em' }}>
             Athlete Info
@@ -153,7 +158,7 @@ export const PlayerProfile = () => {
                 <div style={{ fontSize: '1rem', fontWeight: 700, color: '#ddd' }}>{player.height}</div>
               </div>
             )}
-            {player.gpa && (
+            {player.gpa != null && (
               <div style={{ background: '#0d0d0d', borderRadius: 8, padding: '12px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.04)' }}>
                 <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#444', marginBottom: 4 }}>GPA</div>
                 <div style={{ fontSize: '1rem', fontWeight: 700, color: '#ddd' }}>{player.gpa}</div>
