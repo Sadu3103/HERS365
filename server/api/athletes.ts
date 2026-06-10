@@ -3,7 +3,14 @@ import express from 'express';
 import { and, eq } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
-import { requireAuth } from '../middleware/requireAuth';
+import { requireAuth } from '../auth';
+
+// Public projection of a player row. Email/zip are contact info for a
+// minor — never expose them on athlete endpoints.
+function publicAthlete(p: Record<string, unknown>) {
+  const { passwordHash, email, zipCode, ...safe } = p;
+  return safe;
+}
 
 const router = express.Router();
 
@@ -32,7 +39,7 @@ router.get('/', async (req, res) => {
       .limit(Number(limit))
       .offset(Number(offset));
 
-    const data = rows.map(({ passwordHash, ...safe }) => safe);
+    const data = rows.map(publicAthlete);
     res.json({ success: true, data, pagination: { limit: Number(limit), offset: Number(offset) } });
   } catch (err) {
     console.error('[athletes/list]', err);
@@ -59,9 +66,7 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Athlete not found' });
     }
 
-    // Never leak the password hash
-    const { passwordHash, ...safe } = athlete;
-    res.json({ success: true, data: safe });
+    res.json({ success: true, data: publicAthlete(athlete) });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to fetch athlete profile' });
   }
@@ -106,8 +111,7 @@ router.put('/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Athlete not found' });
     }
 
-    const { passwordHash, ...safe } = updated[0];
-    res.json({ success: true, data: safe });
+    res.json({ success: true, data: publicAthlete(updated[0]) });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to update athlete profile' });
   }
