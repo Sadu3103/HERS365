@@ -1,5 +1,5 @@
 import express from 'express';
-import { and, eq, or, desc, sql } from 'drizzle-orm';
+import { and, eq, or, desc, sql, isNotNull } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 import { requireAuth } from '../auth';
@@ -114,6 +114,21 @@ router.get('/conversations/:partnerId/messages', async (req, res) => {
   }
 });
 
+// CLAUDE.md: all coach↔athlete contact is gated through parents. A pair may
+// message only after a message_request was approved WITH a parent attached.
+async function hasParentApprovedLink(athleteId: number, coachId: number): Promise<boolean> {
+  const [link] = await db.select({ id: schema.messageRequests.id })
+    .from(schema.messageRequests)
+    .where(and(
+      eq(schema.messageRequests.athleteId, athleteId),
+      eq(schema.messageRequests.receiverId, coachId),
+      eq(schema.messageRequests.status, 'approved'),
+      isNotNull(schema.messageRequests.parentId),
+    ))
+    .limit(1);
+  return Boolean(link);
+}
+
 // POST /api/messages — send a message to a partner
 router.post('/', async (req, res) => {
   try {
@@ -136,6 +151,15 @@ router.post('/', async (req, res) => {
       .limit(1);
     if (!partner) {
       return res.status(404).json({ success: false, error: 'Partner not found' });
+    }
+
+    const pairAthleteId = isCoach ? partnerIdNum : userId;
+    const pairCoachId = isCoach ? userId : partnerIdNum;
+    if (!(await hasParentApprovedLink(pairAthleteId, pairCoachId))) {
+      return res.status(403).json({
+        success: false,
+        error: 'Messaging requires a parent-approved contact request',
+      });
     }
 
     const [row] = await db
