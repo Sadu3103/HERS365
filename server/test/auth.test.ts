@@ -22,9 +22,11 @@ describe('JWT gates', () => {
   });
 
   it('401s with an expired token', async () => {
+    // Same secret the app verifies with — keeps this a test of EXPIRY, not
+    // of a signature mismatch, even if setup.ts changes the test secret.
     const expired = jwt.sign(
       { userId: 1, email: 'x@test.local', role: 'athlete', name: 'X' },
-      'test-secret',
+      process.env.JWT_SECRET!,
       { expiresIn: '-1h' },
     );
     const res = await request(app)
@@ -69,13 +71,17 @@ describe('register / login round trip', () => {
     expect(login.status).toBe(200);
     expect(login.body.token ?? login.body.data?.token).toBeTruthy();
     expect(JSON.stringify(login.body)).not.toContain('passwordHash');
+    expect(JSON.stringify(login.body)).not.toContain('password_hash');
 
     const token = login.body.token ?? login.body.data?.token;
     const me = await request(app)
       .get('/api/auth/me')
       .set('Authorization', `Bearer ${token}`);
     expect(me.status).toBe(200);
+    // Positive assertion so the leak checks can't pass vacuously on an empty body.
+    expect(JSON.stringify(me.body)).toContain('newathlete@test.local');
     expect(JSON.stringify(me.body)).not.toContain('passwordHash');
+    expect(JSON.stringify(me.body)).not.toContain('password_hash');
   });
 
   it('rejects login with a wrong password', async () => {
