@@ -192,9 +192,8 @@ export function CoachRoster() {
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 12, color: '#555' }}>
-        <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
+        <Loader2 size={20} className="animate-spin" />
         <span style={{ fontSize: '0.85rem' }}>Loading roster...</span>
-        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
