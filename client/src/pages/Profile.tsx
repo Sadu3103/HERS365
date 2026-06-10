@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { MapPin, Edit3, CheckCircle2, Share2, MessageSquare, TrendingUp, Loader2, AlertTriangle, UserX, Link as LinkIcon } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { MapPin, Edit3, CheckCircle2, Share2, MessageSquare, TrendingUp, Loader2, AlertTriangle, UserX, Link2, Instagram } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useNotifications } from '../context/NotificationContext';
 
 const HARDCODED_PROFILE = {
   name: 'Sarah Watkins',
@@ -41,53 +42,31 @@ const tabs = ['Overview', 'Stats', 'Highlights', 'Activity'];
 
 type ProfileData = typeof HARDCODED_PROFILE;
 
-function ShareButton() {
-  const [copied, setCopied] = useState(false);
-  const [open, setOpen] = useState(false);
-  const url = window.location.href;
-
-  const copy = () => {
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
-  const tweetUrl = `https://twitter.com/intent/tweet?text=Check%20out%20this%20athlete%20on%20HERS365&url=${encodeURIComponent(url)}`;
-
-  return (
-    <div style={{ position: 'relative' }}>
-      <button className="k-btn k-btn-ghost" onClick={() => setOpen(o => !o)}>
-        <Share2 size={14} /> Share
-      </button>
-      {open && (
-        <div style={{
-          position: 'absolute', top: '110%', left: 0, zIndex: 50,
-          background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: 10, padding: 8, minWidth: 180,
-          display: 'flex', flexDirection: 'column', gap: 4,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-        }}>
-          <button onClick={copy} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'none', border: 'none', color: copied ? '#ff5a2d' : '#ccc', cursor: 'pointer', borderRadius: 7, fontSize: '0.82rem', width: '100%', textAlign: 'left' }}>
-            <LinkIcon size={13} /> {copied ? 'Copied!' : 'Copy link'}
-          </button>
-          <a href={tweetUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', color: '#ccc', textDecoration: 'none', borderRadius: 7, fontSize: '0.82rem' }}
-            onClick={() => setOpen(false)}>
-            <Share2 size={13} /> Share on X
-          </a>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export const Profile = () => {
   const navigate = useNavigate();
+  const { id } = useParams<{ id?: string }>();
+  const { showNotification } = useNotifications();
   const [activeTab, setActiveTab] = useState('Overview');
   const [profile, setProfile] = useState<ProfileData>(HARDCODED_PROFILE);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [isEmpty, setIsEmpty] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const shareRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (shareRef.current && !shareRef.current.contains(e.target as Node)) {
+        setShareOpen(false);
+      }
+    };
+    if (shareOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [shareOpen]);
+
+  const profileUrl = id
+    ? `https://hers365.com/profile/${id}`
+    : `https://hers365.com/profile`;
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -104,7 +83,7 @@ export const Profile = () => {
           setProfile(data);
         }
       } catch {
-        // API unavailable — fall through to hardcoded demo data silently
+        setIsError(true);
       } finally {
         setIsLoading(false);
       }
@@ -191,7 +170,59 @@ export const Profile = () => {
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => navigate('/messages')} className="k-btn k-btn-primary"><MessageSquare size={14} /> Message</button>
               <button className="k-btn k-btn-ghost"><Edit3 size={14} /> Edit Profile</button>
-              <ShareButton />
+              <div ref={shareRef} style={{ position: 'relative' }}>
+                <button className="k-btn k-btn-ghost" onClick={() => setShareOpen(v => !v)}><Share2 size={14} /> Share</button>
+                <AnimatePresence>
+                  {shareOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                      transition={{ duration: 0.12 }}
+                      style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 50, background: '#161616', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '6px', minWidth: 230, boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}
+                    >
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(profileUrl);
+                          showNotification('success', 'Link copied!', profileUrl);
+                          setShareOpen(false);
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', background: 'transparent', border: 'none', borderRadius: 7, padding: '9px 12px', color: '#ccc', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <Link2 size={15} color="#ff5a2d" />
+                        Copy Link
+                      </button>
+                      <button
+                        onClick={() => {
+                          const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent('Check out my HERS365 profile')}&url=${encodeURIComponent(profileUrl)}`;
+                          window.open(tweetUrl, '_blank', 'noopener,noreferrer');
+                          setShareOpen(false);
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', background: 'transparent', border: 'none', borderRadius: 7, padding: '9px 12px', color: '#ccc', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="#ccc"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.857L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                        Share on X
+                      </button>
+                      <button
+                        onClick={() => {
+                          showNotification('info', 'Instagram', 'Copy the link and paste it in your Instagram bio.');
+                          setShareOpen(false);
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', background: 'transparent', border: 'none', borderRadius: 7, padding: '9px 12px', color: '#ccc', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <Instagram size={15} color="#e1306c" />
+                        Share on Instagram
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
         </div>

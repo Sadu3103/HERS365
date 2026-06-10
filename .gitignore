@@ -8,3 +8,6 @@ temp*.txt
 temp*.js
 temp_files.txt
 .vercel
+
+# Private Claude context — never commit (personal + business)
+CLAUDE.local.md

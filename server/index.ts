@@ -20,7 +20,7 @@ import { logger } from './logger';
 dotenv.config();
 
 // [D-02] Fail fast on missing required env vars
-const REQUIRED_ENV_VARS = ['DATABASE_URL', 'JWT_SECRET', 'STRIPE_SECRET_KEY'];
+const REQUIRED_ENV_VARS = ['DATABASE_URL', 'JWT_SECRET', 'STRIPE_SECRET_KEY', 'SESSION_SECRET'];
 if (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'development') {
   const missing = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
   if (missing.length > 0) {

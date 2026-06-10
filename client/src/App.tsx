@@ -58,28 +58,36 @@ import { CoachSignup } from './pages/coach/CoachSignup';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { NotificationProvider } from './context/NotificationContext';
+import { AuthProvider } from './context/AuthContext';
 const queryClient = new QueryClient();
 
-// Simple role-based guard for coach routes
+// Simple role-based guard for coach routes.
+// Auth is resolved synchronously before any children render so protected
+// content (athlete PII, scouting data) never flashes for unauthenticated users.
 function CoachRouteGuard({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const token = localStorage.getItem('coachToken');
   const userStr = localStorage.getItem('coachUser');
 
-  useEffect(() => {
-    if (!token || !userStr) {
-      navigate('/coach/login');
-      return;
-    }
+  let isAuthorized = false;
+  if (token && userStr) {
     try {
       const user = JSON.parse(userStr);
-      if (user.role !== 'coach' && user.role !== 'admin') {
-        navigate('/coach/login');
-      }
+      isAuthorized = user.role === 'coach' || user.role === 'admin';
     } catch {
+      isAuthorized = false;
+    }
+  }
+
+  useEffect(() => {
+    if (!isAuthorized) {
       navigate('/coach/login');
     }
-  }, [navigate, token, userStr]);
+  }, [navigate, isAuthorized]);
+
+  if (!isAuthorized) {
+    return null;
+  }
 
   return <>{children}</>;
 }
@@ -87,8 +95,9 @@ function CoachRouteGuard({ children }: { children: React.ReactNode }) {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <NotificationProvider>
-        <Router>
+      <AuthProvider>
+        <NotificationProvider>
+          <Router>
           <Routes>
             <Route element={<Layout />}>
               <Route path="/feed" element={<Feed />} />
@@ -138,6 +147,8 @@ function App() {
             {/* Standalone full-page routes (no nav shell) */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/landing" element={<LandingPage />} />
+
+            {/* Athlete onboarding (full-screen, no nav chrome) */}
             <Route path="/onboarding" element={<Onboarding />} />
 
             {/* Coach Portal Routes */}
@@ -154,8 +165,9 @@ function App() {
               <Route path="/coach/player/:id" element={<CoachPlayerProfile />} />
             </Route>
           </Routes>
-        </Router>
-      </NotificationProvider>
+          </Router>
+        </NotificationProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

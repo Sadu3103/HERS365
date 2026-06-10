@@ -1,21 +1,24 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  CircleGauge, 
-  Users, 
-  Search, 
-  MessageSquare, 
-  ClipboardList, 
-  BarChart3, 
+import {
+  CircleGauge,
+  Users,
+  Search,
+  MessageSquare,
+  ClipboardList,
+  BarChart3,
   ShieldCheck,
   Settings,
   Bell,
-  UserCircle
+  UserCircle,
+  Menu,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MobileNav } from './MobileNav';
 
 export const CoachLayout = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -61,7 +64,7 @@ export const CoachLayout = () => {
   return (
     <div className="flex h-screen bg-surface overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-72 bg-surface-card border-r border-white/5 flex flex-col p-6 shadow-2xl">
+      <aside className="hidden md:flex w-72 bg-surface-card border-r border-white/5 flex-col p-6 shadow-2xl">
         <div className="flex items-center gap-3 mb-10 px-2 transition-transform hover:scale-105">
           <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(34,197,94,0.3)]">
             <ShieldCheck className="text-white fill-current" size={24} />
@@ -119,9 +122,17 @@ export const CoachLayout = () => {
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-coral-500/5 rounded-full blur-[120px] pointer-events-none -ml-48 -mb-48" />
 
         <header className="h-20 flex items-center justify-between px-8 z-10 border-b border-white/5 backdrop-blur-md">
-          <h1 className="text-2xl font-bold tracking-tight text-white leading-none">
-            {menuItems.find(i => i.path === location.pathname)?.label || 'Overview'}
-          </h1>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="flex md:hidden text-ink-muted hover:text-white transition-colors"
+            >
+              <Menu size={22} />
+            </button>
+            <h1 className="text-2xl font-bold tracking-tight text-white leading-none">
+              {menuItems.find(i => i.path === location.pathname)?.label || 'Overview'}
+            </h1>
+          </div>
 
           <div className="flex items-center gap-6">
             {unreadCount > 0 ? (
@@ -201,6 +212,14 @@ export const CoachLayout = () => {
           <Outlet />
         </main>
       </div>
+
+      <MobileNav
+        isOpen={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        items={menuItems}
+        accent={{ color: '#22c55e', bg: 'rgba(34,197,94,0.1)', border: 'rgba(34,197,94,0.3)' }}
+        title="Coach Portal"
+      />
     </div>
   );
 };

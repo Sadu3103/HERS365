@@ -1,10 +1,11 @@
 // @ts-nocheck
-import express from 'express';
+import express, { type Request, type Response } from 'express';
 import { db } from './db';
 import * as schema from './schema';
 import { eq, desc, and, sql, sum } from 'drizzle-orm';
 import Stripe from 'stripe';
 import { logger } from './logger';
+import { requireAuth } from './auth';
 
 const router = express.Router();
 
@@ -14,27 +15,143 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder'
 });
 
 // ----------------------
+// STRIPE WEBHOOK (PUBLIC)
+// ----------------------
+// Registered BEFORE requireAuth so Stripe can call it unauthenticated.
+// Authenticity is enforced via signature verification instead.
+
+// POST /webhook - Handle Stripe webhooks
+router.post('/webhook', express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
+  const sig = req.headers['stripe-signature'];
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  // Refuse to process anything without a configured signing secret.
+  // Falling back to unsigned JSON.parse would let anyone forge webhook events.
+  if (!endpointSecret) {
+    console.error('Webhook rejected: STRIPE_WEBHOOK_SECRET is not configured');
+    return res.status(400).send('Webhook Error: signing secret not configured');
+  }
+  if (!sig) {
+    return res.status(400).send('Webhook Error: missing stripe-signature header');
+  }
+
+  let event: Stripe.Event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+  } catch (err: any) {
+    console.error('Webhook signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Handle subscription events
+  switch (event.type) {
+    case 'checkout.session.completed': {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const playerId = parseInt(session.metadata?.playerId || '0');
+      const planId = parseInt(session.metadata?.planId || '0');
+
+      console.log(`🔔 Webhook: Checkout session completed for player ${playerId}, plan ${planId}`);
+
+      if (playerId && planId) {
+        // Update player's subscription
+        await db.insert(schema.playerSubscriptions).values({
+          playerId,
+          planId,
+          stripeSubscriptionId: session.subscription as string,
+          status: 'active',
+        }).onConflictDoUpdate({
+          target: schema.playerSubscriptions.playerId,
+          set: {
+            planId,
+            stripeSubscriptionId: session.subscription as string,
+            status: 'active',
+            updatedAt: new Date()
+          },
+        });
+
+        // Get plan and update player tier
+        const plans = await db.select().from(schema.subscriptionPlans).where(eq(schema.subscriptionPlans.id, planId));
+        if (plans.length > 0) {
+          await db.update(schema.players)
+            .set({ subscriptionTier: plans[0].tierLevel })
+            .where(eq(schema.players.id, playerId));
+        }
+
+        // Record payment
+        await db.insert(schema.payments).values({
+          playerId,
+          amount: session.amount_total || 0,
+          currency: session.currency || 'usd',
+          status: 'completed',
+          paymentMethod: 'card',
+          paymentType: 'subscription',
+          description: `${plans[0]?.name || 'Subscription'} - Monthly`,
+          stripePaymentIntentId: session.payment_intent as string,
+          stripeCustomerId: session.customer as string,
+          paidAt: new Date(),
+        });
+      }
+      break;
+    }
+
+    case 'customer.subscription.deleted': {
+      const subscription = event.data.object as Stripe.Subscription;
+      console.log(`🔔 Webhook: Subscription deleted: ${subscription.id}`);
+
+      // Find and deactivate subscription
+      const subs = await db.select().from(schema.playerSubscriptions)
+        .where(eq(schema.playerSubscriptions.stripeSubscriptionId, subscription.id));
+
+      if (subs.length > 0) {
+        await db.update(schema.playerSubscriptions)
+          .set({ status: 'cancelled', updatedAt: new Date() })
+          .where(eq(schema.playerSubscriptions.id, subs[0].id));
+
+        // Downgrade player to free
+        await db.update(schema.players)
+          .set({ subscriptionTier: 'free' })
+          .where(eq(schema.players.id, subs[0].playerId));
+      }
+      break;
+    }
+
+    default:
+      console.log(`Unhandled event type: ${event.type}`);
+  }
+
+  res.json({ received: true });
+});
+
+// ----------------------
+// AUTH GATE
+// ----------------------
+// Every route registered AFTER this line requires a valid Bearer token.
+// The Stripe webhook above is intentionally left public (verified by signature).
+router.use(requireAuth);
+
+// ----------------------
 // STRIPE CHECKOUT
 // ----------------------
 
 // POST /create-checkout-session - Create Stripe checkout session for subscription
-router.post('/create-checkout-session', async (req, res) => {
+router.post('/create-checkout-session', async (req: Request, res: Response) => {
   try {
     const { planId, playerId, successUrl, cancelUrl } = req.body;
-    
+
     if (!planId || !playerId) {
       return res.status(400).json({ error: 'Plan ID and Player ID are required' });
     }
-    
+
     // Get the subscription plan
     const plans = await db.select().from(schema.subscriptionPlans).where(eq(schema.subscriptionPlans.id, planId));
-    
+
     if (plans.length === 0) {
       return res.status(404).json({ error: 'Subscription plan not found' });
     }
-    
+
     const plan = plans[0];
-    
+
     // Free plan - no checkout needed
     if (plan.price === 0) {
       // Directly update player's subscription
@@ -46,14 +163,14 @@ router.post('/create-checkout-session', async (req, res) => {
         target: schema.playerSubscriptions.playerId,
         set: { planId: plan.id, status: 'active', updatedAt: new Date() },
       });
-      
+
       await db.update(schema.players)
         .set({ subscriptionTier: plan.tierLevel })
         .where(eq(schema.players.id, playerId));
-      
+
       return res.json({ url: successUrl || '/profile', free: true });
     }
-    
+
     // Build line item — use a pre-configured Stripe price ID when available,
     // otherwise build inline price_data from the DB plan record.
     const priceId = process.env.STRIPE_PRO_PRICE_ID;
@@ -88,7 +205,7 @@ router.post('/create-checkout-session', async (req, res) => {
         planPrice: plan.price.toString(),
       },
     });
-    
+
     res.json({ url: session.url, sessionId: session.id });
   } catch (err: any) {
     console.error('Stripe checkout error:', err);
@@ -96,126 +213,29 @@ router.post('/create-checkout-session', async (req, res) => {
   }
 });
 
-// POST /webhook - Handle Stripe webhooks
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  
-  let event;
-  
-  try {
-    if (sig && endpointSecret) {
-      event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-    } else {
-      event = JSON.parse(req.body.toString());
-    }
-  } catch (err: any) {
-    console.error('Webhook signature verification failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-  
-  // Handle subscription events
-  switch (event.type) {
-    case 'checkout.session.completed': {
-      const session = event.data.object as Stripe.Checkout.Session;
-      const playerId = parseInt(session.metadata?.playerId || '0');
-      const planId = parseInt(session.metadata?.planId || '0');
-      
-      console.log(`🔔 Webhook: Checkout session completed for player ${playerId}, plan ${planId}`);
-      
-      if (playerId && planId) {
-        // Update player's subscription
-        await db.insert(schema.playerSubscriptions).values({
-          playerId,
-          planId,
-          stripeSubscriptionId: session.subscription as string,
-          status: 'active',
-        }).onConflictDoUpdate({
-          target: schema.playerSubscriptions.playerId,
-          set: { 
-            planId, 
-            stripeSubscriptionId: session.subscription as string,
-            status: 'active', 
-            updatedAt: new Date() 
-          },
-        });
-        
-        // Get plan and update player tier
-        const plans = await db.select().from(schema.subscriptionPlans).where(eq(schema.subscriptionPlans.id, planId));
-        if (plans.length > 0) {
-          await db.update(schema.players)
-            .set({ subscriptionTier: plans[0].tierLevel })
-            .where(eq(schema.players.id, playerId));
-        }
-        
-        // Record payment
-        await db.insert(schema.payments).values({
-          playerId,
-          amount: session.amount_total || 0,
-          currency: session.currency || 'usd',
-          status: 'completed',
-          paymentMethod: 'card',
-          paymentType: 'subscription',
-          description: `${plans[0]?.name || 'Subscription'} - Monthly`,
-          stripePaymentIntentId: session.payment_intent as string,
-          stripeCustomerId: session.customer as string,
-          paidAt: new Date(),
-        });
-      }
-      break;
-    }
-    
-    case 'customer.subscription.deleted': {
-      const subscription = event.data.object as Stripe.Subscription;
-      console.log(`🔔 Webhook: Subscription deleted: ${subscription.id}`);
-      
-      // Find and deactivate subscription
-      const subs = await db.select().from(schema.playerSubscriptions)
-        .where(eq(schema.playerSubscriptions.stripeSubscriptionId, subscription.id));
-      
-      if (subs.length > 0) {
-        await db.update(schema.playerSubscriptions)
-          .set({ status: 'cancelled', updatedAt: new Date() })
-          .where(eq(schema.playerSubscriptions.id, subs[0].id));
-        
-        // Downgrade player to free
-        await db.update(schema.players)
-          .set({ subscriptionTier: 'free' })
-          .where(eq(schema.players.id, subs[0].playerId));
-      }
-      break;
-    }
-    
-    default:
-      console.log(`Unhandled event type: ${event.type}`);
-  }
-  
-  res.json({ received: true });
-});
-
 // GET /customer-portal - Create Stripe customer portal session
-router.get('/customer-portal/:playerId', async (req, res) => {
+router.get('/customer-portal/:playerId', async (req: Request, res: Response) => {
   try {
     const playerId = parseInt(req.params.playerId);
-    
+
     // Find player's subscription
     const subs = await db.select().from(schema.playerSubscriptions)
       .where(eq(schema.playerSubscriptions.playerId, playerId));
-    
+
     if (subs.length === 0 || !subs[0].stripeSubscriptionId) {
       return res.status(404).json({ error: 'No active subscription found' });
     }
-    
+
     // Get Stripe subscription to find customer ID
     const subscription = await stripe.subscriptions.retrieve(subs[0].stripeSubscriptionId);
     const customerId = subscription.customer as string;
-    
+
     // Create portal session
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: `${process.env.ALLOWED_ORIGINS?.split(',')[0] || 'http://localhost:5173'}/settings`,
     });
-    
+
     res.json({ url: session.url });
   } catch (err: any) {
     console.error('Customer portal error:', err);
@@ -228,7 +248,7 @@ router.get('/customer-portal/:playerId', async (req, res) => {
 // ----------------------
 
 // GET /payments - Get all payments (with optional filters)
-router.get('/payments', async (req, res) => {
+router.get('/payments', async (req: Request, res: Response) => {
     try {
         const { playerId, status, paymentType, startDate, endDate } = req.query;
 
@@ -251,7 +271,7 @@ router.get('/payments', async (req, res) => {
 });
 
 // GET /payments/:id - Get a specific payment
-router.get('/payments/:id', async (req, res) => {
+router.get('/payments/:id', async (req: Request, res: Response) => {
     try {
         const paymentId = parseInt(req.params.id);
         const payment = await db.select().from(schema.payments).where(eq(schema.payments.id, paymentId));
@@ -267,7 +287,7 @@ router.get('/payments/:id', async (req, res) => {
 });
 
 // GET /payments/player/:playerId - Get payments for a specific kid/player
-router.get('/payments/player/:playerId', async (req, res) => {
+router.get('/payments/player/:playerId', async (req: Request, res: Response) => {
     try {
         const playerId = parseInt(req.params.playerId);
         const payments = await db.select({
@@ -286,7 +306,7 @@ router.get('/payments/player/:playerId', async (req, res) => {
 });
 
 // POST /payments - Create a new payment record
-router.post('/payments', async (req, res) => {
+router.post('/payments', async (req: Request, res: Response) => {
     try {
         const {
             playerId,
@@ -330,7 +350,7 @@ router.post('/payments', async (req, res) => {
 });
 
 // PATCH /payments/:id - Update payment status
-router.patch('/payments/:id', async (req, res) => {
+router.patch('/payments/:id', async (req: Request, res: Response) => {
     try {
         const paymentId = parseInt(req.params.id);
         const {
@@ -364,7 +384,7 @@ router.patch('/payments/:id', async (req, res) => {
 });
 
 // POST /payments/:id/complete - Mark payment as completed
-router.post('/payments/:id/complete', async (req, res) => {
+router.post('/payments/:id/complete', async (req: Request, res: Response) => {
     try {
         const paymentId = parseInt(req.params.id);
         const { receiptUrl } = req.body;
@@ -390,7 +410,7 @@ router.post('/payments/:id/complete', async (req, res) => {
 });
 
 // POST /payments/:id/refund - Refund a payment
-router.post('/payments/:id/refund', async (req, res) => {
+router.post('/payments/:id/refund', async (req: Request, res: Response) => {
     try {
         const paymentId = parseInt(req.params.id);
         const { reason, feedback } = req.body;
@@ -447,7 +467,7 @@ router.post('/payments/:id/refund', async (req, res) => {
 // ----------------------
 
 // GET /payment-methods/player/:playerId - Get payment methods for a player
-router.get('/payment-methods/player/:playerId', async (req, res) => {
+router.get('/payment-methods/player/:playerId', async (req: Request, res: Response) => {
     try {
         const playerId = parseInt(req.params.playerId);
         const methods = await db.select()
@@ -462,7 +482,7 @@ router.get('/payment-methods/player/:playerId', async (req, res) => {
 });
 
 // POST /payment-methods - Add a payment method
-router.post('/payment-methods', async (req, res) => {
+router.post('/payment-methods', async (req: Request, res: Response) => {
     try {
         const {
             playerId,
@@ -504,7 +524,7 @@ router.post('/payment-methods', async (req, res) => {
 });
 
 // DELETE /payment-methods/:id - Remove a payment method
-router.delete('/payment-methods/:id', async (req, res) => {
+router.delete('/payment-methods/:id', async (req: Request, res: Response) => {
     try {
         const methodId = parseInt(req.params.id);
 
@@ -522,7 +542,7 @@ router.delete('/payment-methods/:id', async (req, res) => {
 // ----------------------
 
 // GET /invoices - Get all invoices
-router.get('/invoices', async (req, res) => {
+router.get('/invoices', async (req: Request, res: Response) => {
     try {
         const { playerId, status } = req.query;
 
@@ -549,7 +569,7 @@ router.get('/invoices', async (req, res) => {
 });
 
 // POST /invoices - Create an invoice
-router.post('/invoices', async (req, res) => {
+router.post('/invoices', async (req: Request, res: Response) => {
     try {
         const {
             playerId,
@@ -586,7 +606,7 @@ router.post('/invoices', async (req, res) => {
 });
 
 // PATCH /invoices/:id - Update invoice (e.g., mark as paid)
-router.patch('/invoices/:id', async (req, res) => {
+router.patch('/invoices/:id', async (req: Request, res: Response) => {
     try {
         const invoiceId = parseInt(req.params.id);
         const { status, paidAt } = req.body;
@@ -614,7 +634,7 @@ router.patch('/invoices/:id', async (req, res) => {
 // ----------------------
 
 // GET /payments/summary - Get payment summary stats
-router.get('/payments/summary', async (req, res) => {
+router.get('/payments/summary', async (req: Request, res: Response) => {
     try {
         const { startDate, endDate, playerId } = req.query;
 
@@ -685,7 +705,7 @@ router.get('/payments/summary', async (req, res) => {
 });
 
 // GET /payments/player/:playerId/summary - Get payment summary for a specific kid
-router.get('/payments/player/:playerId/summary', async (req, res) => {
+router.get('/payments/player/:playerId/summary', async (req: Request, res: Response) => {
     try {
         const playerId = parseInt(req.params.playerId);
 

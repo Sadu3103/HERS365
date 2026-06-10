@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Lock, User, ChevronRight, Github, Chrome, Zap } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -11,6 +12,7 @@ export const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,8 +32,8 @@ export const Auth = () => {
         setError(data.error || data.message || 'Something went wrong');
         return;
       }
-      if (data.token) localStorage.setItem('token', data.token);
-      if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
+      if (data.token && data.user) login(data.token, data.user);
+      // New registrations go through onboarding; returning users land on the feed
       navigate(isLogin ? '/feed' : '/onboarding');
     } catch {
       setError('Network error — please try again');
