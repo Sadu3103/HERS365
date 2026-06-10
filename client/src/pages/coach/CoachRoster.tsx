@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -17,9 +17,11 @@ import {
   Phone,
   Send,
   CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 import type { PlayerSearchResult } from '../../types';
 import { useNotifications } from '../../context/NotificationContext';
+import { apiFetch } from '../../lib/api';
 
 type RosterStatus = 'watching' | 'contacted' | 'offered' | 'committed';
 
@@ -43,56 +45,77 @@ const STATUSES: {
 
 const statusMeta = (status: RosterStatus) => STATUSES.find((s) => s.id === status)!;
 
-const MOCK_ROSTER: RosterAthlete[] = [
-  {
-    id: 101, name: 'Maya Thompson', position: 'QB', state: 'TX', city: 'Austin', school: 'Westlake HS',
-    gradYear: 2026, height: "5'9\"", weight: 165, gpa: 3.8, breakoutScore: 94, stars: 5, archetype: 'Dual-Threat',
-    stats: {} as any, combineStats: {} as any, highlights: 12, verified: true, offers: 8, committed: false, nilPoints: 14200,
-    status: 'offered', notes: 'Elite arm talent. Following up after spring camp.',
-  },
-  {
-    id: 102, name: 'Jordan Reyes', position: 'WR', state: 'CA', city: 'Long Beach', school: 'Poly HS',
-    gradYear: 2026, height: "5'7\"", weight: 140, gpa: 3.6, breakoutScore: 89, stars: 4, archetype: 'Speedster',
-    stats: {} as any, combineStats: {} as any, highlights: 9, verified: true, offers: 5, committed: false, nilPoints: 9800,
-    status: 'contacted', notes: 'Sub-4.5 speed. Coach spoke with family last week.',
-  },
-  {
-    id: 103, name: 'Aaliyah Brooks', position: 'CB', state: 'FL', city: 'Miami', school: 'Northwestern HS',
-    gradYear: 2027, height: "5'8\"", weight: 145, gpa: 4.0, breakoutScore: 91, stars: 5, archetype: 'Lockdown',
-    stats: {} as any, combineStats: {} as any, highlights: 14, verified: true, offers: 7, committed: true, nilPoints: 12500,
-    status: 'committed', notes: 'Verbally committed. Lock down academics for early enrollment.',
-  },
-  {
-    id: 104, name: 'Sofia Martinez', position: 'RB', state: 'GA', city: 'Atlanta', school: 'Grayson HS',
-    gradYear: 2026, height: "5'5\"", weight: 155, gpa: 3.4, breakoutScore: 86, stars: 4, archetype: 'Power Back',
-    stats: {} as any, combineStats: {} as any, highlights: 7, verified: false, offers: 3, committed: false, nilPoints: 6700,
-    status: 'watching', notes: 'Physical runner. Monitor junior season production.',
-  },
-  {
-    id: 105, name: 'Destiny Coleman', position: 'S', state: 'OH', city: 'Cleveland', school: 'Glenville HS',
-    gradYear: 2027, height: "5'10\"", weight: 150, gpa: 3.7, breakoutScore: 88, stars: 4, archetype: 'Playmaker',
-    stats: {} as any, combineStats: {} as any, highlights: 10, verified: true, offers: 4, committed: false, nilPoints: 8100,
-    status: 'contacted', notes: 'Range and ball skills stand out. Sent camp invite.',
-  },
-  {
-    id: 106, name: 'Riley Nguyen', position: 'ATH', state: 'WA', city: 'Seattle', school: 'Eastside Catholic',
-    gradYear: 2026, height: "5'8\"", weight: 148, gpa: 3.9, breakoutScore: 92, stars: 5, archetype: 'Playmaker',
-    stats: {} as any, combineStats: {} as any, highlights: 13, verified: true, offers: 6, committed: false, nilPoints: 11300,
-    status: 'offered', notes: 'Versatile two-way player. Offer extended, awaiting visit.',
-  },
-  {
-    id: 107, name: 'Camila Foster', position: 'LB', state: 'AZ', city: 'Phoenix', school: 'Hamilton HS',
-    gradYear: 2027, height: "5'9\"", weight: 158, gpa: 3.5, breakoutScore: 84, stars: 3, archetype: 'Power Back',
-    stats: {} as any, combineStats: {} as any, highlights: 6, verified: false, offers: 2, committed: false, nilPoints: 5400,
-    status: 'watching', notes: 'High motor. Needs to add length but instincts are there.',
-  },
-];
+const tierToStatus = (tier: string): RosterStatus => {
+  if (tier === 'offered') return 'offered';
+  if (tier === 'top-target') return 'contacted';
+  return 'watching';
+};
+
+const statusToTier = (status: RosterStatus): string => {
+  if (status === 'offered' || status === 'committed') return 'offered';
+  if (status === 'contacted') return 'top-target';
+  return 'watching';
+};
 
 export function CoachRoster() {
-  const [roster, setRoster] = useState<RosterAthlete[]>(MOCK_ROSTER);
+  const [roster, setRoster] = useState<RosterAthlete[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [editingNotes, setEditingNotes] = useState<number | null>(null);
   const [notesDraft, setNotesDraft] = useState('');
   const { showNotification } = useNotifications();
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const boardRes = await apiFetch<{ board: Array<{ athleteId: number; tier: string; notes: string }> }>('/api/coach/board');
+        const entries = boardRes.board ?? [];
+
+        const rows = await Promise.all(
+          entries.map(async (entry) => {
+            try {
+              const player = await apiFetch<any>(`/api/players/${entry.athleteId}`);
+              return player ? { entry, player } : null;
+            } catch { return null; }
+          })
+        );
+
+        setRoster(
+          rows
+            .filter((r): r is { entry: typeof entries[0]; player: any } => r !== null)
+            .map(({ entry, player }) => ({
+              id: player.id,
+              name: player.name ?? '',
+              position: player.position ?? '',
+              state: player.state ?? '',
+              city: player.city ?? '',
+              school: player.school ?? '',
+              gradYear: player.gradYear ?? 0,
+              height: player.height ?? '—',
+              weight: player.weight ?? 0,
+              gpa: parseFloat(String(player.gpa)) || 0,
+              breakoutScore: player.g5Rating ? player.g5Rating * 20 : 0,
+              stars: player.g5Rating ?? 0,
+              archetype: player.archetype ?? '',
+              stats: {} as any,
+              combineStats: {} as any,
+              highlights: 0,
+              verified: player.verificationStatus === 'verified',
+              offers: Array.isArray(player.collegeOffers) ? player.collegeOffers.length : 0,
+              committed: false,
+              nilPoints: player.nilPoints ?? 0,
+              status: tierToStatus(entry.tier),
+              notes: entry.notes ?? '',
+            }))
+        );
+      } catch {
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
   const statusCounts = useMemo(() => {
     return STATUSES.reduce<Record<RosterStatus, number>>((acc, s) => {
@@ -105,6 +128,10 @@ export function CoachRoster() {
     const athlete = roster.find((a) => a.id === id);
     setRoster((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
     showNotification('success', 'Status Updated', `${athlete?.name} moved to ${statusMeta(status).label}.`);
+    apiFetch(`/api/coach/players/${id}/tier`, {
+      method: 'PATCH',
+      body: JSON.stringify({ tier: statusToTier(status) }),
+    }).catch(() => {});
   };
 
   const removeAthlete = (id: number) => {
@@ -112,6 +139,7 @@ export function CoachRoster() {
     setRoster((prev) => prev.filter((a) => a.id !== id));
     if (editingNotes === id) setEditingNotes(null);
     showNotification('info', 'Removed from Roster', `${athlete?.name} was removed from your roster.`);
+    apiFetch(`/api/coach/players/${id}/save`, { method: 'DELETE' }).catch(() => {});
   };
 
   const startEditNotes = (id: number, current: string) => {
@@ -121,10 +149,15 @@ export function CoachRoster() {
 
   const saveNotes = (id: number) => {
     const athlete = roster.find((a) => a.id === id);
-    setRoster((prev) => prev.map((a) => (a.id === id ? { ...a, notes: notesDraft } : a)));
+    const notesToSave = notesDraft;
+    setRoster((prev) => prev.map((a) => (a.id === id ? { ...a, notes: notesToSave } : a)));
     setEditingNotes(null);
     setNotesDraft('');
     showNotification('success', 'Notes Saved', `Notes updated for ${athlete?.name}.`);
+    apiFetch(`/api/coach/players/${id}/notes`, {
+      method: 'PATCH',
+      body: JSON.stringify({ notes: notesToSave }),
+    }).catch(() => {});
   };
 
   const exportToCSV = () => {
@@ -155,6 +188,24 @@ export function CoachRoster() {
     Array.from({ length: 5 }, (_, i) => (
       <Star key={i} className={`w-4 h-4 ${i < stars ? 'text-yellow-400 fill-current' : 'text-gray-600'}`} />
     ));
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 12, color: '#555' }}>
+        <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
+        <span style={{ fontSize: '0.85rem' }}>Loading roster...</span>
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 16, color: '#555' }}>
+        <span style={{ fontSize: '0.9rem' }}>Failed to load roster.</span>
+        <button onClick={() => window.location.reload()} style={{ background: '#ff5a2d', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 20px', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}>Retry</button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
