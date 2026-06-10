@@ -70,7 +70,7 @@ export const PlayerProfile = () => {
   }, [playerId]);
 
   const handleMessage = () => {
-    navigate('/messages');
+    navigate('/messages', { state: { partnerId: player?.id, partnerName: player?.name } });
   };
 
   if (loading) {
