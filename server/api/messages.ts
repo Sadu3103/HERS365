@@ -1,347 +1,250 @@
 import express from 'express';
+import { and, eq, or, desc, sql } from 'drizzle-orm';
+import { db } from '../db';
+import * as schema from '../schema';
+import { requireAuth } from '../auth';
 
 const router = express.Router();
+router.use(requireAuth);
 
-// Mock data for conversations and messages
-const mockConversations = [
-  {
-    id: 1,
-    participant: {
-      name: 'Coach Anderson',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Coach',
-      role: 'coach',
-      isOnline: true
-    },
-    lastMessage: {
-      text: 'Great game last Friday! Your performance was outstanding.',
-      timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(), // 2 minutes ago
-      isFromMe: false,
-      isRead: false
-    },
-    unreadCount: 2
-  },
-  {
-    id: 2,
-    participant: {
-      name: 'Sarah Johnson',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah',
-      role: 'athlete',
-      isOnline: false
-    },
-    lastMessage: {
-      text: 'Thanks for the feedback on my QB mechanics!',
-      timestamp: new Date(Date.now() - 60 * 60 * 1000).toISOString(), // 1 hour ago
-      isFromMe: true,
-      isRead: true
-    },
-    unreadCount: 0
-  }
-];
+// Returns { userId, role } for the authenticated caller.
+function caller(req: express.Request) {
+  const u = (req as any).user;
+  return { userId: Number(u.userId), role: u.role as string };
+}
 
-const mockMessages: { [conversationId: number]: any[] } = {
-  1: [
-    {
-      id: 1,
-      text: 'Hi! I saw your profile and was impressed by your stats.',
-      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      isFromMe: false,
-      isRead: true,
-      type: 'text'
-    },
-    {
-      id: 2,
-      text: 'Thank you! I\'ve been working really hard on my training.',
-      timestamp: new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString(),
-      isFromMe: true,
-      isRead: true,
-      type: 'text'
-    },
-    {
-      id: 3,
-      text: 'That shows. Your 40-yard dash time is excellent for a QB.',
-      timestamp: new Date(Date.now() - 22 * 60 * 60 * 1000).toISOString(),
-      isFromMe: false,
-      isRead: true,
-      type: 'text'
-    },
-    {
-      id: 4,
-      text: 'Thanks! Coach has been helping me with speed training.',
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      isFromMe: true,
-      isRead: true,
-      type: 'text'
-    },
-    {
-      id: 5,
-      text: 'Great game last Friday! Your performance was outstanding.',
-      timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-      isFromMe: false,
-      isRead: false,
-      type: 'text'
-    }
-  ],
-  2: [
-    {
-      id: 6,
-      text: 'Hey Sarah! How\'s your training going?',
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      isFromMe: true,
-      isRead: true,
-      type: 'text'
-    },
-    {
-      id: 7,
-      text: 'Going great! Just finished QB fundamentals training.',
-      timestamp: new Date(Date.now() - 90 * 60 * 1000).toISOString(),
-      isFromMe: false,
-      isRead: true,
-      type: 'text'
-    },
-    {
-      id: 8,
-      text: 'Thanks for the feedback on my QB mechanics!',
-      timestamp: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-      isFromMe: true,
-      isRead: true,
-      type: 'text'
-    }
-  ]
-};
-
-// GET /api/messages/conversations - Get all user conversations
-router.get('/conversations', (req, res) => {
+// GET /api/messages/conversations — one row per chat partner
+router.get('/conversations', async (req, res) => {
   try {
-    const { search } = req.query;
+    const { userId, role } = caller(req);
+    const isCoach = role === 'coach';
 
-    let filteredConversations = [...mockConversations];
+    // Pull every message involving this user, newest first.
+    const rows = await db
+      .select()
+      .from(schema.messages)
+      .where(isCoach ? eq(schema.messages.coachId, userId) : eq(schema.messages.athleteId, userId))
+      .orderBy(desc(schema.messages.createdAt));
 
-    if (search) {
-      const searchLower = search.toString().toLowerCase();
-      filteredConversations = filteredConversations.filter(conv =>
-        conv.participant.name.toLowerCase().includes(searchLower)
-      );
+    // Group by the partner id (the other side of the pair).
+    const byPartner = new Map<number, { last: any; unread: number }>();
+    for (const m of rows) {
+      const partnerId = isCoach ? m.athleteId : m.coachId;
+      if (partnerId == null) continue;
+      const entry = byPartner.get(partnerId) ?? { last: m, unread: 0 };
+      // rows are desc, so the first seen is the latest
+      if (!byPartner.has(partnerId)) entry.last = m;
+      if (!m.read && m.senderId !== userId) entry.unread += 1;
+      byPartner.set(partnerId, entry);
     }
 
-    res.json({
-      success: true,
-      data: filteredConversations
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch conversations'
-    });
-  }
-});
-
-// GET /api/messages/conversations/:id/messages - Get messages for a conversation
-router.get('/conversations/:id/messages', (req, res) => {
-  try {
-    const { id } = req.params;
-    const conversationId = parseInt(id);
-
-    if (!mockMessages[conversationId]) {
-      return res.status(404).json({
-        success: false,
-        error: 'Conversation not found'
-      });
+    // Resolve partner names.
+    const partnerIds = [...byPartner.keys()];
+    const partnerTable = isCoach ? schema.players : schema.coaches;
+    const names = new Map<number, string>();
+    for (const pid of partnerIds) {
+      const [row] = await db.select().from(partnerTable).where(eq(partnerTable.id, pid)).limit(1);
+      names.set(pid, row?.name ?? 'Unknown');
     }
 
-    const { limit = 50, offset = 0 } = req.query;
-    const messages = mockMessages[conversationId]
-      .slice(Number(offset), Number(offset) + Number(limit))
-      .reverse(); // Most recent first
-
-    res.json({
-      success: true,
-      data: messages,
-      pagination: {
-        total: mockMessages[conversationId].length,
-        limit: Number(limit),
-        offset: Number(offset)
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch messages'
-    });
-  }
-});
-
-// POST /api/messages - Send a new message
-router.post('/', (req, res) => {
-  try {
-    const { conversationId, text, type = 'text' } = req.body;
-
-    if (!conversationId || !text) {
-      return res.status(400).json({
-        success: false,
-        error: 'Conversation ID and text are required'
-      });
-    }
-
-    if (!mockMessages[conversationId]) {
-      return res.status(404).json({
-        success: false,
-        error: 'Conversation not found'
-      });
-    }
-
-    const newMessage = {
-      id: Date.now(),
-      text,
-      timestamp: new Date().toISOString(),
-      isFromMe: true,
-      isRead: true,
-      type
-    };
-
-    mockMessages[conversationId].push(newMessage);
-
-    // Update conversation's last message
-    const conversation = mockConversations.find(c => c.id === conversationId);
-    if (conversation) {
-      conversation.lastMessage = {
-        text: newMessage.text,
-        timestamp: newMessage.timestamp,
-        isFromMe: true,
-        isRead: true
+    const data = partnerIds.map((pid) => {
+      const { last, unread } = byPartner.get(pid)!;
+      return {
+        partnerId: pid,
+        partnerName: names.get(pid) ?? 'Unknown',
+        partnerRole: isCoach ? 'athlete' : 'coach',
+        lastMessage: last.content,
+        lastMessageAt: last.createdAt,
+        unreadCount: unread,
       };
-    }
-
-    res.json({
-      success: true,
-      data: newMessage
     });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to send message'
-    });
-  }
-});
 
-// PUT /api/messages/read - Mark messages as read
-router.put('/read', (req, res) => {
-  try {
-    const { conversationId } = req.body;
-
-    if (!conversationId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Conversation ID is required'
-      });
-    }
-
-    if (!mockMessages[conversationId]) {
-      return res.status(404).json({
-        success: false,
-        error: 'Conversation not found'
-      });
-    }
-
-    // Mark all messages in conversation as read
-    mockMessages[conversationId].forEach(message => {
-      if (!message.isFromMe) {
-        message.isRead = true;
+    // unread first, then most recent
+    data.sort((a, b) => {
+      if ((b.unreadCount > 0 ? 1 : 0) !== (a.unreadCount > 0 ? 1 : 0)) {
+        return (b.unreadCount > 0 ? 1 : 0) - (a.unreadCount > 0 ? 1 : 0);
       }
+      return new Date(b.lastMessageAt as any).getTime() - new Date(a.lastMessageAt as any).getTime();
     });
 
-    // Update conversation unread count
-    const conversation = mockConversations.find(c => c.id === conversationId);
-    if (conversation) {
-      conversation.unreadCount = 0;
-      conversation.lastMessage.isRead = true;
-    }
-
-    res.json({
-      success: true,
-      message: 'Messages marked as read'
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to mark messages as read'
-    });
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('[messages/conversations]', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch conversations' });
   }
 });
 
-// GET /api/messages/unread-count - Get total unread message count
-router.get('/unread-count', (req, res) => {
+// GET /api/messages/conversations/:partnerId/messages — full thread, oldest first
+router.get('/conversations/:partnerId/messages', async (req, res) => {
   try {
-    const totalUnread = mockConversations.reduce((sum, conv) => sum + conv.unreadCount, 0);
+    const { userId, role } = caller(req);
+    const isCoach = role === 'coach';
+    const partnerId = parseInt(req.params.partnerId, 10);
+    if (Number.isNaN(partnerId)) {
+      return res.status(400).json({ success: false, error: 'Invalid partner id' });
+    }
 
-    res.json({
+    const pairWhere = isCoach
+      ? and(eq(schema.messages.coachId, userId), eq(schema.messages.athleteId, partnerId))
+      : and(eq(schema.messages.athleteId, userId), eq(schema.messages.coachId, partnerId));
+
+    const limit = Number(req.query.limit ?? 50);
+    const offset = Number(req.query.offset ?? 0);
+
+    const rows = await db
+      .select()
+      .from(schema.messages)
+      .where(pairWhere)
+      .orderBy(schema.messages.createdAt)
+      .limit(limit)
+      .offset(offset);
+
+    const data = rows.map((m) => ({
+      id: m.id,
+      content: m.content,
+      isFromMe: m.senderId === userId,
+      read: m.read,
+      createdAt: m.createdAt,
+    }));
+
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('[messages/thread]', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch messages' });
+  }
+});
+
+// POST /api/messages — send a message to a partner
+router.post('/', async (req, res) => {
+  try {
+    const { userId, role } = caller(req);
+    const isCoach = role === 'coach';
+    const { partnerId, content } = req.body ?? {};
+
+    if (!partnerId || !content) {
+      return res.status(400).json({ success: false, error: 'partnerId and content are required' });
+    }
+
+    const [row] = await db
+      .insert(schema.messages)
+      .values({
+        coachId: isCoach ? userId : Number(partnerId),
+        athleteId: isCoach ? Number(partnerId) : userId,
+        senderId: userId,
+        senderType: isCoach ? 'coach' : 'athlete',
+        content: String(content),
+        read: false,
+      })
+      .returning();
+
+    res.status(201).json({
       success: true,
-      data: {
-        totalUnread,
-        conversations: mockConversations.map(conv => ({
-          id: conv.id,
-          unreadCount: conv.unreadCount
-        }))
+      data: { id: row.id, content: row.content, isFromMe: true, read: false, createdAt: row.createdAt },
+    });
+  } catch (err) {
+    console.error('[messages/send]', err);
+    res.status(500).json({ success: false, error: 'Failed to send message' });
+  }
+});
+
+// PUT /api/messages/read — mark inbound messages in a thread as read
+router.put('/read', async (req, res) => {
+  try {
+    const { userId, role } = caller(req);
+    const isCoach = role === 'coach';
+    const { partnerId } = req.body ?? {};
+    if (!partnerId) {
+      return res.status(400).json({ success: false, error: 'partnerId is required' });
+    }
+
+    const pairWhere = isCoach
+      ? and(eq(schema.messages.coachId, userId), eq(schema.messages.athleteId, Number(partnerId)))
+      : and(eq(schema.messages.athleteId, userId), eq(schema.messages.coachId, Number(partnerId)));
+
+    await db
+      .update(schema.messages)
+      .set({ read: true })
+      .where(and(pairWhere, sql`${schema.messages.senderId} <> ${userId}`));
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[messages/read]', err);
+    res.status(500).json({ success: false, error: 'Failed to mark read' });
+  }
+});
+
+// GET /api/messages/unread-count — total inbound unread
+router.get('/unread-count', async (req, res) => {
+  try {
+    const { userId, role } = caller(req);
+    const isCoach = role === 'coach';
+    const sideWhere = isCoach ? eq(schema.messages.coachId, userId) : eq(schema.messages.athleteId, userId);
+
+    const rows = await db
+      .select()
+      .from(schema.messages)
+      .where(and(sideWhere, eq(schema.messages.read, false), sql`${schema.messages.senderId} <> ${userId}`));
+
+    res.json({ success: true, data: { totalUnread: rows.length } });
+  } catch (err) {
+    console.error('[messages/unread-count]', err);
+    res.status(500).json({ success: false, error: 'Failed to get unread count' });
+  }
+});
+
+// GET /api/messages/requests — pending inbound contact requests
+router.get('/requests', async (req, res) => {
+  try {
+    const { userId } = caller(req);
+    const rows = await db
+      .select()
+      .from(schema.messageRequests)
+      .where(and(eq(schema.messageRequests.receiverId, userId), eq(schema.messageRequests.status, 'pending')))
+      .orderBy(desc(schema.messageRequests.createdAt));
+
+    // Resolve sender (athlete) names.
+    const data = [];
+    for (const r of rows) {
+      let senderName = 'Unknown';
+      if (r.athleteId != null) {
+        const [a] = await db.select().from(schema.players).where(eq(schema.players.id, r.athleteId)).limit(1);
+        senderName = a?.name ?? 'Unknown';
       }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get unread count'
-    });
+      data.push({ id: r.id, athleteId: r.athleteId, senderName, content: r.content, createdAt: r.createdAt });
+    }
+
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('[messages/requests]', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch requests' });
   }
 });
 
-// POST /api/messages/conversations - Start a new conversation
-router.post('/conversations', (req, res) => {
+// POST /api/messages/requests/:id/respond — approve or reject a request
+router.post('/requests/:id/respond', async (req, res) => {
   try {
-    const { participantId, initialMessage } = req.body;
-
-    if (!participantId || !initialMessage) {
-      return res.status(400).json({
-        success: false,
-        error: 'Participant ID and initial message are required'
-      });
+    const { userId } = caller(req);
+    const id = parseInt(req.params.id, 10);
+    const { action } = req.body ?? {};
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ success: false, error: 'action must be approve or reject' });
     }
 
-    const newConversationId = Math.max(...mockConversations.map(c => c.id)) + 1;
+    const [reqRow] = await db.select().from(schema.messageRequests).where(eq(schema.messageRequests.id, id)).limit(1);
+    if (!reqRow) return res.status(404).json({ success: false, error: 'Request not found' });
+    if (reqRow.receiverId !== userId) {
+      return res.status(403).json({ success: false, error: 'Not your request to respond to' });
+    }
 
-    // Mock participant data (in real app, fetch from users API)
-    const newConversation = {
-      id: newConversationId,
-      participant: {
-        name: 'New Contact',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=New',
-        role: 'athlete',
-        isOnline: false
-      },
-      lastMessage: {
-        text: initialMessage,
-        timestamp: new Date().toISOString(),
-        isFromMe: true,
-        isRead: true
-      },
-      unreadCount: 0
-    };
+    await db
+      .update(schema.messageRequests)
+      .set({ status: action === 'approve' ? 'approved' : 'rejected' })
+      .where(eq(schema.messageRequests.id, id));
 
-    mockConversations.push(newConversation);
-    mockMessages[newConversationId] = [{
-      id: Date.now(),
-      text: initialMessage,
-      timestamp: new Date().toISOString(),
-      isFromMe: true,
-      isRead: true,
-      type: 'text'
-    }];
-
-    res.json({
-      success: true,
-      data: newConversation
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create conversation'
-    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[messages/respond]', err);
+    res.status(500).json({ success: false, error: 'Failed to respond to request' });
   }
 });
 
