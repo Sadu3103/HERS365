@@ -803,3 +803,20 @@ export const securityAlerts = pgTable('security_alerts', {
   createdAt: timestamp('created_at').default(sql`now()`),
 });
 
+export const savedSchools = pgTable('saved_schools', {
+  id: serial('id').primaryKey(),
+  athleteId: integer('athlete_id').references(() => players.id),
+  teamId: integer('team_id').references(() => teams.id),
+  savedAt: timestamp('saved_at').default(sql`now()`),
+});
+
+export const programApplications = pgTable('program_applications', {
+  id: serial('id').primaryKey(),
+  athleteId: integer('athlete_id').references(() => players.id),
+  programId: integer('program_id').references(() => teams.id),
+  position: text('position').notNull(),
+  note: text('note'),
+  status: text('status').default('pending'), // pending, reviewed, accepted, rejected
+  createdAt: timestamp('created_at').default(sql`now()`),
+});
+

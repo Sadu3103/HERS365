@@ -117,4 +117,56 @@ router.post('/:id/favorite', (_req, res) => {
   res.status(501).json({ success: false, error: 'Favorites not implemented yet' });
 });
 
+// In-memory saved schools store keyed by athlete id
+const savedSchoolsStore: Record<string, number[]> = {};
+
+// GET /api/athletes/:id/saved-schools
+router.get('/:id/saved-schools', (req, res) => {
+  try {
+    const { id } = req.params;
+    const saved = savedSchoolsStore[id] || [];
+    res.json({ success: true, data: saved });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to fetch saved schools' });
+  }
+});
+
+// POST /api/athletes/:id/saved-schools
+router.post('/:id/saved-schools', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { schoolId } = req.body;
+
+    if (!schoolId) {
+      return res.status(400).json({ success: false, error: 'schoolId is required' });
+    }
+
+    if (!savedSchoolsStore[id]) savedSchoolsStore[id] = [];
+    const sid = Number(schoolId);
+    if (!savedSchoolsStore[id].includes(sid)) {
+      savedSchoolsStore[id].push(sid);
+    }
+
+    res.json({ success: true, data: savedSchoolsStore[id] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to save school' });
+  }
+});
+
+// DELETE /api/athletes/:id/saved-schools/:schoolId
+router.delete('/:id/saved-schools/:schoolId', (req, res) => {
+  try {
+    const { id, schoolId } = req.params;
+    const sid = Number(schoolId);
+
+    if (savedSchoolsStore[id]) {
+      savedSchoolsStore[id] = savedSchoolsStore[id].filter(s => s !== sid);
+    }
+
+    res.json({ success: true, data: savedSchoolsStore[id] || [] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to remove saved school' });
+  }
+});
+
 export { router as athletesRouter };
