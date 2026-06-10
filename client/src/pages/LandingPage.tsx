@@ -78,22 +78,59 @@ const gridFeatures = [
   { h: 'Coach-facing profiles', p: 'Film, stats and contact in one place — built for how coaches actually scout.' },
 ];
 
-const leaderboard = [
+interface GridRow {
+  name: string;
+  meta: string;
+  rank: number;
+  up: boolean;
+  av: string;
+  avatarUrl?: string;
+}
+
+const fallbackLeaderboard: GridRow[] = [
   { name: 'Sarah Watkins', meta: 'QB · 2026 · 12 offers', rank: 95, up: true, av: `linear-gradient(135deg,${FLAME},${FLAME_SOFT})` },
   { name: 'Maya Johnson', meta: 'QB · 2026 · 8 offers', rank: 93, up: true, av: 'linear-gradient(135deg,#3a3a3a,#1c1c1c)' },
   { name: 'Jordan Reyes', meta: 'QB · 2027 · 5 offers', rank: 91, up: false, av: 'linear-gradient(135deg,#2a2a2a,#161616)' },
   { name: 'Taylor Brooks', meta: 'QB · 2026 · 4 offers', rank: 88, up: true, av: 'linear-gradient(135deg,#222,#111)' },
 ];
 
+interface ApiRanking {
+  name: string;
+  school?: string;
+  position?: string;
+  rating: number;
+  change?: number;
+  avatar?: string;
+}
+
 export const LandingPage = () => {
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
   const [barWidth, setBarWidth] = useState('0%');
+  const [leaderboard, setLeaderboard] = useState<GridRow[]>(fallbackLeaderboard);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', onScroll, { passive: true });
     const t = setTimeout(() => setBarWidth('92%'), 700);
+
+    const fades = ['linear-gradient(135deg,#3a3a3a,#1c1c1c)', 'linear-gradient(135deg,#2a2a2a,#161616)', 'linear-gradient(135deg,#222,#111)'];
+    fetch('/api/rankings?limit=4&sortBy=rating')
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => {
+        const rows: ApiRanking[] = j?.data;
+        if (!Array.isArray(rows) || rows.length === 0) return;
+        setLeaderboard(rows.slice(0, 4).map((r, i) => ({
+          name: r.name,
+          meta: [r.position, r.school].filter(Boolean).join(' · '),
+          rank: Math.round(r.rating),
+          up: (r.change ?? 0) > 0,
+          av: i === 0 ? `linear-gradient(135deg,${FLAME},${FLAME_SOFT})` : fades[i - 1],
+          avatarUrl: r.avatar,
+        })));
+      })
+      .catch(() => {});
+
     return () => { window.removeEventListener('scroll', onScroll); clearTimeout(t); };
   }, []);
 
@@ -265,11 +302,14 @@ export const LandingPage = () => {
           }}>
             <div style={{ background: INK, borderRadius: 20, border: `1px solid ${LINE}`, overflow: 'hidden' }}>
               <div style={{ padding: '18px 18px 12px', borderBottom: `1px solid ${LINE}` }}>
-                <div style={{ ...disp, fontWeight: 900, fontSize: '1.3rem', letterSpacing: '.04em' }}>THE <b style={{ color: FLAME }}>GRID</b> · TOP QBs</div>
+                <div style={{ ...disp, fontWeight: 900, fontSize: '1.3rem', letterSpacing: '.04em' }}>THE <b style={{ color: FLAME }}>GRID</b> · TOP RATED</div>
               </div>
               {leaderboard.map((r, i) => (
                 <div key={r.name} style={{ display: 'flex', gap: 12, padding: '16px 18px', borderBottom: i < leaderboard.length - 1 ? `1px solid ${LINE}` : 'none', alignItems: 'center' }}>
-                  <div style={{ width: 40, height: 40, borderRadius: '50%', flexShrink: 0, background: r.av }} />
+                  <div style={{
+                    width: 40, height: 40, borderRadius: '50%', flexShrink: 0, background: r.av,
+                    backgroundImage: r.avatarUrl ? `url('${r.avatarUrl}')` : undefined, backgroundSize: 'cover', backgroundPosition: 'center',
+                  }} />
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '.9rem' }}>{r.name}</div>
                     <div style={{ color: MUTED_2, fontSize: '.76rem' }}>{r.meta}</div>
