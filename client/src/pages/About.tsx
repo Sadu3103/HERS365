@@ -38,7 +38,7 @@ export const About = () => (
       {[
         { icon: <Heart size={18} />, title: 'Why We Built This', body: "Girls flag football is the fastest-growing sport in the country. Yet for years, female athletes had no platform built for them — no rankings, no recruiting tools, no community. We built HERS365 to change that." },
         { icon: <Shield size={18} />, title: 'Safety First, Always', body: "Every feature we build passes a safeguarding review. Coach-to-athlete communication is gated through parents. Your data is yours. We comply with COPPA and FERPA and we'll never compromise on the safety of our athletes." },
-        { icon: <TrendingUp size={18} />, title: 'What's Next', body: "We're expanding to all 50 states. We're adding real-time GameDay scoring. We're partnering with college programs to bring verified recruiting pipelines to every athlete — regardless of their school or zip code." },
+        { icon: <TrendingUp size={18} />, title: "What's Next", body: "We're expanding to all 50 states. We're adding real-time GameDay scoring. We're partnering with college programs to bring verified recruiting pipelines to every athlete — regardless of their school or zip code." },
       ].map((s) => (
         <div key={s.title} style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${LINE}`, borderRadius: 14, padding: '22px 24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, color: FLAME_C }}>

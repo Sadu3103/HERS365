@@ -14,10 +14,10 @@ const FAQS: FAQ[] = [
   { cat: 'Account', q: 'Is HERS365 free to use?', a: 'Yes, the core platform is free. A Pro subscription ($9.99/month) unlocks unlimited highlight uploads, coach messaging, and advanced analytics.' },
   { cat: 'Recruiting', q: 'How does the recruiting process work?', a: 'Coaches can find and follow athletes on the platform. All coach-to-athlete contact is gated through a parent guardian account for safety. Athletes can also reach out to coaches directly.' },
   { cat: 'Recruiting', q: 'How is my ranking calculated?', a: 'Your G5 Rating is based on game stats, highlight quality, combine measurables, academic record, and HERS365 activity score. Rankings update weekly.' },
-  { cat: 'Safety', q: 'Is the platform safe for minors?', a: 'Safety is our top priority. All coach communication is gated through parents. No minor's contact info is exposed without parental consent. We are COPPA and FERPA compliant.' },
+  { cat: 'Safety', q: 'Is the platform safe for minors?', a: "Safety is our top priority. All coach communication is gated through parents. No minor's contact info is exposed without parental consent. We are COPPA and FERPA compliant." },
   { cat: 'Safety', q: 'Can coaches contact athletes directly?', a: 'No. All coach-to-athlete messages are routed through the parent/guardian account first. Parents must approve any connection before direct communication is enabled.' },
   { cat: 'Technical', q: 'How do I upload a highlight video?', a: 'Go to your Profile, tap "Add Highlight", and upload up to 2-minute clips. Free accounts get 3 highlights. Pro accounts get unlimited uploads with auto-trim and tagging.' },
-  { cat: 'Technical', q: 'Why can't I see a coach's profile?', a: 'Coaches are verified by HERS365 before appearing on the platform. If a coach's profile is restricted, they may be pending verification or deactivated.' },
+  { cat: 'Technical', q: "Why can't I see a coach's profile?", a: "Coaches are verified by HERS365 before appearing on the platform. If a coach's profile is restricted, they may be pending verification or deactivated." },
 ];
 
 const CATS = ['All', ...Array.from(new Set(FAQS.map((f) => f.cat)))];
