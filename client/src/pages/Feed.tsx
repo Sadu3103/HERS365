@@ -6,16 +6,33 @@ import {
   MessageCircle,
   Share2,
   MoreHorizontal,
-  Zap,
-  Trophy,
-  Calendar,
-  PlayCircle,
-  Award,
+  Play,
+  BadgeCheck,
+  Flame,
   Flag,
   EyeOff,
-  UserX
+  UserX,
+  TrendingUp,
+  Clock
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
+import {
+  FLAME,
+  FLAME_SOFT,
+  INK,
+  INK_2,
+  INK_3,
+  LINE,
+  LINE_2,
+  MUTED,
+  MUTED_2,
+  DISP,
+  BODY,
+  reveal,
+  glowBlob,
+  kicker,
+  disp,
+} from '../lib/theme';
 
 interface PostData {
   id: number;
@@ -29,8 +46,62 @@ interface PostData {
   isLiked?: boolean;
 }
 
+// ── Fictional seed athletes (story rail) — no real PII ──
+const STORY_ATHLETES = [
+  { name: 'Sarah W.', avatar: 'https://randomuser.me/api/portraits/women/44.jpg', rating: 92, live: true },
+  { name: 'Maya J.', avatar: 'https://randomuser.me/api/portraits/women/68.jpg', rating: 89, live: false },
+  { name: 'Zoe R.', avatar: 'https://randomuser.me/api/portraits/women/12.jpg', rating: 87, live: true },
+  { name: 'Aaliyah B.', avatar: 'https://randomuser.me/api/portraits/women/90.jpg', rating: 85, live: false },
+  { name: 'Nina T.', avatar: 'https://randomuser.me/api/portraits/women/26.jpg', rating: 84, live: false },
+  { name: 'Riley C.', avatar: 'https://randomuser.me/api/portraits/women/57.jpg', rating: 82, live: true },
+  { name: 'Jade M.', avatar: 'https://randomuser.me/api/portraits/women/33.jpg', rating: 80, live: false },
+  { name: 'Tia H.', avatar: 'https://randomuser.me/api/portraits/women/65.jpg', rating: 79, live: false },
+];
+
+// Deterministic rating per post author (so the chip is stable across renders).
+function ratingFor(name: string): number {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return 78 + (h % 18); // 78–95
+}
+
+function initials(name: string): string {
+  return name
+    .split(' ')
+    .map(p => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
+
+// ── Animated counter chip used in the action bar ──
+function CountPulse({ value, active }: { value: string; active?: boolean }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.span
+        key={value + String(active)}
+        initial={{ y: 8, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: -8, opacity: 0 }}
+        transition={{ duration: 0.22, ease: [0.2, 0.8, 0.2, 1] }}
+        style={{
+          fontFamily: DISP,
+          fontWeight: 800,
+          fontSize: '.82rem',
+          letterSpacing: '.1em',
+          display: 'inline-block',
+        }}
+      >
+        {value}
+      </motion.span>
+    </AnimatePresence>
+  );
+}
+
 const PostCard = ({
   post,
+  index,
   onLike,
   onComment,
   onShare,
@@ -40,6 +111,7 @@ const PostCard = ({
   onPostClick
 }: {
   post: PostData;
+  index: number;
   onLike: (postId: number) => void;
   onComment: (postId: number) => void;
   onShare: (postId: number) => void;
@@ -49,8 +121,11 @@ const PostCard = ({
   onPostClick: (postId: number) => void;
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { showNotification } = useNotifications();
+
+  const rating = ratingFor(post.user.name);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -64,181 +139,618 @@ const PostCard = ({
   }, []);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
+    <motion.article
+      initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
+      viewport={{ once: true, amount: 0.15 }}
+      transition={{ duration: 0.6, delay: Math.min(index * 0.06, 0.3), ease: [0.2, 0.8, 0.2, 1] }}
       onClick={() => onPostClick(post.id)}
-      className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl mb-8 group cursor-pointer hover:bg-white/5 transition-colors"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: 'relative',
+        background: `linear-gradient(165deg, ${INK_3}, ${INK_2})`,
+        border: `1px solid ${hovered ? 'rgba(255,90,45,0.34)' : LINE}`,
+        borderRadius: 22,
+        marginBottom: 22,
+        cursor: 'pointer',
+        overflow: 'hidden',
+        transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
+        boxShadow: hovered
+          ? '0 22px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,90,45,0.12)'
+          : '0 12px 34px rgba(0,0,0,0.4)',
+        transition: 'transform .3s cubic-bezier(0.2,0.8,0.2,1), border-color .3s, box-shadow .3s',
+      }}
     >
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onUserClick(post.user.name);
-          }}
-          className="flex items-center gap-4 cursor-pointer hover:opacity-80 transition-opacity"
-        >
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-coral-500 to-green-500 p-0.5 shadow-lg shadow-coral-500/20">
-            <div className="w-full h-full rounded-[14px] bg-surface-card overflow-hidden">
-              <img src={post.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.user.name}`} alt={post.user.name} />
-            </div>
-          </div>
-          <div>
-            <h3 className="text-white font-bold tracking-tight uppercase text-sm hover:text-coral-400 transition-colors">{post.user.name}</h3>
-            <p className="text-xs text-ink-muted font-bold uppercase tracking-widest">{post.time}</p>
-          </div>
-        </button>
-        <div className="relative" ref={menuRef}>
+      {/* top flame hairline that lights on hover */}
+      <span
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 2,
+          background: `linear-gradient(90deg, transparent, ${FLAME}, ${FLAME_SOFT}, transparent)`,
+          opacity: hovered ? 0.9 : 0,
+          transition: 'opacity .3s',
+          pointerEvents: 'none',
+        }}
+      />
+
+      <div style={{ padding: 22 }}>
+        {/* ── Header ── */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16, gap: 12 }}>
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setMenuOpen(!menuOpen);
+              onUserClick(post.user.name);
             }}
-            className="text-ink-muted hover:text-white transition-colors"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 13,
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              textAlign: 'left',
+              minWidth: 0,
+            }}
           >
-            <MoreHorizontal size={20} />
+            {/* Avatar with flame ring */}
+            <span
+              style={{
+                position: 'relative',
+                width: 48,
+                height: 48,
+                borderRadius: '50%',
+                flexShrink: 0,
+                padding: 2,
+                background: `conic-gradient(from 140deg, ${FLAME}, ${FLAME_SOFT}, ${FLAME})`,
+                display: 'block',
+              }}
+            >
+              <span
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  background: INK,
+                  border: `2px solid ${INK}`,
+                  fontFamily: DISP,
+                  fontWeight: 900,
+                  fontSize: '1rem',
+                  color: FLAME_SOFT,
+                  letterSpacing: '.02em',
+                }}
+              >
+                {post.user.avatar ? (
+                  <img
+                    src={post.user.avatar}
+                    alt={post.user.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  initials(post.user.name)
+                )}
+              </span>
+            </span>
+
+            <span style={{ minWidth: 0 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span
+                  style={{
+                    ...disp,
+                    fontWeight: 800,
+                    fontSize: '1.02rem',
+                    color: '#f4f4f2',
+                    letterSpacing: '.02em',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {post.user.name}
+                </span>
+                <BadgeCheck size={15} style={{ color: FLAME, flexShrink: 0 }} fill="rgba(255,90,45,0.16)" />
+                {/* rating chip */}
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 3,
+                    padding: '2px 7px',
+                    borderRadius: 9999,
+                    background: 'rgba(255,90,45,0.12)',
+                    border: '1px solid rgba(255,90,45,0.28)',
+                    fontFamily: DISP,
+                    fontWeight: 900,
+                    fontSize: '.64rem',
+                    letterSpacing: '.08em',
+                    color: FLAME_SOFT,
+                    flexShrink: 0,
+                  }}
+                >
+                  <Flame size={10} style={{ color: FLAME }} fill={FLAME} />
+                  {rating}
+                </span>
+              </span>
+              <span
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  fontSize: '.68rem',
+                  fontWeight: 700,
+                  letterSpacing: '.16em',
+                  textTransform: 'uppercase',
+                  color: MUTED_2,
+                  marginTop: 3,
+                  fontFamily: DISP,
+                }}
+              >
+                <Clock size={11} style={{ color: MUTED_2 }} />
+                {post.time}
+              </span>
+            </span>
           </button>
 
-          {/* Post Menu Dropdown */}
-          <AnimatePresence>
-            {menuOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                className="absolute top-full right-0 mt-2 w-48 bg-surface-card/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-50"
-              >
-                <div className="p-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onMenuClick(post.id);
-                      setMenuOpen(false);
-                      showNotification('success', 'Post Reported', 'Thank you for keeping the community safe!');
-                    }}
-                    className="w-full text-left px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-colors flex items-center gap-3"
-                  >
-                    <Flag size={16} />
-                    Report Post
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setMenuOpen(false);
-                      showNotification('info', 'Post Hidden', 'This post has been hidden from your feed.');
-                    }}
-                    className="w-full text-left px-4 py-3 text-sm text-ink-muted hover:text-white hover:bg-white/5 rounded-xl transition-colors flex items-center gap-3"
-                  >
-                    <EyeOff size={16} />
-                    Hide Post
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setMenuOpen(false);
-                      showNotification('info', 'User Blocked', 'You will no longer see content from this user.');
-                    }}
-                    className="w-full text-left px-4 py-3 text-sm text-ink-muted hover:text-white hover:bg-white/5 rounded-xl transition-colors flex items-center gap-3"
-                  >
-                    <UserX size={16} />
-                    Block User
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <div style={{ position: 'relative', flexShrink: 0 }} ref={menuRef}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen(!menuOpen);
+              }}
+              aria-label="Post options"
+              style={{
+                width: 40,
+                height: 40,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 12,
+                background: menuOpen ? 'rgba(255,255,255,0.06)' : 'transparent',
+                border: 'none',
+                color: menuOpen ? '#f4f4f2' : MUTED,
+                cursor: 'pointer',
+                transition: 'all .2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#f4f4f2'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
+              onMouseLeave={e => { if (!menuOpen) { e.currentTarget.style.color = MUTED; e.currentTarget.style.background = 'transparent'; } }}
+            >
+              <MoreHorizontal size={20} />
+            </button>
+
+            {/* Post Menu Dropdown */}
+            <AnimatePresence>
+              {menuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                  transition={{ duration: 0.16, ease: [0.2, 0.8, 0.2, 1] }}
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    marginTop: 8,
+                    width: 196,
+                    background: 'rgba(17,17,17,0.96)',
+                    backdropFilter: 'blur(18px)',
+                    WebkitBackdropFilter: 'blur(18px)',
+                    border: `1px solid ${LINE_2}`,
+                    borderRadius: 16,
+                    boxShadow: '0 24px 60px rgba(0,0,0,0.7)',
+                    zIndex: 50,
+                    overflow: 'hidden',
+                    padding: 6,
+                  }}
+                >
+                  {[
+                    {
+                      Icon: Flag,
+                      label: 'Report Post',
+                      danger: true,
+                      run: () => {
+                        onMenuClick(post.id);
+                        showNotification('success', 'Post Reported', 'Thank you for keeping the community safe!');
+                      },
+                    },
+                    {
+                      Icon: EyeOff,
+                      label: 'Hide Post',
+                      danger: false,
+                      run: () => showNotification('info', 'Post Hidden', 'This post has been hidden from your feed.'),
+                    },
+                    {
+                      Icon: UserX,
+                      label: 'Block User',
+                      danger: false,
+                      run: () => showNotification('info', 'User Blocked', 'You will no longer see content from this user.'),
+                    },
+                  ].map(({ Icon, label, danger, run }) => (
+                    <button
+                      key={label}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        run();
+                        setMenuOpen(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 11,
+                        padding: '11px 12px',
+                        borderRadius: 11,
+                        border: 'none',
+                        background: 'transparent',
+                        color: danger ? '#f87171' : MUTED,
+                        fontSize: '.86rem',
+                        fontWeight: 600,
+                        fontFamily: BODY,
+                        cursor: 'pointer',
+                        transition: 'background .15s, color .15s',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = danger ? 'rgba(248,113,113,0.1)' : 'rgba(255,255,255,0.05)';
+                        e.currentTarget.style.color = danger ? '#fca5a5' : '#f4f4f2';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = danger ? '#f87171' : MUTED;
+                      }}
+                    >
+                      <Icon size={16} />
+                      {label}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
-      </div>
 
-      <p className="text-ink-muted mb-6 text-base leading-relaxed">
-        {post.content}
-      </p>
+        {/* ── Post text ── */}
+        <p
+          style={{
+            color: '#d8d8d4',
+            margin: '0 0 16px',
+            fontSize: '1rem',
+            lineHeight: 1.62,
+            fontFamily: BODY,
+          }}
+        >
+          {post.content}
+        </p>
 
-      {post.image && (
-        <div className="relative rounded-2xl overflow-hidden border border-white/5 mb-6 aspect-video group-hover:border-coral-500/30 transition-all duration-500">
-           <img src={post.image} alt="Post Highlight" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-            {post.highlights && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onHighlightClick(post.id);
+        {/* ── Highlight thumbnail (placeholder + Play overlay — never real media) ── */}
+        {post.image && (
+          <div
+            style={{
+              position: 'relative',
+              borderRadius: 16,
+              overflow: 'hidden',
+              border: `1px solid ${hovered ? 'rgba(255,90,45,0.3)' : LINE}`,
+              marginBottom: 16,
+              aspectRatio: '16 / 9',
+              background: `radial-gradient(120% 120% at 30% 10%, ${INK_3}, ${INK} 70%)`,
+              transition: 'border-color .4s',
+            }}
+          >
+            {/* texture/grain inside the frame */}
+            <span
+              style={{
+                position: 'absolute',
+                inset: 0,
+                opacity: 0.5,
+                backgroundImage: `linear-gradient(${LINE} 1px,transparent 1px),linear-gradient(90deg,${LINE} 1px,transparent 1px)`,
+                backgroundSize: '40px 40px',
+                maskImage: 'radial-gradient(circle at 50% 50%,#000,transparent 75%)',
+                WebkitMaskImage: 'radial-gradient(circle at 50% 50%,#000,transparent 75%)',
+                pointerEvents: 'none',
+              }}
+            />
+            {/* flame glow */}
+            <span style={glowBlob({ size: 280, top: -90, right: -60, opacity: 0.3, strength: 0.45 })} />
+
+            {/* HIGHLIGHT tag */}
+            <span
+              style={{
+                position: 'absolute',
+                top: 12,
+                left: 12,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '4px 9px',
+                borderRadius: 9999,
+                background: 'rgba(10,10,10,0.6)',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+                border: `1px solid ${LINE_2}`,
+                fontFamily: DISP,
+                fontWeight: 800,
+                fontSize: '.6rem',
+                letterSpacing: '.16em',
+                textTransform: 'uppercase',
+                color: '#f4f4f2',
+              }}
+            >
+              <Flame size={11} style={{ color: FLAME }} fill={FLAME} />
+              Highlight Reel
+            </span>
+
+            {/* Center Play button overlay (scales on hover) */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onHighlightClick(post.id);
+              }}
+              aria-label="Play highlight"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 0,
+              }}
+            >
+              <span
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: `radial-gradient(circle, ${FLAME}, #cc3a12)`,
+                  boxShadow: hovered
+                    ? '0 0 0 10px rgba(255,90,45,0.12), 0 14px 34px rgba(255,90,45,0.5)'
+                    : '0 10px 26px rgba(255,90,45,0.4)',
+                  transform: hovered ? 'scale(1.1)' : 'scale(1)',
+                  transition: 'transform .3s cubic-bezier(0.2,0.8,0.2,1), box-shadow .3s',
                 }}
-                className="absolute top-4 right-4 px-3 py-1 bg-coral-500 hover:bg-coral-600 rounded-full flex items-center gap-2 shadow-lg transition-colors cursor-pointer"
               >
-                 <PlayCircle size={14} className="text-white fill-current" />
-                 <span className="text-[10px] font-black uppercase tracking-widest text-white">Watch Highlight</span>
-              </button>
-            )}
-        </div>
-      )}
+                <Play size={26} color="#fff" fill="#fff" style={{ marginLeft: 3 }} />
+              </span>
+            </button>
 
-      <div className="flex items-center gap-8 pt-6 border-t border-white/5">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onLike(post.id);
+            {/* runtime chip bottom-right */}
+            <span
+              style={{
+                position: 'absolute',
+                bottom: 12,
+                right: 12,
+                padding: '3px 8px',
+                borderRadius: 7,
+                background: 'rgba(10,10,10,0.7)',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+                fontFamily: DISP,
+                fontWeight: 700,
+                fontSize: '.66rem',
+                letterSpacing: '.06em',
+                color: MUTED,
+              }}
+            >
+              0:42
+            </span>
+          </div>
+        )}
+
+        {/* ── Inline stat row (shown on posts with a highlight reel) ── */}
+        {post.highlights && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 8,
+              marginBottom: 16,
+            }}
+          >
+            {[
+              { k: '40 DASH', v: '5.1s' },
+              { k: 'VERTICAL', v: '24"' },
+              { k: 'CATCHES', v: '7' },
+            ].map(s => (
+              <div
+                key={s.k}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 12,
+                  background: 'rgba(255,255,255,0.02)',
+                  border: `1px solid ${LINE}`,
+                }}
+              >
+                <div style={{ fontFamily: DISP, fontWeight: 900, fontSize: '1.25rem', color: '#f4f4f2', lineHeight: 1 }}>
+                  {s.v}
+                </div>
+                <div
+                  style={{
+                    fontFamily: DISP,
+                    fontWeight: 700,
+                    fontSize: '.58rem',
+                    letterSpacing: '.14em',
+                    textTransform: 'uppercase',
+                    color: MUTED_2,
+                    marginTop: 5,
+                  }}
+                >
+                  {s.k}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Action bar ── */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            paddingTop: 14,
+            borderTop: `1px solid ${LINE}`,
           }}
-          className={`flex items-center gap-2 transition-all group/btn ${
-            post.isLiked ? 'text-green-500' : 'text-ink-muted hover:text-green-500'
-          }`}
         >
-          <Heart size={18} className={`transition-all ${post.isLiked ? 'fill-green-500' : 'group-hover/btn:fill-green-500'}`} />
-          <span className="text-xs font-black uppercase tracking-widest">{post.likes}</span>
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onComment(post.id);
-          }}
-          className="flex items-center gap-2 text-ink-muted hover:text-white transition-all"
-        >
-          <MessageCircle size={18} />
-          <span className="text-xs font-black uppercase tracking-widest">{post.comments}</span>
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onShare(post.id);
-          }}
-          className="flex items-center gap-2 text-ink-muted hover:text-white ml-auto transition-all"
-        >
-          <Share2 size={18} />
-        </button>
+          {/* Like */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onLike(post.id);
+            }}
+            aria-label="Like"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              minHeight: 40,
+              padding: '0 12px',
+              borderRadius: 11,
+              border: 'none',
+              background: post.isLiked ? 'rgba(255,90,45,0.12)' : 'transparent',
+              color: post.isLiked ? FLAME : MUTED,
+              cursor: 'pointer',
+              transition: 'background .2s, color .2s',
+            }}
+            onMouseEnter={e => { if (!post.isLiked) e.currentTarget.style.color = FLAME_SOFT; }}
+            onMouseLeave={e => { if (!post.isLiked) e.currentTarget.style.color = MUTED; }}
+          >
+            <motion.span
+              key={String(post.isLiked)}
+              initial={{ scale: 0.6 }}
+              animate={{ scale: post.isLiked ? [1, 1.35, 1] : 1 }}
+              transition={{ duration: 0.32, ease: [0.2, 0.8, 0.2, 1] }}
+              style={{ display: 'flex' }}
+            >
+              <Heart size={18} fill={post.isLiked ? FLAME : 'transparent'} />
+            </motion.span>
+            <CountPulse value={post.likes} active={post.isLiked} />
+          </button>
+
+          {/* Comment */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onComment(post.id);
+            }}
+            aria-label="Comment"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              minHeight: 40,
+              padding: '0 12px',
+              borderRadius: 11,
+              border: 'none',
+              background: 'transparent',
+              color: MUTED,
+              cursor: 'pointer',
+              transition: 'color .2s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#f4f4f2'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = MUTED; }}
+          >
+            <MessageCircle size={18} />
+            <CountPulse value={post.comments} />
+          </button>
+
+          {/* Share (pushed right) */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onShare(post.id);
+            }}
+            aria-label="Share"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              minHeight: 40,
+              padding: '0 12px',
+              borderRadius: 11,
+              border: 'none',
+              background: 'transparent',
+              color: MUTED,
+              cursor: 'pointer',
+              marginLeft: 'auto',
+              transition: 'color .2s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#f4f4f2'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = MUTED; }}
+          >
+            <Share2 size={18} />
+          </button>
+        </div>
       </div>
-    </div>
-  </motion.div>
+    </motion.article>
   );
 };
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+function fmtCount(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+  return String(n);
+}
 
 export const Feed = () => {
   const navigate = useNavigate();
   const { showNotification } = useNotifications();
   const [feedType, setFeedType] = useState<'recent' | 'trending'>('recent');
-  const [posts, setPosts] = useState<PostData[]>([
-    {
-      id: 1,
-      user: { name: 'Sarah Watkins', avatar: null },
-      time: '2 hours ago',
-      content: "Just finished a killer session at the Nike Training Camp. 40yd dash improved by 0.2s! Hard work pays off. 🏈💨",
-      image: "https://images.unsplash.com/photo-1541252260730-0412e3e2108e?auto=format&fit=crop&q=80&w=1200",
-      likes: '1.2K',
-      comments: '84',
-      highlights: true,
-      isLiked: false
-    },
-    {
-      id: 2,
-      user: { name: 'Coach Miller', avatar: null },
-      time: '5 hours ago',
-      content: "Looking for a dynamic wide receiver for the 2026 class. Show us what you've got in the next regional combine! 🎯",
-      likes: '450',
-      comments: '12',
-      highlights: false,
-      isLiked: false
-    }
-  ]);
+  const [posts, setPosts] = useState<PostData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetch('/api/posts', { signal: ctrl.signal })
+      .then(r => r.json())
+      .then((data: any[]) => {
+        if (!Array.isArray(data) || data.length === 0) {
+          // Fallback seed posts for empty DB
+          setPosts([
+            { id: 1, user: { name: 'Maya Johnson', avatar: null }, time: '2h ago', content: "First practice of the season in the books. Route timing is clicking — 4.38 on the shuttle. Let's go! 🏈", likes: '1.4K', comments: '63', highlights: true, isLiked: false },
+            { id: 2, user: { name: 'Coach Rivera', avatar: null }, time: '5h ago', content: "Looking for a 2026 DB who can press-man. Regional combine is June 14. Show out.", likes: '820', comments: '31', highlights: false, isLiked: false },
+            { id: 3, user: { name: 'Aaliyah Brooks', avatar: null }, time: '1d ago', content: "Just posted my new game film from the All-State combine. Feedback welcome — 3 picks and a pick-6 in 4 snaps. 🔒", image: 'https://images.unsplash.com/photo-1541252260730-0412e3e2108e?auto=format&fit=crop&q=80&w=1200', likes: '2.1K', comments: '112', highlights: true, isLiked: false },
+          ]);
+        } else {
+          const mapped: PostData[] = data.map((p: any) => ({
+            id: p.id,
+            user: { name: p.playerName || 'Athlete', avatar: null },
+            time: p.createdAt ? timeAgo(p.createdAt) : '',
+            content: p.content || '',
+            image: p.mediaType === 'image' ? p.mediaUrl : undefined,
+            likes: fmtCount(p.likes ?? 0),
+            comments: fmtCount(p.comments ?? 0),
+            highlights: p.mediaType === 'video' || p.category === 'game',
+            isLiked: false,
+          }));
+          setPosts(mapped);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+    return () => ctrl.abort();
+  }, []);
 
   const handleLike = (postId: number) => {
     setPosts(prevPosts =>
@@ -283,139 +795,379 @@ export const Feed = () => {
     navigate(`/post/${postId}`);
   };
 
+  const tabs: { key: 'recent' | 'trending'; label: string; Icon: React.ElementType }[] = [
+    { key: 'recent', label: 'Recent', Icon: Clock },
+    { key: 'trending', label: 'Trending', Icon: TrendingUp },
+  ];
+
   return (
-    <div className="max-w-4xl mx-auto py-8">
-        {/* Header Stat Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <button
-            onClick={() => navigate('/training')}
-            className="bg-surface-card/60 border border-surface-border rounded-2xl backdrop-blur-xl p-6 rounded-3xl relative overflow-hidden group cursor-pointer hover:scale-105 transition-all duration-300"
-          >
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Zap size={60} className="text-coral-500" />
-            </div>
-            <p className="text-xs font-black uppercase tracking-widest text-coral-400 mb-2">Training Streak</p>
-            <h4 className="text-3xl font-black text-white">12 DAYS</h4>
-          </button>
-          <button
-            onClick={() => navigate('/rankings')}
-            className="bg-surface-card/60 border border-surface-border rounded-2xl backdrop-blur-xl p-6 rounded-3xl relative overflow-hidden group cursor-pointer hover:scale-105 transition-all duration-300"
-          >
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Trophy size={60} className="text-green-500" />
-            </div>
-            <p className="text-xs font-black uppercase tracking-widest text-green-500 mb-2">Platform Rank</p>
-            <h4 className="text-3xl font-black text-white">TOP 5%</h4>
-          </button>
-          <button
-            onClick={() => navigate('/events')}
-            className="bg-surface-card/60 border border-surface-border rounded-2xl backdrop-blur-xl p-6 rounded-3xl relative overflow-hidden group cursor-pointer hover:scale-105 transition-all duration-300"
-          >
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Calendar size={60} className="text-blue-500" />
-            </div>
-            <p className="text-xs font-black uppercase tracking-widest text-blue-400 mb-2">Next Event</p>
-            <h4 className="text-3xl font-black text-white">IN 3 DAYS</h4>
-          </button>
-        </div>
+    <div
+      className="feed-root"
+      style={{
+        position: 'relative',
+        maxWidth: 660,
+        margin: '0 auto',
+        padding: '24px 24px 64px',
+        color: '#f4f4f2',
+        fontFamily: BODY,
+      }}
+    >
+      {/* Flame glow blobs (absolute, inside relative wrapper) */}
+      <div style={glowBlob({ size: 520, top: -160, left: '50%', opacity: 0.16, strength: 0.5 })} />
+      <div style={glowBlob({ size: 360, top: 520, right: -120, opacity: 0.1, strength: 0.4 })} />
 
-      <div className="flex flex-col lg:flex-row gap-12">
-        {/* Main Feed */}
-        <div className="flex-1">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-black uppercase tracking-tighter text-white">The Grid</h2>
-            <div className="flex gap-4">
-              <button
-                onClick={() => setFeedType('recent')}
-                className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-colors ${
-                  feedType === 'recent'
-                    ? 'bg-coral-500 text-white'
-                    : 'text-ink-muted hover:text-white'
-                }`}
-              >
-                Recent
-              </button>
-              <button
-                onClick={() => setFeedType('trending')}
-                className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-colors ${
-                  feedType === 'trending'
-                    ? 'bg-coral-500 text-white'
-                    : 'text-ink-muted hover:text-white'
-                }`}
-              >
-                Trending
-              </button>
-            </div>
-          </div>
+      {/* ── Page header ── */}
+      <motion.header {...reveal} style={{ position: 'relative', zIndex: 1, marginBottom: 22 }}>
+        <div style={kicker}>The Feed · Live</div>
+        <h1
+          style={{
+            ...disp,
+            fontWeight: 900,
+            fontSize: 'clamp(2.4rem, 7vw, 3.4rem)',
+            margin: 0,
+          }}
+        >
+          THE <span style={{ color: FLAME }}>GRID</span>
+        </h1>
+        <p style={{ color: MUTED, fontSize: '.98rem', margin: '10px 0 0', maxWidth: 460, lineHeight: 1.5 }}>
+          Every rep, every offer, every breakout moment — straight from the athletes on the rise.
+        </p>
+      </motion.header>
 
-          {posts.map((post) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              onLike={handleLike}
-              onComment={handleComment}
-              onShare={handleShare}
-              onUserClick={handleUserClick}
-              onMenuClick={handleMenuClick}
-              onHighlightClick={handleHighlightClick}
-              onPostClick={handlePostClick}
-            />
+      {/* ── Story rail (top-ranked athletes) ── */}
+      <motion.section
+        {...reveal}
+        transition={{ ...reveal.transition, delay: 0.05 }}
+        style={{ position: 'relative', zIndex: 1, marginBottom: 26 }}
+      >
+        <div
+          className="story-rail"
+          style={{
+            display: 'flex',
+            gap: 16,
+            overflowX: 'auto',
+            paddingBottom: 10,
+            margin: '0 -24px',
+            paddingLeft: 24,
+            paddingRight: 24,
+            scrollSnapType: 'x proximity',
+          }}
+        >
+          {/* "Your story" add tile */}
+          <button
+            onClick={() => navigate('/profile')}
+            aria-label="Add to your story"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 8,
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              flexShrink: 0,
+              scrollSnapAlign: 'start',
+            }}
+          >
+            <span
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: '50%',
+                border: `2px dashed ${LINE_2}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: FLAME,
+                fontSize: '1.6rem',
+                fontFamily: DISP,
+                fontWeight: 400,
+                lineHeight: 1,
+                transition: 'border-color .2s, color .2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = FLAME; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = LINE_2; }}
+            >
+              +
+            </span>
+            <span
+              style={{
+                fontFamily: DISP,
+                fontWeight: 700,
+                fontSize: '.66rem',
+                letterSpacing: '.1em',
+                textTransform: 'uppercase',
+                color: MUTED,
+              }}
+            >
+              You
+            </span>
+          </button>
+
+          {STORY_ATHLETES.map((a, i) => (
+            <motion.button
+              key={a.name}
+              initial={{ opacity: 0, scale: 0.85 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: Math.min(i * 0.04, 0.25), ease: [0.2, 0.8, 0.2, 1] }}
+              onClick={() => handleUserClick(a.name)}
+              aria-label={`View ${a.name}`}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 8,
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                flexShrink: 0,
+                width: 72,
+                scrollSnapAlign: 'start',
+              }}
+            >
+              <span style={{ position: 'relative' }}>
+                {/* flame ring */}
+                <span
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: '50%',
+                    padding: 2.5,
+                    background: `conic-gradient(from 120deg, ${FLAME}, ${FLAME_SOFT}, ${FLAME})`,
+                    display: 'block',
+                    boxShadow: '0 6px 18px rgba(255,90,45,0.28)',
+                  }}
+                >
+                  <span
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: '50%',
+                      overflow: 'hidden',
+                      border: `2px solid ${INK}`,
+                      background: INK_3,
+                    }}
+                  >
+                    <img
+                      src={a.avatar}
+                      alt={a.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    />
+                  </span>
+                </span>
+
+                {/* rating badge */}
+                <span
+                  style={{
+                    position: 'absolute',
+                    bottom: -2,
+                    right: -2,
+                    minWidth: 22,
+                    height: 22,
+                    padding: '0 4px',
+                    borderRadius: 9999,
+                    background: INK,
+                    border: `1.5px solid ${FLAME}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontFamily: DISP,
+                    fontWeight: 900,
+                    fontSize: '.62rem',
+                    color: FLAME_SOFT,
+                    letterSpacing: '.02em',
+                  }}
+                >
+                  {a.rating}
+                </span>
+
+                {a.live && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      right: 2,
+                      width: 12,
+                      height: 12,
+                      borderRadius: '50%',
+                      background: '#4ade80',
+                      border: `2px solid ${INK}`,
+                    }}
+                  />
+                )}
+              </span>
+              <span
+                style={{
+                  fontFamily: DISP,
+                  fontWeight: 700,
+                  fontSize: '.66rem',
+                  letterSpacing: '.06em',
+                  textTransform: 'uppercase',
+                  color: MUTED,
+                  whiteSpace: 'nowrap',
+                  maxWidth: 72,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {a.name}
+              </span>
+            </motion.button>
           ))}
         </div>
+      </motion.section>
 
-        {/* Right Sidebar */}
-        <aside className="w-full lg:w-80 space-y-8">
-          <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
-            <h3 className="text-sm font-black uppercase tracking-widest text-white mb-6 flex items-center gap-2">
-              <Award size={16} className="text-coral-500" />
-              Recommended Drills
-            </h3>
-            <div className="space-y-4">
-              {[
-                { id: 1, name: 'Agility Ladder Level 1', duration: '15 mins', level: 'Advanced' },
-                { id: 2, name: 'Agility Ladder Level 2', duration: '20 mins', level: 'Expert' },
-                { id: 3, name: 'Agility Ladder Level 3', duration: '25 mins', level: 'Elite' }
-              ].map((drill) => (
-                <button
-                  key={drill.id}
-                  onClick={() => navigate(`/drills?id=${drill.id}`)}
-                  className="w-full flex gap-4 group cursor-pointer text-left"
-                >
-                  <div className="w-16 h-16 rounded-xl bg-surface border border-white/5 overflow-hidden flex-shrink-0 group-hover:border-coral-500/50 transition-colors">
-                    {/* Placeholder image */}
-                    <div className="w-full h-full bg-gradient-to-br from-coral-500/20 to-green-500/20 flex items-center justify-center">
-                      <PlayCircle size={20} className="text-coral-400" />
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-white uppercase group-hover:text-coral-400 transition-colors">{drill.name}</h4>
-                    <p className="text-[10px] text-ink-muted font-bold uppercase mt-1">{drill.duration} • {drill.level}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => navigate('/drills')}
-              className="w-full mt-6 py-3 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-ink-muted hover:text-white hover:bg-white/5 transition-all"
-            >
-              View All Academy
-            </button>
-          </div>
-
-          <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6 bg-coral-500/5 border-coral-500/20">
-             <h3 className="text-sm font-black uppercase tracking-widest text-coral-400 mb-4 italic">NIL Compliance</h3>
-             <p className="text-xs text-ink-muted leading-relaxed font-medium">
-               Make sure your profile information is up to date to remain eligible for upcoming scholarship matches.
-             </p>
+      {/* ── Feed tabs ── */}
+      <motion.div
+        {...reveal}
+        transition={{ ...reveal.transition, delay: 0.1 }}
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          marginBottom: 20,
+        }}
+      >
+        <h2 style={{ ...disp, fontWeight: 900, fontSize: '1.3rem', color: '#f4f4f2', margin: 0 }}>
+          Latest Drops
+        </h2>
+        <div
+          style={{
+            display: 'flex',
+            gap: 4,
+            padding: 4,
+            borderRadius: 9999,
+            background: INK_3,
+            border: `1px solid ${LINE}`,
+          }}
+        >
+          {tabs.map(({ key, label, Icon }) => {
+            const active = feedType === key;
+            return (
               <button
-                onClick={() => navigate('/audit')}
-                className="mt-4 text-[10px] font-black uppercase tracking-widest text-coral-400 hover:text-coral-300 transition-colors"
+                key={key}
+                onClick={() => setFeedType(key)}
+                style={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  minHeight: 36,
+                  padding: '0 14px',
+                  borderRadius: 9999,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: 'transparent',
+                  color: active ? '#fff' : MUTED,
+                  fontFamily: DISP,
+                  fontWeight: 800,
+                  fontSize: '.72rem',
+                  letterSpacing: '.12em',
+                  textTransform: 'uppercase',
+                  transition: 'color .2s',
+                }}
               >
-                 Check Status →
+                {active && (
+                  <motion.span
+                    layoutId="feed-tab-pill"
+                    transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      borderRadius: 9999,
+                      background: FLAME,
+                      boxShadow: '0 4px 14px rgba(255,90,45,0.34)',
+                      zIndex: 0,
+                    }}
+                  />
+                )}
+                <Icon size={13} style={{ position: 'relative', zIndex: 1 }} />
+                <span style={{ position: 'relative', zIndex: 1 }}>{label}</span>
               </button>
+            );
+          })}
+        </div>
+      </motion.div>
+
+      {/* ── Post column ── */}
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        {isLoading && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {[1, 2, 3].map(n => (
+              <div key={n} style={{ background: '#111', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, padding: 20 }}>
+                <div style={{ display: 'flex', gap: 12, marginBottom: 14, alignItems: 'center' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
+                  <div>
+                    <div style={{ width: 120, height: 11, borderRadius: 6, background: 'rgba(255,255,255,0.07)', marginBottom: 6 }} />
+                    <div style={{ width: 60, height: 9, borderRadius: 6, background: 'rgba(255,255,255,0.04)' }} />
+                  </div>
+                </div>
+                <div style={{ width: '90%', height: 11, borderRadius: 6, background: 'rgba(255,255,255,0.06)', marginBottom: 8 }} />
+                <div style={{ width: '70%', height: 11, borderRadius: 6, background: 'rgba(255,255,255,0.04)' }} />
+              </div>
+            ))}
           </div>
-        </aside>
+        )}
+        {!isLoading && posts.map((post, i) => (
+          <PostCard
+            key={post.id}
+            post={post}
+            index={i}
+            onLike={handleLike}
+            onComment={handleComment}
+            onShare={handleShare}
+            onUserClick={handleUserClick}
+            onMenuClick={handleMenuClick}
+            onHighlightClick={handleHighlightClick}
+            onPostClick={handlePostClick}
+          />
+        ))}
+
+        {/* end-of-feed marker */}
+        <motion.div
+          {...reveal}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            margin: '8px 0 0',
+            color: MUTED_2,
+          }}
+        >
+          <span style={{ flex: 1, height: 1, background: LINE }} />
+          <span
+            style={{
+              fontFamily: DISP,
+              fontWeight: 700,
+              fontSize: '.66rem',
+              letterSpacing: '.2em',
+              textTransform: 'uppercase',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            You're all caught up
+          </span>
+          <span style={{ flex: 1, height: 1, background: LINE }} />
+        </motion.div>
       </div>
+
+      <style>{`
+        .story-rail::-webkit-scrollbar { height: 0; }
+        .story-rail { scrollbar-width: none; }
+        @media (max-width: 900px) {
+          .feed-root { padding: 20px 18px 56px; }
+        }
+        @media (max-width: 600px) {
+          .feed-root { padding: 16px 14px 48px; }
+        }
+      `}</style>
     </div>
   );
 };

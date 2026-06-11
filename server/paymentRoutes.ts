@@ -6,6 +6,7 @@ import { eq, desc, and, sql, sum } from 'drizzle-orm';
 import Stripe from 'stripe';
 import { logger } from './logger';
 import { requireAuth } from './auth';
+import { sendEmail } from './email';
 
 const router = express.Router();
 
@@ -112,6 +113,43 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req: R
         await db.update(schema.players)
           .set({ subscriptionTier: 'free' })
           .where(eq(schema.players.id, subs[0].playerId));
+      }
+      break;
+    }
+
+    case 'invoice.payment_failed': {
+      const invoice = event.data.object as Stripe.Invoice;
+      const customerId = invoice.customer as string;
+      console.log(`🔔 Webhook: Payment failed for customer: ${customerId}`);
+
+      // Look up player by stripe_customer_id
+      const paymentRow = await db.select({ playerId: schema.payments.playerId, stripeCustomerId: schema.payments.stripeCustomerId })
+        .from(schema.payments)
+        .where(eq(schema.payments.stripeCustomerId, customerId))
+        .limit(1);
+
+      if (paymentRow.length > 0) {
+        const playerId = paymentRow[0].playerId;
+        const playerRows = await db.select({ email: schema.players.email, name: schema.players.name })
+          .from(schema.players)
+          .where(eq(schema.players.id, playerId))
+          .limit(1);
+
+        if (playerRows.length > 0 && playerRows[0].email) {
+          await sendEmail({
+            to: playerRows[0].email,
+            subject: 'Action needed: payment issue with your HERS365 subscription',
+            html: `
+              <div style="font-family:sans-serif;max-width:480px;margin:0 auto;color:#111">
+                <h2 style="color:#ff5a2d">Payment Unsuccessful</h2>
+                <p>Hi ${playerRows[0].name || 'Athlete'},</p>
+                <p>We had trouble processing your latest HERS365 subscription payment. Your profile visibility may be affected.</p>
+                <p><a href="${process.env.ALLOWED_ORIGINS?.split(',')[0] || 'http://localhost:5173'}/subscription" style="background:#ff5a2d;color:#fff;padding:10px 20px;border-radius:9999px;text-decoration:none;font-weight:700">Update Payment Method</a></p>
+                <p style="color:#888;font-size:.85rem">If you've already updated your payment info, please ignore this email.</p>
+              </div>
+            `,
+          }).catch(err => console.error('Failed to send payment failed email:', err));
+        }
       }
       break;
     }
