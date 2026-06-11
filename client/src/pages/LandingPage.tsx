@@ -15,43 +15,112 @@ const MUTED_2 = '#5a5a56';
 const DISP = "'Barlow Condensed', sans-serif";
 
 const css = `
+  *,*::before,*::after{box-sizing:border-box}
+
   .lp-grain::before{content:'';position:fixed;inset:0;z-index:60;pointer-events:none;opacity:.04;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+  /* Buttons */
   .lp-btn{font-family:${DISP};font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:.92rem;
-    padding:13px 24px;border-radius:9999px;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:9px;
-    transition:transform .15s,box-shadow .2s,border-color .2s,color .2s;text-decoration:none}
+    padding:13px 26px;border-radius:9999px;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:9px;
+    transition:transform .18s cubic-bezier(.25,1,.5,1),box-shadow .22s,border-color .22s,color .22s;
+    text-decoration:none;position:relative;overflow:hidden;white-space:nowrap}
   .lp-btn-primary{background:${FLAME};color:#fff;box-shadow:0 6px 22px rgba(255,90,45,.32)}
-  .lp-btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(255,90,45,.5)}
+  .lp-btn-primary::after{content:'';position:absolute;inset:0;
+    background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.22) 50%,transparent 100%);
+    transform:translateX(-110%);transition:transform .6s cubic-bezier(.25,1,.5,1);pointer-events:none}
+  .lp-btn-primary:hover{transform:translateY(-2px) scale(1.015);box-shadow:0 14px 36px rgba(255,90,45,.54)}
+  .lp-btn-primary:hover::after{transform:translateX(110%)}
   .lp-btn-ghost{background:transparent;color:#f4f4f2;border:1px solid ${LINE_2}}
+  .lp-btn-ghost::after{content:'';position:absolute;inset:0;background:rgba(255,90,45,.06);
+    transform:scaleX(0);transform-origin:left;transition:transform .3s cubic-bezier(.25,1,.5,1);pointer-events:none}
   .lp-btn-ghost:hover{border-color:${FLAME};color:${FLAME}}
-  .lp-card{transition:transform .3s,border-color .3s}
-  .lp-card:hover{transform:translateY(-6px);border-color:rgba(255,90,45,.35)}
-  .lp-nav-link{color:${MUTED};font-weight:600;font-size:.84rem;text-decoration:none;transition:color .2s}
+  .lp-btn-ghost:hover::after{transform:scaleX(1)}
+
+  /* Nav */
+  .lp-nav-link{color:${MUTED};font-weight:600;font-size:.84rem;text-decoration:none;
+    transition:color .22s;position:relative;display:inline-block;padding-bottom:2px}
+  .lp-nav-link::after{content:'';position:absolute;bottom:-1px;left:0;width:0;height:1.5px;
+    background:${FLAME};border-radius:9999px;transition:width .35s cubic-bezier(.25,1,.5,1)}
   .lp-nav-link:hover{color:#f4f4f2}
+  .lp-nav-link:hover::after{width:100%}
+
+  /* Cards */
+  .lp-card{transition:transform .28s cubic-bezier(.25,1,.5,1),border-color .28s,box-shadow .28s}
+  .lp-card:hover{transform:translateY(-5px);border-color:rgba(255,90,45,.38);
+    box-shadow:0 24px 60px rgba(0,0,0,.5),0 0 0 1px rgba(255,90,45,.14),0 6px 28px rgba(255,90,45,.1)}
+
+  /* Clip-text hover reveal */
+  .clip-wrap{position:relative;display:inline-block}
+  .clip-fg{position:absolute;top:0;left:0;width:100%;height:100%;
+    color:${FLAME};clip-path:inset(0 100% 0 0);transition:clip-path .5s cubic-bezier(.25,1,.5,1);pointer-events:none;
+    white-space:inherit}
+  .clip-trigger{display:inline-block;cursor:default}
+  .clip-trigger:hover .clip-fg{clip-path:inset(0 0% 0 0)}
+
+  /* Pulse */
   .lp-pulse{animation:lpPulse 2s infinite}
   @keyframes lpPulse{0%{box-shadow:0 0 0 0 rgba(255,90,45,.6)}70%{box-shadow:0 0 0 9px rgba(255,90,45,0)}100%{box-shadow:0 0 0 0 rgba(255,90,45,0)}}
-  .lp-hero-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:48px;align-items:center}
+
+  /* Live badge */
+  .lp-live{display:inline-flex;align-items:center;gap:5px;font-size:.67rem;font-weight:700;
+    letter-spacing:.1em;text-transform:uppercase;color:#4ade80;padding:4px 10px;border-radius:9999px;
+    background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);font-family:${DISP}}
+  .lp-live-dot{width:6px;height:6px;border-radius:50%;background:#4ade80;animation:livePulse 2s infinite;flex-shrink:0}
+  @keyframes livePulse{0%{box-shadow:0 0 0 0 rgba(74,222,128,.6)}70%{box-shadow:0 0 0 6px rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
+
+  /* Ticker */
+  .lp-ticker{overflow:hidden;border-top:1px solid ${LINE};border-bottom:1px solid ${LINE};background:${INK_2};padding:11px 0}
+  .lp-ticker-track{display:flex;width:max-content;animation:tickerScroll 32s linear infinite}
+  .lp-ticker-track:hover{animation-play-state:paused}
+  @keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+  .lp-ticker-item{white-space:nowrap;font-family:${DISP};font-weight:700;font-size:.8rem;letter-spacing:.13em;
+    text-transform:uppercase;color:${MUTED};padding:0 28px;display:inline-flex;align-items:center;gap:14px}
+  .lp-ticker-sep{color:${MUTED_2};opacity:.45}
+
+  /* Stat band */
+  .stat-cell{transition:background .22s}
+  .stat-cell:hover{background:rgba(255,90,45,.03)}
+
+  /* Leaderboard row */
+  .lb-row{transition:background .18s}
+  .lb-row:hover{background:rgba(255,90,45,.05)}
+
+  /* Layouts */
+  .lp-hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:52px;align-items:center}
   .lp-band-grid{display:grid;grid-template-columns:repeat(4,1fr)}
   .lp-triad{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
   .lp-split{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
   @media(max-width:900px){
-    .lp-hero-grid,.lp-split{grid-template-columns:1fr;gap:40px}
+    .lp-hero-grid,.lp-split{grid-template-columns:1fr;gap:36px}
     .lp-band-grid{grid-template-columns:repeat(2,1fr)}
     .lp-triad{grid-template-columns:1fr}
     .lp-nav-links{display:none !important}
   }
+  @media(max-width:480px){
+    .lp-band-grid{grid-template-columns:1fr 1fr}
+  }
 `;
 
 const reveal = {
-  initial: { opacity: 0, y: 28 },
+  initial: { opacity: 0, y: 26 },
   whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, amount: 0.2 },
-  transition: { duration: 0.7, ease: [0.2, 0.8, 0.2, 1] as const },
+  viewport: { once: true, amount: 0.15 },
+  transition: { duration: 0.65, ease: [0.2, 0.8, 0.2, 1] as const },
 };
 
 const wrap: React.CSSProperties = { maxWidth: 1200, margin: '0 auto', padding: '0 28px' };
 const disp: React.CSSProperties = { fontFamily: DISP, textTransform: 'uppercase', lineHeight: 0.92, letterSpacing: '.01em' };
 const kicker: React.CSSProperties = { ...disp, fontWeight: 700, letterSpacing: '.2em', fontSize: '.84rem', color: FLAME, marginBottom: 16, lineHeight: 1.2 };
+
+const ClipText = ({ children }: { children: string }) => (
+  <span className="clip-trigger">
+    <span className="clip-wrap">
+      {children}
+      <span className="clip-fg" aria-hidden="true">{children}</span>
+    </span>
+  </span>
+);
 
 const heroStats = [
   { v: '4.6s', l: '40 Dash' },
@@ -76,6 +145,17 @@ const gridFeatures = [
   { h: 'Verified HERS Rating', p: 'A single, trusted score built from real performance data — not hype.' },
   { h: 'Real-time rankings', p: 'Climb position by position. Your rank moves the moment you do.' },
   { h: 'Coach-facing profiles', p: 'Film, stats and contact in one place — built for how coaches actually scout.' },
+];
+
+const tickerItems = [
+  { label: 'Sarah Watkins', meta: 'QB · #1 Nationally' },
+  { label: '380+ Coaches', meta: 'Now Scouting' },
+  { label: 'Maya Johnson', meta: 'WR · 93 HERS Rating' },
+  { label: '4,200+ Athletes', meta: 'On The Grid' },
+  { label: 'Jordan Reyes', meta: 'S · 91 HERS Rating' },
+  { label: '1,100+ Offers', meta: 'Made This Season' },
+  { label: 'Taylor Brooks', meta: 'QB · 88 HERS Rating' },
+  { label: '365 Days', meta: 'A Year Of Visibility' },
 ];
 
 interface GridRow {
@@ -141,134 +221,232 @@ export const LandingPage = () => {
       {/* NAV */}
       <nav style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 28px',
-        background: scrolled ? 'rgba(10,10,10,.82)' : 'rgba(10,10,10,.55)', backdropFilter: 'blur(14px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 28px',
+        background: scrolled ? 'rgba(10,10,10,.88)' : 'rgba(10,10,10,.5)', backdropFilter: 'blur(16px)',
         borderBottom: `1px solid ${scrolled ? LINE : 'transparent'}`, transition: 'border-color .3s, background .3s',
       }}>
-        <div style={{ ...disp, fontWeight: 900, fontSize: '1.5rem', letterSpacing: '.04em' }}>HERS<b style={{ color: FLAME }}>365</b></div>
-        <div className="lp-nav-links" style={{ display: 'flex', gap: 30, alignItems: 'center' }}>
+        <div style={{ ...disp, fontWeight: 900, fontSize: '1.5rem', letterSpacing: '.04em' }}>
+          HERS<b style={{ color: FLAME }}>365</b>
+        </div>
+        <div className="lp-nav-links" style={{ display: 'flex', gap: 32, alignItems: 'center' }}>
           <a className="lp-nav-link" href="#how">The Grid</a>
           <a className="lp-nav-link" href="#features">Features</a>
           <Link className="lp-nav-link" to="/rankings">Rankings</Link>
           <Link className="lp-nav-link" to="/coach/login">For Coaches</Link>
         </div>
-        <Link to="/auth" className="lp-btn lp-btn-primary">Get Recruited <ArrowRight size={15} /></Link>
+        <Link to="/auth" className="lp-btn lp-btn-primary" style={{ fontSize: '.85rem', padding: '11px 22px' }}>
+          Get Recruited <ArrowRight size={14} />
+        </Link>
       </nav>
 
       {/* HERO */}
-      <header style={{ position: 'relative', padding: '160px 0 90px', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', width: 620, height: 620, borderRadius: '50%', filter: 'blur(90px)', opacity: 0.5, top: -180, right: -120, background: 'radial-gradient(circle,rgba(255,90,45,.55),transparent 65%)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', width: 480, height: 480, borderRadius: '50%', filter: 'blur(90px)', opacity: 0.5, bottom: -220, left: -160, background: 'radial-gradient(circle,rgba(255,90,45,.22),transparent 65%)', pointerEvents: 'none' }} />
+      <header style={{ position: 'relative', padding: '152px 0 80px', overflow: 'hidden' }}>
+        {/* BG glows */}
+        <div style={{ position: 'absolute', width: 680, height: 680, borderRadius: '50%', filter: 'blur(100px)', opacity: 0.45, top: -200, right: -140, background: 'radial-gradient(circle,rgba(255,90,45,.5),transparent 65%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', width: 440, height: 440, borderRadius: '50%', filter: 'blur(90px)', opacity: 0.35, bottom: -200, left: -140, background: 'radial-gradient(circle,rgba(255,90,45,.22),transparent 65%)', pointerEvents: 'none' }} />
+        {/* Grid texture */}
         <div style={{
-          position: 'absolute', inset: 0, opacity: 0.5, pointerEvents: 'none',
+          position: 'absolute', inset: 0, opacity: 0.45, pointerEvents: 'none',
           backgroundImage: `linear-gradient(${LINE} 1px,transparent 1px),linear-gradient(90deg,${LINE} 1px,transparent 1px)`,
           backgroundSize: '64px 64px',
-          maskImage: 'radial-gradient(circle at 70% 20%,#000 0%,transparent 70%)',
-          WebkitMaskImage: 'radial-gradient(circle at 70% 20%,#000 0%,transparent 70%)',
+          maskImage: 'radial-gradient(ellipse 70% 80% at 80% 10%,#000 0%,transparent 80%)',
+          WebkitMaskImage: 'radial-gradient(ellipse 70% 80% at 80% 10%,#000 0%,transparent 80%)',
         }} />
+
         <div className="lp-hero-grid" style={{ ...wrap, position: 'relative' }}>
-          <div>
+          {/* LEFT */}
+          <div style={{ borderLeft: `3px solid ${FLAME}`, paddingLeft: 28 }}>
             <motion.span {...reveal} style={{
               display: 'inline-flex', alignItems: 'center', gap: 9, ...disp, fontWeight: 700, letterSpacing: '.18em',
-              fontSize: '.8rem', color: FLAME, marginBottom: 24, border: '1px solid rgba(255,90,45,.3)',
+              fontSize: '.79rem', color: FLAME, marginBottom: 22, border: '1px solid rgba(255,90,45,.28)',
               padding: '7px 14px', borderRadius: 9999, background: 'rgba(255,90,45,.06)', lineHeight: 1.2,
             }}>
-              <span className="lp-pulse" style={{ width: 7, height: 7, borderRadius: '50%', background: FLAME }} />
+              <span className="lp-pulse" style={{ width: 7, height: 7, borderRadius: '50%', background: FLAME, flexShrink: 0 }} />
               Girls Flag Football · Class of 2026
             </motion.span>
-            <motion.h1 {...reveal} transition={{ ...reveal.transition, delay: 0.08 }} style={{ ...disp, fontWeight: 900, fontSize: 'clamp(3.4rem,8vw,6.6rem)', lineHeight: 0.86, margin: 0 }}>
-              Get Seen.<br />Get Ranked.<br />Get <em style={{ color: FLAME }}>Recruited.</em>
+
+            <motion.h1
+              {...reveal}
+              transition={{ ...reveal.transition, delay: 0.08 }}
+              style={{ ...disp, fontWeight: 900, fontSize: 'clamp(3.8rem,9vw,7.4rem)', lineHeight: 0.88, margin: 0 }}
+            >
+              Get Seen.<br />
+              Get Ranked.<br />
+              Get <em style={{ color: FLAME, fontStyle: 'normal' }}>Recruited.</em>
             </motion.h1>
-            <motion.p {...reveal} transition={{ ...reveal.transition, delay: 0.16 }} style={{ color: MUTED, fontSize: '1.18rem', maxWidth: 480, margin: '28px 0 36px' }}>
+
+            <motion.p
+              {...reveal}
+              transition={{ ...reveal.transition, delay: 0.16 }}
+              style={{ color: MUTED, fontSize: '1.1rem', maxWidth: 460, margin: '24px 0 0', lineHeight: 1.65 }}
+            >
               The recruiting platform built for girls flag football. Post your film, climb the rankings, and put your game in front of every coach that matters — 365 days a year.
             </motion.p>
-            <motion.div {...reveal} transition={{ ...reveal.transition, delay: 0.24 }} style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-              <Link to="/auth" className="lp-btn lp-btn-primary">Claim Your Profile</Link>
-              <a href="#how" className="lp-btn lp-btn-ghost"><Play size={14} /> See How It Works</a>
-            </motion.div>
-            <motion.div {...reveal} transition={{ ...reveal.transition, delay: 0.32 }} style={{ marginTop: 30, display: 'flex', alignItems: 'center', gap: 14, color: MUTED_2, fontSize: '.86rem' }}>
+
+            {/* Social proof */}
+            <motion.div {...reveal} transition={{ ...reveal.transition, delay: 0.2 }} style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 12, color: MUTED_2, fontSize: '.85rem' }}>
               <div style={{ display: 'flex' }}>
                 {[44, 68, 12, 90].map((n, i) => (
                   <span key={n} style={{
-                    width: 34, height: 34, borderRadius: '50%', border: `2px solid ${INK}`, marginLeft: i ? -10 : 0,
-                    backgroundImage: `url('https://randomuser.me/api/portraits/women/${n}.jpg')`, backgroundSize: 'cover', backgroundPosition: 'center',
+                    width: 32, height: 32, borderRadius: '50%', border: `2px solid ${INK}`, marginLeft: i ? -9 : 0,
+                    backgroundImage: `url('https://randomuser.me/api/portraits/women/${n}.jpg')`,
+                    backgroundSize: 'cover', backgroundPosition: 'center', display: 'inline-block', flexShrink: 0,
                   }} />
                 ))}
               </div>
               <span>Join <b style={{ color: '#f4f4f2' }}>4,200+</b> athletes already on the grid</span>
             </motion.div>
+
+            <motion.div {...reveal} transition={{ ...reveal.transition, delay: 0.28 }} style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginTop: 26 }}>
+              <Link to="/auth" className="lp-btn lp-btn-primary">Claim Your Profile <ArrowRight size={15} /></Link>
+              <a href="#how" className="lp-btn lp-btn-ghost"><Play size={14} fill="currentColor" /> See How It Works</a>
+            </motion.div>
           </div>
 
-          <motion.div {...reveal} transition={{ ...reveal.transition, delay: 0.2 }} style={{
-            position: 'relative', background: `linear-gradient(160deg,${INK_3},${INK_2})`,
-            border: `1px solid ${LINE}`, borderRadius: 22, padding: 24, boxShadow: '0 30px 80px rgba(0,0,0,.6)',
-          }}>
+          {/* RIGHT: Profile card */}
+          <motion.div
+            {...reveal}
+            transition={{ ...reveal.transition, delay: 0.18 }}
+            style={{
+              position: 'relative',
+              background: `linear-gradient(160deg,${INK_3},${INK_2})`,
+              border: `1px solid ${LINE_2}`,
+              borderRadius: 22,
+              padding: 24,
+              boxShadow: '0 32px 84px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.03)',
+            }}
+          >
+            {/* Top 5% badge */}
             <div style={{
-              position: 'absolute', top: -14, right: 24, background: FLAME, color: '#fff', ...disp, fontWeight: 800,
-              fontSize: '.74rem', letterSpacing: '.1em', padding: '6px 13px', borderRadius: 9999, boxShadow: '0 8px 20px rgba(255,90,45,.4)', lineHeight: 1.2,
+              position: 'absolute', top: -14, right: 22,
+              background: FLAME, color: '#fff', ...disp, fontWeight: 800,
+              fontSize: '.73rem', letterSpacing: '.1em', padding: '5px 13px', borderRadius: 9999,
+              boxShadow: '0 8px 22px rgba(255,90,45,.45)', lineHeight: 1.2,
             }}>Top 5%</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+
+            {/* Header row */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
               <div>
-                <div style={{ ...disp, fontWeight: 800, fontSize: '1.35rem', letterSpacing: '.02em' }}>Sarah Watkins</div>
-                <div style={{ color: MUTED, fontSize: '.8rem', fontWeight: 600 }}>QB · Class of 2026</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
+                  <div style={{ ...disp, fontWeight: 800, fontSize: '1.3rem', letterSpacing: '.02em' }}>Sarah Watkins</div>
+                  <span className="lp-live"><span className="lp-live-dot" />Live</span>
+                </div>
+                <div style={{ color: MUTED, fontSize: '.79rem', fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', fontFamily: DISP }}>QB · Class of 2026</div>
               </div>
-              <div style={{ ...disp, fontWeight: 900, fontSize: '2.6rem', color: FLAME, lineHeight: 1, textAlign: 'right' }}>
-                95
-                <small style={{ display: 'block', fontSize: '.62rem', letterSpacing: '.16em', color: MUTED_2, fontWeight: 700 }}>HERS RATING</small>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ ...disp, fontWeight: 900, fontSize: '2.8rem', color: FLAME, lineHeight: 1 }}>95</div>
+                <div style={{ fontSize: '.6rem', letterSpacing: '.14em', color: MUTED_2, fontWeight: 700, fontFamily: DISP, textTransform: 'uppercase', marginTop: 2 }}>HERS Rating</div>
               </div>
             </div>
+
+            {/* Stat chips */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 18 }}>
               {heroStats.map(s => (
-                <div key={s.l} style={{ background: 'rgba(255,255,255,.03)', border: `1px solid ${LINE}`, borderRadius: 12, padding: '13px 12px' }}>
+                <div
+                  key={s.l}
+                  style={{
+                    background: 'rgba(255,255,255,.03)', border: `1px solid ${LINE}`,
+                    borderRadius: 12, padding: '12px 10px',
+                    transition: 'border-color .22s, background .22s',
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,90,45,.28)';
+                    (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,90,45,.04)';
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLDivElement).style.borderColor = LINE;
+                    (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,.03)';
+                  }}
+                >
                   <div style={{ ...disp, fontWeight: 800, fontSize: '1.5rem' }}>{s.v}</div>
-                  <div style={{ fontSize: '.64rem', letterSpacing: '.1em', color: MUTED_2, textTransform: 'uppercase', fontWeight: 700, marginTop: 2 }}>{s.l}</div>
+                  <div style={{ fontSize: '.63rem', letterSpacing: '.1em', color: MUTED_2, textTransform: 'uppercase', fontWeight: 700, marginTop: 2, fontFamily: DISP }}>{s.l}</div>
                 </div>
               ))}
             </div>
-            <div style={{ height: 8, borderRadius: 9999, background: 'rgba(255,255,255,.06)', overflow: 'hidden', marginBottom: 8 }}>
-              <i style={{ display: 'block', height: '100%', borderRadius: 9999, background: `linear-gradient(90deg,${FLAME},${FLAME_SOFT})`, width: barWidth, transition: 'width 1.4s cubic-bezier(.2,.8,.2,1)' }} />
+
+            {/* Visibility bar */}
+            <div style={{ height: 7, borderRadius: 9999, background: 'rgba(255,255,255,.06)', overflow: 'hidden', marginBottom: 7 }}>
+              <i style={{
+                display: 'block', height: '100%', borderRadius: 9999,
+                background: `linear-gradient(90deg,${FLAME},${FLAME_SOFT})`,
+                width: barWidth, transition: 'width 1.4s cubic-bezier(.2,.8,.2,1)',
+              }} />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.74rem', color: MUTED, fontWeight: 600 }}>
-              <span>Recruiting Visibility</span><span style={{ color: FLAME }}>92%</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.73rem', color: MUTED, fontWeight: 600 }}>
+              <span>Recruiting Visibility</span><span style={{ color: FLAME, fontWeight: 700 }}>92%</span>
+            </div>
+
+            {/* Footer row */}
+            <div style={{ borderTop: `1px solid ${LINE}`, marginTop: 18, paddingTop: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: '.74rem', color: MUTED_2 }}>
+                <span style={{ color: '#4ade80', marginRight: 4 }}>▲ 3</span> positions this week
+              </div>
+              <div style={{ fontSize: '.74rem', color: MUTED_2 }}>
+                <b style={{ color: '#f4f4f2' }}>14</b> coach views today
+              </div>
             </div>
           </motion.div>
         </div>
       </header>
 
+      {/* LIVE TICKER */}
+      <div className="lp-ticker">
+        <div className="lp-ticker-track">
+          {[...tickerItems, ...tickerItems].map((item, i) => (
+            <span key={i} className="lp-ticker-item">
+              <b style={{ color: FLAME }}>{item.label}</b>
+              <span style={{ color: MUTED_2 }}>·</span>
+              {item.meta}
+              <span className="lp-ticker-sep">◆</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
       {/* STAT BAND */}
       <div style={{ borderTop: `1px solid ${LINE}`, borderBottom: `1px solid ${LINE}`, background: INK_2 }}>
         <div className="lp-band-grid" style={wrap}>
           {bandStats.map((s, i) => (
-            <motion.div key={s.c} {...reveal} transition={{ ...reveal.transition, delay: i * 0.08 }} style={{ padding: '38px 24px', textAlign: 'center', borderRight: i < 3 ? `1px solid ${LINE}` : 'none' }}>
-              <div style={{ ...disp, fontWeight: 900, fontSize: '3.1rem', lineHeight: 1 }}>
+            <motion.div
+              key={s.c}
+              {...reveal}
+              transition={{ ...reveal.transition, delay: i * 0.08 }}
+              className="stat-cell"
+              style={{ padding: '36px 24px', textAlign: 'center', borderRight: i < 3 ? `1px solid ${LINE}` : 'none' }}
+            >
+              <div style={{ ...disp, fontWeight: 900, fontSize: '3.2rem', lineHeight: 1 }}>
                 <span style={{ color: FLAME }}>{s.n}</span>{s.suffix}
               </div>
-              <div style={{ fontSize: '.78rem', letterSpacing: '.14em', textTransform: 'uppercase', color: MUTED, fontWeight: 600, marginTop: 8 }}>{s.c}</div>
+              <div style={{ fontSize: '.77rem', letterSpacing: '.14em', textTransform: 'uppercase', color: MUTED, fontWeight: 600, marginTop: 8, fontFamily: DISP }}>{s.c}</div>
             </motion.div>
           ))}
         </div>
       </div>
 
       {/* TRIAD */}
-      <section id="how" style={{ padding: '110px 0' }}>
+      <section id="how" style={{ padding: '100px 0' }}>
         <div style={wrap}>
-          <motion.div {...reveal} style={{ maxWidth: 640, marginBottom: 60 }}>
+          <motion.div {...reveal} style={{ maxWidth: 600, marginBottom: 52 }}>
             <div style={kicker}>Three Ways To Win</div>
-            <h2 style={{ ...disp, fontWeight: 900, fontSize: 'clamp(2.4rem,5vw,4rem)', margin: 0 }}>Your highlight reel<br />shouldn't sit in a folder.</h2>
-            <p style={{ color: MUTED, fontSize: '1.1rem', marginTop: 20 }}>Stop hoping a coach finds your film. HERS 365 turns every rep into ranking — and every ranking into a reason to get recruited.</p>
+            <h2 style={{ ...disp, fontWeight: 900, fontSize: 'clamp(2.4rem,5vw,4rem)', margin: 0 }}>
+              Your highlight reel<br />shouldn't sit in a folder.
+            </h2>
+            <p style={{ color: MUTED, fontSize: '1.08rem', marginTop: 18 }}>Stop hoping a coach finds your film. HERS 365 turns every rep into ranking — and every ranking into a reason to get recruited.</p>
           </motion.div>
           <div className="lp-triad">
             {triad.map((c, i) => (
               <motion.div key={c.title} {...reveal} transition={{ ...reveal.transition, delay: i * 0.1 }} className="lp-card" style={{
-                position: 'relative', background: INK_2, border: `1px solid ${LINE}`, borderRadius: 20, padding: 32, overflow: 'hidden',
+                position: 'relative', background: INK_2, border: `1px solid ${LINE}`, borderRadius: 20, padding: 30, overflow: 'hidden',
               }}>
                 <div style={{
-                  width: 52, height: 52, borderRadius: 14, background: 'rgba(255,90,45,.12)', border: '1px solid rgba(255,90,45,.25)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 22, color: FLAME,
-                }}><c.icon size={24} /></div>
-                <h3 style={{ ...disp, fontWeight: 800, fontSize: '1.6rem', letterSpacing: '.01em', marginBottom: 12 }}>{c.title}</h3>
-                <p style={{ color: MUTED, fontSize: '1rem', margin: 0 }}>{c.body}</p>
-                <div style={{ position: 'absolute', bottom: 18, right: 24, ...disp, fontWeight: 900, fontSize: '3.4rem', color: 'rgba(255,255,255,.04)' }}>0{i + 1}</div>
+                  width: 50, height: 50, borderRadius: 13, background: 'rgba(255,90,45,.1)', border: '1px solid rgba(255,90,45,.22)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20, color: FLAME,
+                }}><c.icon size={22} /></div>
+                <h3 style={{ ...disp, fontWeight: 800, fontSize: '1.55rem', letterSpacing: '.01em', marginBottom: 10 }}>
+                  <ClipText>{c.title}</ClipText>
+                </h3>
+                <p style={{ color: MUTED, fontSize: '.98rem', margin: 0, lineHeight: 1.65 }}>{c.body}</p>
+                <div style={{ position: 'absolute', bottom: 16, right: 22, ...disp, fontWeight: 900, fontSize: '3.6rem', color: 'rgba(255,255,255,.04)', lineHeight: 1, userSelect: 'none' }}>0{i + 1}</div>
               </motion.div>
             ))}
           </div>
@@ -276,46 +454,57 @@ export const LandingPage = () => {
       </section>
 
       {/* SPLIT FEATURE */}
-      <section id="features" style={{ padding: '110px 0', background: INK_2, borderTop: `1px solid ${LINE}`, borderBottom: `1px solid ${LINE}` }}>
+      <section id="features" style={{ padding: '100px 0', background: INK_2, borderTop: `1px solid ${LINE}`, borderBottom: `1px solid ${LINE}` }}>
         <div className="lp-split" style={wrap}>
           <motion.div {...reveal}>
             <div style={kicker}>The Grid</div>
             <h2 style={{ ...disp, fontWeight: 900, fontSize: 'clamp(2.4rem,5vw,4rem)', margin: 0 }}>Every athlete.<br />One leaderboard.</h2>
-            <p style={{ color: MUTED, fontSize: '1.1rem', marginTop: 20 }}>A living ranking of girls flag football talent — updated daily, visible to every coach, impossible to ignore.</p>
-            <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <p style={{ color: MUTED, fontSize: '1.08rem', marginTop: 18 }}>A living ranking of girls flag football talent — updated daily, visible to every coach, impossible to ignore.</p>
+            <div style={{ marginTop: 30, display: 'flex', flexDirection: 'column', gap: 16 }}>
               {gridFeatures.map(f => (
                 <div key={f.h} style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
                   <div style={{
-                    flexShrink: 0, width: 26, height: 26, borderRadius: '50%', background: 'rgba(255,90,45,.12)',
-                    border: '1px solid rgba(255,90,45,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: FLAME, marginTop: 3,
-                  }}><Check size={13} strokeWidth={3} /></div>
+                    flexShrink: 0, width: 26, height: 26, borderRadius: '50%', background: 'rgba(255,90,45,.1)',
+                    border: '1px solid rgba(255,90,45,.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: FLAME, marginTop: 3,
+                  }}><Check size={12} strokeWidth={3} /></div>
                   <div>
-                    <h4 style={{ ...disp, fontWeight: 800, fontSize: '1.15rem', letterSpacing: '.02em', margin: 0 }}>{f.h}</h4>
-                    <p style={{ color: MUTED, fontSize: '.96rem', margin: 0 }}>{f.p}</p>
+                    <h4 style={{ ...disp, fontWeight: 800, fontSize: '1.14rem', letterSpacing: '.02em', margin: 0 }}>
+                      <ClipText>{f.h}</ClipText>
+                    </h4>
+                    <p style={{ color: MUTED, fontSize: '.95rem', margin: 0, lineHeight: 1.6 }}>{f.p}</p>
                   </div>
                 </div>
               ))}
             </div>
           </motion.div>
+
           <motion.div {...reveal} transition={{ ...reveal.transition, delay: 0.12 }} style={{
-            background: `linear-gradient(160deg,${INK_3},${INK})`, border: `1px solid ${LINE_2}`, borderRadius: 30, padding: 18, boxShadow: '0 40px 90px rgba(0,0,0,.6)',
+            background: `linear-gradient(160deg,${INK_3},${INK})`, border: `1px solid ${LINE_2}`, borderRadius: 28,
+            padding: 16, boxShadow: '0 40px 90px rgba(0,0,0,.6)',
           }}>
-            <div style={{ background: INK, borderRadius: 20, border: `1px solid ${LINE}`, overflow: 'hidden' }}>
-              <div style={{ padding: '18px 18px 12px', borderBottom: `1px solid ${LINE}` }}>
-                <div style={{ ...disp, fontWeight: 900, fontSize: '1.3rem', letterSpacing: '.04em' }}>THE <b style={{ color: FLAME }}>GRID</b> · TOP RATED</div>
+            <div style={{ background: INK, borderRadius: 18, border: `1px solid ${LINE}`, overflow: 'hidden' }}>
+              <div style={{ padding: '15px 18px 11px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ ...disp, fontWeight: 900, fontSize: '1.28rem', letterSpacing: '.04em' }}>THE <b style={{ color: FLAME }}>GRID</b> · TOP RATED</div>
+                <span className="lp-live"><span className="lp-live-dot" />Live</span>
               </div>
               {leaderboard.map((r, i) => (
-                <div key={r.name} style={{ display: 'flex', gap: 12, padding: '16px 18px', borderBottom: i < leaderboard.length - 1 ? `1px solid ${LINE}` : 'none', alignItems: 'center' }}>
+                <div key={r.name} className="lb-row" style={{
+                  display: 'flex', gap: 12, padding: '14px 18px',
+                  borderBottom: i < leaderboard.length - 1 ? `1px solid ${LINE}` : 'none',
+                  alignItems: 'center',
+                }}>
+                  <div style={{ width: 16, ...disp, fontWeight: 900, fontSize: '.8rem', color: MUTED_2, flexShrink: 0 }}>{i + 1}</div>
                   <div style={{
-                    width: 40, height: 40, borderRadius: '50%', flexShrink: 0, background: r.av,
+                    width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: r.av,
                     backgroundImage: r.avatarUrl ? `url('${r.avatarUrl}')` : undefined, backgroundSize: 'cover', backgroundPosition: 'center',
+                    border: i === 0 ? `2px solid ${FLAME}` : `2px solid ${LINE}`,
                   }} />
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '.9rem' }}>{r.name}</div>
-                    <div style={{ color: MUTED_2, fontSize: '.76rem' }}>{r.meta}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: '.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
+                    <div style={{ color: MUTED_2, fontSize: '.73rem' }}>{r.meta}</div>
                   </div>
-                  <div style={{ marginLeft: 'auto', ...disp, fontWeight: 900, fontSize: '1.3rem', color: FLAME }}>
-                    {r.up && <span style={{ fontSize: '.6rem', color: FLAME_SOFT }}>▲ </span>}{r.rank}
+                  <div style={{ marginLeft: 'auto', ...disp, fontWeight: 900, fontSize: '1.28rem', color: i === 0 ? FLAME : '#f4f4f2', flexShrink: 0 }}>
+                    {r.up && <span style={{ fontSize: '.58rem', color: '#4ade80', marginRight: 2 }}>▲</span>}{r.rank}
                   </div>
                 </div>
               ))}
@@ -325,29 +514,33 @@ export const LandingPage = () => {
       </section>
 
       {/* CTA */}
-      <section id="join" style={{ padding: '110px 0' }}>
+      <section id="join" style={{ padding: '100px 0' }}>
         <div style={wrap}>
           <motion.div {...reveal} style={{
-            position: 'relative', borderRadius: 28, overflow: 'hidden', background: 'linear-gradient(135deg,#1a0f0a,#0a0a0a)',
-            border: '1px solid rgba(255,90,45,.25)', padding: '80px 40px', textAlign: 'center',
+            position: 'relative', borderRadius: 26, overflow: 'hidden',
+            background: 'linear-gradient(135deg,#1a0f0a,#0a0a0a)',
+            border: '1px solid rgba(255,90,45,.22)', padding: '76px 40px', textAlign: 'center',
           }}>
-            <div style={{ position: 'absolute', width: 620, height: 620, borderRadius: '50%', filter: 'blur(90px)', opacity: 0.6, top: -260, right: '30%', background: 'radial-gradient(circle,rgba(255,90,45,.55),transparent 65%)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', width: 640, height: 640, borderRadius: '50%', filter: 'blur(96px)', opacity: 0.55, top: -260, right: '25%', background: 'radial-gradient(circle,rgba(255,90,45,.5),transparent 65%)', pointerEvents: 'none' }} />
             <div style={{ ...kicker, position: 'relative' }}>Finally — recruiting built for her</div>
-            <h2 style={{ ...disp, fontWeight: 900, fontSize: 'clamp(2.4rem,5vw,4rem)', margin: 0, position: 'relative' }}>Your tape is ready.<br />Are the coaches?</h2>
-            <p style={{ position: 'relative', color: MUTED, fontSize: '1.15rem', maxWidth: 520, margin: '20px auto 36px' }}>
+            <h2 style={{ ...disp, fontWeight: 900, fontSize: 'clamp(2.4rem,5vw,4rem)', margin: 0, position: 'relative' }}>
+              <ClipText>Your tape is ready.</ClipText><br />
+              <ClipText>Are the coaches?</ClipText>
+            </h2>
+            <p style={{ position: 'relative', color: MUTED, fontSize: '1.1rem', maxWidth: 500, margin: '18px auto 34px', lineHeight: 1.65 }}>
               Claim your profile and put your film in front of the coaches who are already scouting the grid. Free to start. Built for the class of 2026 and beyond.
             </p>
             <div style={{ position: 'relative', display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button className="lp-btn lp-btn-primary" onClick={() => navigate('/auth')}>Claim Your Profile <ArrowRight size={15} /></button>
               <button className="lp-btn lp-btn-ghost" onClick={() => navigate('/coach/login')}>I'm A Coach</button>
             </div>
-            <div style={{ position: 'relative', marginTop: 18, color: MUTED_2, fontSize: '.84rem' }}>No spam. No pressure. Just your shot in front of the right coaches.</div>
+            <div style={{ position: 'relative', marginTop: 16, color: MUTED_2, fontSize: '.82rem' }}>No spam. No pressure. Just your shot in front of the right coaches.</div>
           </motion.div>
         </div>
       </section>
 
       {/* FOOTER */}
-      <footer style={{ borderTop: `1px solid ${LINE}`, padding: '48px 0 38px' }}>
+      <footer style={{ borderTop: `1px solid ${LINE}`, padding: '44px 0 36px' }}>
         <div style={{ ...wrap, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 20 }}>
           <div style={{ ...disp, fontWeight: 900, fontSize: '1.5rem', letterSpacing: '.04em' }}>HERS<b style={{ color: FLAME }}>365</b></div>
           <div style={{ display: 'flex', gap: 26 }}>
@@ -356,7 +549,7 @@ export const LandingPage = () => {
             <Link className="lp-nav-link" to="/about">About</Link>
             <Link className="lp-nav-link" to="/privacy">Privacy</Link>
           </div>
-          <div style={{ color: MUTED_2, fontSize: '.82rem' }}>© 2026 HERS 365 · Girls Flag Football Recruiting</div>
+          <div style={{ color: MUTED_2, fontSize: '.8rem' }}>© 2026 HERS 365 · Girls Flag Football Recruiting</div>
         </div>
       </footer>
     </div>
