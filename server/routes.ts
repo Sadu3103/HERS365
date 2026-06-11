@@ -15,6 +15,14 @@ function stripPlayer(p: any) {
   return rest;
 }
 
+// Public projection — contact info of a minor never leaves list/detail endpoints.
+// stripPlayer (own-profile) keeps email; this one doesn't.
+function publicPlayer(p: any) {
+  if (!p) return p;
+  const { passwordHash, email, zipCode, ...rest } = p;
+  return rest;
+}
+
 // SUBSCRIPTION PLANS
 router.get('/subscription-plans', async (req: Request, res: Response) => {
   try {
@@ -118,7 +126,7 @@ router.put('/profile', requireAuth, async (req: AuthenticatedRequest, res: Respo
 router.get('/players', async (req: Request, res: Response) => {
   try {
     const allPlayers = await db.select().from(schema.players);
-    res.json(allPlayers.map(stripPlayer));
+    res.json(allPlayers.map(publicPlayer));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -129,7 +137,7 @@ router.get('/players/:id', async (req: Request, res: Response) => {
     const pId = parseInt(req.params.id);
     if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
     const player = await db.select().from(schema.players).where(eq(schema.players.id, pId));
-    res.json(stripPlayer(player[0]) || null);
+    res.json(publicPlayer(player[0]) || null);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
