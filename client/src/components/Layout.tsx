@@ -1,12 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutGrid, Trophy, User, Dumbbell, Search,
-  Settings, Bell, MessageSquare, Menu, Plus
+  Settings, MessageSquare, Menu, Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { MobileNav } from './MobileNav';
+import { NotificationBell } from './NotificationBell';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/api';
 
@@ -29,9 +30,7 @@ export const Layout = () => {
   const location  = useLocation();
   const navigate  = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [notifOpen,  setNotifOpen]  = useState(false);
   const [mode,       setMode]       = useState<'athlete' | 'coach'>('athlete');
-  const notifRef = useRef<HTMLDivElement>(null);
 
   const { user } = useAuth();
 
@@ -51,20 +50,9 @@ export const Layout = () => {
   const unreadMessages = unread?.data?.totalUnread ?? 0;
   const p = profile?.data ?? {};
 
-  useEffect(() => {
-    const h = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
-    };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
 
-  const notifications = [
-    { id: 1, msg: 'Coach Johnson viewed your profile',  time: '2m ago',  unread: true  },
-    { id: 2, msg: 'Agility session starts in 30 minutes', time: '15m ago', unread: true  },
-    { id: 3, msg: 'You moved up to #42 in rankings',   time: '1h ago',  unread: false },
-  ];
-  const unreadCount = notifications.filter(n => n.unread).length;
+
+
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#0a0a0a', color: '#fff', overflow: 'hidden' }}>
@@ -262,56 +250,7 @@ export const Layout = () => {
           </div>
 
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            {/* Notifications */}
-            <div style={{ position: 'relative' }} ref={notifRef}>
-              <button onClick={() => setNotifOpen(!notifOpen)} className="k-icon-btn">
-                <Bell size={18} />
-                {unreadCount > 0 && (
-                  <span style={{
-                    position: 'absolute', top: 6, right: 6,
-                    width: 7, height: 7, borderRadius: '50%',
-                    background: '#ff5a2d',
-                  }} />
-                )}
-              </button>
-
-              <AnimatePresence>
-                {notifOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8, scale: 0.96 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.96 }}
-                    style={{
-                      position: 'absolute', top: '100%', right: 0, marginTop: 8,
-                      width: 300, background: '#111',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      borderRadius: 12, boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
-                      zIndex: 100,
-                    }}
-                  >
-                    <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#555' }}>Notifications</span>
-                    </div>
-                    {notifications.map(n => (
-                      <div key={n.id} style={{
-                        padding: '12px 16px',
-                        borderBottom: '1px solid rgba(255,255,255,0.04)',
-                        display: 'flex', gap: 10, alignItems: 'flex-start',
-                      }}>
-                        <div style={{
-                          width: 6, height: 6, borderRadius: '50%', marginTop: 5, flexShrink: 0,
-                          background: n.unread ? '#ff5a2d' : '#333',
-                        }} />
-                        <div>
-                          <div style={{ fontSize: '0.82rem', color: '#ddd' }}>{n.msg}</div>
-                          <div style={{ fontSize: '0.7rem', color: '#555', marginTop: 3 }}>{n.time}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            <NotificationBell />
 
             {/* POST HIGHLIGHT — full pill */}
             <button
