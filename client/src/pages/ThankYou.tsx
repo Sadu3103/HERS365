@@ -1,13 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Check, ArrowRight, Star } from 'lucide-react';
 
 const FLAME = '#ff5a2d';
-const FLAME_SOFT = '#ff8c66';
 const INK = '#0a0a0a';
 const INK_2 = '#111111';
-const INK_3 = '#161616';
 const LINE = 'rgba(255,255,255,0.07)';
 const MUTED = '#8a8a86';
 const MUTED_2 = '#5a5a56';
@@ -22,25 +20,21 @@ const PLAN_PERKS: Record<string, string[]> = {
 export const ThankYou = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
+  const [onboardingComplete] = useState<boolean>(() => {
+    try {
+      const raw = localStorage.getItem('user');
+      if (!raw) return false;
+      const user = JSON.parse(raw);
+      return Boolean(user.position && (user.graduationYear || user.gradYear));
+    } catch {
+      return false;
+    }
+  });
 
   const planName = params.get('plan') || 'Pro';
   const amountRaw = params.get('amount');
   const interval = params.get('interval') || 'month';
   const amountDollars = amountRaw ? (parseInt(amountRaw, 10) / 100).toFixed(2) : null;
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('user');
-      if (!raw) { setOnboardingComplete(false); return; }
-      const user = JSON.parse(raw);
-      // Onboarding is considered complete if position and gradYear are set
-      const complete = Boolean(user.position && (user.graduationYear || user.gradYear));
-      setOnboardingComplete(complete);
-    } catch {
-      setOnboardingComplete(false);
-    }
-  }, []);
 
   const perks = PLAN_PERKS[planName] || PLAN_PERKS['Pro'];
   const isFree = !amountRaw || parseInt(amountRaw, 10) === 0;

@@ -6,7 +6,6 @@ import { Search, SlidersHorizontal, X, ArrowUpRight, Flame } from 'lucide-react'
 const FLAME = '#ff5a2d';
 const INK = '#0a0a0a';
 const INK_2 = '#111111';
-const INK_3 = '#161616';
 const LINE = 'rgba(255,255,255,0.07)';
 const LINE_2 = 'rgba(255,255,255,0.12)';
 const MUTED = '#8a8a86';

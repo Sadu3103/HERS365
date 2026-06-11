@@ -6,14 +6,11 @@ import { Shield, Eye, MessageSquare, Bell, UserCheck, Lock, ChevronRight, CheckC
 const FLAME = '#ff5a2d';
 const INK = '#0a0a0a';
 const INK_2 = '#111111';
-const INK_3 = '#161616';
 const LINE = 'rgba(255,255,255,0.07)';
-const LINE_2 = 'rgba(255,255,255,0.12)';
 const MUTED = '#8a8a86';
 const MUTED_2 = '#5a5a56';
 const DISP = "'Barlow Condensed', sans-serif";
 const GREEN = '#4ade80';
-const AMBER = '#fbbf24';
 
 const css = `
   *,*::before,*::after{box-sizing:border-box}

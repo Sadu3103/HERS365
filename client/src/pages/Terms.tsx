@@ -136,7 +136,7 @@ export const Terms = () => (
 
       {/* Sections */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-        {sections.map((s, i) => (
+        {sections.map((s) => (
           <div
             key={s.title}
             style={{
