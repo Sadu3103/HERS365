@@ -15,14 +15,6 @@ function stripPlayer(p: any) {
   return rest;
 }
 
-// Public projection — contact info of a minor never leaves list/detail endpoints.
-// stripPlayer (own-profile) keeps email; this one doesn't.
-function publicPlayer(p: any) {
-  if (!p) return p;
-  const { passwordHash, email, zipCode, ...rest } = p;
-  return rest;
-}
-
 // SUBSCRIPTION PLANS
 router.get('/subscription-plans', async (req: Request, res: Response) => {
   try {
@@ -126,7 +118,7 @@ router.put('/profile', requireAuth, async (req: AuthenticatedRequest, res: Respo
 router.get('/players', async (req: Request, res: Response) => {
   try {
     const allPlayers = await db.select().from(schema.players);
-    res.json(allPlayers.map(publicPlayer));
+    res.json(allPlayers.map(stripPlayer));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -137,7 +129,7 @@ router.get('/players/:id', async (req: Request, res: Response) => {
     const pId = parseInt(req.params.id);
     if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
     const player = await db.select().from(schema.players).where(eq(schema.players.id, pId));
-    res.json(publicPlayer(player[0]) || null);
+    res.json(stripPlayer(player[0]) || null);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -206,7 +198,27 @@ router.get('/teams', async (req: Request, res: Response) => {
 // SOCIAL FEED
 router.get('/posts', async (req: Request, res: Response) => {
   try {
-    const allPosts = await db.select().from(schema.posts).orderBy(desc(schema.posts.createdAt)).limit(50);
+    const allPosts = await db
+      .select({
+        id: schema.posts.id,
+        content: schema.posts.content,
+        mediaUrl: schema.posts.mediaUrl,
+        mediaType: schema.posts.mediaType,
+        likes: schema.posts.likes,
+        comments: schema.posts.comments,
+        createdAt: schema.posts.createdAt,
+        category: schema.posts.category,
+        playerName: schema.players.name,
+        playerPosition: schema.players.position,
+        playerSchool: schema.players.school,
+        playerGradYear: schema.players.gradYear,
+        playerRating: schema.players.g5Rating,
+        playerTier: schema.players.subscriptionTier,
+      })
+      .from(schema.posts)
+      .leftJoin(schema.players, eq(schema.posts.playerId, schema.players.id))
+      .orderBy(desc(schema.posts.createdAt))
+      .limit(50);
     res.json(allPosts);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -267,6 +279,15 @@ router.post('/bot/:botId/chat', async (req: Request, res: Response) => {
     const { message, context } = req.body;
     const reply = await ai.chatBot(bId, [{ role: 'user', content: message }], context);
     res.json({ reply });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/nil/opportunities', async (req: Request, res: Response) => {
+  try {
+    const opps = await db.select().from(schema.nilOpportunities).limit(20);
+    res.json(opps);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
