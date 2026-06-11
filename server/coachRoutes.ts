@@ -9,6 +9,7 @@ import * as schema from './schema';
 import { eq, ilike, and, desc, sql } from 'drizzle-orm';
 import { requireCoach } from './auth';
 import { generatePredictiveAnalytics, AthleteData } from './rankingAlgorithm';
+import { hasParentApprovedLink } from './api/messages';
 
 const router = express.Router();
 
@@ -340,6 +341,10 @@ router.post('/message/:playerId', async (req, res) => {
     const { message } = req.body;
     const coachId = req.user.userId;
     const playerId = parseInt(req.params.playerId);
+
+    if (!(await hasParentApprovedLink(playerId, coachId))) {
+      return res.status(403).json({ success: false, error: 'Messaging requires a parent-approved contact request' });
+    }
 
     const newMessage = await db.insert(schema.messages).values({
       coachId,

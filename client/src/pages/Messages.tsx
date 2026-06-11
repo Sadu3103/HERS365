@@ -230,7 +230,7 @@ export const Messages = () => {
         ) : (
           <>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', fontWeight: 700 }}>
-              {activeConv?.partnerName ?? activePartnerName || 'Conversation'}
+              {(activeConv?.partnerName ?? activePartnerName) || 'Conversation'}
             </div>
             <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {thread.map((m) => (

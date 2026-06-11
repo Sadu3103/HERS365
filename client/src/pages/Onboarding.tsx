@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Target, GraduationCap, Trophy, ChevronRight, ChevronLeft, Check, Star, Zap, MapPin, BookOpen } from 'lucide-react';
