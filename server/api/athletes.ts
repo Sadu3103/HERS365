@@ -40,6 +40,82 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Saved schools — /me routes resolve the athlete from the JWT and must be
+// registered before /:id so "me" is not parsed as an id.
+
+// GET /api/athletes/me/saved-schools
+router.get('/me/saved-schools', requireAuth, async (req, res) => {
+  try {
+    const rows = await db
+      .select({ programId: schema.savedSchools.programId })
+      .from(schema.savedSchools)
+      .where(eq(schema.savedSchools.athleteId, Number(req.user.id)));
+    res.json({ success: true, data: rows.map(r => r.programId) });
+  } catch (error) {
+    console.error('[athletes/saved-schools/list]', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch saved schools' });
+  }
+});
+
+// POST /api/athletes/me/saved-schools
+router.post('/me/saved-schools', requireAuth, async (req, res) => {
+  try {
+    const programId = parseInt(req.body?.schoolId, 10);
+    if (Number.isNaN(programId)) {
+      return res.status(400).json({ success: false, error: 'schoolId is required' });
+    }
+    const athleteId = Number(req.user.id);
+
+    const existing = await db
+      .select({ id: schema.savedSchools.id })
+      .from(schema.savedSchools)
+      .where(and(
+        eq(schema.savedSchools.athleteId, athleteId),
+        eq(schema.savedSchools.programId, programId),
+      ))
+      .limit(1);
+    if (existing.length === 0) {
+      await db.insert(schema.savedSchools).values({ athleteId, programId });
+    }
+
+    const rows = await db
+      .select({ programId: schema.savedSchools.programId })
+      .from(schema.savedSchools)
+      .where(eq(schema.savedSchools.athleteId, athleteId));
+    res.json({ success: true, data: rows.map(r => r.programId) });
+  } catch (error) {
+    console.error('[athletes/saved-schools/add]', error);
+    res.status(500).json({ success: false, error: 'Failed to save school' });
+  }
+});
+
+// DELETE /api/athletes/me/saved-schools/:schoolId
+router.delete('/me/saved-schools/:schoolId', requireAuth, async (req, res) => {
+  try {
+    const programId = parseInt(req.params.schoolId, 10);
+    if (Number.isNaN(programId)) {
+      return res.status(400).json({ success: false, error: 'Invalid school id' });
+    }
+    const athleteId = Number(req.user.id);
+
+    await db
+      .delete(schema.savedSchools)
+      .where(and(
+        eq(schema.savedSchools.athleteId, athleteId),
+        eq(schema.savedSchools.programId, programId),
+      ));
+
+    const rows = await db
+      .select({ programId: schema.savedSchools.programId })
+      .from(schema.savedSchools)
+      .where(eq(schema.savedSchools.athleteId, athleteId));
+    res.json({ success: true, data: rows.map(r => r.programId) });
+  } catch (error) {
+    console.error('[athletes/saved-schools/remove]', error);
+    res.status(500).json({ success: false, error: 'Failed to remove saved school' });
+  }
+});
+
 // GET /api/athletes/:id - Get specific athlete profile (DB-backed)
 router.get('/:id', async (req, res) => {
   try {
@@ -115,58 +191,6 @@ router.put('/:id', requireAuth, async (req, res) => {
 
 router.post('/:id/favorite', (_req, res) => {
   res.status(501).json({ success: false, error: 'Favorites not implemented yet' });
-});
-
-// In-memory saved schools store keyed by athlete id
-const savedSchoolsStore: Record<string, number[]> = {};
-
-// GET /api/athletes/:id/saved-schools
-router.get('/:id/saved-schools', (req, res) => {
-  try {
-    const { id } = req.params;
-    const saved = savedSchoolsStore[id] || [];
-    res.json({ success: true, data: saved });
-  } catch (error) {
-    res.status(500).json({ success: false, error: 'Failed to fetch saved schools' });
-  }
-});
-
-// POST /api/athletes/:id/saved-schools
-router.post('/:id/saved-schools', (req, res) => {
-  try {
-    const { id } = req.params;
-    const { schoolId } = req.body;
-
-    if (!schoolId) {
-      return res.status(400).json({ success: false, error: 'schoolId is required' });
-    }
-
-    if (!savedSchoolsStore[id]) savedSchoolsStore[id] = [];
-    const sid = Number(schoolId);
-    if (!savedSchoolsStore[id].includes(sid)) {
-      savedSchoolsStore[id].push(sid);
-    }
-
-    res.json({ success: true, data: savedSchoolsStore[id] });
-  } catch (error) {
-    res.status(500).json({ success: false, error: 'Failed to save school' });
-  }
-});
-
-// DELETE /api/athletes/:id/saved-schools/:schoolId
-router.delete('/:id/saved-schools/:schoolId', (req, res) => {
-  try {
-    const { id, schoolId } = req.params;
-    const sid = Number(schoolId);
-
-    if (savedSchoolsStore[id]) {
-      savedSchoolsStore[id] = savedSchoolsStore[id].filter(s => s !== sid);
-    }
-
-    res.json({ success: true, data: savedSchoolsStore[id] || [] });
-  } catch (error) {
-    res.status(500).json({ success: false, error: 'Failed to remove saved school' });
-  }
 });
 
 export { router as athletesRouter };
