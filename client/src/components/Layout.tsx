@@ -346,6 +346,7 @@ export const Layout = () => {
           </div>
         </header>
 
+        <ProfileCompletionBanner />
         {/* Page Content */}
         <main style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
           <AnimatePresence mode="wait">
