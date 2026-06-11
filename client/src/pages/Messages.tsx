@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { User, Send, Inbox, Clock } from 'lucide-react';
+import { User, Send, Inbox, Clock, Plus, X } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 
 interface Conversation {
@@ -26,11 +27,45 @@ interface RequestItem {
   createdAt: string;
 }
 
+interface AthleteRow {
+  id: number;
+  name: string;
+  position: string;
+  school: string;
+}
+
 export const Messages = () => {
   const qc = useQueryClient();
+  const location = useLocation();
   const [tab, setTab] = useState<'inbox' | 'requests'>('inbox');
   const [activePartner, setActivePartner] = useState<number | null>(null);
+  const [activePartnerName, setActivePartnerName] = useState('');
   const [draft, setDraft] = useState('');
+  const [composing, setComposing] = useState(false);
+  const [composeAthletes, setComposeAthletes] = useState<AthleteRow[]>([]);
+  const [composeFilter, setComposeFilter] = useState('');
+
+  useEffect(() => {
+    const state = location.state as { partnerId?: number; partnerName?: string } | null;
+    if (state?.partnerId) {
+      setActivePartner(state.partnerId);
+      if (state.partnerName) setActivePartnerName(state.partnerName);
+    }
+  }, []);
+
+  const openCompose = async () => {
+    setComposing(true);
+    if (composeAthletes.length > 0) return;
+    try {
+      const res = await apiFetch<{ data: AthleteRow[] }>('/api/athletes?limit=30');
+      setComposeAthletes((res.data ?? []).map((a: any) => ({
+        id: a.id,
+        name: a.name ?? '',
+        position: a.position ?? '',
+        school: a.school ?? '',
+      })));
+    } catch { /* sidebar still opens, just empty */ }
+  };
 
   const { data: convData } = useQuery({
     queryKey: ['conversations'],
@@ -90,14 +125,56 @@ export const Messages = () => {
     <div style={{ display: 'flex', height: '100%', color: '#fff' }}>
       {/* Left: list */}
       <div style={{ width: 320, borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', padding: 12, gap: 8 }}>
+        <div style={{ display: 'flex', padding: 12, gap: 8, alignItems: 'center' }}>
           <button onClick={() => setTab('inbox')} style={tabStyle(tab === 'inbox')}>
             <Inbox size={14} /> INBOX
           </button>
           <button onClick={() => setTab('requests')} style={tabStyle(tab === 'requests')}>
             <Clock size={14} /> REQUESTS{requests.length > 0 ? ` (${requests.length})` : ''}
           </button>
+          <button onClick={openCompose} title="New message" style={{ flexShrink: 0, width: 32, height: 32, borderRadius: '50%', background: '#ff5a2d', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Plus size={16} color="#fff" />
+          </button>
         </div>
+
+        {composing && (
+          <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', padding: '0 12px 8px', gap: 8 }}>
+              <input
+                autoFocus
+                value={composeFilter}
+                onChange={(e) => setComposeFilter(e.target.value)}
+                placeholder="Search athletes..."
+                style={{ flex: 1, background: '#161616', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 9999, padding: '6px 12px', color: '#fff', fontSize: '0.78rem', outline: 'none' }}
+              />
+              <button onClick={() => setComposing(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: 0, display: 'flex' }}>
+                <X size={16} />
+              </button>
+            </div>
+            <div style={{ maxHeight: 180, overflowY: 'auto' }}>
+              {composeAthletes
+                .filter((a) => a.name.toLowerCase().includes(composeFilter.toLowerCase()))
+                .map((a) => (
+                  <button
+                    key={a.id}
+                    onClick={() => { setActivePartner(a.id); setActivePartnerName(a.name); setComposing(false); setComposeFilter(''); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', padding: '10px 16px', background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer', color: '#fff' }}
+                  >
+                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#1c1c1c', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <User size={14} color="#888" />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
+                      <div style={{ fontSize: '0.68rem', color: '#666' }}>{a.position}{a.school ? ` · ${a.school}` : ''}</div>
+                    </div>
+                  </button>
+                ))}
+              {composeAthletes.length === 0 && (
+                <div style={{ padding: '10px 16px', fontSize: '0.75rem', color: '#555' }}>Loading...</div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {tab === 'inbox' && conversations.length === 0 && (
@@ -153,7 +230,7 @@ export const Messages = () => {
         ) : (
           <>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', fontWeight: 700 }}>
-              {activeConv?.partnerName ?? 'Conversation'}
+              {activeConv?.partnerName ?? activePartnerName || 'Conversation'}
             </div>
             <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {thread.map((m) => (

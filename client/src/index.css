@@ -417,14 +417,48 @@
   }
 }
 
+/* ─── Smooth scroll ─── */
+html { scroll-behavior: smooth; }
+
 /* ─── Scrollbar ─── */
-::-webkit-scrollbar              { width: 5px; height: 5px; }
+::-webkit-scrollbar              { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track        { background: transparent; }
-::-webkit-scrollbar-thumb        { background: #1a1a1a; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover  { background: #252525; }
+::-webkit-scrollbar-thumb        { background: rgba(255,90,45,0.28); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover  { background: rgba(255,90,45,0.55); }
+
+/* ─── Scroll progress bar ─── */
+.scroll-progress {
+  position: fixed;
+  top: 0; left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #ff5a2d, #ff8c66);
+  z-index: 9999;
+  transform-origin: left center;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
 
 /* ─── Selection ─── */
 ::selection { background: rgba(255,90,45,0.25); color: #fff; }
+
+/* ─── Page transition ─── */
+.page-transition-enter { opacity: 0; transform: translateY(10px); }
+.page-transition-enter-active {
+  opacity: 1; transform: translateY(0);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+.page-transition-exit { opacity: 1; }
+.page-transition-exit-active {
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+/* ─── Focus ring ─── */
+:focus-visible {
+  outline: 2px solid rgba(255,90,45,0.55);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 
 /* ─── Mobile: prevent zoom on input focus ─── */
 @media (max-width: 768px) {

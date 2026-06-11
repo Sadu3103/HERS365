@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Layout } from './components/Layout';
 import { CoachLayout } from './components/CoachLayout';
 import { Feed } from './pages/Feed';
@@ -56,10 +56,45 @@ import { CoachAnalytics } from './pages/coach/CoachAnalytics';
 import { CoachSignup } from './pages/coach/CoachSignup';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { NotificationProvider } from './context/NotificationContext';
 import { AuthProvider } from './context/AuthContext';
 const queryClient = new QueryClient();
+
+// Scroll to top on every route change
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }); }, [pathname]);
+  return null;
+}
+
+// Thin flame scroll-progress bar — visible on any scrollable standalone page
+function ScrollProgressBar() {
+  const [width, setWidth] = useState(0);
+  const rafRef = useRef<number>(0);
+
+  useEffect(() => {
+    const update = () => {
+      const el  = document.documentElement;
+      const pct = el.scrollTop / (el.scrollHeight - el.clientHeight);
+      setWidth(Number.isFinite(pct) ? Math.min(pct * 100, 100) : 0);
+    };
+    const onScroll = () => {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(update);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(rafRef.current); };
+  }, []);
+
+  if (width <= 0) return null;
+  return (
+    <div
+      className="scroll-progress"
+      style={{ width: `${width}%`, opacity: width > 2 ? 1 : 0 }}
+    />
+  );
+}
 
 // Simple role-based guard for coach routes.
 // Auth is resolved synchronously before any children render so protected
@@ -98,6 +133,8 @@ function App() {
       <AuthProvider>
         <NotificationProvider>
           <Router>
+          <ScrollToTop />
+          <ScrollProgressBar />
           <Routes>
             <Route element={<Layout />}>
               <Route path="/feed" element={<Feed />} />
