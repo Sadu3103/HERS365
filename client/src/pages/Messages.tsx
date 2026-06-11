@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { User, Send, Inbox, Clock, Plus, X } from 'lucide-react';
 import { apiFetch } from '../lib/api';
@@ -37,6 +37,7 @@ interface AthleteRow {
 export const Messages = () => {
   const qc = useQueryClient();
   const location = useLocation();
+  const navigate = useNavigate();
   const [tab, setTab] = useState<'inbox' | 'requests'>('inbox');
   const [activePartner, setActivePartner] = useState<number | null>(null);
   const [activePartnerName, setActivePartnerName] = useState('');
@@ -54,6 +55,9 @@ export const Messages = () => {
   }, []);
 
   const openCompose = async () => {
+    const _u = localStorage.getItem('user');
+    const _tier = _u ? (JSON.parse(_u).subscriptionTier || JSON.parse(_u).tier || 'free') : 'free';
+    if (_tier === 'free' || _tier === 'rookie') { navigate('/subscribe?reason=messaging'); return; }
     setComposing(true);
     if (composeAthletes.length > 0) return;
     try {
