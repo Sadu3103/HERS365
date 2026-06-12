@@ -70,11 +70,7 @@ export const Layout = () => {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  const notifications = [
-    { id: 1, msg: 'Coach Johnson viewed your profile',    time: '2m ago',  unread: true  },
-    { id: 2, msg: 'Agility session starts in 30 minutes', time: '15m ago', unread: true  },
-    { id: 3, msg: 'You moved up to #42 in rankings',      time: '1h ago',  unread: false },
-  ];
+  const notifications: { id: number; msg: string; time: string; unread: boolean }[] = [];
   const unreadCount = notifications.filter(n => n.unread).length;
 
   return (
@@ -353,6 +349,12 @@ export const Layout = () => {
                         </div>
                       </motion.div>
                     ))}
+                    {notifications.length === 0 && (
+                      <div style={{ padding: '30px 16px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.82rem', color: '#888' }}>You're all caught up</div>
+                        <div style={{ fontSize: '0.7rem', color: '#555', marginTop: 4 }}>New activity will show up here</div>
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
