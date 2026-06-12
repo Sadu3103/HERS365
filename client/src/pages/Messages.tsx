@@ -172,6 +172,7 @@ export const Messages = () => {
     enabled: activePartner != null,
   });
   const thread = threadData?.data ?? [];
+  const firstUnreadIdx = thread.findIndex((m) => !m.isFromMe && !m.read);
 
   const markRead = useMutation({
     mutationFn: (partnerId: number) =>
@@ -454,6 +455,13 @@ export const Messages = () => {
                         <span style={{ flex: 1, height: 1, background: LINE }} />
                         <span style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{dayLabel(m.createdAt)}</span>
                         <span style={{ flex: 1, height: 1, background: LINE }} />
+                      </div>
+                    )}
+                    {i === firstUnreadIdx && firstUnreadIdx > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '8px 0', color: FLAME }}>
+                        <span style={{ flex: 1, height: 1, background: 'rgba(255,90,45,0.3)' }} />
+                        <span style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}>New</span>
+                        <span style={{ flex: 1, height: 1, background: 'rgba(255,90,45,0.3)' }} />
                       </div>
                     )}
                     <motion.div
