@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Send, Inbox, Clock, Plus, X, Shield, Check, CheckCheck, MessagesSquare, ShieldCheck, ArrowLeft, Search, AlertCircle } from 'lucide-react';
+import { Send, Inbox, Clock, Plus, X, Shield, Check, CheckCheck, MessagesSquare, ShieldCheck, ArrowLeft, Search, AlertCircle, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { apiFetch } from '../lib/api';
 
@@ -119,6 +119,7 @@ export const Messages = () => {
   const [composeAthletes, setComposeAthletes] = useState<AthleteRow[]>([]);
   const [composeFilter, setComposeFilter] = useState('');
   const [convSearch, setConvSearch] = useState('');
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const threadEndRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 760);
 
@@ -139,7 +140,7 @@ export const Messages = () => {
   const openCompose = async () => {
     const _u = localStorage.getItem('user');
     const _tier = _u ? (JSON.parse(_u).subscriptionTier || JSON.parse(_u).tier || 'free') : 'free';
-    if (_tier === 'free' || _tier === 'rookie') { navigate('/subscribe?reason=messaging'); return; }
+    if (_tier === 'free' || _tier === 'rookie') { setShowUpgrade(true); return; }
     setComposing(true);
     if (composeAthletes.length > 0) return;
     try {
@@ -515,6 +516,43 @@ export const Messages = () => {
           </>
         )}
       </div>
+
+      {showUpgrade && (
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          onClick={() => setShowUpgrade(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 24 }}
+        >
+          <motion.div
+            initial={{ scale: 0.94, y: 16, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: 380, background: INK_2, border: `1px solid ${LINE}`, borderRadius: 18, padding: 26, position: 'relative' }}
+          >
+            <button onClick={() => setShowUpgrade(false)} aria-label="Close" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: MUTED_2, cursor: 'pointer', display: 'flex' }}>
+              <X size={18} />
+            </button>
+            <div style={{ width: 46, height: 46, borderRadius: 13, background: 'rgba(255,90,45,0.14)', border: '1px solid rgba(255,90,45,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Zap size={22} color={FLAME} />
+            </div>
+            <div style={{ fontFamily: DISP, fontSize: '1.5rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.02em', lineHeight: 1.05 }}>
+              Messaging is a <span style={{ color: FLAME }}>Pro</span> feature
+            </div>
+            <div style={{ fontSize: '0.84rem', color: MUTED, marginTop: 10, lineHeight: 1.5 }}>
+              Start conversations, reply to coaches, and keep every recruiting thread in one place. All contact stays parent-supervised.
+            </div>
+            <button
+              onClick={() => navigate('/subscribe?reason=messaging')}
+              style={{ width: '100%', marginTop: 20, padding: '12px 0', borderRadius: 9999, border: 'none', background: FLAME, color: '#fff', fontSize: '0.82rem', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer', boxShadow: '0 6px 18px rgba(255,90,45,0.32)' }}
+            >
+              Upgrade to Pro
+            </button>
+            <button onClick={() => setShowUpgrade(false)} style={{ width: '100%', marginTop: 10, padding: '8px 0', background: 'none', border: 'none', color: MUTED_2, fontSize: '0.76rem', cursor: 'pointer' }}>
+              Maybe later
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
     </div>
   );
 };
