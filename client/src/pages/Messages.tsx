@@ -230,7 +230,15 @@ export const Messages = () => {
   const activeConv = conversations.find((c) => c.partnerId === activePartner);
 
   return (
-    <div style={{ display: 'flex', height: '100%', color: '#fff', background: INK }}>
+    <div className="msg-root" style={{ display: 'flex', height: '100%', color: '#fff', background: INK }}>
+      <style>{`
+        .msg-scroll::-webkit-scrollbar { width: 7px; height: 7px; }
+        .msg-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        .msg-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,90,45,0.4); }
+        .msg-scroll::-webkit-scrollbar-track { background: transparent; }
+        .msg-scroll { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.12) transparent; }
+        .msg-root button:focus-visible, .msg-root input:focus-visible, .msg-root textarea:focus-visible { outline: 2px solid rgba(255,90,45,0.55); outline-offset: 2px; border-radius: 6px; }
+      `}</style>
       {/* ── Left: list ── */}
       <div style={{ width: isMobile ? '100%' : 332, borderRight: isMobile ? 'none' : `1px solid ${LINE}`, display: (isMobile && activePartner != null) ? 'none' : 'flex', flexDirection: 'column', flexShrink: 0 }}>
         {/* Header */}
@@ -276,7 +284,7 @@ export const Messages = () => {
                 <X size={16} />
               </button>
             </div>
-            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+            <div className="msg-scroll" style={{ maxHeight: 200, overflowY: 'auto' }}>
               {composeAthletes
                 .filter((a) => a.name.toLowerCase().includes(composeFilter.toLowerCase()))
                 .map((a) => (
@@ -301,7 +309,7 @@ export const Messages = () => {
           </div>
         )}
 
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div className="msg-scroll" style={{ flex: 1, overflowY: 'auto' }}>
           {tab === 'inbox' && !convLoading && allConversations.length > 0 && (
             <div style={{ padding: '10px 12px 6px', position: 'sticky', top: 0, background: INK, zIndex: 1 }}>
               <div style={{ position: 'relative' }}>
@@ -399,8 +407,9 @@ export const Messages = () => {
       {/* ── Right: thread ── */}
       <div style={{ flex: 1, display: (isMobile && activePartner == null) ? 'none' : 'flex', flexDirection: 'column', minWidth: 0 }}>
         {activePartner == null ? (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, color: MUTED_2, textAlign: 'center', padding: 24 }}>
-            <div style={{ width: 64, height: 64, borderRadius: 18, background: INK_2, border: `1px solid ${LINE}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, color: MUTED_2, textAlign: 'center', padding: 24, position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', width: 440, height: 440, borderRadius: '50%', filter: 'blur(130px)', background: 'radial-gradient(circle, rgba(255,90,45,0.12), transparent 70%)', pointerEvents: 'none' }} />
+            <div style={{ width: 64, height: 64, borderRadius: 18, background: INK_2, border: `1px solid ${LINE}`, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
               <MessagesSquare size={28} color={MUTED_2} />
             </div>
             <div>
@@ -430,7 +439,7 @@ export const Messages = () => {
             </div>
 
             {/* Messages */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <div className="msg-scroll" style={{ flex: 1, overflowY: 'auto', padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 3 }}>
               {threadLoading && thread.length === 0 && <ThreadSkeleton />}
               {!threadLoading && thread.length === 0 && (
                 <div style={{ margin: 'auto', textAlign: 'center', color: MUTED_2, fontSize: '0.82rem' }}>
