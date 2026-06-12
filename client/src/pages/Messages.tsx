@@ -437,11 +437,19 @@ export const Messages = () => {
               )}
               {thread.map((m, i) => {
                 const prev = thread[i - 1];
+                const next = thread[i + 1];
                 const showDay = !prev || dayLabel(prev.createdAt) !== dayLabel(m.createdAt);
+                const within5 = (a?: string, b?: string) => !!a && !!b && Math.abs(new Date(a).getTime() - new Date(b).getTime()) < 5 * 60 * 1000;
+                const mine = m.isFromMe;
+                const grpPrev = !showDay && !!prev && prev.isFromMe === mine && within5(prev.createdAt, m.createdAt);
+                const grpNext = !!next && next.isFromMe === mine && dayLabel(next.createdAt) === dayLabel(m.createdAt) && within5(m.createdAt, next.createdAt);
+                const radius = mine
+                  ? `16px ${grpPrev ? '4px' : '16px'} ${grpNext ? '16px' : '4px'} 16px`
+                  : `${grpPrev ? '4px' : '16px'} 16px 16px ${grpNext ? '16px' : '4px'}`;
                 return (
                   <React.Fragment key={m.id}>
                     {showDay && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '14px 0 10px', color: MUTED_2 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0 12px', color: MUTED_2 }}>
                         <span style={{ flex: 1, height: 1, background: LINE }} />
                         <span style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{dayLabel(m.createdAt)}</span>
                         <span style={{ flex: 1, height: 1, background: LINE }} />
@@ -451,22 +459,24 @@ export const Messages = () => {
                       initial={{ opacity: 0, y: 8, scale: 0.98 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       transition={{ duration: 0.18, ease: [0.2, 0.8, 0.2, 1] }}
-                      style={{ alignSelf: m.isFromMe ? 'flex-end' : 'flex-start', maxWidth: '72%', display: 'flex', flexDirection: 'column', alignItems: m.isFromMe ? 'flex-end' : 'flex-start' }}>
+                      style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: '72%', display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start', marginTop: grpPrev ? 2 : 9 }}>
                       <div style={{
-                        background: m.isFromMe ? `linear-gradient(135deg, ${FLAME}, ${FLAME_SOFT})` : INK_3,
+                        background: mine ? `linear-gradient(135deg, ${FLAME}, ${FLAME_SOFT})` : INK_3,
                         color: '#fff', padding: '9px 14px',
-                        borderRadius: m.isFromMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                        fontSize: '0.86rem', lineHeight: 1.4, border: m.isFromMe ? 'none' : `1px solid ${LINE}`,
+                        borderRadius: radius,
+                        fontSize: '0.86rem', lineHeight: 1.4, border: mine ? 'none' : `1px solid ${LINE}`,
                         wordBreak: 'break-word',
                       }}>
                         {m.content}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3, padding: '0 4px' }}>
-                        <span style={{ fontSize: '0.6rem', color: MUTED_2 }}>{clockTime(m.createdAt)}</span>
-                        {m.isFromMe && (m.read
-                          ? <CheckCheck size={12} color={FLAME_SOFT} />
-                          : <Check size={12} color={MUTED_2} />)}
-                      </div>
+                      {!grpNext && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3, padding: '0 4px' }}>
+                          <span style={{ fontSize: '0.6rem', color: MUTED_2 }}>{clockTime(m.createdAt)}</span>
+                          {mine && (m.read
+                            ? <CheckCheck size={12} color={FLAME_SOFT} />
+                            : <Check size={12} color={MUTED_2} />)}
+                        </div>
+                      )}
                     </motion.div>
                   </React.Fragment>
                 );
