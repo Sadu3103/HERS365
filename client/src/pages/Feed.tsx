@@ -725,27 +725,19 @@ export const Feed = () => {
     fetch('/api/posts', { signal: ctrl.signal })
       .then(r => r.json())
       .then((data: any[]) => {
-        if (!Array.isArray(data) || data.length === 0) {
-          // Fallback seed posts for empty DB
-          setPosts([
-            { id: 1, user: { name: 'Maya Johnson', avatar: null }, time: '2h ago', content: "First practice of the season in the books. Route timing is clicking — 4.38 on the shuttle. Let's go! 🏈", likes: '1.4K', comments: '63', highlights: true, isLiked: false },
-            { id: 2, user: { name: 'Coach Rivera', avatar: null }, time: '5h ago', content: "Looking for a 2026 DB who can press-man. Regional combine is June 14. Show out.", likes: '820', comments: '31', highlights: false, isLiked: false },
-            { id: 3, user: { name: 'Aaliyah Brooks', avatar: null }, time: '1d ago', content: "Just posted my new game film from the All-State combine. Feedback welcome — 3 picks and a pick-6 in 4 snaps. 🔒", image: 'https://images.unsplash.com/photo-1541252260730-0412e3e2108e?auto=format&fit=crop&q=80&w=1200', likes: '2.1K', comments: '112', highlights: true, isLiked: false },
-          ]);
-        } else {
-          const mapped: PostData[] = data.map((p: any) => ({
-            id: p.id,
-            user: { name: p.playerName || 'Athlete', avatar: null },
-            time: p.createdAt ? timeAgo(p.createdAt) : '',
-            content: p.content || '',
-            image: p.mediaType === 'image' ? p.mediaUrl : undefined,
-            likes: fmtCount(p.likes ?? 0),
-            comments: fmtCount(p.comments ?? 0),
-            highlights: p.mediaType === 'video' || p.category === 'game',
-            isLiked: false,
-          }));
-          setPosts(mapped);
-        }
+        const rows = Array.isArray(data) ? data : [];
+        const mapped: PostData[] = rows.map((p: any) => ({
+          id: p.id,
+          user: { name: p.playerName || 'Athlete', avatar: null },
+          time: p.createdAt ? timeAgo(p.createdAt) : '',
+          content: p.content || '',
+          image: p.mediaType === 'image' ? p.mediaUrl : undefined,
+          likes: fmtCount(p.likes ?? 0),
+          comments: fmtCount(p.comments ?? 0),
+          highlights: p.mediaType === 'video' || p.category === 'game',
+          isLiked: false,
+        }));
+        setPosts(mapped);
       })
       .catch(() => {})
       .finally(() => setIsLoading(false));
@@ -1130,7 +1122,26 @@ export const Feed = () => {
           />
         ))}
 
+        {!isLoading && posts.length === 0 && (
+          <motion.div
+            {...reveal}
+            style={{ textAlign: 'center', padding: '72px 20px 40px' }}
+          >
+            <div style={{
+              fontFamily: DISP, fontWeight: 800, fontSize: '1.5rem',
+              textTransform: 'uppercase', letterSpacing: '.02em',
+              color: '#f4f4f2', marginBottom: 10,
+            }}>
+              The grid is quiet
+            </div>
+            <div style={{ fontSize: '.88rem', color: MUTED, maxWidth: 340, margin: '0 auto', lineHeight: 1.5 }}>
+              No highlights have dropped yet. Post your first rep and get on the board.
+            </div>
+          </motion.div>
+        )}
+
         {/* end-of-feed marker */}
+        {!isLoading && posts.length > 0 && (
         <motion.div
           {...reveal}
           style={{
@@ -1156,6 +1167,7 @@ export const Feed = () => {
           </span>
           <span style={{ flex: 1, height: 1, background: LINE }} />
         </motion.div>
+        )}
       </div>
 
       <style>{`
