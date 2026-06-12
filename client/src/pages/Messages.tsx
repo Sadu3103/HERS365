@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Send, Inbox, Clock, Plus, X, Shield, Check, CheckCheck, MessagesSquare, ShieldCheck, ArrowLeft, Search, AlertCircle, Zap } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { apiFetch } from '../lib/api';
 
 const FLAME = '#ff5a2d';
@@ -121,6 +121,8 @@ export const Messages = () => {
   const [convSearch, setConvSearch] = useState('');
   const [showUpgrade, setShowUpgrade] = useState(false);
   const threadEndRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const reduce = useReducedMotion();
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 760);
 
   useEffect(() => {
@@ -224,8 +226,12 @@ export const Messages = () => {
   }, [activePartner]);
 
   useEffect(() => {
-    threadEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [thread.length, activePartner]);
+    threadEndRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth' });
+  }, [thread.length, activePartner, reduce]);
+
+  useEffect(() => {
+    if (activePartner != null && !isMobile) composerRef.current?.focus();
+  }, [activePartner, isMobile]);
 
   const activeConv = conversations.find((c) => c.partnerId === activePartner);
 
@@ -474,9 +480,9 @@ export const Messages = () => {
                       </div>
                     )}
                     <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                      initial={reduce ? false : { opacity: 0, y: 8, scale: 0.98 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ duration: 0.18, ease: [0.2, 0.8, 0.2, 1] }}
+                      transition={{ duration: reduce ? 0 : 0.18, ease: [0.2, 0.8, 0.2, 1] }}
                       style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: '72%', display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start', marginTop: grpPrev ? 2 : 9 }}>
                       <div style={{
                         background: mine ? `linear-gradient(135deg, ${FLAME}, ${FLAME_SOFT})` : INK_3,
@@ -513,6 +519,7 @@ export const Messages = () => {
               style={{ display: 'flex', gap: 10, padding: '14px 18px', borderTop: `1px solid ${LINE}`, background: INK, alignItems: 'flex-end' }}
             >
               <textarea
+                ref={composerRef}
                 value={draft}
                 rows={1}
                 onChange={(e) => { setDraft(e.target.value); e.target.style.height = 'auto'; e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`; }}
