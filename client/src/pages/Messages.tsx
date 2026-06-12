@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Send, Inbox, Clock, Plus, X, Shield, Check, CheckCheck, MessagesSquare, ShieldCheck, ArrowLeft, Search } from 'lucide-react';
+import { Send, Inbox, Clock, Plus, X, Shield, Check, CheckCheck, MessagesSquare, ShieldCheck, ArrowLeft, Search, AlertCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { apiFetch } from '../lib/api';
 
 const FLAME = '#ff5a2d';
@@ -194,6 +195,7 @@ export const Messages = () => {
     },
     onError: (_e, vars, ctx: any) => {
       if (ctx?.prev) qc.setQueryData(['thread', vars.partnerId], ctx.prev);
+      setDraft(vars.content); // restore the text so the user can retry
     },
     onSettled: (_d, _e, vars) => {
       qc.invalidateQueries({ queryKey: ['thread', vars.partnerId] });
@@ -248,7 +250,7 @@ export const Messages = () => {
           <button onClick={() => setTab('requests')} style={tabStyle(tab === 'requests')}>
             <Clock size={13} /> REQUESTS{requests.length > 0 ? ` (${requests.length})` : ''}
           </button>
-          <button onClick={openCompose} title="New message" style={{
+          <button onClick={openCompose} title="New message" aria-label="New message" style={{
             flexShrink: 0, width: 34, height: 34, borderRadius: '50%',
             background: FLAME, border: 'none', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -445,7 +447,11 @@ export const Messages = () => {
                         <span style={{ flex: 1, height: 1, background: LINE }} />
                       </div>
                     )}
-                    <div style={{ alignSelf: m.isFromMe ? 'flex-end' : 'flex-start', maxWidth: '72%', display: 'flex', flexDirection: 'column', alignItems: m.isFromMe ? 'flex-end' : 'flex-start' }}>
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ duration: 0.18, ease: [0.2, 0.8, 0.2, 1] }}
+                      style={{ alignSelf: m.isFromMe ? 'flex-end' : 'flex-start', maxWidth: '72%', display: 'flex', flexDirection: 'column', alignItems: m.isFromMe ? 'flex-end' : 'flex-start' }}>
                       <div style={{
                         background: m.isFromMe ? `linear-gradient(135deg, ${FLAME}, ${FLAME_SOFT})` : INK_3,
                         color: '#fff', padding: '9px 14px',
@@ -461,7 +467,7 @@ export const Messages = () => {
                           ? <CheckCheck size={12} color={FLAME_SOFT} />
                           : <Check size={12} color={MUTED_2} />)}
                       </div>
-                    </div>
+                    </motion.div>
                   </React.Fragment>
                 );
               })}
@@ -469,6 +475,11 @@ export const Messages = () => {
             </div>
 
             {/* Composer */}
+            {send.isError && (
+              <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 18px', background: 'rgba(248,113,113,0.1)', borderTop: '1px solid rgba(248,113,113,0.2)', color: '#f87171', fontSize: '0.74rem' }}>
+                <AlertCircle size={13} /> Message didn't send — your text is back in the box. Try again.
+              </div>
+            )}
             <form
               onSubmit={(e) => { e.preventDefault(); submitDraft(); }}
               style={{ display: 'flex', gap: 10, padding: '14px 18px', borderTop: `1px solid ${LINE}`, background: INK, alignItems: 'flex-end' }}
@@ -483,7 +494,7 @@ export const Messages = () => {
                 onFocus={(e) => (e.currentTarget.style.borderColor = 'rgba(255,90,45,0.4)')}
                 onBlur={(e) => (e.currentTarget.style.borderColor = LINE)}
               />
-              <button type="submit" disabled={!draft.trim() || send.isPending} style={{
+              <button type="submit" aria-label="Send message" disabled={!draft.trim() || send.isPending} style={{
                 background: draft.trim() ? FLAME : '#262626', border: 'none', borderRadius: '50%', width: 44, height: 44,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: draft.trim() ? 'pointer' : 'default',
                 flexShrink: 0, transition: 'background 0.15s', opacity: send.isPending ? 0.6 : 1,
