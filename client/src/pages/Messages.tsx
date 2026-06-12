@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Send, Inbox, Clock, Plus, X, Shield, Check, CheckCheck, MessagesSquare, ShieldCheck, ArrowLeft, Search, AlertCircle, Zap } from 'lucide-react';
+import { Send, Inbox, Clock, Plus, X, Shield, Check, CheckCheck, MessagesSquare, ShieldCheck, ArrowLeft, Search, AlertCircle, Zap, MoreVertical, Flag, Ban } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { apiFetch } from '../lib/api';
 
@@ -120,6 +120,12 @@ export const Messages = () => {
   const [composeFilter, setComposeFilter] = useState('');
   const [convSearch, setConvSearch] = useState('');
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportSent, setReportSent] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const reduce = useReducedMotion();
@@ -175,6 +181,27 @@ export const Messages = () => {
   });
   const thread = threadData?.data ?? [];
   const firstUnreadIdx = thread.findIndex((m) => !m.isFromMe && !m.read);
+
+  const { data: blockedData } = useQuery({
+    queryKey: ['blocked'],
+    queryFn: () => apiFetch<{ data: number[] }>('/api/messages/blocked'),
+  });
+  const blockedIds = blockedData?.data ?? [];
+  const isBlocked = activePartner != null && blockedIds.includes(activePartner);
+
+  const blockM = useMutation({
+    mutationFn: (partnerId: number) => apiFetch('/api/messages/block', { method: 'POST', body: JSON.stringify({ partnerId }) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['blocked'] }); setMenuOpen(false); },
+  });
+  const unblockM = useMutation({
+    mutationFn: (partnerId: number) => apiFetch('/api/messages/unblock', { method: 'POST', body: JSON.stringify({ partnerId }) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['blocked'] }),
+  });
+  const reportM = useMutation({
+    mutationFn: (vars: { partnerId: number; reason: string; details: string }) =>
+      apiFetch('/api/messages/report', { method: 'POST', body: JSON.stringify(vars) }),
+    onSuccess: () => setReportSent(true),
+  });
 
   const markRead = useMutation({
     mutationFn: (partnerId: number) =>
@@ -232,6 +259,16 @@ export const Messages = () => {
   useEffect(() => {
     if (activePartner != null && !isMobile) composerRef.current?.focus();
   }, [activePartner, isMobile]);
+
+  useEffect(() => { setMenuOpen(false); }, [activePartner]);
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  const openReport = () => { setMenuOpen(false); setReportReason(''); setReportDetails(''); setReportSent(false); setShowReport(true); };
 
   const activeConv = conversations.find((c) => c.partnerId === activePartner);
 
@@ -442,6 +479,32 @@ export const Messages = () => {
                   <ShieldCheck size={11} /> <span style={{ color: MUTED }}>Parent-supervised conversation</span>
                 </div>
               </div>
+
+              <div ref={menuRef} style={{ marginLeft: 'auto', position: 'relative', flexShrink: 0 }}>
+                <button onClick={() => setMenuOpen((v) => !v)} aria-label="Conversation options" style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED, padding: 6, display: 'flex', borderRadius: 8 }}>
+                  <MoreVertical size={18} />
+                </button>
+                {menuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.14 }}
+                    style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, width: 210, background: INK_2, border: `1px solid ${LINE}`, borderRadius: 12, boxShadow: '0 16px 40px rgba(0,0,0,0.6)', overflow: 'hidden', zIndex: 50 }}
+                  >
+                    <button onClick={openReport} style={menuItemStyle('#f59e0b')}>
+                      <Flag size={15} /> Report this person
+                    </button>
+                    {isBlocked ? (
+                      <button onClick={() => { if (activePartner != null) unblockM.mutate(activePartner); setMenuOpen(false); }} style={menuItemStyle('#4ade80')}>
+                        <Check size={15} /> Unblock
+                      </button>
+                    ) : (
+                      <button onClick={() => { if (activePartner != null) blockM.mutate(activePartner); }} style={menuItemStyle('#f87171')}>
+                        <Ban size={15} /> Block
+                      </button>
+                    )}
+                  </motion.div>
+                )}
+              </div>
             </div>
 
             {/* Messages */}
@@ -508,35 +571,49 @@ export const Messages = () => {
               <div ref={threadEndRef} />
             </div>
 
-            {/* Composer */}
-            {send.isError && (
-              <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 18px', background: 'rgba(248,113,113,0.1)', borderTop: '1px solid rgba(248,113,113,0.2)', color: '#f87171', fontSize: '0.74rem' }}>
-                <AlertCircle size={13} /> Message didn't send — your text is back in the box. Try again.
+            {/* Composer (or blocked notice) */}
+            {isBlocked ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 18px', borderTop: `1px solid ${LINE}`, background: INK }}>
+                <Ban size={16} color="#f87171" style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1, fontSize: '0.8rem', color: MUTED }}>
+                  You blocked this person. They can't message you, and you can't message them.
+                </div>
+                <button onClick={() => activePartner != null && unblockM.mutate(activePartner)} disabled={unblockM.isPending} style={{ flexShrink: 0, background: 'transparent', border: `1px solid ${LINE}`, color: '#4ade80', borderRadius: 9999, padding: '7px 16px', fontSize: '0.74rem', fontWeight: 700, cursor: 'pointer' }}>
+                  Unblock
+                </button>
               </div>
+            ) : (
+              <>
+                {send.isError && (
+                  <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 18px', background: 'rgba(248,113,113,0.1)', borderTop: '1px solid rgba(248,113,113,0.2)', color: '#f87171', fontSize: '0.74rem' }}>
+                    <AlertCircle size={13} /> Message didn't send — your text is back in the box. Try again.
+                  </div>
+                )}
+                <form
+                  onSubmit={(e) => { e.preventDefault(); submitDraft(); }}
+                  style={{ display: 'flex', gap: 10, padding: '14px 18px', borderTop: `1px solid ${LINE}`, background: INK, alignItems: 'flex-end' }}
+                >
+                  <textarea
+                    ref={composerRef}
+                    value={draft}
+                    rows={1}
+                    onChange={(e) => { setDraft(e.target.value); e.target.style.height = 'auto'; e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`; }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitDraft(); e.currentTarget.style.height = 'auto'; } }}
+                    placeholder="Type a message…  (Enter to send, Shift+Enter for a new line)"
+                    style={{ flex: 1, background: INK_3, border: `1px solid ${LINE}`, borderRadius: 20, padding: '11px 18px', color: '#fff', outline: 'none', fontSize: '0.88rem', resize: 'none', fontFamily: 'inherit', lineHeight: 1.4, maxHeight: 120, transition: 'border-color 0.15s' }}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = 'rgba(255,90,45,0.4)')}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = LINE)}
+                  />
+                  <button type="submit" aria-label="Send message" disabled={!draft.trim() || send.isPending} style={{
+                    background: draft.trim() ? FLAME : '#262626', border: 'none', borderRadius: '50%', width: 44, height: 44,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: draft.trim() ? 'pointer' : 'default',
+                    flexShrink: 0, transition: 'background 0.15s', opacity: send.isPending ? 0.6 : 1,
+                  }}>
+                    <Send size={17} color={draft.trim() ? '#fff' : MUTED_2} />
+                  </button>
+                </form>
+              </>
             )}
-            <form
-              onSubmit={(e) => { e.preventDefault(); submitDraft(); }}
-              style={{ display: 'flex', gap: 10, padding: '14px 18px', borderTop: `1px solid ${LINE}`, background: INK, alignItems: 'flex-end' }}
-            >
-              <textarea
-                ref={composerRef}
-                value={draft}
-                rows={1}
-                onChange={(e) => { setDraft(e.target.value); e.target.style.height = 'auto'; e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`; }}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitDraft(); e.currentTarget.style.height = 'auto'; } }}
-                placeholder="Type a message…  (Enter to send, Shift+Enter for a new line)"
-                style={{ flex: 1, background: INK_3, border: `1px solid ${LINE}`, borderRadius: 20, padding: '11px 18px', color: '#fff', outline: 'none', fontSize: '0.88rem', resize: 'none', fontFamily: 'inherit', lineHeight: 1.4, maxHeight: 120, transition: 'border-color 0.15s' }}
-                onFocus={(e) => (e.currentTarget.style.borderColor = 'rgba(255,90,45,0.4)')}
-                onBlur={(e) => (e.currentTarget.style.borderColor = LINE)}
-              />
-              <button type="submit" aria-label="Send message" disabled={!draft.trim() || send.isPending} style={{
-                background: draft.trim() ? FLAME : '#262626', border: 'none', borderRadius: '50%', width: 44, height: 44,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: draft.trim() ? 'pointer' : 'default',
-                flexShrink: 0, transition: 'background 0.15s', opacity: send.isPending ? 0.6 : 1,
-              }}>
-                <Send size={17} color={draft.trim() ? '#fff' : MUTED_2} />
-              </button>
-            </form>
           </>
         )}
       </div>
@@ -574,6 +651,83 @@ export const Messages = () => {
             <button onClick={() => setShowUpgrade(false)} style={{ width: '100%', marginTop: 10, padding: '8px 0', background: 'none', border: 'none', color: MUTED_2, fontSize: '0.76rem', cursor: 'pointer' }}>
               Maybe later
             </button>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {showReport && (
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          onClick={() => setShowReport(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 24 }}
+        >
+          <motion.div
+            initial={{ scale: 0.94, y: 16, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: 420, background: INK_2, border: `1px solid ${LINE}`, borderRadius: 18, padding: 26, position: 'relative' }}
+          >
+            <button onClick={() => setShowReport(false)} aria-label="Close" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: MUTED_2, cursor: 'pointer', display: 'flex' }}>
+              <X size={18} />
+            </button>
+            {reportSent ? (
+              <div style={{ textAlign: 'center', padding: '12px 0 4px' }}>
+                <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                  <ShieldCheck size={26} color="#4ade80" />
+                </div>
+                <div style={{ fontFamily: DISP, fontSize: '1.4rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.02em' }}>Report received</div>
+                <div style={{ fontSize: '0.84rem', color: MUTED, marginTop: 10, lineHeight: 1.5 }}>
+                  Our safety team will review this conversation. If you feel unsafe, you can block this person too.
+                </div>
+                <button onClick={() => setShowReport(false)} style={{ width: '100%', marginTop: 20, padding: '11px 0', borderRadius: 9999, border: 'none', background: FLAME, color: '#fff', fontSize: '0.8rem', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>Done</button>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <Flag size={18} color="#f59e0b" />
+                  <span style={{ fontFamily: DISP, fontSize: '1.4rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.02em' }}>Report this person</span>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: MUTED, marginBottom: 16, lineHeight: 1.45 }}>
+                  Reports go to our safety team and are kept confidential. What's the concern?
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {REPORT_OPTIONS.map((o) => {
+                    const sel = reportReason === o.value;
+                    return (
+                      <button key={o.value} onClick={() => setReportReason(o.value)} style={{
+                        display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
+                        padding: '11px 14px', borderRadius: 10, cursor: 'pointer',
+                        background: sel ? 'rgba(255,90,45,0.1)' : INK_3,
+                        border: `1px solid ${sel ? 'rgba(255,90,45,0.4)' : LINE}`,
+                        color: '#fff', fontSize: '0.82rem', fontWeight: 600,
+                      }}>
+                        <span style={{ width: 15, height: 15, borderRadius: '50%', border: `2px solid ${sel ? FLAME : MUTED_2}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {sel && <span style={{ width: 7, height: 7, borderRadius: '50%', background: FLAME }} />}
+                        </span>
+                        {o.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <textarea
+                  value={reportDetails}
+                  onChange={(e) => setReportDetails(e.target.value)}
+                  placeholder="Add any details (optional)…"
+                  rows={3}
+                  style={{ width: '100%', boxSizing: 'border-box', marginTop: 12, background: INK_3, border: `1px solid ${LINE}`, borderRadius: 10, padding: '10px 12px', color: '#fff', fontSize: '0.82rem', outline: 'none', resize: 'none', fontFamily: 'inherit' }}
+                />
+                <button
+                  onClick={() => { if (activePartner != null && reportReason) reportM.mutate({ partnerId: activePartner, reason: reportReason, details: reportDetails }); }}
+                  disabled={!reportReason || reportM.isPending}
+                  style={{ width: '100%', marginTop: 16, padding: '12px 0', borderRadius: 9999, border: 'none', background: reportReason ? FLAME : '#262626', color: reportReason ? '#fff' : MUTED_2, fontSize: '0.8rem', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: reportReason ? 'pointer' : 'default' }}
+                >
+                  {reportM.isPending ? 'Submitting…' : 'Submit report'}
+                </button>
+                {reportM.isError && (
+                  <div style={{ marginTop: 10, fontSize: '0.74rem', color: '#f87171', textAlign: 'center' }}>Couldn't submit — please try again.</div>
+                )}
+              </>
+            )}
           </motion.div>
         </motion.div>
       )}
@@ -620,6 +774,19 @@ function EmptyState({ icon, title, sub }: { icon: React.ReactNode; title: string
       </div>
     </div>
   );
+}
+
+const REPORT_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'inappropriate', label: 'Inappropriate messages' },
+  { value: 'harassment', label: 'Harassment or bullying' },
+  { value: 'safety_concern', label: 'Safety concern' },
+  { value: 'impersonation', label: 'Impersonation / fake account' },
+  { value: 'spam', label: 'Spam' },
+  { value: 'other', label: 'Something else' },
+];
+
+function menuItemStyle(color: string): React.CSSProperties {
+  return { display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', padding: '11px 14px', background: 'transparent', border: 'none', borderBottom: `1px solid ${LINE}`, color, fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' };
 }
 
 function tabStyle(active: boolean): React.CSSProperties {
