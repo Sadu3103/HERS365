@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Send, Inbox, Clock, Plus, X, Shield, Check, CheckCheck, MessagesSquare, ShieldCheck } from 'lucide-react';
+import { Send, Inbox, Clock, Plus, X, Shield, Check, CheckCheck, MessagesSquare, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 
 const FLAME = '#ff5a2d';
@@ -118,6 +118,13 @@ export const Messages = () => {
   const [composeAthletes, setComposeAthletes] = useState<AthleteRow[]>([]);
   const [composeFilter, setComposeFilter] = useState('');
   const threadEndRef = useRef<HTMLDivElement>(null);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 760);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 760);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => {
     const state = location.state as { partnerId?: number; partnerName?: string } | null;
@@ -172,12 +179,27 @@ export const Messages = () => {
   const send = useMutation({
     mutationFn: (vars: { partnerId: number; content: string }) =>
       apiFetch('/api/messages', { method: 'POST', body: JSON.stringify(vars) }),
-    onSuccess: () => {
+    // Optimistic: show the message instantly, reconcile on settle.
+    onMutate: async (vars) => {
       setDraft('');
-      qc.invalidateQueries({ queryKey: ['thread', activePartner] });
+      await qc.cancelQueries({ queryKey: ['thread', vars.partnerId] });
+      const prev = qc.getQueryData<{ data: ThreadMessage[] }>(['thread', vars.partnerId]);
+      const optimistic: ThreadMessage = { id: -Date.now(), content: vars.content, isFromMe: true, read: false, createdAt: new Date().toISOString() };
+      qc.setQueryData(['thread', vars.partnerId], (old: any) => ({ data: [...(old?.data ?? []), optimistic] }));
+      return { prev };
+    },
+    onError: (_e, vars, ctx: any) => {
+      if (ctx?.prev) qc.setQueryData(['thread', vars.partnerId], ctx.prev);
+    },
+    onSettled: (_d, _e, vars) => {
+      qc.invalidateQueries({ queryKey: ['thread', vars.partnerId] });
       qc.invalidateQueries({ queryKey: ['conversations'] });
     },
   });
+
+  const submitDraft = () => {
+    if (draft.trim() && activePartner != null) send.mutate({ partnerId: activePartner, content: draft.trim() });
+  };
 
   const respond = useMutation({
     mutationFn: (vars: { id: number; action: 'approve' | 'reject' }) =>
@@ -202,7 +224,7 @@ export const Messages = () => {
   return (
     <div style={{ display: 'flex', height: '100%', color: '#fff', background: INK }}>
       {/* ── Left: list ── */}
-      <div style={{ width: 332, borderRight: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+      <div style={{ width: isMobile ? '100%' : 332, borderRight: isMobile ? 'none' : `1px solid ${LINE}`, display: (isMobile && activePartner != null) ? 'none' : 'flex', flexDirection: 'column', flexShrink: 0 }}>
         {/* Header */}
         <div style={{ padding: '18px 16px 12px' }}>
           <div style={{ fontFamily: DISP, fontSize: '1.5rem', fontWeight: 900, letterSpacing: '0.03em', textTransform: 'uppercase', lineHeight: 1 }}>
@@ -347,7 +369,7 @@ export const Messages = () => {
       </div>
 
       {/* ── Right: thread ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div style={{ flex: 1, display: (isMobile && activePartner == null) ? 'none' : 'flex', flexDirection: 'column', minWidth: 0 }}>
         {activePartner == null ? (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, color: MUTED_2, textAlign: 'center', padding: 24 }}>
             <div style={{ width: 64, height: 64, borderRadius: 18, background: INK_2, border: `1px solid ${LINE}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -362,6 +384,11 @@ export const Messages = () => {
           <>
             {/* Thread header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', borderBottom: `1px solid ${LINE}`, background: INK }}>
+              {isMobile && (
+                <button onClick={() => setActivePartner(null)} aria-label="Back" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: 0, display: 'flex', flexShrink: 0 }}>
+                  <ArrowLeft size={20} />
+                </button>
+              )}
               <Avatar name={(activeConv?.partnerName ?? activePartnerName) || 'Conversation'} size={40} />
               <div style={{ minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
@@ -418,21 +445,23 @@ export const Messages = () => {
 
             {/* Composer */}
             <form
-              onSubmit={(e) => { e.preventDefault(); if (draft.trim()) send.mutate({ partnerId: activePartner, content: draft.trim() }); }}
-              style={{ display: 'flex', gap: 10, padding: '14px 18px', borderTop: `1px solid ${LINE}`, background: INK }}
+              onSubmit={(e) => { e.preventDefault(); submitDraft(); }}
+              style={{ display: 'flex', gap: 10, padding: '14px 18px', borderTop: `1px solid ${LINE}`, background: INK, alignItems: 'flex-end' }}
             >
-              <input
+              <textarea
                 value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder="Type a message…"
-                style={{ flex: 1, background: INK_3, border: `1px solid ${LINE}`, borderRadius: 9999, padding: '11px 18px', color: '#fff', outline: 'none', fontSize: '0.88rem', transition: 'border-color 0.15s' }}
+                rows={1}
+                onChange={(e) => { setDraft(e.target.value); e.target.style.height = 'auto'; e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`; }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitDraft(); e.currentTarget.style.height = 'auto'; } }}
+                placeholder="Type a message…  (Enter to send, Shift+Enter for a new line)"
+                style={{ flex: 1, background: INK_3, border: `1px solid ${LINE}`, borderRadius: 20, padding: '11px 18px', color: '#fff', outline: 'none', fontSize: '0.88rem', resize: 'none', fontFamily: 'inherit', lineHeight: 1.4, maxHeight: 120, transition: 'border-color 0.15s' }}
                 onFocus={(e) => (e.currentTarget.style.borderColor = 'rgba(255,90,45,0.4)')}
                 onBlur={(e) => (e.currentTarget.style.borderColor = LINE)}
               />
-              <button type="submit" disabled={!draft.trim()} style={{
+              <button type="submit" disabled={!draft.trim() || send.isPending} style={{
                 background: draft.trim() ? FLAME : '#262626', border: 'none', borderRadius: '50%', width: 44, height: 44,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: draft.trim() ? 'pointer' : 'default',
-                flexShrink: 0, transition: 'background 0.15s',
+                flexShrink: 0, transition: 'background 0.15s', opacity: send.isPending ? 0.6 : 1,
               }}>
                 <Send size={17} color={draft.trim() ? '#fff' : MUTED_2} />
               </button>
