@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Send, Inbox, Clock, Plus, X, Shield, Check, CheckCheck, MessagesSquare, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { Send, Inbox, Clock, Plus, X, Shield, Check, CheckCheck, MessagesSquare, ShieldCheck, ArrowLeft, Search } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 
 const FLAME = '#ff5a2d';
@@ -117,6 +117,7 @@ export const Messages = () => {
   const [composing, setComposing] = useState(false);
   const [composeAthletes, setComposeAthletes] = useState<AthleteRow[]>([]);
   const [composeFilter, setComposeFilter] = useState('');
+  const [convSearch, setConvSearch] = useState('');
   const threadEndRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 760);
 
@@ -148,11 +149,14 @@ export const Messages = () => {
     } catch { /* sidebar still opens, just empty */ }
   };
 
-  const { data: convData } = useQuery({
+  const { data: convData, isLoading: convLoading } = useQuery({
     queryKey: ['conversations'],
     queryFn: () => apiFetch<{ data: Conversation[] }>('/api/messages/conversations'),
   });
-  const conversations = convData?.data ?? [];
+  const allConversations = convData?.data ?? [];
+  const conversations = convSearch.trim()
+    ? allConversations.filter((c) => c.partnerName.toLowerCase().includes(convSearch.toLowerCase().trim()))
+    : allConversations;
 
   const { data: reqData } = useQuery({
     queryKey: ['message-requests'],
@@ -160,7 +164,7 @@ export const Messages = () => {
   });
   const requests = reqData?.data ?? [];
 
-  const { data: threadData } = useQuery({
+  const { data: threadData, isLoading: threadLoading } = useQuery({
     queryKey: ['thread', activePartner],
     queryFn: () => apiFetch<{ data: ThreadMessage[] }>(`/api/messages/conversations/${activePartner}/messages`),
     enabled: activePartner != null,
@@ -294,8 +298,28 @@ export const Messages = () => {
         )}
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {tab === 'inbox' && conversations.length === 0 && (
+          {tab === 'inbox' && !convLoading && allConversations.length > 0 && (
+            <div style={{ padding: '10px 12px 6px', position: 'sticky', top: 0, background: INK, zIndex: 1 }}>
+              <div style={{ position: 'relative' }}>
+                <Search size={13} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: MUTED_2, pointerEvents: 'none' }} />
+                <input
+                  value={convSearch}
+                  onChange={(e) => setConvSearch(e.target.value)}
+                  placeholder="Search conversations"
+                  style={{ width: '100%', boxSizing: 'border-box', background: INK_3, border: `1px solid ${LINE}`, borderRadius: 9999, padding: '7px 12px 7px 32px', color: '#fff', fontSize: '0.76rem', outline: 'none' }}
+                />
+              </div>
+            </div>
+          )}
+
+          {tab === 'inbox' && convLoading && <ConvSkeleton />}
+
+          {tab === 'inbox' && !convLoading && allConversations.length === 0 && (
             <EmptyState icon={<MessagesSquare size={26} color={MUTED_2} />} title="No conversations yet" sub="Start one with the + button, or accept a request." />
+          )}
+
+          {tab === 'inbox' && !convLoading && allConversations.length > 0 && conversations.length === 0 && (
+            <EmptyState icon={<Search size={24} color={MUTED_2} />} title="No matches" sub={`Nothing matches “${convSearch}”.`} />
           )}
 
           {tab === 'inbox' && conversations.map((c) => {
@@ -403,7 +427,8 @@ export const Messages = () => {
 
             {/* Messages */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {thread.length === 0 && (
+              {threadLoading && thread.length === 0 && <ThreadSkeleton />}
+              {!threadLoading && thread.length === 0 && (
                 <div style={{ margin: 'auto', textAlign: 'center', color: MUTED_2, fontSize: '0.82rem' }}>
                   No messages yet — say hello 👋
                 </div>
@@ -472,6 +497,35 @@ export const Messages = () => {
     </div>
   );
 };
+
+function ConvSkeleton() {
+  return (
+    <div>
+      <style>{`@keyframes msgPulse{0%,100%{opacity:.45}50%{opacity:.9}}`}</style>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 16px', borderBottom: `1px solid ${LINE}` }}>
+          <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', flexShrink: 0, animation: 'msgPulse 1.4s ease-in-out infinite' }} />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <div style={{ width: `${50 + (i * 7) % 38}%`, height: 10, borderRadius: 6, background: 'rgba(255,255,255,0.06)', animation: 'msgPulse 1.4s ease-in-out infinite' }} />
+            <div style={{ width: `${70 - (i * 11) % 28}%`, height: 8, borderRadius: 6, background: 'rgba(255,255,255,0.05)', animation: 'msgPulse 1.4s ease-in-out infinite' }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ThreadSkeleton() {
+  const rows: Array<['flex-start' | 'flex-end', string]> = [['flex-start', '55%'], ['flex-end', '40%'], ['flex-start', '64%'], ['flex-end', '48%'], ['flex-start', '44%']];
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <style>{`@keyframes msgPulse{0%,100%{opacity:.45}50%{opacity:.9}}`}</style>
+      {rows.map(([align, w], i) => (
+        <div key={i} style={{ alignSelf: align, width: w, height: 34, borderRadius: 14, background: 'rgba(255,255,255,0.06)', animation: 'msgPulse 1.4s ease-in-out infinite' }} />
+      ))}
+    </div>
+  );
+}
 
 function EmptyState({ icon, title, sub }: { icon: React.ReactNode; title: string; sub: string }) {
   return (
