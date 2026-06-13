@@ -103,7 +103,7 @@ async function run() {
   for (let i = 0; i < STORY_PORTRAITS.length; i++) {
     await db.insert(schema.stories).values({
       playerId: pid(i),
-      imageUrl: `https://randomuser.me/api/portraits/women/${STORY_PORTRAITS[i]}.jpg`,
+      imageUrl: '',
       expiresAt: expires,
     });
   }

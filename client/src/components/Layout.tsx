@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { BottomTabBar } from './BottomTabBar';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/api';
+import { athleteAvatar } from '../lib/avatar';
 
 interface NavItem {
   icon: React.ElementType;
@@ -210,7 +211,7 @@ export const Layout = () => {
           >
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <img
-                src="https://randomuser.me/api/portraits/women/44.jpg"
+                src={athleteAvatar(user?.name ?? 'You')}
                 alt={user?.name ?? 'Profile'}
                 style={{ width: 32, height: 32, borderRadius: '50%', background: '#1c1c1c', border: '1.5px solid rgba(255,90,45,0.4)', objectFit: 'cover' }}
               />

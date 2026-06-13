@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Minus, Search, CheckCircle2 } from 'lucide-react';
+import { athleteAvatar } from '../lib/avatar';
 
 const players = [
   { rank: 1,  prev: 1,  name: 'Sarah Watkins',   school: 'Westlake HS, TX',          pos: 'QB', score: 95, gpa: 3.9,  fortyYard: 4.72, verified: true  },
@@ -17,15 +18,9 @@ const players = [
 
 const positions = ['All', 'QB', 'RB', 'WR', 'TE', 'LB', 'DB'];
 
-function nameToIdx(name: string) {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
-  return (h % 90) + 1;
-}
-
 function Avatar({ name, size = 36 }: { name: string; size?: number }) {
   return (
-    <img src={`https://randomuser.me/api/portraits/women/${nameToIdx(name)}.jpg`}
+    <img src={athleteAvatar(name)}
       alt={name} style={{ width: size, height: size, borderRadius: '50%', background: '#1c1c1c', flexShrink: 0, objectFit: 'cover' }} />
   );
 }

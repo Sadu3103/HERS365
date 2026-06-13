@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, User, ArrowRight, Eye, EyeOff, Chrome, Github } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { athleteAvatar } from '../lib/avatar';
 
 const FLAME     = '#ff5a2d';
 const FLAME_S   = '#ff8c66';
@@ -196,11 +197,11 @@ export const Auth = () => {
           {/* Avatar row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 32 }}>
             <div style={{ display: 'flex' }}>
-              {[44, 68, 12, 90].map((n, i) => (
-                <span key={n} style={{
+              {['Ava King', 'Maya Cruz', 'Zoe Bell', 'Tia Ford'].map((name, i) => (
+                <span key={name} style={{
                   width: 36, height: 36, borderRadius: '50%',
                   border: `2px solid ${INK}`, marginLeft: i ? -10 : 0,
-                  backgroundImage: `url('https://randomuser.me/api/portraits/women/${n}.jpg')`,
+                  backgroundImage: `url("${athleteAvatar(name)}")`,
                   backgroundSize: 'cover', backgroundPosition: 'center', display: 'block', flexShrink: 0,
                 }} />
               ))}
