@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, User, ArrowRight, Eye, EyeOff, Chrome, Github } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const FLAME     = '#ff5a2d';
@@ -105,7 +105,8 @@ function FloatInput({
 }
 
 export const Auth = () => {
-  const [isLogin,  setIsLogin]  = useState(true);
+  const [searchParams] = useSearchParams();
+  const [isLogin,  setIsLogin]  = useState(searchParams.get('tab') !== 'signup');
   const [name,     setName]     = useState('');
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');

@@ -234,7 +234,7 @@ export const LandingPage = () => {
           <Link className="lp-nav-link" to="/rankings">Rankings</Link>
           <Link className="lp-nav-link" to="/coach/login">For Coaches</Link>
         </div>
-        <Link to="/auth" className="lp-btn lp-btn-primary" style={{ fontSize: '.85rem', padding: '11px 22px' }}>
+        <Link to="/auth?tab=signup" className="lp-btn lp-btn-primary" style={{ fontSize: '.85rem', padding: '11px 22px' }}>
           Get Recruited <ArrowRight size={14} />
         </Link>
       </nav>
@@ -298,7 +298,7 @@ export const LandingPage = () => {
             </motion.div>
 
             <motion.div {...reveal} transition={{ ...reveal.transition, delay: 0.28 }} style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginTop: 26 }}>
-              <Link to="/auth" className="lp-btn lp-btn-primary">Claim Your Profile <ArrowRight size={15} /></Link>
+              <Link to="/auth?tab=signup" className="lp-btn lp-btn-primary">Claim Your Profile <ArrowRight size={15} /></Link>
               <a href="#how" className="lp-btn lp-btn-ghost"><Play size={14} fill="currentColor" /> See How It Works</a>
             </motion.div>
           </div>
@@ -531,7 +531,7 @@ export const LandingPage = () => {
               Claim your profile and put your film in front of the coaches who are already scouting the grid. Free to start. Built for the class of 2026 and beyond.
             </p>
             <div style={{ position: 'relative', display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button className="lp-btn lp-btn-primary" onClick={() => navigate('/auth')}>Claim Your Profile <ArrowRight size={15} /></button>
+              <button className="lp-btn lp-btn-primary" onClick={() => navigate('/auth?tab=signup')}>Claim Your Profile <ArrowRight size={15} /></button>
               <button className="lp-btn lp-btn-ghost" onClick={() => navigate('/coach/login')}>I'm A Coach</button>
             </div>
             <div style={{ position: 'relative', marginTop: 16, color: MUTED_2, fontSize: '.82rem' }}>No spam. No pressure. Just your shot in front of the right coaches.</div>
