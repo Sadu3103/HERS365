@@ -10,10 +10,19 @@ import { sendEmail } from './email';
 
 const router = express.Router();
 
-// Initialize Stripe (use test key from env)
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
-  apiVersion: '2024-12-18.acacia',
-});
+const STRIPE_KEY = process.env.STRIPE_SECRET_KEY;
+if (!STRIPE_KEY) {
+  console.warn('⚠ STRIPE_SECRET_KEY is not set — payment routes will return 503');
+}
+
+const stripe: Stripe | null = STRIPE_KEY
+  ? new Stripe(STRIPE_KEY, { apiVersion: '2024-12-18.acacia' })
+  : null;
+
+function requireStripe(req: Request, res: Response, next: express.NextFunction) {
+  if (!stripe) return res.status(503).json({ error: 'Payment service is not configured' });
+  next();
+}
 
 // ----------------------
 // STRIPE WEBHOOK (PUBLIC)
@@ -22,7 +31,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder'
 // Authenticity is enforced via signature verification instead.
 
 // POST /webhook - Handle Stripe webhooks
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
+router.post('/webhook', requireStripe, express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
   const sig = req.headers['stripe-signature'];
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -167,6 +176,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req: R
 // Every route registered AFTER this line requires a valid Bearer token.
 // The Stripe webhook above is intentionally left public (verified by signature).
 router.use(requireAuth);
+router.use(requireStripe);
 
 // ----------------------
 // STRIPE CHECKOUT
