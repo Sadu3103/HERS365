@@ -390,6 +390,7 @@ export const Layout = () => {
           </div>
         </header>
 
+        <ProfileCompletionBanner />
         {/* Page Content */}
         <main
           className="main-scroll"
