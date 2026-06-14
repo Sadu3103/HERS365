@@ -1,9 +1,16 @@
 // @ts-nocheck
 import express from 'express';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
-import { requireAuth } from '../middleware/requireAuth';
+import { requireAuth } from '../auth';
+
+// Public projection of a player row. Email/zip are contact info for a
+// minor — never expose them on athlete endpoints.
+function publicAthlete(p: Record<string, unknown>) {
+  const { passwordHash, email, zipCode, ...safe } = p;
+  return safe;
+}
 
 const router = express.Router();
 
@@ -16,129 +23,103 @@ const UPDATABLE_FIELDS = [
 ];
 const INT_FIELDS = new Set(['age', 'gradYear']);
 
-// Mock data for athletes
-const mockAthletes = [
-  {
-    id: 1,
-    name: 'Sarah Johnson',
-    school: 'Lincoln High School',
-    position: 'QB',
-    rating: 98.5,
-    location: 'California',
-    graduationYear: 2026,
-    height: '5\'8"',
-    weight: 145,
-    stats: { speed: 95, strength: 88, agility: 92, technique: 97 },
-    achievements: ['State Champion', 'Team Captain', 'Academic All-Star'],
-    isFavorited: false,
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah',
-    lastActive: '2 hours ago',
-    bio: 'Passionate quarterback with a love for the game and academics.',
-    followers: 1247,
-    following: 89,
-    posts: 56
-  },
-  {
-    id: 2,
-    name: 'Emma Davis',
-    school: 'Washington Prep',
-    position: 'WR',
-    rating: 97.8,
-    location: 'Texas',
-    graduationYear: 2026,
-    height: '5\'6"',
-    weight: 130,
-    stats: { speed: 98, strength: 85, agility: 96, technique: 94 },
-    achievements: ['All-Conference', 'Speed Champion', 'Scholar Athlete'],
-    isFavorited: true,
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emma',
-    lastActive: '1 day ago',
-    bio: 'Dynamic wide receiver with exceptional speed and hands.',
-    followers: 892,
-    following: 156,
-    posts: 43
-  }
-];
-
-// GET /api/athletes - Search and filter athletes
-router.get('/', (req, res) => {
+// GET /api/athletes — real DB list with optional filters
+router.get('/', async (req, res) => {
   try {
-    const {
-      search,
-      position,
-      location,
-      graduationYear,
-      rating,
-      sortBy = 'rating',
-      limit = 20,
-      offset = 0
-    } = req.query;
+    const { position, state, gradYear, limit = 20, offset = 0 } = req.query;
+    const conditions = [];
+    if (position && position !== 'All') conditions.push(eq(schema.players.position, String(position)));
+    if (state && state !== 'All') conditions.push(eq(schema.players.state, String(state)));
+    if (gradYear && gradYear !== 'All') conditions.push(eq(schema.players.gradYear, parseInt(String(gradYear), 10)));
 
-    let filteredAthletes = [...mockAthletes];
+    const rows = await db
+      .select()
+      .from(schema.players)
+      .where(conditions.length ? and(...conditions) : undefined)
+      .limit(Number(limit))
+      .offset(Number(offset));
 
-    // Apply search filter
-    if (search) {
-      const searchLower = search.toString().toLowerCase();
-      filteredAthletes = filteredAthletes.filter(athlete =>
-        athlete.name.toLowerCase().includes(searchLower) ||
-        athlete.school.toLowerCase().includes(searchLower) ||
-        athlete.position.toLowerCase().includes(searchLower)
-      );
-    }
+    const data = rows.map(publicAthlete);
+    res.json({ success: true, data, pagination: { limit: Number(limit), offset: Number(offset) } });
+  } catch (err) {
+    console.error('[athletes/list]', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch athletes' });
+  }
+});
 
-    // Apply filters
-    if (position && position !== 'All') {
-      filteredAthletes = filteredAthletes.filter(a => a.position === position);
-    }
+// Saved schools — /me routes resolve the athlete from the JWT and must be
+// registered before /:id so "me" is not parsed as an id.
 
-    if (location && location !== 'All') {
-      filteredAthletes = filteredAthletes.filter(a => a.location === location);
-    }
-
-    if (graduationYear && graduationYear !== 'All') {
-      filteredAthletes = filteredAthletes.filter(a => a.graduationYear === parseInt(graduationYear.toString()));
-    }
-
-    if (rating && rating !== 'All') {
-      let minRating = 0;
-      switch (rating) {
-        case '95+': minRating = 95; break;
-        case '90-94': minRating = 90; break;
-        case '85-89': minRating = 85; break;
-        case '80-84': minRating = 80; break;
-      }
-      filteredAthletes = filteredAthletes.filter(a => a.rating >= minRating);
-    }
-
-    // Apply sorting
-    filteredAthletes.sort((a, b) => {
-      switch (sortBy) {
-        case 'rating': return b.rating - a.rating;
-        case 'name': return a.name.localeCompare(b.name);
-        case 'school': return a.school.localeCompare(b.school);
-        default: return 0;
-      }
-    });
-
-    // Apply pagination
-    const total = filteredAthletes.length;
-    filteredAthletes = filteredAthletes.slice(Number(offset), Number(offset) + Number(limit));
-
-    res.json({
-      success: true,
-      data: filteredAthletes,
-      pagination: {
-        total,
-        limit: Number(limit),
-        offset: Number(offset),
-        hasMore: Number(offset) + Number(limit) < total
-      }
-    });
+// GET /api/athletes/me/saved-schools
+router.get('/me/saved-schools', requireAuth, async (req, res) => {
+  try {
+    const rows = await db
+      .select({ programId: schema.savedSchools.programId })
+      .from(schema.savedSchools)
+      .where(eq(schema.savedSchools.athleteId, Number(req.user.id)));
+    res.json({ success: true, data: rows.map(r => r.programId) });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch athletes'
-    });
+    console.error('[athletes/saved-schools/list]', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch saved schools' });
+  }
+});
+
+// POST /api/athletes/me/saved-schools
+router.post('/me/saved-schools', requireAuth, async (req, res) => {
+  try {
+    const programId = parseInt(req.body?.schoolId, 10);
+    if (Number.isNaN(programId)) {
+      return res.status(400).json({ success: false, error: 'schoolId is required' });
+    }
+    const athleteId = Number(req.user.id);
+
+    const existing = await db
+      .select({ id: schema.savedSchools.id })
+      .from(schema.savedSchools)
+      .where(and(
+        eq(schema.savedSchools.athleteId, athleteId),
+        eq(schema.savedSchools.programId, programId),
+      ))
+      .limit(1);
+    if (existing.length === 0) {
+      await db.insert(schema.savedSchools).values({ athleteId, programId });
+    }
+
+    const rows = await db
+      .select({ programId: schema.savedSchools.programId })
+      .from(schema.savedSchools)
+      .where(eq(schema.savedSchools.athleteId, athleteId));
+    res.json({ success: true, data: rows.map(r => r.programId) });
+  } catch (error) {
+    console.error('[athletes/saved-schools/add]', error);
+    res.status(500).json({ success: false, error: 'Failed to save school' });
+  }
+});
+
+// DELETE /api/athletes/me/saved-schools/:schoolId
+router.delete('/me/saved-schools/:schoolId', requireAuth, async (req, res) => {
+  try {
+    const programId = parseInt(req.params.schoolId, 10);
+    if (Number.isNaN(programId)) {
+      return res.status(400).json({ success: false, error: 'Invalid school id' });
+    }
+    const athleteId = Number(req.user.id);
+
+    await db
+      .delete(schema.savedSchools)
+      .where(and(
+        eq(schema.savedSchools.athleteId, athleteId),
+        eq(schema.savedSchools.programId, programId),
+      ));
+
+    const rows = await db
+      .select({ programId: schema.savedSchools.programId })
+      .from(schema.savedSchools)
+      .where(eq(schema.savedSchools.athleteId, athleteId));
+    res.json({ success: true, data: rows.map(r => r.programId) });
+  } catch (error) {
+    console.error('[athletes/saved-schools/remove]', error);
+    res.status(500).json({ success: false, error: 'Failed to remove saved school' });
   }
 });
 
@@ -161,9 +142,7 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Athlete not found' });
     }
 
-    // Never leak the password hash
-    const { passwordHash, ...safe } = athlete;
-    res.json({ success: true, data: safe });
+    res.json({ success: true, data: publicAthlete(athlete) });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to fetch athlete profile' });
   }
@@ -208,76 +187,14 @@ router.put('/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Athlete not found' });
     }
 
-    const { passwordHash, ...safe } = updated[0];
-    res.json({ success: true, data: safe });
+    res.json({ success: true, data: publicAthlete(updated[0]) });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to update athlete profile' });
   }
 });
 
-// POST /api/athletes/:id/favorite - Toggle favorite status
-router.post('/:id/favorite', (req, res) => {
-  try {
-    const { id } = req.params;
-    const athlete = mockAthletes.find(a => a.id === parseInt(id));
-
-    if (!athlete) {
-      return res.status(404).json({
-        success: false,
-        error: 'Athlete not found'
-      });
-    }
-
-    athlete.isFavorited = !athlete.isFavorited;
-
-    res.json({
-      success: true,
-      data: {
-        id: athlete.id,
-        isFavorited: athlete.isFavorited
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to toggle favorite'
-    });
-  }
-});
-
-// GET /api/athletes/:id/stats - Get detailed athlete stats
-router.get('/:id/stats', (req, res) => {
-  try {
-    const { id } = req.params;
-    const athlete = mockAthletes.find(a => a.id === parseInt(id));
-
-    if (!athlete) {
-      return res.status(404).json({
-        success: false,
-        error: 'Athlete not found'
-      });
-    }
-
-    const detailedStats = {
-      ...athlete.stats,
-      // Add more detailed stats
-      verticalJump: '28"',
-      benchPress: '185 lbs',
-      fortyYardDash: '4.8s',
-      threeConeDrill: '7.2s',
-      shuttleRun: '4.4s'
-    };
-
-    res.json({
-      success: true,
-      data: detailedStats
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch athlete stats'
-    });
-  }
+router.post('/:id/favorite', (_req, res) => {
+  res.status(501).json({ success: false, error: 'Favorites not implemented yet' });
 });
 
 export { router as athletesRouter };

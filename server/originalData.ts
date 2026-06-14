@@ -44,7 +44,7 @@ export const athletes = [
     {
         id: 1,
         name: 'Sarah Johnson',
-        avatar: 'https://randomuser.me/api/portraits/women/1.jpg',
+        avatar: '',
         sport: 'Basketball',
         position: 'Point Guard',
         height: '5\'9"',
@@ -55,7 +55,7 @@ export const athletes = [
     {
         id: 2,
         name: 'Emma Rodriguez',
-        avatar: 'https://randomuser.me/api/portraits/women/2.jpg',
+        avatar: '',
         sport: 'Soccer',
         position: 'Forward',
         height: '5\'7"',
@@ -69,7 +69,7 @@ export const recruiters = [
     {
         id: 1,
         name: 'Coach Lisa Thompson',
-        avatar: 'https://randomuser.me/api/portraits/women/10.jpg',
+        avatar: '',
         school: 'University of California',
         sports: ['Basketball', 'Volleyball'],
         lookingFor: 'Point Guards, Outside Hitters',

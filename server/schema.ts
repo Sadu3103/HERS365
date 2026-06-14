@@ -483,6 +483,30 @@ export const messages = pgTable('messages', {
   createdAt: timestamp('created_at').default(sql`now()`),
 });
 
+// Safety: a user blocks a conversation partner. Either party blocking stops messaging.
+export const messageBlocks = pgTable('message_blocks', {
+  id: serial('id').primaryKey(),
+  blockerId: integer('blocker_id').notNull(),
+  blockerRole: text('blocker_role').notNull(), // 'coach' | 'athlete'
+  blockedId: integer('blocked_id').notNull(),
+  blockedRole: text('blocked_role').notNull(),
+  createdAt: timestamp('created_at').default(sql`now()`),
+});
+
+// Safety: a user reports a conversation partner. Lands in the moderation queue.
+export const messageReports = pgTable('message_reports', {
+  id: serial('id').primaryKey(),
+  reporterId: integer('reporter_id').notNull(),
+  reporterRole: text('reporter_role').notNull(),
+  reportedId: integer('reported_id').notNull(),
+  reportedRole: text('reported_role').notNull(),
+  reason: text('reason').notNull(), // category
+  details: text('details'),
+  status: text('status').default('pending'), // pending | reviewed | actioned | dismissed
+  createdAt: timestamp('created_at').default(sql`now()`),
+  reviewedAt: timestamp('reviewed_at'),
+});
+
 export const scholarships = pgTable('scholarships', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
@@ -800,6 +824,25 @@ export const securityAlerts = pgTable('security_alerts', {
   resolved: boolean('resolved').default(false),
   resolvedAt: timestamp('resolved_at'),
   resolvedBy: text('resolved_by'),
+  createdAt: timestamp('created_at').default(sql`now()`),
+});
+
+// programId/teamId are NOT FKs to teams — college programs are server-side
+// seed data (server/api/programs.ts) with no DB table yet.
+export const savedSchools = pgTable('saved_schools', {
+  id: serial('id').primaryKey(),
+  athleteId: integer('athlete_id').references(() => players.id).notNull(),
+  programId: integer('program_id').notNull(),
+  savedAt: timestamp('saved_at').default(sql`now()`),
+});
+
+export const programApplications = pgTable('program_applications', {
+  id: serial('id').primaryKey(),
+  athleteId: integer('athlete_id').references(() => players.id).notNull(),
+  programId: integer('program_id').notNull(),
+  position: text('position').notNull(),
+  note: text('note'),
+  status: text('status').default('pending'), // pending, reviewed, accepted, rejected
   createdAt: timestamp('created_at').default(sql`now()`),
 });
 

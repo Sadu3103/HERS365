@@ -11,3 +11,9 @@ temp_files.txt
 
 # Private Claude context — never commit (personal + business)
 CLAUDE.local.md
+.gstack/
+
+# Generated / local agent artifacts — never commit
+graphify-out/
+.claude/worktrees/
+.claire/
