@@ -91,11 +91,32 @@ const css = `
   .lp-band-grid{display:grid;grid-template-columns:repeat(4,1fr)}
   .lp-triad{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
   .lp-split{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+  /* Hamburger (desktop: hidden) */
+  .lp-hamburger{display:none;flex-direction:column;justify-content:center;gap:5px;padding:6px;
+    background:none;border:none;cursor:pointer;z-index:101;-webkit-tap-highlight-color:transparent}
+  .lp-hamburger span{display:block;width:22px;height:2px;background:#f4f4f2;border-radius:2px;
+    transition:transform .28s cubic-bezier(.25,1,.5,1),opacity .22s}
+  .lp-hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+  .lp-hamburger.open span:nth-child(2){opacity:0}
+  .lp-hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+
+  /* Mobile drawer */
+  .lp-mobile-drawer{position:fixed;inset:0;z-index:99;background:rgba(10,10,10,.97);
+    backdrop-filter:blur(20px);display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:36px;opacity:0;pointer-events:none;
+    transition:opacity .28s cubic-bezier(.25,1,.5,1)}
+  .lp-mobile-drawer.open{opacity:1;pointer-events:auto}
+  .lp-mobile-drawer a{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:2.2rem;
+    text-transform:uppercase;letter-spacing:.06em;color:#f4f4f2;text-decoration:none;
+    transition:color .2s}
+  .lp-mobile-drawer a:active{color:#ff5a2d}
+
   @media(max-width:900px){
     .lp-hero-grid,.lp-split{grid-template-columns:1fr;gap:36px}
     .lp-band-grid{grid-template-columns:repeat(2,1fr)}
     .lp-triad{grid-template-columns:1fr}
     .lp-nav-links{display:none !important}
+    .lp-hamburger{display:flex}
     .lp-hero-header{padding-top:100px !important;padding-bottom:48px !important}
     .lp-hero-card{display:none}
   }
@@ -192,6 +213,7 @@ export const LandingPage = () => {
   const [scrolled, setScrolled] = useState(false);
   const [barWidth, setBarWidth] = useState('0%');
   const [leaderboard, setLeaderboard] = useState<GridRow[]>(fallbackLeaderboard);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -238,10 +260,26 @@ export const LandingPage = () => {
           <Link className="lp-nav-link" to="/rankings">Rankings</Link>
           <Link className="lp-nav-link" to="/coach/login">For Coaches</Link>
         </div>
-        <Link to="/auth?tab=signup" className="lp-btn lp-btn-primary" style={{ fontSize: '.85rem', padding: '11px 22px' }}>
-          Get Recruited <ArrowRight size={14} />
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button className={`lp-hamburger${menuOpen ? ' open' : ''}`} onClick={() => setMenuOpen(o => !o)} aria-label="Menu">
+            <span /><span /><span />
+          </button>
+          <Link to="/auth?tab=signup" className="lp-btn lp-btn-primary" style={{ fontSize: '.85rem', padding: '11px 22px' }}>
+            Get Recruited <ArrowRight size={14} />
+          </Link>
+        </div>
       </nav>
+
+      {/* Mobile nav drawer */}
+      <div className={`lp-mobile-drawer${menuOpen ? ' open' : ''}`} onClick={() => setMenuOpen(false)}>
+        <a href="#how" onClick={() => setMenuOpen(false)}>The Grid</a>
+        <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
+        <Link to="/rankings" onClick={() => setMenuOpen(false)}>Rankings</Link>
+        <Link to="/coach/login" onClick={() => setMenuOpen(false)}>For Coaches</Link>
+        <Link to="/auth?tab=signup" className="lp-btn lp-btn-primary" style={{ fontSize: '1rem', padding: '13px 28px', marginTop: 8 }} onClick={() => setMenuOpen(false)}>
+          Get Recruited <ArrowRight size={16} />
+        </Link>
+      </div>
 
       {/* HERO */}
       <header className="lp-hero-header" style={{ position: 'relative', padding: '152px 0 80px', overflow: 'hidden' }}>
