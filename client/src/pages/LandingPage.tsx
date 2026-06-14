@@ -96,9 +96,13 @@ const css = `
     .lp-band-grid{grid-template-columns:repeat(2,1fr)}
     .lp-triad{grid-template-columns:1fr}
     .lp-nav-links{display:none !important}
+    .lp-hero-header{padding-top:100px !important;padding-bottom:48px !important}
+    .lp-hero-card{display:none}
   }
   @media(max-width:480px){
     .lp-band-grid{grid-template-columns:1fr 1fr}
+    .lp-hero-header{padding-top:88px !important;padding-bottom:40px !important}
+    .lp-hero-title{font-size:clamp(2.6rem,10vw,3.4rem) !important}
   }
 `;
 
@@ -240,7 +244,7 @@ export const LandingPage = () => {
       </nav>
 
       {/* HERO */}
-      <header style={{ position: 'relative', padding: '152px 0 80px', overflow: 'hidden' }}>
+      <header className="lp-hero-header" style={{ position: 'relative', padding: '152px 0 80px', overflow: 'hidden' }}>
         {/* BG glows */}
         <div style={{ position: 'absolute', width: 680, height: 680, borderRadius: '50%', filter: 'blur(100px)', opacity: 0.45, top: -200, right: -140, background: 'radial-gradient(circle,rgba(255,90,45,.5),transparent 65%)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', width: 440, height: 440, borderRadius: '50%', filter: 'blur(90px)', opacity: 0.35, bottom: -200, left: -140, background: 'radial-gradient(circle,rgba(255,90,45,.22),transparent 65%)', pointerEvents: 'none' }} />
@@ -268,6 +272,7 @@ export const LandingPage = () => {
             <motion.h1
               {...reveal}
               transition={{ ...reveal.transition, delay: 0.08 }}
+              className="lp-hero-title"
               style={{ ...disp, fontWeight: 900, fontSize: 'clamp(3.8rem,9vw,7.4rem)', lineHeight: 0.88, margin: 0 }}
             >
               Get Seen.<br />
@@ -307,6 +312,7 @@ export const LandingPage = () => {
           <motion.div
             {...reveal}
             transition={{ ...reveal.transition, delay: 0.18 }}
+            className="lp-hero-card"
             style={{
               position: 'relative',
               background: `linear-gradient(160deg,${INK_3},${INK_2})`,
