@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, ChevronRight, Plus, CheckCircle2, Shield } from 'lucide-react';
+import { athleteAvatar } from '../lib/avatar';
 
 const teams = [
   {
@@ -71,16 +72,10 @@ const teams = [
 
 const divisions = ['All', 'Varsity', 'JV', 'Youth'];
 
-function nameToIdx(name: string) {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
-  return (h % 90) + 1;
-}
-
 function Avatar({ name, size = 36 }: { name: string; size?: number }) {
   return (
     <img
-      src={`https://randomuser.me/api/portraits/women/${nameToIdx(name)}.jpg`}
+      src={athleteAvatar(name)}
       alt={name}
       style={{ width: size, height: size, borderRadius: '50%', background: '#1c1c1c', flexShrink: 0, objectFit: 'cover' }}
     />

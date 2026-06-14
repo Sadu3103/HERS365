@@ -1,8 +1,10 @@
 // @ts-nocheck
 import express from 'express';
 import { getSignedUploadUrl } from './cloud-storage';
+import { requireAuth } from './auth';
 
 const router = express.Router();
+router.use(requireAuth);
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB

@@ -1,5 +1,5 @@
 import express from 'express';
-import { and, eq, or, desc, sql } from 'drizzle-orm';
+import { and, eq, or, desc, sql, isNotNull } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 import { requireAuth } from '../auth';
@@ -114,6 +114,33 @@ router.get('/conversations/:partnerId/messages', async (req, res) => {
   }
 });
 
+// CLAUDE.md: all coach↔athlete contact is gated through parents. A pair may
+// message only after a message_request was approved WITH a parent attached.
+export async function hasParentApprovedLink(athleteId: number, coachId: number): Promise<boolean> {
+  const [link] = await db.select({ id: schema.messageRequests.id })
+    .from(schema.messageRequests)
+    .where(and(
+      eq(schema.messageRequests.athleteId, athleteId),
+      eq(schema.messageRequests.receiverId, coachId),
+      eq(schema.messageRequests.status, 'approved'),
+      isNotNull(schema.messageRequests.parentId),
+    ))
+    .limit(1);
+  return Boolean(link);
+}
+
+// Safety: true if either party has blocked the other.
+async function eitherBlocked(aId: number, aRole: string, bId: number, bRole: string): Promise<boolean> {
+  const [row] = await db.select({ id: schema.messageBlocks.id })
+    .from(schema.messageBlocks)
+    .where(or(
+      and(eq(schema.messageBlocks.blockerId, aId), eq(schema.messageBlocks.blockerRole, aRole), eq(schema.messageBlocks.blockedId, bId), eq(schema.messageBlocks.blockedRole, bRole)),
+      and(eq(schema.messageBlocks.blockerId, bId), eq(schema.messageBlocks.blockerRole, bRole), eq(schema.messageBlocks.blockedId, aId), eq(schema.messageBlocks.blockedRole, aRole)),
+    ))
+    .limit(1);
+  return Boolean(row);
+}
+
 // POST /api/messages — send a message to a partner
 router.post('/', async (req, res) => {
   try {
@@ -124,12 +151,39 @@ router.post('/', async (req, res) => {
     if (!partnerId || !content) {
       return res.status(400).json({ success: false, error: 'partnerId and content are required' });
     }
+    const partnerIdNum = Number(partnerId);
+    if (Number.isNaN(partnerIdNum)) {
+      return res.status(400).json({ success: false, error: 'Invalid partner id' });
+    }
+
+    const partnerTable = isCoach ? schema.players : schema.coaches;
+    const [partner] = await db.select({ id: partnerTable.id })
+      .from(partnerTable)
+      .where(eq(partnerTable.id, partnerIdNum))
+      .limit(1);
+    if (!partner) {
+      return res.status(404).json({ success: false, error: 'Partner not found' });
+    }
+
+    const pairAthleteId = isCoach ? partnerIdNum : userId;
+    const pairCoachId = isCoach ? userId : partnerIdNum;
+    if (!(await hasParentApprovedLink(pairAthleteId, pairCoachId))) {
+      return res.status(403).json({
+        success: false,
+        error: 'Messaging requires a parent-approved contact request',
+      });
+    }
+
+    const partnerRole = isCoach ? 'athlete' : 'coach';
+    if (await eitherBlocked(userId, role, partnerIdNum, partnerRole)) {
+      return res.status(403).json({ success: false, error: 'This conversation is unavailable.' });
+    }
 
     const [row] = await db
       .insert(schema.messages)
       .values({
-        coachId: isCoach ? userId : Number(partnerId),
-        athleteId: isCoach ? Number(partnerId) : userId,
+        coachId: isCoach ? userId : partnerIdNum,
+        athleteId: isCoach ? partnerIdNum : userId,
         senderId: userId,
         senderType: isCoach ? 'coach' : 'athlete',
         content: String(content),
@@ -245,6 +299,90 @@ router.post('/requests/:id/respond', async (req, res) => {
   } catch (err) {
     console.error('[messages/respond]', err);
     res.status(500).json({ success: false, error: 'Failed to respond to request' });
+  }
+});
+
+// ── Safety: block / unblock / report ─────────────────────────────────────────
+
+// POST /api/messages/block — block a conversation partner (either party blocking stops messaging)
+router.post('/block', async (req, res) => {
+  try {
+    const { userId, role } = caller(req);
+    const partnerIdNum = Number(req.body?.partnerId);
+    if (Number.isNaN(partnerIdNum)) return res.status(400).json({ success: false, error: 'Invalid partner id' });
+    const partnerRole = role === 'coach' ? 'athlete' : 'coach';
+    const existing = await db.select({ id: schema.messageBlocks.id }).from(schema.messageBlocks)
+      .where(and(
+        eq(schema.messageBlocks.blockerId, userId), eq(schema.messageBlocks.blockerRole, role),
+        eq(schema.messageBlocks.blockedId, partnerIdNum), eq(schema.messageBlocks.blockedRole, partnerRole),
+      )).limit(1);
+    if (existing.length === 0) {
+      await db.insert(schema.messageBlocks).values({
+        blockerId: userId, blockerRole: role, blockedId: partnerIdNum, blockedRole: partnerRole,
+      });
+    }
+    res.json({ success: true, blocked: true });
+  } catch (err) {
+    console.error('[messages/block]', err);
+    res.status(500).json({ success: false, error: 'Failed to block' });
+  }
+});
+
+// POST /api/messages/unblock
+router.post('/unblock', async (req, res) => {
+  try {
+    const { userId, role } = caller(req);
+    const partnerIdNum = Number(req.body?.partnerId);
+    if (Number.isNaN(partnerIdNum)) return res.status(400).json({ success: false, error: 'Invalid partner id' });
+    const partnerRole = role === 'coach' ? 'athlete' : 'coach';
+    await db.delete(schema.messageBlocks).where(and(
+      eq(schema.messageBlocks.blockerId, userId), eq(schema.messageBlocks.blockerRole, role),
+      eq(schema.messageBlocks.blockedId, partnerIdNum), eq(schema.messageBlocks.blockedRole, partnerRole),
+    ));
+    res.json({ success: true, blocked: false });
+  } catch (err) {
+    console.error('[messages/unblock]', err);
+    res.status(500).json({ success: false, error: 'Failed to unblock' });
+  }
+});
+
+// GET /api/messages/blocked — partner ids the caller has blocked (for UI state)
+router.get('/blocked', async (req, res) => {
+  try {
+    const { userId, role } = caller(req);
+    const rows = await db.select({ blockedId: schema.messageBlocks.blockedId })
+      .from(schema.messageBlocks)
+      .where(and(eq(schema.messageBlocks.blockerId, userId), eq(schema.messageBlocks.blockerRole, role)));
+    res.json({ success: true, data: rows.map((r) => r.blockedId) });
+  } catch (err) {
+    console.error('[messages/blocked]', err);
+    res.status(500).json({ success: false, error: 'Failed to load blocks' });
+  }
+});
+
+const REPORT_REASONS = ['inappropriate', 'harassment', 'spam', 'safety_concern', 'impersonation', 'other'];
+
+// POST /api/messages/report — report a partner; lands in the moderation queue
+router.post('/report', async (req, res) => {
+  try {
+    const { userId, role } = caller(req);
+    const { partnerId, reason, details } = req.body ?? {};
+    const partnerIdNum = Number(partnerId);
+    if (Number.isNaN(partnerIdNum)) return res.status(400).json({ success: false, error: 'Invalid partner id' });
+    if (!reason || !REPORT_REASONS.includes(String(reason))) {
+      return res.status(400).json({ success: false, error: 'A valid reason is required' });
+    }
+    const partnerRole = role === 'coach' ? 'athlete' : 'coach';
+    await db.insert(schema.messageReports).values({
+      reporterId: userId, reporterRole: role,
+      reportedId: partnerIdNum, reportedRole: partnerRole,
+      reason: String(reason), details: details ? String(details).slice(0, 2000) : null,
+      status: 'pending',
+    });
+    res.status(201).json({ success: true });
+  } catch (err) {
+    console.error('[messages/report]', err);
+    res.status(500).json({ success: false, error: 'Failed to submit report' });
   }
 });
 
