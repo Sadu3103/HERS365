@@ -1,0 +1,439 @@
+{
+  "nodes": [
+    {"id": "server_eventRoutes_EventRouter", "label": "Event Router (eventRoutes)", "file_type": "code", "source_file": "server/eventRoutes.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_events_BaseEvent", "label": "BaseEvent Interface", "file_type": "code", "source_file": "server/events.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_events_DomainEvent", "label": "DomainEvent Union Type", "file_type": "code", "source_file": "server/events.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_events_UserCreatedEvent", "label": "UserCreatedEvent", "file_type": "code", "source_file": "server/events.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_events_UserDeletedEvent", "label": "UserDeletedEvent", "file_type": "code", "source_file": "server/events.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_events_LoginAttemptedEvent", "label": "LoginAttemptedEvent", "file_type": "code", "source_file": "server/events.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_events_LoginSuccessfulEvent", "label": "LoginSuccessfulEvent", "file_type": "code", "source_file": "server/events.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_events_PaymentProcessedEvent", "label": "PaymentProcessedEvent", "file_type": "code", "source_file": "server/events.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_events_NILDealCreatedEvent", "label": "NILDealCreatedEvent", "file_type": "code", "source_file": "server/events.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_events_ComplianceViolationEvent", "label": "ComplianceViolationEvent", "file_type": "code", "source_file": "server/events.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_events_ScholarshipOfferedEvent", "label": "ScholarshipOfferedEvent", "file_type": "code", "source_file": "server/events.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_events_MessageSentEvent", "label": "MessageSentEvent", "file_type": "code", "source_file": "server/events.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_events_StoredEvent", "label": "StoredEvent Interface", "file_type": "code", "source_file": "server/events.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_events_AzureServiceBusIntegration", "label": "Azure Service Bus Integration", "file_type": "concept", "source_file": "server/events.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_exportRoutes_ExportRouter", "label": "Export Router (exportRoutes)", "file_type": "code", "source_file": "server/exportRoutes.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_exportRoutes_requireAdmin", "label": "requireAdmin Middleware (exportRoutes)", "file_type": "code", "source_file": "server/exportRoutes.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_index_ExpressApp", "label": "Express App (index.ts)", "file_type": "code", "source_file": "server/index.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_index_startApplication", "label": "startApplication Function", "file_type": "code", "source_file": "server/index.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_index_gracefulShutdown", "label": "gracefulShutdown Function", "file_type": "code", "source_file": "server/index.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_index_PerformanceMonitoringMiddleware", "label": "Performance Monitoring Middleware", "file_type": "code", "source_file": "server/index.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_index_HealthCheckEndpoint", "label": "Health Check Endpoint (/health)", "file_type": "code", "source_file": "server/index.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_index_MetricsEndpoint", "label": "Metrics Endpoint (/metrics)", "file_type": "code", "source_file": "server/index.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_logger_Logger", "label": "Logger (logger.ts)", "file_type": "code", "source_file": "server/logger.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_logger_handleError", "label": "handleError Function", "file_type": "code", "source_file": "server/logger.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_logger_withErrorHandling", "label": "withErrorHandling Function", "file_type": "code", "source_file": "server/logger.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_maxpreps_MaxPrepsService", "label": "MaxPreps Data Service", "file_type": "code", "source_file": "server/maxpreps.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_maxpreps_MaxPrepsPlayer", "label": "MaxPrepsPlayer Type", "file_type": "code", "source_file": "server/maxpreps.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_maxpreps_MaxPrepsTeam", "label": "MaxPrepsTeam Type", "file_type": "code", "source_file": "server/maxpreps.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_maxpreps_fetchFlagFootballLeaders", "label": "fetchFlagFootballLeaders Function", "file_type": "code", "source_file": "server/maxpreps.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_maxpreps_fetchTeamRoster", "label": "fetchTeamRoster Function", "file_type": "code", "source_file": "server/maxpreps.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_maxpreps_fetchStateTeamRankings", "label": "fetchStateTeamRankings Function", "file_type": "code", "source_file": "server/maxpreps.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_maxpreps_searchMaxPrepsPlayer", "label": "searchMaxPrepsPlayer Function", "file_type": "code", "source_file": "server/maxpreps.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_maxpreps_fetchPlayerStats", "label": "fetchPlayerStats Function", "file_type": "code", "source_file": "server/maxpreps.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_microservices_Microservice", "label": "Microservice Abstract Class", "file_type": "code", "source_file": "server/microservices.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_microservices_AuthenticationService", "label": "AuthenticationService", "file_type": "code", "source_file": "server/microservices.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_microservices_UserManagementService", "label": "UserManagementService", "file_type": "code", "source_file": "server/microservices.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_microservices_ServiceOrchestrator", "label": "ServiceOrchestrator", "file_type": "code", "source_file": "server/microservices.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_middleware_errorHandler_ErrorHandler", "label": "errorHandler Middleware", "file_type": "code", "source_file": "server/middleware/errorHandler.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_middleware_requireAuth_RequireAuth", "label": "requireAuth Middleware", "file_type": "code", "source_file": "server/middleware/requireAuth.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_middleware_requireSubscription_RequireTier", "label": "requireTier Middleware", "file_type": "code", "source_file": "server/middleware/requireSubscription.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_middleware_validate_ValidateMiddleware", "label": "validate Middleware", "file_type": "code", "source_file": "server/middleware/validate.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_middleware_validate_ZodSchemas", "label": "Zod Validation Schemas (login, register, checkout)", "file_type": "code", "source_file": "server/middleware/validate.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_observability_TracingService", "label": "TracingService (OpenTelemetry)", "file_type": "code", "source_file": "server/observability.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_observability_MetricsService", "label": "MetricsService (Prometheus)", "file_type": "code", "source_file": "server/observability.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_observability_CorrelationService", "label": "CorrelationService", "file_type": "code", "source_file": "server/observability.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_originalData_ncaaDivision1FlagFootballTeams", "label": "NCAA Division I Flag Football Teams Data", "file_type": "code", "source_file": "server/originalData.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_originalData_flagFootballTrainingVideos", "label": "Flag Football Training Videos Data", "file_type": "code", "source_file": "server/originalData.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_originalData_athletes", "label": "Static Athletes Data", "file_type": "code", "source_file": "server/originalData.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_originalData_recruiters", "label": "Static Recruiters Data", "file_type": "code", "source_file": "server/originalData.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_originalRoutes_OriginalRouter", "label": "Original Router (originalRoutes)", "file_type": "code", "source_file": "server/originalRoutes.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_paymentRoutes_PaymentRouter", "label": "Payment Router (paymentRoutes)", "file_type": "code", "source_file": "server/paymentRoutes.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_paymentRoutes_StripeWebhook", "label": "Stripe Webhook Handler", "file_type": "code", "source_file": "server/paymentRoutes.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_paymentRoutes_StripeCheckout", "label": "Stripe Checkout Session Creator", "file_type": "code", "source_file": "server/paymentRoutes.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_paymentRoutes_CustomerPortal", "label": "Stripe Customer Portal", "file_type": "code", "source_file": "server/paymentRoutes.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_rankingAlgorithm_RankingAlgorithm", "label": "Ranking Algorithm", "file_type": "code", "source_file": "server/rankingAlgorithm.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_rankingAlgorithm_calculateRankingScore", "label": "calculateRankingScore Function", "file_type": "code", "source_file": "server/rankingAlgorithm.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_rankingAlgorithm_getRankingTier", "label": "getRankingTier Function", "file_type": "code", "source_file": "server/rankingAlgorithm.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_rankingAlgorithm_RANKING_WEIGHTS", "label": "RANKING_WEIGHTS Configuration", "file_type": "code", "source_file": "server/rankingAlgorithm.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_rankingAlgorithm_AthleteData", "label": "AthleteData Interface", "file_type": "code", "source_file": "server/rankingAlgorithm.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_rankingRoutes_RankingRouter", "label": "Ranking Router (rankingRoutes)", "file_type": "code", "source_file": "server/rankingRoutes.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_redis_RedisClient", "label": "Redis Client", "file_type": "code", "source_file": "server/redis.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_redis_TokenCaching", "label": "Token Caching Functions", "file_type": "code", "source_file": "server/redis.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_redis_SessionCaching", "label": "Session Caching Functions", "file_type": "code", "source_file": "server/redis.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_routes_MainRouter", "label": "Main Router (routes.ts)", "file_type": "code", "source_file": "server/routes.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_routes_stripPlayer", "label": "stripPlayer Function", "file_type": "code", "source_file": "server/routes.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_routes_MaxPrepsRoutes", "label": "MaxPreps Proxy Routes (/maxpreps/*)", "file_type": "code", "source_file": "server/routes.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_sagas_Saga", "label": "Saga Abstract Class", "file_type": "code", "source_file": "server/sagas.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_sagas_UserRegistrationSaga", "label": "UserRegistrationSaga", "file_type": "code", "source_file": "server/sagas.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_sagas_NILDealCreationSaga", "label": "NILDealCreationSaga", "file_type": "code", "source_file": "server/sagas.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_sagas_SagaOrchestrator", "label": "SagaOrchestrator", "file_type": "code", "source_file": "server/sagas.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_scaling_DistributedTokenCache", "label": "DistributedTokenCache", "file_type": "code", "source_file": "server/scaling.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_scaling_CircuitBreaker", "label": "CircuitBreaker", "file_type": "code", "source_file": "server/scaling.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_scaling_AuthMonitoringService", "label": "AuthMonitoringService", "file_type": "code", "source_file": "server/scaling.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_scaling_AutoScalingManager", "label": "AutoScalingManager", "file_type": "code", "source_file": "server/scaling.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null},
+    {"id": "server_scaling_DatabaseShardingManager", "label": "DatabaseShardingManager", "file_type": "code", "source_file": "server/scaling.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null}
+  ],
+  "edges": [
+    {
+      "source": "server_events_UserCreatedEvent", "target": "server_events_BaseEvent",
+      "relation": "implements", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/events.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_events_DomainEvent", "target": "server_events_UserCreatedEvent",
+      "relation": "references", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/events.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_events_DomainEvent", "target": "server_events_LoginAttemptedEvent",
+      "relation": "references", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/events.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_events_DomainEvent", "target": "server_events_PaymentProcessedEvent",
+      "relation": "references", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/events.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_events_DomainEvent", "target": "server_events_NILDealCreatedEvent",
+      "relation": "references", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/events.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_events_DomainEvent", "target": "server_events_ComplianceViolationEvent",
+      "relation": "references", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/events.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_events_DomainEvent", "target": "server_events_ScholarshipOfferedEvent",
+      "relation": "references", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/events.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_events_DomainEvent", "target": "server_events_MessageSentEvent",
+      "relation": "references", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/events.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_events_AzureServiceBusIntegration", "target": "server_events_DomainEvent",
+      "relation": "shares_data_with", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/events.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_exportRoutes_requireAdmin", "target": "server_middleware_requireAuth_RequireAuth",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/exportRoutes.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_exportRoutes_ExportRouter", "target": "server_exportRoutes_requireAdmin",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/exportRoutes.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_index_ExpressApp", "target": "server_observability_TracingService",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/index.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_index_ExpressApp", "target": "server_observability_MetricsService",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/index.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_index_ExpressApp", "target": "server_logger_Logger",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/index.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_index_PerformanceMonitoringMiddleware", "target": "server_observability_TracingService",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/index.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_index_PerformanceMonitoringMiddleware", "target": "server_observability_MetricsService",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/index.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_index_MetricsEndpoint", "target": "server_observability_MetricsService",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/index.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_index_startApplication", "target": "server_microservices_ServiceOrchestrator",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/index.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_index_gracefulShutdown", "target": "server_microservices_ServiceOrchestrator",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/index.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_index_ExpressApp", "target": "server_paymentRoutes_PaymentRouter",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/index.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_index_ExpressApp", "target": "server_routes_MainRouter",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/index.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_index_ExpressApp", "target": "server_rankingRoutes_RankingRouter",
+      "relation": "calls", "confidence": "INFERRED", "confidence_score": 0.95,
+      "source_file": "server/index.ts", "source_location": null, "weight": 0.95
+    },
+    {
+      "source": "server_microservices_AuthenticationService", "target": "server_microservices_Microservice",
+      "relation": "implements", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/microservices.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_microservices_UserManagementService", "target": "server_microservices_Microservice",
+      "relation": "implements", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/microservices.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_microservices_ServiceOrchestrator", "target": "server_microservices_AuthenticationService",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/microservices.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_microservices_ServiceOrchestrator", "target": "server_microservices_UserManagementService",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/microservices.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_microservices_Microservice", "target": "server_events_DomainEvent",
+      "relation": "shares_data_with", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/microservices.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_microservices_Microservice", "target": "server_logger_Logger",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/microservices.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_middleware_requireAuth_RequireAuth", "target": "server_middleware_requireSubscription_RequireTier",
+      "relation": "conceptually_related_to", "confidence": "INFERRED", "confidence_score": 0.85,
+      "source_file": "server/middleware/requireAuth.ts", "source_location": null, "weight": 0.85
+    },
+    {
+      "source": "server_middleware_requireSubscription_RequireTier", "target": "server_middleware_requireAuth_RequireAuth",
+      "relation": "calls", "confidence": "INFERRED", "confidence_score": 0.85,
+      "source_file": "server/middleware/requireSubscription.ts", "source_location": null, "weight": 0.85
+    },
+    {
+      "source": "server_middleware_validate_ValidateMiddleware", "target": "server_middleware_validate_ZodSchemas",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/middleware/validate.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_observability_TracingService", "target": "server_logger_Logger",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/observability.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_observability_MetricsService", "target": "server_logger_Logger",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/observability.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_originalRoutes_OriginalRouter", "target": "server_originalData_ncaaDivision1FlagFootballTeams",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/originalRoutes.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_originalRoutes_OriginalRouter", "target": "server_originalData_flagFootballTrainingVideos",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/originalRoutes.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_originalRoutes_OriginalRouter", "target": "server_originalData_athletes",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/originalRoutes.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_originalRoutes_OriginalRouter", "target": "server_originalData_recruiters",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/originalRoutes.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_paymentRoutes_PaymentRouter", "target": "server_paymentRoutes_StripeWebhook",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/paymentRoutes.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_paymentRoutes_PaymentRouter", "target": "server_middleware_requireAuth_RequireAuth",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/paymentRoutes.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_paymentRoutes_PaymentRouter", "target": "server_logger_Logger",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/paymentRoutes.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_paymentRoutes_StripeWebhook", "target": "server_paymentRoutes_StripeCheckout",
+      "relation": "conceptually_related_to", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/paymentRoutes.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_rankingRoutes_RankingRouter", "target": "server_rankingAlgorithm_calculateRankingScore",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/rankingRoutes.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_rankingRoutes_RankingRouter", "target": "server_rankingAlgorithm_getRankingTier",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/rankingRoutes.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_rankingAlgorithm_calculateRankingScore", "target": "server_rankingAlgorithm_RANKING_WEIGHTS",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/rankingAlgorithm.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_rankingAlgorithm_calculateRankingScore", "target": "server_rankingAlgorithm_AthleteData",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/rankingAlgorithm.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_rankingAlgorithm_RankingAlgorithm", "target": "server_maxpreps_MaxPrepsService",
+      "relation": "references", "confidence": "INFERRED", "confidence_score": 0.85,
+      "source_file": "server/rankingAlgorithm.ts", "source_location": null, "weight": 0.85
+    },
+    {
+      "source": "server_scaling_DistributedTokenCache", "target": "server_redis_RedisClient",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/scaling.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_scaling_AuthMonitoringService", "target": "server_redis_RedisClient",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/scaling.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_scaling_AutoScalingManager", "target": "server_scaling_AuthMonitoringService",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/scaling.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_sagas_Saga", "target": "server_events_DomainEvent",
+      "relation": "shares_data_with", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/sagas.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_sagas_UserRegistrationSaga", "target": "server_sagas_Saga",
+      "relation": "implements", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/sagas.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_sagas_NILDealCreationSaga", "target": "server_sagas_Saga",
+      "relation": "implements", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/sagas.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_sagas_SagaOrchestrator", "target": "server_sagas_UserRegistrationSaga",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/sagas.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_sagas_SagaOrchestrator", "target": "server_sagas_NILDealCreationSaga",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/sagas.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_sagas_Saga", "target": "server_logger_Logger",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/sagas.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_sagas_UserRegistrationSaga", "target": "server_events_UserCreatedEvent",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/sagas.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_sagas_UserRegistrationSaga", "target": "server_events_UserDeletedEvent",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/sagas.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_sagas_NILDealCreationSaga", "target": "server_events_NILDealCreatedEvent",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/sagas.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_routes_MainRouter", "target": "server_routes_stripPlayer",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/routes.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_routes_MainRouter", "target": "server_middleware_requireAuth_RequireAuth",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/routes.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_routes_MaxPrepsRoutes", "target": "server_maxpreps_searchMaxPrepsPlayer",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/routes.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_routes_MaxPrepsRoutes", "target": "server_maxpreps_fetchFlagFootballLeaders",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/routes.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_routes_MaxPrepsRoutes", "target": "server_maxpreps_fetchStateTeamRankings",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/routes.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_routes_MaxPrepsRoutes", "target": "server_maxpreps_fetchTeamRoster",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/routes.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_routes_MaxPrepsRoutes", "target": "server_maxpreps_fetchPlayerStats",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/routes.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_eventRoutes_EventRouter", "target": "server_events_DomainEvent",
+      "relation": "conceptually_related_to", "confidence": "INFERRED", "confidence_score": 0.75,
+      "source_file": "server/eventRoutes.ts", "source_location": null, "weight": 0.75
+    },
+    {
+      "source": "server_paymentRoutes_StripeWebhook", "target": "server_events_PaymentProcessedEvent",
+      "relation": "conceptually_related_to", "confidence": "INFERRED", "confidence_score": 0.85,
+      "source_file": "server/paymentRoutes.ts", "source_location": null, "weight": 0.85
+    },
+    {
+      "source": "server_logger_withErrorHandling", "target": "server_logger_Logger",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/logger.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_middleware_errorHandler_ErrorHandler", "target": "server_middleware_requireAuth_RequireAuth",
+      "relation": "conceptually_related_to", "confidence": "INFERRED", "confidence_score": 0.65,
+      "source_file": "server/middleware/errorHandler.ts", "source_location": null, "weight": 0.65
+    },
+    {
+      "source": "server_redis_TokenCaching", "target": "server_redis_RedisClient",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/redis.ts", "source_location": null, "weight": 1.0
+    },
+    {
+      "source": "server_redis_SessionCaching", "target": "server_redis_RedisClient",
+      "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0,
+      "source_file": "server/redis.ts", "source_location": null, "weight": 1.0
+    }
+  ],
+  "hyperedges": [],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

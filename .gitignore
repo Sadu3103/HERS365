@@ -11,3 +11,4 @@ temp_files.txt
 
 # Private Claude context — never commit (personal + business)
 CLAUDE.local.md
+.gstack/
