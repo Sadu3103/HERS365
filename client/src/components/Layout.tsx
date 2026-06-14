@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { BottomTabBar } from './BottomTabBar';
 import { NotificationBell } from './NotificationBell';
+import { ProfileCompletionBanner } from './ProfileCompletionBanner';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/api';
 import { athleteAvatar } from '../lib/avatar';
