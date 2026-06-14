@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Mail, Lock, User, ArrowRight, Eye, EyeOff, Github, ArrowUpRight } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { athleteAvatar } from '../lib/avatar';
 
@@ -140,7 +140,8 @@ function AmbientField({ reduced, faint = false }: { reduced: boolean; faint?: bo
 }
 
 export const Auth = () => {
-  const [isLogin,  setIsLogin]  = useState(true);
+  const [searchParams] = useSearchParams();
+  const [isLogin,  setIsLogin]  = useState(searchParams.get('tab') !== 'signup');
   const [name,     setName]     = useState('');
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');

@@ -92,14 +92,39 @@ const css = `
   .lp-band-grid{display:grid;grid-template-columns:repeat(4,1fr)}
   .lp-triad{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
   .lp-split{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+  /* Hamburger (desktop: hidden) */
+  .lp-hamburger{display:none;flex-direction:column;justify-content:center;gap:5px;padding:6px;
+    background:none;border:none;cursor:pointer;z-index:101;-webkit-tap-highlight-color:transparent}
+  .lp-hamburger span{display:block;width:22px;height:2px;background:#f4f4f2;border-radius:2px;
+    transition:transform .28s cubic-bezier(.25,1,.5,1),opacity .22s}
+  .lp-hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+  .lp-hamburger.open span:nth-child(2){opacity:0}
+  .lp-hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+
+  /* Mobile drawer */
+  .lp-mobile-drawer{position:fixed;inset:0;z-index:99;background:rgba(10,10,10,.97);
+    backdrop-filter:blur(20px);display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:36px;opacity:0;pointer-events:none;
+    transition:opacity .28s cubic-bezier(.25,1,.5,1)}
+  .lp-mobile-drawer.open{opacity:1;pointer-events:auto}
+  .lp-mobile-drawer a{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:2.2rem;
+    text-transform:uppercase;letter-spacing:.06em;color:#f4f4f2;text-decoration:none;
+    transition:color .2s}
+  .lp-mobile-drawer a:active{color:#ff5a2d}
+
   @media(max-width:900px){
     .lp-hero-grid,.lp-split{grid-template-columns:1fr;gap:36px}
     .lp-band-grid{grid-template-columns:repeat(2,1fr)}
     .lp-triad{grid-template-columns:1fr}
     .lp-nav-links{display:none !important}
+    .lp-hamburger{display:flex}
+    .lp-hero-header{padding-top:100px !important;padding-bottom:48px !important}
+    .lp-hero-card{display:none}
   }
   @media(max-width:480px){
     .lp-band-grid{grid-template-columns:1fr 1fr}
+    .lp-hero-header{padding-top:88px !important;padding-bottom:40px !important}
+    .lp-hero-title{font-size:clamp(2.6rem,10vw,3.4rem) !important}
   }
 `;
 
@@ -189,6 +214,7 @@ export const LandingPage = () => {
   const [scrolled, setScrolled] = useState(false);
   const [barWidth, setBarWidth] = useState('0%');
   const [leaderboard, setLeaderboard] = useState<GridRow[]>(fallbackLeaderboard);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -235,13 +261,29 @@ export const LandingPage = () => {
           <Link className="lp-nav-link" to="/rankings">Rankings</Link>
           <Link className="lp-nav-link" to="/coach/login">For Coaches</Link>
         </div>
-        <Link to="/auth" className="lp-btn lp-btn-primary" style={{ fontSize: '.85rem', padding: '11px 22px' }}>
-          Get Recruited <ArrowRight size={14} />
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button className={`lp-hamburger${menuOpen ? ' open' : ''}`} onClick={() => setMenuOpen(o => !o)} aria-label="Menu">
+            <span /><span /><span />
+          </button>
+          <Link to="/auth?tab=signup" className="lp-btn lp-btn-primary" style={{ fontSize: '.85rem', padding: '11px 22px' }}>
+            Get Recruited <ArrowRight size={14} />
+          </Link>
+        </div>
       </nav>
 
+      {/* Mobile nav drawer */}
+      <div className={`lp-mobile-drawer${menuOpen ? ' open' : ''}`} onClick={() => setMenuOpen(false)}>
+        <a href="#how" onClick={() => setMenuOpen(false)}>The Grid</a>
+        <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
+        <Link to="/rankings" onClick={() => setMenuOpen(false)}>Rankings</Link>
+        <Link to="/coach/login" onClick={() => setMenuOpen(false)}>For Coaches</Link>
+        <Link to="/auth?tab=signup" className="lp-btn lp-btn-primary" style={{ fontSize: '1rem', padding: '13px 28px', marginTop: 8 }} onClick={() => setMenuOpen(false)}>
+          Get Recruited <ArrowRight size={16} />
+        </Link>
+      </div>
+
       {/* HERO */}
-      <header style={{ position: 'relative', padding: '152px 0 80px', overflow: 'hidden' }}>
+      <header className="lp-hero-header" style={{ position: 'relative', padding: '152px 0 80px', overflow: 'hidden' }}>
         {/* BG glows */}
         <div style={{ position: 'absolute', width: 680, height: 680, borderRadius: '50%', filter: 'blur(100px)', opacity: 0.45, top: -200, right: -140, background: 'radial-gradient(circle,rgba(255,90,45,.5),transparent 65%)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', width: 440, height: 440, borderRadius: '50%', filter: 'blur(90px)', opacity: 0.35, bottom: -200, left: -140, background: 'radial-gradient(circle,rgba(255,90,45,.22),transparent 65%)', pointerEvents: 'none' }} />
@@ -269,6 +311,7 @@ export const LandingPage = () => {
             <motion.h1
               {...reveal}
               transition={{ ...reveal.transition, delay: 0.08 }}
+              className="lp-hero-title"
               style={{ ...disp, fontWeight: 900, fontSize: 'clamp(3.8rem,9vw,7.4rem)', lineHeight: 0.88, margin: 0 }}
             >
               Get Seen.<br />
@@ -299,7 +342,7 @@ export const LandingPage = () => {
             </motion.div>
 
             <motion.div {...reveal} transition={{ ...reveal.transition, delay: 0.28 }} style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginTop: 26 }}>
-              <Link to="/auth" className="lp-btn lp-btn-primary">Claim Your Profile <ArrowRight size={15} /></Link>
+              <Link to="/auth?tab=signup" className="lp-btn lp-btn-primary">Claim Your Profile <ArrowRight size={15} /></Link>
               <a href="#how" className="lp-btn lp-btn-ghost"><Play size={14} fill="currentColor" /> See How It Works</a>
             </motion.div>
           </div>
@@ -308,6 +351,7 @@ export const LandingPage = () => {
           <motion.div
             {...reveal}
             transition={{ ...reveal.transition, delay: 0.18 }}
+            className="lp-hero-card"
             style={{
               position: 'relative',
               background: `linear-gradient(160deg,${INK_3},${INK_2})`,
@@ -532,7 +576,7 @@ export const LandingPage = () => {
               Claim your profile and put your film in front of the coaches who are already scouting the grid. Free to start. Built for the class of 2026 and beyond.
             </p>
             <div style={{ position: 'relative', display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button className="lp-btn lp-btn-primary" onClick={() => navigate('/auth')}>Claim Your Profile <ArrowRight size={15} /></button>
+              <button className="lp-btn lp-btn-primary" onClick={() => navigate('/auth?tab=signup')}>Claim Your Profile <ArrowRight size={15} /></button>
               <button className="lp-btn lp-btn-ghost" onClick={() => navigate('/coach/login')}>I'm A Coach</button>
             </div>
             <div style={{ position: 'relative', marginTop: 16, color: MUTED_2, fontSize: '.82rem' }}>No spam. No pressure. Just your shot in front of the right coaches.</div>
