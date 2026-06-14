@@ -144,7 +144,6 @@ function App() {
               <Route path="/training" element={<Training />} />
               <Route path="/recruiting" element={<Recruiting />} />
               <Route path="/teams" element={<Teams />} />
-              <Route path="/auth" element={<Auth />} />
               <Route path="/subscribe" element={<Subscription />} />
               <Route path="/audit" element={<Audit />} />
               <Route path="/privacy" element={<Privacy />} />
@@ -185,7 +184,8 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/landing" element={<LandingPage />} />
 
-            {/* Athlete onboarding (full-screen, no nav chrome) */}
+            {/* Athlete onboarding + auth (full-screen, no nav chrome) */}
+            <Route path="/auth" element={<Auth />} />
             <Route path="/onboarding" element={<Onboarding />} />
 
             {/* Coach Portal Routes */}
