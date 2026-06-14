@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Minus, Search, CheckCircle2 } from 'lucide-react';
+import { athleteAvatar } from '../lib/avatar';
 
 const players = [
   { rank: 1,  prev: 1,  name: 'Sarah Watkins',   school: 'Westlake HS, TX',          pos: 'QB', score: 95, gpa: 3.9,  fortyYard: 4.72, verified: true  },
@@ -17,15 +18,9 @@ const players = [
 
 const positions = ['All', 'QB', 'RB', 'WR', 'TE', 'LB', 'DB'];
 
-function nameToIdx(name: string) {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
-  return (h % 90) + 1;
-}
-
 function Avatar({ name, size = 36 }: { name: string; size?: number }) {
   return (
-    <img src={`https://randomuser.me/api/portraits/women/${nameToIdx(name)}.jpg`}
+    <img src={athleteAvatar(name)}
       alt={name} style={{ width: size, height: size, borderRadius: '50%', background: '#1c1c1c', flexShrink: 0, objectFit: 'cover' }} />
   );
 }
@@ -91,14 +86,14 @@ export const Rankings = () => {
                   textShadow: i === 0 ? '0 0 20px rgba(255,90,45,0.5)' : '0 0 12px rgba(255,90,45,0.2)',
                 }}>{p.score}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                 <Avatar name={p.name} size={i === 0 ? 44 : 38} />
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ fontSize: i === 0 ? '0.92rem' : '0.85rem', fontWeight: 700, color: '#fff' }}>{p.name}</span>
-                    {p.verified && <CheckCircle2 size={12} color="#ff5a2d" fill="#ff5a2d" />}
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+                    <span style={{ fontSize: i === 0 ? '0.92rem' : '0.85rem', fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                    {p.verified && <CheckCircle2 size={12} color="#ff5a2d" fill="#ff5a2d" style={{ flexShrink: 0 }} />}
                   </div>
-                  <div style={{ fontSize: '0.7rem', color: '#555', marginTop: 2 }}>{p.pos} | {p.school}</div>
+                  <div style={{ fontSize: '0.7rem', color: '#555', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.pos} | {p.school}</div>
                 </div>
               </div>
             </motion.div>
@@ -107,13 +102,13 @@ export const Rankings = () => {
       )}
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-        <div style={{ flex: 1, position: 'relative' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+        <div style={{ position: 'relative' }}>
           <Search size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#444', pointerEvents: 'none' }} />
           <input type="text" placeholder="Search athletes or schools..." value={search} onChange={e => setSearch(e.target.value)}
             style={{ width: '100%', background: '#111', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px 9px 32px', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
         </div>
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' as 'auto' }}>
           {positions.map(p => (
             <button key={p} onClick={() => setPos(p)} style={{
               background: pos === p ? '#ff5a2d' : '#111',
@@ -122,7 +117,7 @@ export const Rankings = () => {
               borderRadius: 7, padding: '8px 12px',
               color: pos === p ? '#fff' : '#666',
               fontSize: '0.75rem', fontWeight: 700,
-              cursor: 'pointer', transition: 'all 0.15s',
+              cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0,
             }}>{p}</button>
           ))}
         </div>

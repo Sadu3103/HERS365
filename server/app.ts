@@ -14,6 +14,8 @@ import { athletesRouter } from './api/athletes';
 import { messagesRouter } from './api/messages';
 import { trainingRouter } from './api/training';
 import { usersRouter } from './api/users';
+import { programsRouter } from './api/programs';
+import { coachesRouter } from './api/coaches';
 
 export function createApp() {
   const app = express();
@@ -34,6 +36,8 @@ export function createApp() {
   app.use('/api/messages', messagesRouter);
   app.use('/api/training', trainingRouter);
   app.use('/api/users', usersRouter);
+  app.use('/api/programs', programsRouter);
+  app.use('/api/coaches', coachesRouter);
   app.use('/api/coach', coachRouter);
   app.use('/api/auth', authRoutesRouter);
   app.use('/api/auth/secure', authRoutesRouter);

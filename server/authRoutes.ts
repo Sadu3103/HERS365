@@ -117,6 +117,54 @@ router.post('/login', loginLimiter, async (req, res) => {
   res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
 });
 
+// ─── POST /api/auth/(secure/)coach/login ──────────────────────────────────────
+// The coach UI posts here without a role field; force the coach realm.
+router.post('/coach/login', loginLimiter, async (req, res) => {
+  const { email, password } = req.body ?? {};
+  if (!email || !password) {
+    return res.status(400).json({ error: 'email and password are required' });
+  }
+  const user = await findUserByEmail((email as string).toLowerCase(), 'coach');
+  if (!user || !user.passwordHash) {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
+  const valid = await auth.comparePassword(password as string, user.passwordHash);
+  if (!valid) {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
+  const token = auth.signToken({ userId: user.id, email: user.email, role: 'coach', name: user.name });
+  res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: 'coach' } });
+});
+
+// ─── POST /api/auth/(secure/)coach/register ───────────────────────────────────
+router.post('/coach/register', async (req, res) => {
+  const { email, password, name, school, university, division } = req.body ?? {};
+  if (!email || !password || !name) {
+    return res.status(400).json({ error: 'email, password, and name are required' });
+  }
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  }
+  const normalEmail = (email as string).toLowerCase().trim();
+  const existing = await findUserByEmail(normalEmail, 'coach');
+  if (existing) {
+    return res.status(409).json({ error: 'An account with that email already exists' });
+  }
+  try {
+    const passwordHash = await auth.hashPassword(password as string);
+    const [row] = await db.insert(schema.coaches).values({
+      email: normalEmail, passwordHash, name: name as string,
+      university: (university as string) || (school as string | undefined),
+      division: (division as string) || 'D1',
+    }).returning({ id: schema.coaches.id });
+    const token = auth.signToken({ userId: row.id, email: normalEmail, role: 'coach', name: name as string });
+    res.status(201).json({ token, user: { id: row.id, email: normalEmail, name, role: 'coach' } });
+  } catch (err: any) {
+    console.error('[auth/coach/register]', err);
+    res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
 // ─── POST /api/auth/google ────────────────────────────────────────────────────
 
 router.post('/google', loginLimiter, async (req, res) => {
