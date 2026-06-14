@@ -1,12 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutGrid, Trophy, User, Dumbbell, Search,
-  Settings, Bell, MessageSquare, Plus
+  Settings, MessageSquare, Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { BottomTabBar } from './BottomTabBar';
+import { NotificationBell } from './NotificationBell';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/api';
 import { athleteAvatar } from '../lib/avatar';
@@ -41,9 +42,7 @@ const pageTransition = {
 export const Layout = () => {
   const location  = useLocation();
   const navigate  = useNavigate();
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [mode,      setMode]      = useState<'athlete' | 'coach'>('athlete');
-  const notifRef = useRef<HTMLDivElement>(null);
+  const [mode, setMode] = useState<'athlete' | 'coach'>('athlete');
 
   const { user } = useAuth();
 
@@ -62,17 +61,6 @@ export const Layout = () => {
 
   const unreadMessages = unread?.data?.totalUnread ?? 0;
   const p = profile?.data ?? {};
-
-  useEffect(() => {
-    const h = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
-    };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
-
-  const notifications: { id: number; msg: string; time: string; unread: boolean }[] = [];
-  const unreadCount = notifications.filter(n => n.unread).length;
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#0a0a0a', color: '#fff', overflow: 'hidden' }}>
@@ -289,77 +277,7 @@ export const Layout = () => {
           </div>
 
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            {/* Notifications */}
-            <div style={{ position: 'relative' }} ref={notifRef}>
-              <motion.button
-                whileTap={{ scale: 0.88 }}
-                onClick={() => setNotifOpen(!notifOpen)}
-                className="k-icon-btn"
-                style={{ position: 'relative' }}
-              >
-                <Bell size={18} />
-                {unreadCount > 0 && (
-                  <span style={{
-                    position: 'absolute', top: 6, right: 6,
-                    width: 7, height: 7, borderRadius: '50%',
-                    background: '#ff5a2d',
-                  }} />
-                )}
-              </motion.button>
-
-              <AnimatePresence>
-                {notifOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.95 }}
-                    transition={{ type: 'spring', stiffness: 460, damping: 30 }}
-                    style={{
-                      position: 'absolute', top: '100%', right: 0, marginTop: 8,
-                      width: 300,
-                      background: 'rgba(17,17,17,0.94)',
-                      backdropFilter: 'blur(20px)',
-                      WebkitBackdropFilter: 'blur(20px)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      borderRadius: 14, boxShadow: '0 16px 48px rgba(0,0,0,0.7)',
-                      zIndex: 100,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#555' }}>Notifications</span>
-                    </div>
-                    {notifications.map(n => (
-                      <motion.div
-                        key={n.id}
-                        whileHover={{ background: 'rgba(255,255,255,0.03)' }}
-                        style={{
-                          padding: '12px 16px',
-                          borderBottom: '1px solid rgba(255,255,255,0.04)',
-                          display: 'flex', gap: 10, alignItems: 'flex-start',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <div style={{
-                          width: 6, height: 6, borderRadius: '50%', marginTop: 6, flexShrink: 0,
-                          background: n.unread ? '#ff5a2d' : '#333',
-                        }} />
-                        <div>
-                          <div style={{ fontSize: '0.82rem', color: '#ddd' }}>{n.msg}</div>
-                          <div style={{ fontSize: '0.7rem', color: '#555', marginTop: 3 }}>{n.time}</div>
-                        </div>
-                      </motion.div>
-                    ))}
-                    {notifications.length === 0 && (
-                      <div style={{ padding: '30px 16px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.82rem', color: '#888' }}>You're all caught up</div>
-                        <div style={{ fontSize: '0.7rem', color: '#555', marginTop: 4 }}>New activity will show up here</div>
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            <NotificationBell />
 
             {/* POST HIGHLIGHT — desktop only */}
             <motion.button

@@ -378,4 +378,73 @@ router.get('/maxpreps/team/:schoolGID/roster', async (req: Request, res: Respons
   }
 });
 
+
+// ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
+
+// GET /notifications - list for authenticated player
+router.get('/notifications', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const playerId = req.user?.id;
+    if (!playerId) return res.status(401).json({ error: 'Not authenticated' });
+    const isNaN_guard = isNaN(parseInt(String(playerId)));
+    if (isNaN_guard) return res.status(400).json({ error: 'Invalid player ID' });
+    const rows = await db
+      .select()
+      .from(schema.notifications)
+      .where(eq(schema.notifications.playerId, parseInt(String(playerId))))
+      .orderBy(desc(schema.notifications.createdAt))
+      .limit(30);
+    const unreadCount = rows.filter((n) => !n.read).length;
+    res.json({ notifications: rows, unreadCount });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /notifications/mark-read - mark all as read
+router.post('/notifications/mark-read', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const playerId = req.user?.id;
+    if (!playerId) return res.status(401).json({ error: 'Not authenticated' });
+    await db
+      .update(schema.notifications)
+      .set({ read: true })
+      .where(eq(schema.notifications.playerId, parseInt(String(playerId))));
+    res.json({ ok: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /notifications/mark-read/:id - mark one as read
+router.post('/notifications/mark-read/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    await db.update(schema.notifications).set({ read: true }).where(eq(schema.notifications.id, id));
+    res.json({ ok: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Internal helper: create a notification (called from other routes)
+export async function createNotification(
+  playerId: number,
+  type: string,
+  actorName: string,
+  metadata?: Record<string, string>
+) {
+  try {
+    await db.insert(schema.notifications).values({
+      playerId,
+      type,
+      actorName,
+      read: false,
+    });
+  } catch (err) {
+    console.error('[notifications] insert failed:', err);
+  }
+}
+
 export default router;
