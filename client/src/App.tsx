@@ -197,7 +197,8 @@ function App() {
             <Route path="/landing" element={<LandingPage />} />
             <Route path="/auth" element={<Auth />} />
 
-            {/* Athlete onboarding (full-screen, no nav chrome) */}
+            {/* Athlete onboarding + auth (full-screen, no nav chrome) */}
+            <Route path="/auth" element={<Auth />} />
             <Route path="/onboarding" element={<Onboarding />} />
 
             {/* Coach Portal Routes */}

@@ -4,6 +4,7 @@ import {
   Heart, MessageCircle, Share2, Bookmark, Volume2, VolumeX,
   Play, Pause, ChevronUp, ChevronDown, Flame,
 } from 'lucide-react';
+import { athleteAvatar } from '../lib/avatar';
 
 const FLAME_C = '#ff5a2d';
 const INK = '#0a0a0a';
@@ -27,11 +28,11 @@ type Reel = {
 };
 
 const SEED: Reel[] = [
-  { id: 1, playerName: 'Sarah Watkins', playerSchool: 'Westlake HS, TX', playerPos: 'QB', caption: 'Dropping dimes in the red zone 🏈 #FlagFootball #HERS365', videoUrl: null, thumbUrl: 'https://randomuser.me/api/portraits/women/21.jpg', likes: 1240, comments: 84, isLiked: false, isSaved: false, tag: 'Highlight' },
-  { id: 2, playerName: 'Maya Johnson', playerSchool: "St. Mary's Academy, FL", playerPos: 'WR', caption: 'Route running clinic — 4.71 speed after practice. Every rep counts.', videoUrl: null, thumbUrl: 'https://randomuser.me/api/portraits/women/33.jpg', likes: 987, comments: 62, isLiked: true, isSaved: false, tag: 'Training' },
-  { id: 3, playerName: 'Isabella Reyes', playerSchool: 'Centennial HS, CA', playerPos: 'DB', caption: 'Shutdown corner. Ranked #3 nationally. Come get it 💯', videoUrl: null, thumbUrl: 'https://randomuser.me/api/portraits/women/45.jpg', likes: 2103, comments: 147, isLiked: false, isSaved: true, tag: 'Game Day' },
-  { id: 4, playerName: 'Aaliyah Thompson', playerSchool: 'Oak Park HS, TX', playerPos: 'RB', caption: "Speed work with the squad before Friday's game 🔥", videoUrl: null, thumbUrl: 'https://randomuser.me/api/portraits/women/55.jpg', likes: 756, comments: 39, isLiked: false, isSaved: false, tag: 'Training' },
-  { id: 5, playerName: 'Kira Okonkwo', playerSchool: 'Lincoln HS, GA', playerPos: 'LB', caption: 'Film never lies. Three picks on the season. Started from the bottom 🎯', videoUrl: null, thumbUrl: 'https://randomuser.me/api/portraits/women/67.jpg', likes: 1580, comments: 93, isLiked: false, isSaved: false, tag: 'Highlight' },
+  { id: 1, playerName: 'Sarah Watkins', playerSchool: 'Westlake HS, TX', playerPos: 'QB', caption: 'Dropping dimes in the red zone 🏈 #FlagFootball #HERS365', videoUrl: null, thumbUrl: '', likes: 1240, comments: 84, isLiked: false, isSaved: false, tag: 'Highlight' },
+  { id: 2, playerName: 'Maya Johnson', playerSchool: "St. Mary's Academy, FL", playerPos: 'WR', caption: 'Route running clinic — 4.71 speed after practice. Every rep counts.', videoUrl: null, thumbUrl: '', likes: 987, comments: 62, isLiked: true, isSaved: false, tag: 'Training' },
+  { id: 3, playerName: 'Isabella Reyes', playerSchool: 'Centennial HS, CA', playerPos: 'DB', caption: 'Shutdown corner. Ranked #3 nationally. Come get it 💯', videoUrl: null, thumbUrl: '', likes: 2103, comments: 147, isLiked: false, isSaved: true, tag: 'Game Day' },
+  { id: 4, playerName: 'Aaliyah Thompson', playerSchool: 'Oak Park HS, TX', playerPos: 'RB', caption: "Speed work with the squad before Friday's game 🔥", videoUrl: null, thumbUrl: '', likes: 756, comments: 39, isLiked: false, isSaved: false, tag: 'Training' },
+  { id: 5, playerName: 'Kira Okonkwo', playerSchool: 'Lincoln HS, GA', playerPos: 'LB', caption: 'Film never lies. Three picks on the season. Started from the bottom 🎯', videoUrl: null, thumbUrl: '', likes: 1580, comments: 93, isLiked: false, isSaved: false, tag: 'Highlight' },
 ];
 
 function fmtCount(n: number): string {
@@ -93,26 +94,27 @@ function ReelCard({
     lastTap.current = now;
   }, [reel.isLiked, onLike]);
 
-  const avatarIdx = ((reel.playerName.charCodeAt(0) * 31 + reel.playerName.charCodeAt(1)) % 90) + 1;
-
   return (
     <div
       style={{
         position: 'relative', width: '100%', height: '100%',
-        background: '#000', overflow: 'hidden', borderRadius: 0,
+        background: 'radial-gradient(120% 80% at 50% 0%, #1c130b 0%, #0a0a0a 60%)',
+        overflow: 'hidden', borderRadius: 0,
         userSelect: 'none',
       }}
       onClick={handleDoubleTap}
     >
-      {/* Background — thumb or video */}
-      <img
-        src={reel.thumbUrl}
-        alt={reel.playerName}
-        style={{
-          position: 'absolute', inset: 0, width: '100%', height: '100%',
-          objectFit: 'cover', filter: 'brightness(0.55)',
-        }}
-      />
+      {/* Background — real thumb/video poster when available */}
+      {reel.thumbUrl && (
+        <img
+          src={reel.thumbUrl}
+          alt={reel.playerName}
+          style={{
+            position: 'absolute', inset: 0, width: '100%', height: '100%',
+            objectFit: 'cover', filter: 'brightness(0.55)',
+          }}
+        />
+      )}
 
       {/* Gradient overlay */}
       <div style={{
@@ -190,7 +192,7 @@ function ReelCard({
         {/* Avatar */}
         <div style={{ position: 'relative' }}>
           <img
-            src={`https://randomuser.me/api/portraits/women/${avatarIdx}.jpg`}
+            src={athleteAvatar(reel.playerName)}
             alt={reel.playerName}
             style={{
               width: 46, height: 46, borderRadius: '50%',
@@ -278,14 +280,14 @@ export const Reels = () => {
       .then((r) => r.ok ? r.json() : null)
       .then((data: any[] | null) => {
         if (!data || data.length === 0) return;
-        setReels(data.map((p, i) => ({
+        setReels(data.map((p) => ({
           id: p.id,
           playerName: p.playerName || 'Athlete',
           playerSchool: p.playerSchool || 'HERS365',
           playerPos: p.playerPosition || 'ATH',
           caption: p.content || '',
           videoUrl: p.mediaUrl,
-          thumbUrl: `https://randomuser.me/api/portraits/women/${(i % 90) + 1}.jpg`,
+          thumbUrl: p.mediaUrl || '',
           likes: p.likes || 0,
           comments: p.comments || 0,
           isLiked: false,

@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Filter, Bookmark, BookmarkCheck, X, Send, MapPin,
-  Users, Award, Mail, ChevronDown, CheckCircle2,
+  Users, Award, Mail, ChevronDown, CheckCircle2, RefreshCw,
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
+import { useAuth } from '../context/AuthContext';
+import { apiFetch, ApiError } from '../lib/api';
 
 interface Program {
   id: number;
@@ -33,27 +35,6 @@ interface Coach {
   recruitedAthletes: string[];
 }
 
-const mockPrograms: Program[] = [
-  { id: 1, name: 'University of Texas', city: 'Austin', state: 'Texas', division: 'NCAA D1', conference: 'Big 12', hasScholarships: true, programSize: 'Large', coachId: 1, athletesRecruited: 48, winRecord: '12-2', tuitionInState: 11000 },
-  { id: 2, name: 'Florida State University', city: 'Tallahassee', state: 'Florida', division: 'NCAA D1', conference: 'ACC', hasScholarships: true, programSize: 'Large', coachId: 2, athletesRecruited: 52, winRecord: '13-1', tuitionInState: 13000 },
-  { id: 3, name: 'Azusa Pacific University', city: 'Azusa', state: 'California', division: 'NAIA', conference: 'GSAC', hasScholarships: true, programSize: 'Medium', coachId: 3, athletesRecruited: 24, winRecord: '8-4', tuitionInState: 36000 },
-  { id: 4, name: 'Hardin-Simmons University', city: 'Abilene', state: 'Texas', division: 'NCAA D3', conference: 'ASC', hasScholarships: false, programSize: 'Small', coachId: 4, athletesRecruited: 16, winRecord: '7-3', tuitionInState: 30000 },
-  { id: 5, name: 'Shorter University', city: 'Rome', state: 'Georgia', division: 'NCAA D2', conference: 'SAC', hasScholarships: true, programSize: 'Medium', coachId: 5, athletesRecruited: 28, winRecord: '9-3', tuitionInState: 18000 },
-  { id: 6, name: 'San Diego Mesa College', city: 'San Diego', state: 'California', division: 'JUCO', conference: 'PCAC', hasScholarships: false, programSize: 'Small', coachId: null, athletesRecruited: 12, winRecord: '5-5', tuitionInState: 1500 },
-  { id: 7, name: 'Lindenwood University', city: 'St. Charles', state: 'Missouri', division: 'NCAA D1', conference: 'OVC', hasScholarships: true, programSize: 'Large', coachId: 6, athletesRecruited: 40, winRecord: '10-4', tuitionInState: 19000 },
-  { id: 8, name: 'Benedictine College', city: 'Atchison', state: 'Kansas', division: 'NAIA', conference: 'HAAC', hasScholarships: true, programSize: 'Small', coachId: 7, athletesRecruited: 20, winRecord: '6-4', tuitionInState: 32000 },
-];
-
-const mockCoaches: Record<number, Coach> = {
-  1: { id: 1, name: 'Coach Maria Torres', title: 'Head Coach', school: 'University of Texas', sport: 'Flag Football', email: 'mtorres@utexas.edu', bio: 'Coach Torres brings 12 years of collegiate flag football experience. Former All-American QB who led her team to 3 national championships. Focused on developing elite QBs and DBs.', recruitedAthletes: ['Sarah W. (QB, TX)', 'Amara J. (DB, GA)', 'Priya K. (WR, CA)'] },
-  2: { id: 2, name: 'Coach Lisa Monroe', title: 'Head Coach', school: 'Florida State University', sport: 'Flag Football', email: 'lmonroe@fsu.edu', bio: 'A decorated coach with 8 years at FSU. Known for building elite offensive systems. 2x conference champion and national finalist.', recruitedAthletes: ['Destiny R. (WR, FL)', 'Chloe B. (QB, TX)'] },
-  3: { id: 3, name: 'Coach Angela Reed', title: 'Head Coach', school: 'Azusa Pacific University', sport: 'Flag Football', email: 'areed@apu.edu', bio: 'Coach Reed has developed 6 All-NAIA selections in her 5-year tenure. Passionate about the student-athlete balance and faith-based leadership.', recruitedAthletes: ['Hannah L. (RB, CA)', 'Jada T. (LB, AZ)'] },
-  4: { id: 4, name: 'Coach Sandra Hill', title: 'Head Coach', school: 'Hardin-Simmons University', sport: 'Flag Football', email: 'shill@hsutx.edu', bio: 'Building the program from the ground up since 2021. Great opportunity for athletes who want immediate playing time in a growing D3 program.', recruitedAthletes: ['Emily G. (QB, TX)'] },
-  5: { id: 5, name: 'Coach Tiffany Brooks', title: 'Head Coach', school: 'Shorter University', sport: 'Flag Football', email: 'tbrooks@shorter.edu', bio: 'Southeast regional powerhouse. Coach Brooks has 10 years of flag football coaching at multiple levels. Known for developing defensive specialists.', recruitedAthletes: ['Nia C. (DB, GA)', 'Morgan S. (LB, TN)', 'Ava H. (WR, AL)'] },
-  6: { id: 6, name: 'Coach Denise Carr', title: 'Head Coach', school: 'Lindenwood University', sport: 'Flag Football', email: 'dcarr@lindenwood.edu', bio: 'Veteran coach with 15 years of experience. Led Lindenwood to their first OVC championship in 2024. Recruiting elite athletes across all positions.', recruitedAthletes: ['Taylor M. (QB, MO)', 'Jasmine P. (WR, IL)', 'Kayla R. (DB, KS)'] },
-  7: { id: 7, name: 'Coach Patricia Vega', title: 'Head Coach', school: 'Benedictine College', sport: 'Flag Football', email: 'pvega@benedictine.edu', bio: 'Strong academic focus with competitive athletics. Coach Vega has built Benedictine into one of the premier small-school programs in the Midwest.', recruitedAthletes: ['Lauren K. (RB, KS)'] },
-};
-
 const divisions     = ['All', 'NCAA D1', 'NCAA D2', 'NCAA D3', 'NAIA', 'JUCO'];
 const stateOptions  = ['All', 'California', 'Florida', 'Georgia', 'Kansas', 'Missouri', 'Texas'];
 const conferences   = ['All', 'ACC', 'ASC', 'Big 12', 'GSAC', 'HAAC', 'OVC', 'PCAC', 'SAC'];
@@ -74,9 +55,33 @@ function ProgramAvatar({ name }: { name: string }) {
   );
 }
 
+function SkeletonCard() {
+  return (
+    <div className="k-card" style={{ padding: '18px 18px 14px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+        <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(255,255,255,0.04)' }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ height: 13, width: '65%', borderRadius: 4, background: 'rgba(255,255,255,0.05)', marginBottom: 8 }} />
+          <div style={{ height: 10, width: '40%', borderRadius: 4, background: 'rgba(255,255,255,0.04)' }} />
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+        <div style={{ height: 20, width: 64, borderRadius: 4, background: 'rgba(255,255,255,0.04)' }} />
+        <div style={{ height: 20, width: 52, borderRadius: 4, background: 'rgba(255,255,255,0.04)' }} />
+      </div>
+      <div style={{ height: 52, borderRadius: 8, background: 'rgba(255,255,255,0.03)', marginBottom: 12 }} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ height: 32, flex: 1, borderRadius: 7, background: 'rgba(255,255,255,0.04)' }} />
+        <div style={{ height: 32, flex: 1, borderRadius: 7, background: 'rgba(255,255,255,0.04)' }} />
+      </div>
+    </div>
+  );
+}
+
 export const Recruiting = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { showNotification } = useNotifications();
+  const { user, isAuthenticated } = useAuth();
 
   const [search, setSearch]               = useState(searchParams.get('q') || '');
   const [filterDiv, setFilterDiv]         = useState(searchParams.get('division') || 'All');
@@ -87,12 +92,17 @@ export const Recruiting = () => {
   const [showFilters, setShowFilters]     = useState(false);
   const [activeTab, setActiveTab]         = useState<'browse' | 'saved'>('browse');
 
-  const [savedSchools, setSavedSchools]     = useState<Set<number>>(new Set());
+  const [programs, setPrograms]   = useState<Program[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
+  const [savedSchools, setSavedSchools]       = useState<Set<number>>(new Set());
   const [appliedPrograms, setAppliedPrograms] = useState<Set<number>>(new Set());
 
   const [coachModal, setCoachModal] = useState<{ open: boolean; coach: Coach | null; program: Program | null }>({
     open: false, coach: null, program: null,
   });
+  const [coachLoading, setCoachLoading] = useState(false);
   const [showMessageCompose, setShowMessageCompose] = useState(false);
   const [messageText, setMessageText]   = useState('');
   const [messageSending, setMessageSending] = useState(false);
@@ -100,7 +110,8 @@ export const Recruiting = () => {
   const [applyModal, setApplyModal] = useState<{ open: boolean; program: Program | null }>({
     open: false, program: null,
   });
-  const [applyForm, setApplyForm] = useState({ name: 'Sarah Watkins', gradYear: '2026', position: '', note: '' });
+  const [profile, setProfile] = useState<{ name: string; gradYear: string }>({ name: '', gradYear: '' });
+  const [applyForm, setApplyForm] = useState({ position: '', note: '' });
   const [applySubmitting, setApplySubmitting] = useState(false);
   const [applySubmitted, setApplySubmitted]   = useState(false);
 
@@ -116,47 +127,104 @@ export const Recruiting = () => {
     setSearchParams(p, { replace: true });
   }, [search, filterDiv, filterState, filterConf, filterScholarship, filterSize, setSearchParams]);
 
-  const filtered = mockPrograms.filter(p => {
-    const q = search.toLowerCase();
-    const matchQ = !q || p.name.toLowerCase().includes(q) || p.state.toLowerCase().includes(q) || p.conference.toLowerCase().includes(q);
-    const matchDiv   = filterDiv === 'All' || p.division === filterDiv;
-    const matchState = filterState === 'All' || p.state === filterState;
-    const matchConf  = filterConf === 'All' || p.conference === filterConf;
-    const matchSch   = filterScholarship === 'All' || (filterScholarship === 'Yes' ? p.hasScholarships : !p.hasScholarships);
-    const matchSize  = filterSize === 'All' || p.programSize === filterSize;
-    return matchQ && matchDiv && matchState && matchConf && matchSch && matchSize;
-  });
+  const fetchPrograms = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set('search', search);
+      if (filterDiv !== 'All') params.set('division', filterDiv);
+      if (filterState !== 'All') params.set('state', filterState);
+      if (filterConf !== 'All') params.set('conference', filterConf);
+      if (filterScholarship !== 'All') params.set('scholarship', filterScholarship);
+      if (filterSize !== 'All') params.set('size', filterSize);
+      const qs = params.toString();
+      const res = await apiFetch<{ data: Program[] }>(`/api/programs${qs ? `?${qs}` : ''}`);
+      setPrograms(res.data);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [search, filterDiv, filterState, filterConf, filterScholarship, filterSize]);
 
-  const savedPrograms  = mockPrograms.filter(p => savedSchools.has(p.id));
-  const displayPrograms = activeTab === 'browse' ? filtered : savedPrograms;
+  // Debounced fetch on search/filter changes
+  useEffect(() => {
+    const t = setTimeout(fetchPrograms, 250);
+    return () => clearTimeout(t);
+  }, [fetchPrograms]);
 
-  const toggleSave = (programId: number, e: React.MouseEvent) => {
+  // Hydrate saved schools + applications + profile once authenticated
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    apiFetch<{ data: number[] }>('/api/athletes/me/saved-schools')
+      .then(res => setSavedSchools(new Set(res.data)))
+      .catch(() => {});
+    apiFetch<{ data: { programId: number }[] }>('/api/programs/me/applications')
+      .then(res => setAppliedPrograms(new Set(res.data.map(a => a.programId))))
+      .catch(() => {});
+    apiFetch<{ data: { name?: string; gradYear?: number; position?: string } }>(`/api/athletes/${user.id}`)
+      .then(res => {
+        setProfile({ name: res.data.name || user.name, gradYear: res.data.gradYear ? String(res.data.gradYear) : '' });
+        if (res.data.position && positions.includes(res.data.position)) {
+          setApplyForm(f => (f.position ? f : { ...f, position: res.data.position! }));
+        }
+      })
+      .catch(() => setProfile({ name: user.name, gradYear: '' }));
+  }, [isAuthenticated, user]);
+
+  const savedPrograms   = programs.filter(p => savedSchools.has(p.id));
+  const displayPrograms = activeTab === 'browse' ? programs : savedPrograms;
+
+  const toggleSave = async (programId: number, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!isAuthenticated) {
+      showNotification('error', 'Sign In Required', 'Log in to save schools to your list');
+      return;
+    }
     const isSaved = savedSchools.has(programId);
     setSavedSchools(prev => {
       const next = new Set(prev);
       if (isSaved) next.delete(programId); else next.add(programId);
       return next;
     });
-    showNotification('success', isSaved ? 'Removed' : 'Saved', isSaved ? 'School removed from your list' : 'School saved to your list');
-    // Best-effort persist — fire and forget, UI state is source of truth
-    if (isSaved) {
-      fetch(`/api/athletes/me/saved-schools/${programId}`, { method: 'DELETE' }).catch(() => {});
-    } else {
-      fetch('/api/athletes/me/saved-schools', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ schoolId: programId }),
-      }).catch(() => {});
+    try {
+      if (isSaved) {
+        await apiFetch(`/api/athletes/me/saved-schools/${programId}`, { method: 'DELETE' });
+      } else {
+        await apiFetch('/api/athletes/me/saved-schools', {
+          method: 'POST',
+          body: JSON.stringify({ schoolId: programId }),
+        });
+      }
+      showNotification('success', isSaved ? 'Removed' : 'Saved', isSaved ? 'School removed from your list' : 'School saved to your list');
+    } catch {
+      // Revert the optimistic update
+      setSavedSchools(prev => {
+        const next = new Set(prev);
+        if (isSaved) next.add(programId); else next.delete(programId);
+        return next;
+      });
+      showNotification('error', 'Something Went Wrong', 'Could not update your saved schools. Please try again.');
     }
   };
 
-  const openCoachModal = (program: Program, e: React.MouseEvent) => {
+  const openCoachModal = async (program: Program, e: React.MouseEvent) => {
     e.stopPropagation();
-    const coach = program.coachId ? (mockCoaches[program.coachId] ?? null) : null;
-    setCoachModal({ open: true, coach, program });
+    setCoachModal({ open: true, coach: null, program });
     setShowMessageCompose(false);
     setMessageText('');
+    if (program.coachId) {
+      setCoachLoading(true);
+      try {
+        const res = await apiFetch<{ data: Coach }>(`/api/coaches/${program.coachId}`);
+        setCoachModal(m => (m.open ? { ...m, coach: res.data } : m));
+      } catch {
+        showNotification('error', 'Could Not Load Coach', 'Please try again in a moment.');
+      } finally {
+        setCoachLoading(false);
+      }
+    }
   };
 
   const closeCoachModal = () => {
@@ -167,9 +235,13 @@ export const Recruiting = () => {
 
   const openApplyModal = (program: Program, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!isAuthenticated) {
+      showNotification('error', 'Sign In Required', 'Log in to express interest in programs');
+      return;
+    }
     setApplyModal({ open: true, program });
     setApplySubmitted(false);
-    setApplyForm(prev => ({ ...prev, position: '', note: '' }));
+    setApplyForm(f => ({ ...f, note: '' }));
   };
 
   const closeApplyModal = () => {
@@ -181,12 +253,10 @@ export const Recruiting = () => {
     if (!messageText.trim() || !coachModal.coach) return;
     setMessageSending(true);
     try {
-      const res = await fetch('/api/messages/conversations', {
+      await apiFetch('/api/messages/conversations', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ participantId: coachModal.coach.id, initialMessage: messageText.trim() }),
       });
-      if (!res.ok) throw new Error('send failed');
       showNotification('success', 'Message Sent', `Your message to ${coachModal.coach.name} has been delivered`);
       setShowMessageCompose(false);
       setMessageText('');
@@ -201,22 +271,21 @@ export const Recruiting = () => {
     if (!applyModal.program || !applyForm.position) return;
     setApplySubmitting(true);
     try {
-      const res = await fetch(`/api/programs/${applyModal.program.id}/applications`, {
+      await apiFetch(`/api/programs/${applyModal.program.id}/applications`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          athleteName: applyForm.name,
-          gradYear: applyForm.gradYear,
-          position: applyForm.position,
-          note: applyForm.note,
-        }),
+        body: JSON.stringify({ position: applyForm.position, note: applyForm.note }),
       });
-      if (!res.ok) throw new Error('submit failed');
       setAppliedPrograms(prev => new Set(prev).add(applyModal.program!.id));
       setApplySubmitted(true);
       showNotification('success', 'Interest Submitted!', `Your application to ${applyModal.program.name} has been sent`);
-    } catch {
-      showNotification('error', 'Submission Failed', 'Could not submit your application. Please try again.');
+    } catch (err) {
+      if ((err as ApiError).status === 409) {
+        setAppliedPrograms(prev => new Set(prev).add(applyModal.program!.id));
+        setApplySubmitted(true);
+        showNotification('success', 'Already Applied', `You have already expressed interest in ${applyModal.program.name}`);
+      } else {
+        showNotification('error', 'Submission Failed', 'Could not submit your application. Please try again.');
+      }
     } finally {
       setApplySubmitting(false);
     }
@@ -251,6 +320,11 @@ export const Recruiting = () => {
     background: '#161616', border: '1px solid rgba(255,255,255,0.08)',
     borderRadius: 16, padding: 28, width: '90%', maxWidth: 520,
     maxHeight: '88vh', overflowY: 'auto', position: 'relative',
+  };
+
+  const fieldLabel: React.CSSProperties = {
+    display: 'block', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em',
+    textTransform: 'uppercase', color: '#444', marginBottom: 6,
   };
 
   return (
@@ -359,8 +433,10 @@ export const Recruiting = () => {
       {/* Results meta */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <span style={{ fontSize: '0.78rem', color: '#555' }}>
-          Showing <span style={{ color: '#ccc', fontWeight: 600 }}>{displayPrograms.length}</span>{' '}
-          {activeTab === 'browse' ? 'programs' : 'saved schools'}
+          {loading ? 'Loading programs...' : (
+            <>Showing <span style={{ color: '#ccc', fontWeight: 600 }}>{displayPrograms.length}</span>{' '}
+            {activeTab === 'browse' ? 'programs' : 'saved schools'}</>
+          )}
         </span>
         {activeTab === 'browse' && (
           <span style={{ fontSize: '0.78rem', color: '#555' }}>
@@ -369,9 +445,22 @@ export const Recruiting = () => {
         )}
       </div>
 
+      {/* Load error */}
+      {loadError && !loading && (
+        <div style={{ textAlign: 'center', padding: '56px 0', color: '#444' }}>
+          <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '1.5rem', fontWeight: 700, marginBottom: 8 }}>Could not load programs</div>
+          <div style={{ fontSize: '0.85rem', marginBottom: 20 }}>Check your connection and try again</div>
+          <button onClick={fetchPrograms}
+            style={{ ...btnSecondary, flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px' }}>
+            <RefreshCw size={13} /> RETRY
+          </button>
+        </div>
+      )}
+
       {/* Program Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-        {displayPrograms.map((program, i) => {
+        {loading && !loadError && Array.from({ length: 4 }, (_, i) => <SkeletonCard key={i} />)}
+        {!loading && !loadError && displayPrograms.map((program, i) => {
           const isSaved   = savedSchools.has(program.id);
           const isApplied = appliedPrograms.has(program.id);
 
@@ -459,7 +548,7 @@ export const Recruiting = () => {
       </div>
 
       {/* Empty state */}
-      {displayPrograms.length === 0 && (
+      {!loading && !loadError && displayPrograms.length === 0 && (
         <div style={{ textAlign: 'center', padding: '64px 0', color: '#444' }}>
           <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '1.5rem', fontWeight: 700, marginBottom: 8 }}>
             {activeTab === 'saved' ? 'No saved schools yet' : 'No programs found'}
@@ -483,7 +572,13 @@ export const Recruiting = () => {
                 <X size={18} />
               </button>
 
-              {coachModal.coach ? (
+              {coachLoading ? (
+                <div style={{ textAlign: 'center', padding: '48px 0' }}>
+                  <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', margin: '0 auto 16px' }} />
+                  <div style={{ height: 14, width: 160, borderRadius: 4, background: 'rgba(255,255,255,0.05)', margin: '0 auto 8px' }} />
+                  <div style={{ height: 10, width: 100, borderRadius: 4, background: 'rgba(255,255,255,0.04)', margin: '0 auto' }} />
+                </div>
+              ) : coachModal.coach ? (
                 <>
                   {/* Coach header */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
@@ -499,7 +594,7 @@ export const Recruiting = () => {
                     </div>
                   </div>
 
-                  {/* Contact */}
+                  {/* Contact — display only; all coach contact goes through the platform */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16, padding: '10px 12px', background: '#0d0d0d', borderRadius: 8, border: '1px solid rgba(255,255,255,0.04)' }}>
                     <Mail size={14} color="#555" />
                     <span style={{ fontSize: '0.78rem', color: '#888' }}>{coachModal.coach.email}</span>
@@ -561,7 +656,7 @@ export const Recruiting = () => {
                     </button>
                     {coachModal.program && (
                       <button
-                        onClick={e => { closeCoachModal(); openApplyModal(coachModal.program!, e); }}
+                        onClick={e => { const prog = coachModal.program!; closeCoachModal(); openApplyModal(prog, e); }}
                         disabled={appliedPrograms.has(coachModal.program.id)}
                         style={appliedPrograms.has(coachModal.program.id)
                           ? { ...btnSecondary, color: '#555', borderColor: 'rgba(255,255,255,0.08)', cursor: 'default', background: 'rgba(255,255,255,0.03)' }
@@ -585,7 +680,7 @@ export const Recruiting = () => {
                   <p style={{ fontSize: '0.8rem', color: '#444', margin: 0 }}>This program has not yet listed a coach. Check back later or apply directly.</p>
                   {coachModal.program && (
                     <button
-                      onClick={e => { closeCoachModal(); openApplyModal(coachModal.program!, e); }}
+                      onClick={e => { const prog = coachModal.program!; closeCoachModal(); openApplyModal(prog, e); }}
                       style={{ ...btnPrimary, marginTop: 20, display: 'inline-block', flex: 'none' }}>
                       APPLY ANYWAY
                     </button>
@@ -624,7 +719,7 @@ export const Recruiting = () => {
                   </button>
                 </div>
               ) : (
-                /* Form */
+                /* Form — identity comes from the athlete's profile, not free text */
                 <>
                   <div style={{ marginBottom: 20 }}>
                     <div style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#ff5a2d', marginBottom: 4 }}>Express Interest</div>
@@ -633,36 +728,32 @@ export const Recruiting = () => {
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#444', marginBottom: 6 }}>Your Name</label>
-                      <input
-                        value={applyForm.name}
-                        onChange={e => setApplyForm(f => ({ ...f, name: e.target.value }))}
-                        style={{ width: '100%', background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', color: '#fff', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
-                      />
-                    </div>
-
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#444', marginBottom: 6 }}>Grad Year</label>
-                        <input
-                          value={applyForm.gradYear}
-                          onChange={e => setApplyForm(f => ({ ...f, gradYear: e.target.value }))}
-                          style={{ width: '100%', background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', color: '#fff', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
-                        />
+                        <label style={fieldLabel}>Applying As</label>
+                        <div style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px', color: '#ccc', fontSize: '0.85rem' }}>
+                          {profile.name || user?.name}
+                        </div>
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#444', marginBottom: 6 }}>Position <span style={{ color: '#ff5a2d' }}>*</span></label>
-                        <select value={applyForm.position} onChange={e => setApplyForm(f => ({ ...f, position: e.target.value }))}
-                          style={{ ...sel, width: '100%', padding: '10px 12px', color: applyForm.position ? '#fff' : '#555' }}>
-                          <option value="">Select...</option>
-                          {positions.map(p => <option key={p} value={p}>{p}</option>)}
-                        </select>
+                        <label style={fieldLabel}>Grad Year</label>
+                        <div style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px', color: profile.gradYear ? '#ccc' : '#555', fontSize: '0.85rem' }}>
+                          {profile.gradYear || 'Not set on profile'}
+                        </div>
                       </div>
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#444', marginBottom: 6 }}>Note to Coach <span style={{ color: '#555', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span></label>
+                      <label style={fieldLabel}>Position <span style={{ color: '#ff5a2d' }}>*</span></label>
+                      <select value={applyForm.position} onChange={e => setApplyForm(f => ({ ...f, position: e.target.value }))}
+                        style={{ ...sel, width: '100%', padding: '10px 12px', color: applyForm.position ? '#fff' : '#555' }}>
+                        <option value="">Select...</option>
+                        {positions.map(p => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={fieldLabel}>Note to Coach <span style={{ color: '#555', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span></label>
                       <textarea
                         value={applyForm.note}
                         onChange={e => setApplyForm(f => ({ ...f, note: e.target.value }))}
@@ -679,8 +770,8 @@ export const Recruiting = () => {
                     </button>
                     <button
                       onClick={submitApplication}
-                      disabled={applySubmitting || !applyForm.position || !applyForm.name.trim()}
-                      style={{ ...btnPrimary, flex: 1, opacity: (applySubmitting || !applyForm.position || !applyForm.name.trim()) ? 0.5 : 1, cursor: (applySubmitting || !applyForm.position || !applyForm.name.trim()) ? 'not-allowed' : 'pointer' }}>
+                      disabled={applySubmitting || !applyForm.position}
+                      style={{ ...btnPrimary, flex: 1, opacity: (applySubmitting || !applyForm.position) ? 0.5 : 1, cursor: (applySubmitting || !applyForm.position) ? 'not-allowed' : 'pointer' }}>
                       {applySubmitting ? 'Submitting...' : 'SUBMIT INTEREST'}
                     </button>
                   </div>
