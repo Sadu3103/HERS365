@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Check, Play, ArrowRight, Crosshair, Megaphone, Share2 } from 'lucide-react';
+import { athleteAvatar } from '../lib/avatar';
 
 const FLAME = '#ff5a2d';
 const FLAME_SOFT = '#ff8c66';
@@ -286,10 +287,10 @@ export const LandingPage = () => {
             {/* Social proof */}
             <motion.div {...reveal} transition={{ ...reveal.transition, delay: 0.2 }} style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 12, color: MUTED_2, fontSize: '.85rem' }}>
               <div style={{ display: 'flex' }}>
-                {[44, 68, 12, 90].map((n, i) => (
-                  <span key={n} style={{
+                {['Ava King', 'Maya Cruz', 'Zoe Bell', 'Tia Ford'].map((name, i) => (
+                  <span key={name} style={{
                     width: 32, height: 32, borderRadius: '50%', border: `2px solid ${INK}`, marginLeft: i ? -9 : 0,
-                    backgroundImage: `url('https://randomuser.me/api/portraits/women/${n}.jpg')`,
+                    backgroundImage: `url("${athleteAvatar(name)}")`,
                     backgroundSize: 'cover', backgroundPosition: 'center', display: 'inline-block', flexShrink: 0,
                   }} />
                 ))}
@@ -496,7 +497,7 @@ export const LandingPage = () => {
                   <div style={{ width: 16, ...disp, fontWeight: 900, fontSize: '.8rem', color: MUTED_2, flexShrink: 0 }}>{i + 1}</div>
                   <div style={{
                     width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: r.av,
-                    backgroundImage: r.avatarUrl ? `url('${r.avatarUrl}')` : undefined, backgroundSize: 'cover', backgroundPosition: 'center',
+                    backgroundImage: `url("${athleteAvatar(r.name)}")`, backgroundSize: 'cover', backgroundPosition: 'center',
                     border: i === 0 ? `2px solid ${FLAME}` : `2px solid ${LINE}`,
                   }} />
                   <div style={{ flex: 1, minWidth: 0 }}>

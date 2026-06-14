@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, MapPin, Users, CheckCircle2, Zap, MessageCircle,
 } from 'lucide-react';
+import { athleteAvatar } from '../lib/avatar';
 
 const FLAME_C = '#ff5a2d';
 const LINE = 'rgba(255,255,255,0.07)';
@@ -31,12 +32,6 @@ const POS_COLOR: Record<string, string> = {
   QB: '#c084fc', WR: '#fbbf24', RB: FLAME_C, TE: '#34d399', LB: '#60a5fa', DB: '#f472b6',
 };
 
-function nameToIdx(name: string): number {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffffffff;
-  return (Math.abs(h) % 90) + 1;
-}
-
 function AthleteCard({ athlete, onConnect }: { athlete: Athlete; onConnect: () => void }) {
   const color = POS_COLOR[athlete.pos] || FLAME_C;
   const lookLabels: Record<string, string> = { team: 'Wants a Team', '7v7': '7v7 Squads', 'training partner': 'Training Partner', all: 'Open to All' };
@@ -44,7 +39,7 @@ function AthleteCard({ athlete, onConnect }: { athlete: Athlete; onConnect: () =
     <motion.div className="k-card-hover" layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 28 }} style={{ padding: '16px 18px', marginBottom: 10 }}>
       <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
         <div style={{ position: 'relative', flexShrink: 0 }}>
-          <img src={`https://randomuser.me/api/portraits/women/${nameToIdx(athlete.name)}.jpg`} alt={athlete.name} style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${color}55`, boxShadow: `0 0 12px ${color}33` }} />
+          <img src={athleteAvatar(athlete.name)} alt={athlete.name} style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${color}55`, boxShadow: `0 0 12px ${color}33` }} />
           {athlete.verified && <div style={{ position: 'absolute', bottom: -2, right: -2, background: FLAME_C, borderRadius: '50%', width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #0a0a0a' }}><CheckCircle2 size={9} color="#fff" /></div>}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>

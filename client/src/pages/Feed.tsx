@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { athleteAvatar } from '../lib/avatar';
 import {
   Heart,
   MessageCircle,
@@ -48,14 +49,14 @@ interface PostData {
 
 // ── Fictional seed athletes (story rail) — no real PII ──
 const STORY_ATHLETES = [
-  { name: 'Sarah W.', avatar: 'https://randomuser.me/api/portraits/women/44.jpg', rating: 92, live: true },
-  { name: 'Maya J.', avatar: 'https://randomuser.me/api/portraits/women/68.jpg', rating: 89, live: false },
-  { name: 'Zoe R.', avatar: 'https://randomuser.me/api/portraits/women/12.jpg', rating: 87, live: true },
-  { name: 'Aaliyah B.', avatar: 'https://randomuser.me/api/portraits/women/90.jpg', rating: 85, live: false },
-  { name: 'Nina T.', avatar: 'https://randomuser.me/api/portraits/women/26.jpg', rating: 84, live: false },
-  { name: 'Riley C.', avatar: 'https://randomuser.me/api/portraits/women/57.jpg', rating: 82, live: true },
-  { name: 'Jade M.', avatar: 'https://randomuser.me/api/portraits/women/33.jpg', rating: 80, live: false },
-  { name: 'Tia H.', avatar: 'https://randomuser.me/api/portraits/women/65.jpg', rating: 79, live: false },
+  { name: 'Sarah W.', rating: 92, live: true },
+  { name: 'Maya J.', rating: 89, live: false },
+  { name: 'Zoe R.', rating: 87, live: true },
+  { name: 'Aaliyah B.', rating: 85, live: false },
+  { name: 'Nina T.', rating: 84, live: false },
+  { name: 'Riley C.', rating: 82, live: true },
+  { name: 'Jade M.', rating: 80, live: false },
+  { name: 'Tia H.', rating: 79, live: false },
 ];
 
 // Deterministic rating per post author (so the chip is stable across renders).
@@ -945,7 +946,7 @@ export const Feed = () => {
                     }}
                   >
                     <img
-                      src={a.avatar}
+                      src={athleteAvatar(a.name)}
                       alt={a.name}
                       style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                     />

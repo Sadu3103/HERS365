@@ -4,6 +4,7 @@ import { MapPin, Edit3, CheckCircle2, Share2, MessageSquare, Loader2, AlertTrian
 import { useNavigate, useParams } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
 import { apiFetch } from '../lib/api';
+import { athleteAvatar } from '../lib/avatar';
 
 interface ApiProfile {
   id: number;
@@ -122,7 +123,7 @@ export const Profile = () => {
 
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, position: 'relative' }}>
           <div style={{ position: 'relative', flexShrink: 0 }}>
-            <img src="https://randomuser.me/api/portraits/women/44.jpg" alt={profile.name} style={{ width: 80, height: 80, borderRadius: '50%', background: '#1c1c1c', border: '2px solid rgba(255,90,45,0.3)', objectFit: 'cover' }} />
+            <img src={athleteAvatar(profile.name)} alt={profile.name} style={{ width: 80, height: 80, borderRadius: '50%', background: '#1c1c1c', border: '2px solid rgba(255,90,45,0.3)', objectFit: 'cover' }} />
             {verified && (
               <div style={{ position: 'absolute', bottom: 2, right: 2 }}>
                 <CheckCircle2 size={18} color="#ff5a2d" fill="#ff5a2d" style={{ background: '#111', borderRadius: '50%' }} />
