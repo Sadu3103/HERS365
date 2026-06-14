@@ -120,11 +120,16 @@ const css = `
     .lp-hamburger{display:flex}
     .lp-hero-header{padding-top:100px !important;padding-bottom:48px !important}
     .lp-hero-card{display:none}
+    #how,#features,#join{padding-top:56px !important;padding-bottom:56px !important}
+    .stat-cell{padding:22px 16px !important}
   }
   @media(max-width:480px){
     .lp-band-grid{grid-template-columns:1fr 1fr}
     .lp-hero-header{padding-top:88px !important;padding-bottom:40px !important}
     .lp-hero-title{font-size:clamp(2.6rem,10vw,3.4rem) !important}
+    #how,#features,#join{padding-top:44px !important;padding-bottom:44px !important}
+    .stat-cell{padding:18px 12px !important}
+    .lp-cta-box{padding:48px 24px !important}
   }
 `;
 
@@ -561,7 +566,7 @@ export const LandingPage = () => {
       {/* CTA */}
       <section id="join" style={{ padding: '100px 0' }}>
         <div style={wrap}>
-          <motion.div {...reveal} style={{
+          <motion.div {...reveal} className="lp-cta-box" style={{
             position: 'relative', borderRadius: 26, overflow: 'hidden',
             background: 'linear-gradient(135deg,#1a0f0a,#0a0a0a)',
             border: '1px solid rgba(255,90,45,.22)', padding: '76px 40px', textAlign: 'center',
