@@ -156,7 +156,6 @@ function App() {
               <Route path="/training" element={<AthleteRouteGuard><Training /></AthleteRouteGuard>} />
               <Route path="/recruiting" element={<AthleteRouteGuard><Recruiting /></AthleteRouteGuard>} />
               <Route path="/teams" element={<Teams />} />
-              <Route path="/auth" element={<Auth />} />
               <Route path="/subscribe" element={<Subscription />} />
               <Route path="/audit" element={<Audit />} />
               <Route path="/privacy" element={<Privacy />} />
@@ -196,6 +195,7 @@ function App() {
             {/* Standalone full-page routes (no nav shell) */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/landing" element={<LandingPage />} />
+            <Route path="/auth" element={<Auth />} />
 
             {/* Athlete onboarding (full-screen, no nav chrome) */}
             <Route path="/onboarding" element={<Onboarding />} />
