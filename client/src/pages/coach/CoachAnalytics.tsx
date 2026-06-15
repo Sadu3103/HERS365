@@ -16,6 +16,7 @@ import { useNotifications } from '../../context/NotificationContext';
 export function CoachAnalytics() {
   const [analytics, setAnalytics] = useState<CoachAnalyticsType | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const { showNotification } = useNotifications();
 
   useEffect(() => {
@@ -23,6 +24,7 @@ export function CoachAnalytics() {
   }, []);
 
   const fetchAnalytics = async () => {
+    setLoadError(false);
     try {
       const token = localStorage.getItem('coachToken');
       const response = await fetch('/api/coach/analytics', {
@@ -35,8 +37,8 @@ export function CoachAnalytics() {
         const data = await response.json();
         setAnalytics(data);
       }
-    } catch (error) {
-      console.error('Failed to fetch analytics:', error);
+    } catch {
+      setLoadError(true);
       showNotification('error', 'Load Failed', 'Could not load analytics. Please refresh to try again.');
     } finally {
       setLoading(false);
@@ -47,6 +49,20 @@ export function CoachAnalytics() {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center gap-4">
+        <p className="text-gray-400">Could not load analytics data.</p>
+        <button
+          onClick={() => { setLoading(true); fetchAnalytics(); }}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+        >
+          Retry
+        </button>
       </div>
     );
   }

@@ -1,4 +1,3 @@
-// @ts-nocheck - Drizzle ORM type compatibility
 import { pgTable, text, integer, serial, boolean, timestamp, jsonb, doublePrecision } from "drizzle-orm/pg-core";
 import { sql } from 'drizzle-orm';
 
