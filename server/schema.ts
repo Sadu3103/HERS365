@@ -7,6 +7,7 @@ export const players = pgTable('players', {
   email: text('email').notNull().unique(),
   passwordHash: text('password_hash'),
   name: text('name').notNull(),
+  bio: text('bio'),
   position: text('position'),
   age: integer('age'),
   state: text('state'),
