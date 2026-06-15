@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Mail, Lock, User, ArrowRight, Eye, EyeOff, Github, ArrowUpRight } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, Eye, EyeOff, ArrowUpRight } from 'lucide-react';
+import { GoogleLogin } from '@react-oauth/google';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../lib/api';
 import { athleteAvatar } from '../lib/avatar';
 
 const FLAME   = '#ff5a2d';
@@ -11,7 +13,6 @@ const INK      = '#0a0a0a';
 const PANEL    = '#0c0808';
 const FIELD    = 'rgba(255,255,255,0.02)';
 const LINE     = 'rgba(255,255,255,0.08)';
-const LINE_2   = 'rgba(255,255,255,0.14)';
 const TEXT      = '#f4f4f2';
 const MUTED    = '#9a9a96';
 const MUTED_2  = '#7d7d78';
@@ -183,8 +184,29 @@ export const Auth = () => {
     }
   };
 
-  const handleGoogleSignIn = () => { window.location.href = '/api/auth/google'; };
-  const handleGithubSignIn = () => { window.location.href = '/api/auth/github'; };
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+
+  const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
+    if (!credentialResponse.credential) {
+      setError('Google sign-in failed — no credential returned.');
+      return;
+    }
+    setError('');
+    setLoading(true);
+    try {
+      const data = await apiFetch<{ token: string; user: { id: number; email: string; name: string; role: 'athlete' | 'coach' | 'parent' | 'admin' } }>(
+        '/api/auth/google',
+        { method: 'POST', body: JSON.stringify({ credential: credentialResponse.credential, role: 'athlete' }) },
+      );
+      login(data.token, data.user);
+      navigate('/feed');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Google sign-in failed — please try again.';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="auth-root" style={{ display: 'flex', minHeight: '100vh', background: INK, color: TEXT, fontFamily: BODY, overflowX: 'hidden' }}>
@@ -518,32 +540,38 @@ export const Auth = () => {
           </div>
 
           {/* Social */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {[
-              { label: 'Google', mark: <GoogleMark size={16} />, action: handleGoogleSignIn },
-              { label: 'GitHub', mark: <Github size={16} aria-hidden />, action: handleGithubSignIn },
-            ].map(({ label, mark, action }) => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {googleClientId ? (
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => setError('Google sign-in failed — please try again.')}
+                  theme="filled_black"
+                  shape="rectangular"
+                  size="large"
+                  text="continue_with"
+                  width="400"
+                />
+              </div>
+            ) : (
               <button
-                key={label}
                 type="button"
-                onClick={action}
-                disabled={loading}
-                aria-label={`Continue with ${label}`}
+                disabled
+                aria-label="Continue with Google (coming soon)"
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
                   padding: '13px', background: FIELD,
                   border: `1px solid ${LINE}`, borderRadius: 11,
-                  color: MUTED, fontSize: '.8rem', fontWeight: 800,
-                  cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 1,
-                  transition: 'all .2s', letterSpacing: '.08em', textTransform: 'uppercase', fontFamily: DISP,
+                  color: MUTED_2, fontSize: '.8rem', fontWeight: 800,
+                  cursor: 'not-allowed', opacity: 0.5,
+                  letterSpacing: '.08em', textTransform: 'uppercase', fontFamily: DISP,
                 }}
-                onMouseEnter={e => { if (loading) return; e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor = LINE_2; e.currentTarget.style.color = TEXT; }}
-                onMouseLeave={e => { e.currentTarget.style.background = FIELD; e.currentTarget.style.borderColor = LINE; e.currentTarget.style.color = MUTED; }}
               >
-                {mark}
-                {label}
+                <GoogleMark size={16} />
+                Google
+                <span style={{ fontSize: '.62rem', letterSpacing: '.12em', color: MUTED_2, marginLeft: 4 }}>— Coming soon</span>
               </button>
-            ))}
+            )}
           </div>
 
           {/* Footer line (login only — signup uses the CTA-adjacent consent block) */}
