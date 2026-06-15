@@ -17,3 +17,8 @@ CLAUDE.local.md
 graphify-out/
 .claude/worktrees/
 .claire/
+
+
+# prevent future debug/fix script commits
+debug*.js
+fix-*.js
