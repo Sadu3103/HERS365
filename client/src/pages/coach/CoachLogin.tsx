@@ -10,15 +10,14 @@ export const CoachLogin = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const doLogin = async (loginEmail: string, loginPassword: string) => {
     setError('');
     setLoading(true);
     try {
       const res = await fetch('/api/auth/secure/coach/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -34,6 +33,13 @@ export const CoachLogin = () => {
       setLoading(false);
     }
   };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    doLogin(email, password);
+  };
+
+  const enterDemo = () => doLogin('coach@hers365.com', 'hers365coach');
 
   return (
     <div className="min-h-screen bg-surface flex items-center justify-center p-6">
@@ -91,6 +97,22 @@ export const CoachLogin = () => {
             {!loading && <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />}
           </button>
         </form>
+
+        <div className="flex items-center gap-3 my-6">
+          <div className="flex-1 h-px bg-white/10" />
+          <span className="text-[10px] uppercase tracking-[0.2em] text-ink-faint">For the demo</span>
+          <div className="flex-1 h-px bg-white/10" />
+        </div>
+
+        <button
+          type="button"
+          onClick={enterDemo}
+          disabled={loading}
+          className="w-full py-4 bg-white/5 hover:bg-white/10 border border-coral-500/40 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-2xl font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2"
+        >
+          <Zap size={18} className="text-coral-500 fill-current" />
+          Enter Demo Coach Portal
+        </button>
 
         <p className="text-center mt-8 text-sm text-ink-muted">
           Need an account?{' '}
