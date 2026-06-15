@@ -141,7 +141,7 @@ router.get('/users', requireAdmin, async (req: Request, res: Response) => {
 // PATCH /admin/users/:id/verify - Verify a player
 router.patch('/users/:id/verify', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = parseInt(String(req.params.id));
     const { status } = req.body;
 
     const updated = await db.update(schema.players)
@@ -162,7 +162,7 @@ router.patch('/users/:id/verify', requireAdmin, async (req: Request, res: Respon
 // PATCH /admin/users/:id/subscription - Update user subscription
 router.patch('/users/:id/subscription', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = parseInt(String(req.params.id));
     const { tier } = req.body;
 
     const updated = await db.update(schema.players)
@@ -183,7 +183,7 @@ router.patch('/users/:id/subscription', requireAdmin, async (req: Request, res: 
 // DELETE /admin/users/:id - Delete a user
 router.delete('/users/:id', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = parseInt(String(req.params.id));
     const { role } = req.query;
 
     if (role === 'coach') {
@@ -237,7 +237,7 @@ router.get('/reports', requireAdmin, async (req: Request, res: Response) => {
 // PATCH /admin/posts/:id/moderate - Moderate a post
 router.patch('/posts/:id/moderate', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const postId = parseInt(req.params.id);
+    const postId = parseInt(String(req.params.id));
     const { status } = req.body; // approved, flagged, pending
 
     const updated = await db.update(schema.posts)
@@ -281,7 +281,7 @@ router.post('/events', requireAdmin, async (req: Request, res: Response) => {
 // PATCH /admin/events/:id - Update an event
 router.patch('/events/:id', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const eventId = parseInt(req.params.id);
+    const eventId = parseInt(String(req.params.id));
     const { name, date, location, registrationDeadline, participantCount } = req.body;
 
     const updated = await db.update(schema.events)
@@ -308,7 +308,7 @@ router.patch('/events/:id', requireAdmin, async (req: Request, res: Response) =>
 // DELETE /admin/events/:id - Delete an event
 router.delete('/events/:id', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const eventId = parseInt(req.params.id);
+    const eventId = parseInt(String(req.params.id));
     await db.delete(schema.events).where(eq(schema.events.id, eventId));
     res.json({ success: true, message: 'Event deleted' });
   } catch (err: any) {
@@ -453,7 +453,7 @@ router.post('/subscription-plans', requireAdmin, async (req: Request, res: Respo
 // PATCH /admin/subscription-plans/:id - Update a subscription plan
 router.patch('/subscription-plans/:id', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const planId = parseInt(req.params.id);
+    const planId = parseInt(String(req.params.id));
     const { name, price, tierLevel } = req.body;
 
     const updated = await db.update(schema.subscriptionPlans)
@@ -478,7 +478,7 @@ router.patch('/subscription-plans/:id', requireAdmin, async (req: Request, res: 
 // DELETE /admin/subscription-plans/:id - Delete a subscription plan
 router.delete('/subscription-plans/:id', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const planId = parseInt(req.params.id);
+    const planId = parseInt(String(req.params.id));
     await db.delete(schema.subscriptionPlans).where(eq(schema.subscriptionPlans.id, planId));
     res.json({ success: true, message: 'Subscription plan deleted' });
   } catch (err: any) {
@@ -493,7 +493,7 @@ router.delete('/subscription-plans/:id', requireAdmin, async (req: Request, res:
 // POST /admin/athletes/:id/verify - Verify an athlete profile
 router.post('/athletes/:id/verify', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const athleteId = parseInt(req.params.id);
+    const athleteId = parseInt(String(req.params.id));
     const { verified } = req.body;
 
     if (typeof verified !== 'boolean') {
@@ -533,7 +533,7 @@ router.get('/coaches/verification', requireAdmin, async (req: Request, res: Resp
 // PATCH /admin/coaches/:id/verify - Verify a coach
 router.patch('/coaches/:id/verify', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const coachId = parseInt(req.params.id);
+    const coachId = parseInt(String(req.params.id));
     const { verified } = req.body;
 
     const updated = await db.update(schema.coaches)
@@ -602,7 +602,7 @@ router.post('/teams', requireAdmin, async (req: Request, res: Response) => {
 // PATCH /admin/teams/:id - Update a team
 router.patch('/teams/:id', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const teamId = parseInt(req.params.id);
+    const teamId = parseInt(String(req.params.id));
     const { name, logo, state, city, conference, division, wins, losses, titles, rating,
            tuitionInState, tuitionOutState, hasApplication, hasQuestionnaire,
            applicationUrl, questionnaireUrl, socials, type } = req.body;
@@ -644,7 +644,7 @@ router.patch('/teams/:id', requireAdmin, async (req: Request, res: Response) => 
 // DELETE /admin/teams/:id - Delete a team
 router.delete('/teams/:id', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const teamId = parseInt(req.params.id);
+    const teamId = parseInt(String(req.params.id));
     await db.delete(schema.teams).where(eq(schema.teams.id, teamId));
     res.json({ success: true, message: 'Team deleted' });
   } catch (err: any) {
