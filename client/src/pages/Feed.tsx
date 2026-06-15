@@ -14,7 +14,8 @@ import {
   EyeOff,
   UserX,
   TrendingUp,
-  Clock
+  Clock,
+  Trophy,
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import {
@@ -698,6 +699,20 @@ const PostCard = ({
   );
 };
 
+interface RankedAthlete {
+  id: number;
+  name: string;
+  position?: string;
+  school?: string;
+  rating?: number;
+  score?: number;
+}
+
+function parseLikeCount(s: string): number {
+  if (s.endsWith('K')) return parseFloat(s) * 1000;
+  return parseInt(s, 10) || 0;
+}
+
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
@@ -720,6 +735,9 @@ export const Feed = () => {
   const [feedType, setFeedType] = useState<'recent' | 'trending'>('recent');
   const [posts, setPosts] = useState<PostData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [athleteCount, setAthleteCount] = useState<number | null>(null);
+  const [topAthletes, setTopAthletes] = useState<RankedAthlete[]>([]);
+  const [topLoading, setTopLoading] = useState(true);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -744,6 +762,31 @@ export const Feed = () => {
       .finally(() => setIsLoading(false));
     return () => ctrl.abort();
   }, []);
+
+  useEffect(() => {
+    fetch('/api/athletes')
+      .then(r => r.json())
+      .then((res: any) => {
+        const list = Array.isArray(res?.data) ? res.data : [];
+        setAthleteCount(list.length);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/rankings?limit=4')
+      .then(r => r.json())
+      .then((data: any) => {
+        const rows = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+        setTopAthletes(rows.slice(0, 4));
+      })
+      .catch(() => {})
+      .finally(() => setTopLoading(false));
+  }, []);
+
+  const displayedPosts = feedType === 'trending'
+    ? [...posts].sort((a, b) => parseLikeCount(b.likes) - parseLikeCount(a.likes))
+    : posts;
 
   const handleLike = (postId: number) => {
     setPosts(prevPosts =>
@@ -795,16 +838,28 @@ export const Feed = () => {
 
   return (
     <div
-      className="feed-root"
+      className="feed-page-wrap"
       style={{
         position: 'relative',
-        maxWidth: 660,
+        maxWidth: 1060,
         margin: '0 auto',
         padding: '24px 24px 64px',
         color: '#f4f4f2',
         fontFamily: BODY,
+        display: 'flex',
+        gap: 32,
+        alignItems: 'flex-start',
       }}
     >
+      {/* ── Main feed column ── */}
+      <div
+        className="feed-root"
+        style={{
+          position: 'relative',
+          flex: '1 1 0',
+          minWidth: 0,
+        }}
+      >
       {/* Flame glow blobs (absolute, inside relative wrapper) */}
       <div style={glowBlob({ size: 520, top: -160, left: '50%', opacity: 0.16, strength: 0.5 })} />
       <div style={glowBlob({ size: 360, top: 520, right: -120, opacity: 0.1, strength: 0.4 })} />
@@ -825,6 +880,19 @@ export const Feed = () => {
         <p style={{ color: MUTED, fontSize: '.98rem', margin: '10px 0 0', maxWidth: 460, lineHeight: 1.5 }}>
           Every rep, every offer, every breakout moment — straight from the athletes on the rise.
         </p>
+        {athleteCount !== null && (
+          <p style={{
+            color: FLAME_SOFT,
+            fontSize: '.78rem',
+            fontFamily: DISP,
+            fontWeight: 700,
+            letterSpacing: '.12em',
+            textTransform: 'uppercase',
+            margin: '8px 0 0',
+          }}>
+            {athleteCount} {athleteCount === 1 ? 'athlete' : 'athletes'} on the grid
+          </p>
+        )}
       </motion.header>
 
       {/* ── Story rail (top-ranked athletes) ── */}
@@ -1108,7 +1176,7 @@ export const Feed = () => {
             ))}
           </div>
         )}
-        {!isLoading && posts.map((post, i) => (
+        {!isLoading && displayedPosts.map((post, i) => (
           <PostCard
             key={post.id}
             post={post}
@@ -1175,12 +1243,184 @@ export const Feed = () => {
         .story-rail::-webkit-scrollbar { height: 0; }
         .story-rail { scrollbar-width: none; }
         @media (max-width: 900px) {
-          .feed-root { padding: 20px 18px 56px; }
+          .feed-root { padding: 0; }
+          .feed-sidebar { display: none !important; }
+          .feed-page-wrap { padding: 20px 18px 56px; }
         }
         @media (max-width: 600px) {
-          .feed-root { padding: 16px 14px 48px; }
+          .feed-page-wrap { padding: 16px 14px 48px; }
         }
       `}</style>
+      </div>
+
+      {/* ── Right sidebar ── */}
+      <aside
+        className="feed-sidebar"
+        style={{
+          width: 260,
+          flexShrink: 0,
+          position: 'sticky',
+          top: 24,
+        }}
+      >
+        {/* Top Athletes widget */}
+        <motion.div
+          {...reveal}
+          style={{
+            background: `linear-gradient(165deg, ${INK_3}, ${INK_2})`,
+            border: `1px solid ${LINE}`,
+            borderRadius: 18,
+            padding: 20,
+          }}
+        >
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            marginBottom: 16,
+          }}>
+            <Trophy size={15} style={{ color: FLAME }} />
+            <span style={{
+              fontFamily: DISP,
+              fontWeight: 900,
+              fontSize: '.72rem',
+              letterSpacing: '.14em',
+              textTransform: 'uppercase',
+              color: FLAME_SOFT,
+            }}>
+              Top Athletes
+            </span>
+          </div>
+
+          {topLoading && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[1, 2, 3, 4].map(n => (
+                <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ width: '60%', height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.07)', marginBottom: 5 }} />
+                    <div style={{ width: '40%', height: 8, borderRadius: 5, background: 'rgba(255,255,255,0.04)' }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!topLoading && topAthletes.length === 0 && (
+            <p style={{ fontSize: '.8rem', color: MUTED, margin: 0, lineHeight: 1.5 }}>
+              Rankings coming soon — check back once athletes are rated.
+            </p>
+          )}
+
+          {!topLoading && topAthletes.map((a, i) => (
+            <button
+              key={a.id}
+              onClick={() => navigate(`/profile/${a.id}`)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                width: '100%',
+                background: 'none',
+                border: 'none',
+                padding: '8px 0',
+                cursor: 'pointer',
+                borderBottom: i < topAthletes.length - 1 ? `1px solid ${LINE}` : 'none',
+                textAlign: 'left',
+              }}
+            >
+              <span style={{
+                fontFamily: DISP,
+                fontWeight: 900,
+                fontSize: '.72rem',
+                color: i === 0 ? FLAME : MUTED_2,
+                width: 18,
+                flexShrink: 0,
+                letterSpacing: '.04em',
+              }}>
+                #{i + 1}
+              </span>
+              <span style={{
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                background: `conic-gradient(from 120deg, ${FLAME}, ${FLAME_SOFT}, ${FLAME})`,
+                padding: 2,
+                flexShrink: 0,
+                display: 'block',
+              }}>
+                <span style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: '50%',
+                  background: INK,
+                  overflow: 'hidden',
+                  fontFamily: DISP,
+                  fontWeight: 900,
+                  fontSize: '.6rem',
+                  color: FLAME_SOFT,
+                }}>
+                  {initials(a.name)}
+                </span>
+              </span>
+              <span style={{ minWidth: 0, flex: 1 }}>
+                <span style={{
+                  display: 'block',
+                  fontFamily: DISP,
+                  fontWeight: 800,
+                  fontSize: '.82rem',
+                  color: '#f4f4f2',
+                  letterSpacing: '.02em',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}>
+                  {a.name}
+                </span>
+                {(a.position || a.school) && (
+                  <span style={{
+                    display: 'block',
+                    fontSize: '.66rem',
+                    color: MUTED_2,
+                    fontFamily: DISP,
+                    fontWeight: 700,
+                    letterSpacing: '.08em',
+                    textTransform: 'uppercase',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}>
+                    {[a.position, a.school].filter(Boolean).join(' · ')}
+                  </span>
+                )}
+              </span>
+              {(a.rating ?? a.score) !== undefined && (
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  padding: '2px 6px',
+                  borderRadius: 9999,
+                  background: 'rgba(255,90,45,0.12)',
+                  border: '1px solid rgba(255,90,45,0.28)',
+                  fontFamily: DISP,
+                  fontWeight: 900,
+                  fontSize: '.62rem',
+                  letterSpacing: '.06em',
+                  color: FLAME_SOFT,
+                  flexShrink: 0,
+                }}>
+                  <Flame size={9} style={{ color: FLAME }} fill={FLAME} />
+                  {a.rating ?? a.score}
+                </span>
+              )}
+            </button>
+          ))}
+        </motion.div>
+      </aside>
     </div>
   );
 };
