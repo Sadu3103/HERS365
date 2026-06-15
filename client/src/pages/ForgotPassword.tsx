@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { apiFetch } from '../lib/api';
 
 const FLAME   = '#ff5a2d';
 const FLAME_S = '#ff8c66';
@@ -24,25 +25,20 @@ export function ForgotPassword() {
   const [error,     setError]     = useState('');
   const [focused,   setFocused]   = useState(false);
   const navigate = useNavigate();
+  const reduced  = !!useReducedMotion();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const res  = await fetch('/api/auth/email/forgot-password', {
+      await apiFetch('/api/auth/email/forgot-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Something went wrong — please try again.');
-        return;
-      }
       setSubmitted(true);
-    } catch {
-      setError('Network error — please try again.');
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong — please try again.');
     } finally {
       setLoading(false);
     }
@@ -57,20 +53,22 @@ export function ForgotPassword() {
     }}>
       {/* Ambient orbs */}
       <div aria-hidden style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-        <div style={{
+        <div className={reduced ? '' : 'auth-orb auth-orb-a'} style={{
           position: 'absolute', width: 560, height: 560, borderRadius: '50%',
           filter: 'blur(120px)', opacity: 0.13, bottom: '-26%', left: '-16%',
           background: `radial-gradient(circle, ${FLAME}, transparent 62%)`,
+          willChange: 'transform, opacity',
         }} />
-        <div style={{
+        <div className={reduced ? '' : 'auth-orb auth-orb-b'} style={{
           position: 'absolute', width: 380, height: 380, borderRadius: '50%',
           filter: 'blur(110px)', opacity: 0.08, top: '-18%', right: '-12%',
           background: `radial-gradient(circle, ${FLAME_S}, transparent 64%)`,
+          willChange: 'transform, opacity',
         }} />
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 24 }}
+        initial={reduced ? false : { opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55, ease: EASE }}
         style={{
@@ -83,7 +81,7 @@ export function ForgotPassword() {
         <motion.button
           type="button"
           onClick={() => navigate('/')}
-          initial={{ opacity: 0, y: -8 }}
+          initial={reduced ? false : { opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: EASE }}
           style={{
@@ -113,7 +111,7 @@ export function ForgotPassword() {
                   letterSpacing: '.02em', textTransform: 'uppercase',
                   margin: '0 0 8px', color: TEXT,
                 }}>
-                  Reset Password
+                  Forgot Password
                 </h1>
                 <p style={{ color: MUTED, fontSize: '.9rem', margin: '0 0 32px', lineHeight: 1.5 }}>
                   Enter your account email and we'll send you a reset link.

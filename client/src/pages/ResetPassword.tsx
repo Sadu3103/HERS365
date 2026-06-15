@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Lock, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { apiFetch } from '../lib/api';
 
 const FLAME   = '#ff5a2d';
 const FLAME_S = '#ff8c66';
@@ -29,6 +30,7 @@ export function ResetPassword() {
   const [showPw,    setShowPw]    = useState(false);
   const [showCf,    setShowCf]    = useState(false);
   const navigate = useNavigate();
+  const reduced  = !!useReducedMotion();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,19 +49,13 @@ export function ResetPassword() {
     }
     setLoading(true);
     try {
-      const res  = await fetch('/api/auth/email/reset-password', {
+      await apiFetch('/api/auth/email/reset-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, password }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Reset failed — the link may have expired. Request a new one.');
-        return;
-      }
       setDone(true);
-    } catch {
-      setError('Network error — please try again.');
+    } catch (err: any) {
+      setError(err.message || 'Reset failed — the link may have expired. Request a new one.');
     } finally {
       setLoading(false);
     }
@@ -144,20 +140,22 @@ export function ResetPassword() {
       position: 'relative',
     }}>
       <div aria-hidden style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-        <div style={{
+        <div className={reduced ? '' : 'auth-orb auth-orb-a'} style={{
           position: 'absolute', width: 560, height: 560, borderRadius: '50%',
           filter: 'blur(120px)', opacity: 0.13, bottom: '-26%', left: '-16%',
           background: `radial-gradient(circle, ${FLAME}, transparent 62%)`,
+          willChange: 'transform, opacity',
         }} />
-        <div style={{
+        <div className={reduced ? '' : 'auth-orb auth-orb-b'} style={{
           position: 'absolute', width: 380, height: 380, borderRadius: '50%',
           filter: 'blur(110px)', opacity: 0.08, top: '-18%', right: '-12%',
           background: `radial-gradient(circle, ${FLAME_S}, transparent 64%)`,
+          willChange: 'transform, opacity',
         }} />
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 24 }}
+        initial={reduced ? false : { opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55, ease: EASE }}
         style={{
@@ -169,7 +167,7 @@ export function ResetPassword() {
         <motion.button
           type="button"
           onClick={() => navigate('/')}
-          initial={{ opacity: 0, y: -8 }}
+          initial={reduced ? false : { opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: EASE }}
           style={{

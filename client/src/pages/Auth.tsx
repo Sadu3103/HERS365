@@ -570,14 +570,6 @@ export const Auth = () => {
 
       <style>{`
         @supports (min-height:100dvh){.auth-root{min-height:100dvh !important;}}
-        .auth-spinner {
-          width: 16px; height: 16px; border-radius: 50%;
-          border: 2px solid rgba(255,255,255,0.35);
-          border-top-color: #fff;
-          animation: auth-spin 0.65s linear infinite;
-          display: inline-block; flex-shrink: 0;
-        }
-        @keyframes auth-spin { to { transform: rotate(360deg); } }
 
         /* ── Subtle drifting flame orbs (GPU transforms only) ── */
         .auth-orb { will-change: transform, opacity; }
@@ -606,7 +598,7 @@ export const Auth = () => {
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .auth-orb, .auth-spinner, .auth-live-ring::after { animation: none !important; }
+          .auth-orb, .auth-live-ring::after { animation: none !important; }
         }
       `}</style>
     </div>
