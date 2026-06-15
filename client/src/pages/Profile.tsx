@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Edit3, CheckCircle2, Share2, MessageSquare, Loader2, AlertTriangle, UserX, Link2, Instagram } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -45,6 +45,7 @@ export const Profile = () => {
   const [isEmpty, setIsEmpty] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const shareRef = useRef<HTMLDivElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState<EditForm>({ name: '', position: '', school: '', location: '', gradYear: '', bio: '' });
   const [editSaving, setEditSaving] = useState(false);
@@ -59,6 +60,19 @@ export const Profile = () => {
     if (shareOpen) document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [shareOpen]);
+
+  const closeEdit = useCallback(() => setEditOpen(false), []);
+
+  useEffect(() => {
+    if (!editOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeEdit(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [editOpen, closeEdit]);
+
+  useEffect(() => {
+    if (editOpen) nameInputRef.current?.focus();
+  }, [editOpen]);
 
   const profileUrl = id
     ? `https://hers365.com/profile/${id}`
@@ -349,10 +363,13 @@ export const Profile = () => {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.97 }}
               transition={{ duration: 0.15 }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="edit-profile-title"
               style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '28px 24px', width: '100%', maxWidth: 480, boxShadow: '0 24px 64px rgba(0,0,0,0.8)' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
-                <h2 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.3rem', textTransform: 'uppercase', color: '#fff', margin: 0 }}>Edit Profile</h2>
+                <h2 id="edit-profile-title" style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.3rem', textTransform: 'uppercase', color: '#fff', margin: 0 }}>Edit Profile</h2>
                 <button onClick={() => setEditOpen(false)} style={{ background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', padding: 4, lineHeight: 1, fontSize: '1.2rem' }}>✕</button>
               </div>
 
@@ -362,14 +379,16 @@ export const Profile = () => {
                   { label: 'Position', key: 'position', placeholder: 'e.g. QB, WR, CB' },
                   { label: 'School', key: 'school', placeholder: 'High school name' },
                   { label: 'Location (State)', key: 'location', placeholder: 'e.g. CA, TX' },
-                  { label: 'Graduation Year', key: 'gradYear', placeholder: 'e.g. 2026' },
-                ].map(({ label, key, placeholder }) => (
+                  { label: 'Graduation Year', key: 'gradYear', placeholder: 'e.g. 2026', inputMode: 'numeric' as const },
+                ].map(({ label, key, placeholder, inputMode }) => (
                   <div key={key}>
                     <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#555', marginBottom: 6 }}>{label}</label>
                     <input
+                      ref={key === 'name' ? nameInputRef : undefined}
                       value={editForm[key as keyof EditForm]}
-                      onChange={e => setEditForm(f => ({ ...f, [key]: e.target.value }))}
+                      onChange={e => { setEditForm(f => ({ ...f, [key]: e.target.value })); setEditError(null); }}
                       placeholder={placeholder}
+                      inputMode={inputMode}
                       style={{ width: '100%', background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '10px 12px', color: '#fff', fontSize: '0.88rem', outline: 'none', boxSizing: 'border-box' }}
                       onFocus={e => (e.currentTarget.style.borderColor = 'rgba(255,90,45,0.5)')}
                       onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
@@ -381,7 +400,7 @@ export const Profile = () => {
                   <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#555', marginBottom: 6 }}>Bio</label>
                   <textarea
                     value={editForm.bio}
-                    onChange={e => setEditForm(f => ({ ...f, bio: e.target.value }))}
+                    onChange={e => { setEditForm(f => ({ ...f, bio: e.target.value })); setEditError(null); }}
                     placeholder="A short bio about yourself"
                     rows={3}
                     style={{ width: '100%', background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '10px 12px', color: '#fff', fontSize: '0.88rem', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
