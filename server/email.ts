@@ -1,18 +1,17 @@
 // Email service for password resets, notifications, etc.
 // Uses Resend (resend.com) - free tier available
 
-// Mock Resend if package is missing
 class MockResend {
   emails = {
     send: async (data: any) => {
-      console.log('Mock email sent:', data);
-      return { id: 'mock_id' };
+      console.warn(`[email] DEV MODE — email to ${data.to} (${data.subject}) was not sent. Set RESEND_API_KEY for real delivery.`);
+      return { id: `mock_${Date.now()}` };
     }
   };
-  constructor(apiKey: string) {}
+  constructor(_apiKey: string) {}
 }
 
-const resend = new MockResend(process.env.RESEND_API_KEY || 're_123456789');
+const resend = new MockResend(process.env.RESEND_API_KEY || '');
 
 interface EmailOptions {
   to: string;
@@ -37,7 +36,7 @@ export async function sendEmail({ to, subject, html, from }: EmailOptions) {
 }
 
 export async function sendPasswordResetEmail(to: string, resetToken: string) {
-  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/reset?token=${resetToken}`;
+  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
   
   return sendEmail({
     to,

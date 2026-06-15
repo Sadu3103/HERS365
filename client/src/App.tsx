@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Layout } from './components/Layout';
 import { CoachLayout } from './components/CoachLayout';
 import { Feed } from './pages/Feed';
@@ -9,6 +9,8 @@ import { Training } from './pages/Training';
 import { Recruiting } from './pages/Recruiting';
 import { Teams } from './pages/Teams';
 import { Auth } from './pages/Auth';
+import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
 import { Subscription } from './pages/Subscription';
 import { Audit } from './pages/Audit';
 import { Privacy } from './pages/Privacy';
@@ -56,10 +58,57 @@ import { CoachAnalytics } from './pages/coach/CoachAnalytics';
 import { CoachSignup } from './pages/coach/CoachSignup';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { NotificationProvider } from './context/NotificationContext';
 import { AuthProvider } from './context/AuthContext';
 const queryClient = new QueryClient();
+
+// Scroll to top on every route change
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }); }, [pathname]);
+  return null;
+}
+
+// Thin flame scroll-progress bar — visible on any scrollable standalone page
+function ScrollProgressBar() {
+  const [width, setWidth] = useState(0);
+  const rafRef = useRef<number>(0);
+
+  useEffect(() => {
+    const update = () => {
+      const el  = document.documentElement;
+      const pct = el.scrollTop / (el.scrollHeight - el.clientHeight);
+      setWidth(Number.isFinite(pct) ? Math.min(pct * 100, 100) : 0);
+    };
+    const onScroll = () => {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(update);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(rafRef.current); };
+  }, []);
+
+  if (width <= 0) return null;
+  return (
+    <div
+      className="scroll-progress"
+      style={{ width: `${width}%`, opacity: width > 2 ? 1 : 0 }}
+    />
+  );
+}
+
+function AthleteRouteGuard({ children }: { children: React.ReactNode }) {
+  const navigate = useNavigate();
+  const token = localStorage.getItem('token');
+
+  useEffect(() => {
+    if (!token) navigate('/auth');
+  }, [navigate, token]);
+
+  if (!token) return null;
+  return <>{children}</>;
+}
 
 // Simple role-based guard for coach routes.
 // Auth is resolved synchronously before any children render so protected
@@ -98,16 +147,17 @@ function App() {
       <AuthProvider>
         <NotificationProvider>
           <Router>
+          <ScrollToTop />
+          <ScrollProgressBar />
           <Routes>
             <Route element={<Layout />}>
-              <Route path="/feed" element={<Feed />} />
+              <Route path="/feed" element={<AthleteRouteGuard><Feed /></AthleteRouteGuard>} />
               <Route path="/rankings" element={<Rankings />} />
-              <Route path="/profile" element={<Profile />} />
+              <Route path="/profile" element={<AthleteRouteGuard><Profile /></AthleteRouteGuard>} />
               <Route path="/profile/:id" element={<PlayerProfile />} />
-              <Route path="/training" element={<Training />} />
-              <Route path="/recruiting" element={<Recruiting />} />
+              <Route path="/training" element={<AthleteRouteGuard><Training /></AthleteRouteGuard>} />
+              <Route path="/recruiting" element={<AthleteRouteGuard><Recruiting /></AthleteRouteGuard>} />
               <Route path="/teams" element={<Teams />} />
-              <Route path="/auth" element={<Auth />} />
               <Route path="/subscribe" element={<Subscription />} />
               <Route path="/audit" element={<Audit />} />
               <Route path="/privacy" element={<Privacy />} />
@@ -119,15 +169,14 @@ function App() {
               <Route path="/faq" element={<FAQ />} />
               <Route path="/help" element={<Help />} />
               <Route path="/thank-you" element={<ThankYou />} />
-              <Route path="/landing" element={<LandingPage />} />
               <Route path="/explore" element={<Explore />} />
               <Route path="/events" element={<Events />} />
               <Route path="/drills" element={<Drills />} />
               <Route path="/nil" element={<NIL />} />
               <Route path="/reels" element={<Reels />} />
-              <Route path="/video-studio" element={<VideoStudio />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/messages" element={<Messages />} />
+              <Route path="/video-studio" element={<AthleteRouteGuard><VideoStudio /></AthleteRouteGuard>} />
+              <Route path="/settings" element={<AthleteRouteGuard><Settings /></AthleteRouteGuard>} />
+              <Route path="/messages" element={<AthleteRouteGuard><Messages /></AthleteRouteGuard>} />
               <Route path="/maxpreps" element={<MaxPrepsLookup />} />
               <Route path="/college-fit" element={<CollegeFitCalculator />} />
               <Route path="/college-flag-football" element={<CollegeFlagFootball />} />
@@ -147,6 +196,9 @@ function App() {
             {/* Standalone full-page routes (no nav shell) */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/landing" element={<LandingPage />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Athlete onboarding (full-screen, no nav chrome) */}
             <Route path="/onboarding" element={<Onboarding />} />

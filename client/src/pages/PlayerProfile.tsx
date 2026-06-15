@@ -27,19 +27,11 @@ interface Stat {
   [key: string]: any;
 }
 
-const MOCK_MAP: Record<number, Partial<Player>> = {
-  1: { name: 'Sarah Watkins',   position: 'QB', school: 'Westlake HS, TX',         state: 'Texas',      gradYear: 2026, height: "5'9\"", gpa: 3.9  },
-  2: { name: 'Maya Johnson',    position: 'WR', school: "St. Mary's Academy, FL",  state: 'Florida',    gradYear: 2026, height: "5'7\"", gpa: 3.7  },
-  3: { name: 'Isabella Reyes',  position: 'DB', school: 'Centennial HS, CA',       state: 'California', gradYear: 2027, height: "5'6\"", gpa: 4.0  },
-  4: { name: 'Chloe Zhang',     position: 'RB', school: 'Northwood HS, GA',        state: 'Georgia',    gradYear: 2026, height: "5'5\"", gpa: 3.8  },
-  5: { name: "Emma O'Connor",   position: 'QB', school: 'Summit Prep, CO',         state: 'Colorado',   gradYear: 2027, height: "5'8\"", gpa: 3.95 },
-  6: { name: 'Ava Mitchell',    position: 'LB', school: 'Harrison HS, AL',         state: 'Alabama',    gradYear: 2026, height: "5'9\"", gpa: 3.6  },
-};
 
 export const PlayerProfile = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const playerId = parseInt(id || '0');
+  const playerId = parseInt(id ?? '', 10);
 
   const [player, setPlayer] = useState<Player | null>(null);
   const [stats, setStats] = useState<Stat[]>([]);
@@ -49,27 +41,22 @@ export const PlayerProfile = () => {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      if (!id || isNaN(playerId)) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
       try {
         const res = await fetch(`/api/players/${playerId}`);
         if (res.ok) {
           const data = await res.json();
-          if (data) {
-            setPlayer(data);
-          } else {
-            // API returned null — fall back to mock if available
-            const mock = MOCK_MAP[playerId];
-            if (mock) setPlayer({ id: playerId, ...mock } as Player);
-            else setNotFound(true);
-          }
-        } else {
-          const mock = MOCK_MAP[playerId];
-          if (mock) setPlayer({ id: playerId, ...mock } as Player);
+          if (data) setPlayer(data);
           else setNotFound(true);
+        } else {
+          setNotFound(true);
         }
       } catch {
-        const mock = MOCK_MAP[playerId];
-        if (mock) setPlayer({ id: playerId, ...mock } as Player);
-        else setNotFound(true);
+        setNotFound(true);
       }
 
       try {
@@ -83,7 +70,7 @@ export const PlayerProfile = () => {
   }, [playerId]);
 
   const handleMessage = () => {
-    navigate('/messages');
+    navigate('/messages', { state: { partnerId: player?.id, partnerName: player?.name } });
   };
 
   if (loading) {
@@ -159,7 +146,7 @@ export const PlayerProfile = () => {
       </div>
 
       {/* Quick stats */}
-      {(player.height || player.gpa) && (
+      {(player.height || player.gpa != null) && (
         <div className="k-card" style={{ padding: 20, marginBottom: 16 }}>
           <h2 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '1rem', textTransform: 'uppercase', color: '#666', marginBottom: 16, letterSpacing: '0.08em' }}>
             Athlete Info
@@ -171,7 +158,7 @@ export const PlayerProfile = () => {
                 <div style={{ fontSize: '1rem', fontWeight: 700, color: '#ddd' }}>{player.height}</div>
               </div>
             )}
-            {player.gpa && (
+            {player.gpa != null && (
               <div style={{ background: '#0d0d0d', borderRadius: 8, padding: '12px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.04)' }}>
                 <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#444', marginBottom: 4 }}>GPA</div>
                 <div style={{ fontSize: '1rem', fontWeight: 700, color: '#ddd' }}>{player.gpa}</div>

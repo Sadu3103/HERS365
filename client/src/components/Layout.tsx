@@ -1,14 +1,17 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutGrid, Trophy, User, Dumbbell, Search,
-  Settings, Bell, MessageSquare, Menu, Plus
+  Settings, MessageSquare, Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { MobileNav } from './MobileNav';
+import { BottomTabBar } from './BottomTabBar';
+import { NotificationBell } from './NotificationBell';
+import { ProfileCompletionBanner } from './ProfileCompletionBanner';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/api';
+import { athleteAvatar } from '../lib/avatar';
 
 interface NavItem {
   icon: React.ElementType;
@@ -25,13 +28,22 @@ const nav: NavItem[] = [
   { icon: MessageSquare, label: 'MESSAGES',   path: '/messages' },
 ];
 
+const pageTransition = {
+  initial: { opacity: 0, y: 10, scale: 0.992 },
+  animate: { opacity: 1, y: 0, scale: 1 },
+  exit:    { opacity: 0, y: -4, scale: 1.004 },
+  transition: {
+    type: 'spring' as const,
+    stiffness: 420,
+    damping: 34,
+    mass: 0.8,
+  },
+};
+
 export const Layout = () => {
   const location  = useLocation();
   const navigate  = useNavigate();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [notifOpen,  setNotifOpen]  = useState(false);
-  const [mode,       setMode]       = useState<'athlete' | 'coach'>('athlete');
-  const notifRef = useRef<HTMLDivElement>(null);
+  const [mode, setMode] = useState<'athlete' | 'coach'>('athlete');
 
   const { user } = useAuth();
 
@@ -51,35 +63,22 @@ export const Layout = () => {
   const unreadMessages = unread?.data?.totalUnread ?? 0;
   const p = profile?.data ?? {};
 
-  useEffect(() => {
-    const h = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
-    };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
-
-  const notifications = [
-    { id: 1, msg: 'Coach Johnson viewed your profile',  time: '2m ago',  unread: true  },
-    { id: 2, msg: 'Agility session starts in 30 minutes', time: '15m ago', unread: true  },
-    { id: 3, msg: 'You moved up to #42 in rankings',   time: '1h ago',  unread: false },
-  ];
-  const unreadCount = notifications.filter(n => n.unread).length;
-
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#0a0a0a', color: '#fff', overflow: 'hidden' }}>
 
-      {/* ─── Sidebar ─── */}
-      <aside style={{
-        width: 240,
-        flexShrink: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        padding: '28px 16px',
-        background: '#0a0a0a',
-      }} className="hidden md:flex">
-
-        {/* Logo — plain text, no icon */}
+      {/* ─── Desktop Sidebar ─── */}
+      <aside
+        className="hidden md:flex"
+        style={{
+          width: 240,
+          flexShrink: 0,
+          flexDirection: 'column',
+          padding: '28px 16px',
+          background: '#0a0a0a',
+          borderRight: '1px solid rgba(255,255,255,0.05)',
+        }}
+      >
+        {/* Logo */}
         <div style={{ marginBottom: 20, paddingLeft: 4 }}>
           <span style={{
             fontFamily: 'Barlow Condensed, sans-serif',
@@ -88,7 +87,9 @@ export const Layout = () => {
             letterSpacing: '0.04em',
             textTransform: 'uppercase',
             color: '#fff',
-          }}>HERS 365</span>
+          }}>
+            HERS<span style={{ color: '#ff5a2d' }}>365</span>
+          </span>
         </div>
 
         {/* ATHLETE / COACH switch */}
@@ -99,19 +100,22 @@ export const Layout = () => {
           padding: 3,
           marginBottom: 32,
         }}>
-          <button
+          <motion.button
+            whileTap={{ scale: 0.95 }}
             onClick={() => setMode('athlete')}
             style={{
               flex: 1, padding: '6px 0', borderRadius: 9999,
               background: mode === 'athlete' ? '#ff5a2d' : 'transparent',
               color: mode === 'athlete' ? '#fff' : '#555',
               fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em',
-              textTransform: 'uppercase', border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+              textTransform: 'uppercase', border: 'none', cursor: 'pointer',
+              transition: 'background 0.2s, color 0.2s',
             }}
           >
             ATHLETE
-          </button>
-          <button
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
             onClick={() => {
               const hasCoach = localStorage.getItem('coachToken');
               navigate(hasCoach ? '/coach/dashboard' : '/coach/login');
@@ -120,11 +124,12 @@ export const Layout = () => {
               flex: 1, padding: '6px 0', borderRadius: 9999,
               background: 'transparent', color: '#555',
               fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em',
-              textTransform: 'uppercase', border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+              textTransform: 'uppercase', border: 'none', cursor: 'pointer',
+              transition: 'background 0.2s, color 0.2s',
             }}
           >
             COACH
-          </button>
+          </motion.button>
         </div>
 
         {/* Nav */}
@@ -133,43 +138,47 @@ export const Layout = () => {
             const active = location.pathname === path;
             const badge = path === '/messages' && unreadMessages > 0 ? unreadMessages : undefined;
             return (
-              <Link
-                key={path}
-                to={path}
-                className={`nav-item${active ? ' nav-active' : ''}`}
-                style={{ justifyContent: 'space-between', fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.04em' }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <Icon size={17} color={active ? '#ff5a2d' : undefined} />
-                  {label}
-                </div>
-                {badge && (
-                  <div style={{
-                    minWidth: 18, height: 18, borderRadius: 9999,
-                    background: '#ff5a2d',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    padding: '0 5px', flexShrink: 0,
-                  }}>
-                    <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#fff' }}>{badge}</span>
+              <motion.div key={path} whileTap={{ scale: 0.97 }} style={{ borderRadius: 9 }}>
+                <Link
+                  to={path}
+                  className={`nav-item${active ? ' nav-active' : ''}`}
+                  style={{ justifyContent: 'space-between', fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.04em' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <Icon size={17} color={active ? '#ff5a2d' : undefined} />
+                    {label}
                   </div>
-                )}
-              </Link>
+                  {badge && (
+                    <div style={{
+                      minWidth: 18, height: 18, borderRadius: 9999,
+                      background: '#ff5a2d',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      padding: '0 5px', flexShrink: 0,
+                    }}>
+                      <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#fff' }}>{badge}</span>
+                    </div>
+                  )}
+                </Link>
+              </motion.div>
             );
           })}
         </nav>
 
         {/* Bottom: settings + profile card */}
         <div style={{ paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Link
-            to="/settings"
-            className={`nav-item${location.pathname === '/settings' ? ' nav-active' : ''}`}
-            style={{ fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.04em' }}
-          >
-            <Settings size={17} />
-            SETTINGS
-          </Link>
+          <motion.div whileTap={{ scale: 0.97 }} style={{ borderRadius: 9 }}>
+            <Link
+              to="/settings"
+              className={`nav-item${location.pathname === '/settings' ? ' nav-active' : ''}`}
+              style={{ fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.04em' }}
+            >
+              <Settings size={17} />
+              SETTINGS
+            </Link>
+          </motion.div>
 
-          <button
+          <motion.button
+            whileTap={{ scale: 0.97 }}
             onClick={() => navigate('/profile')}
             style={{
               display: 'flex', alignItems: 'center', gap: 10,
@@ -178,7 +187,7 @@ export const Layout = () => {
               border: '1px solid rgba(255,255,255,0.07)',
               cursor: 'pointer', marginTop: 10,
               width: '100%', textAlign: 'left',
-              transition: 'border-color 0.15s ease, background 0.15s ease',
+              transition: 'border-color 0.2s ease, background 0.2s ease',
             }}
             onMouseEnter={e => {
               (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.06)';
@@ -191,7 +200,7 @@ export const Layout = () => {
           >
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <img
-                src="https://randomuser.me/api/portraits/women/44.jpg"
+                src={athleteAvatar(user?.name ?? 'You')}
                 alt={user?.name ?? 'Profile'}
                 style={{ width: 32, height: 32, borderRadius: '50%', background: '#1c1c1c', border: '1.5px solid rgba(255,90,45,0.4)', objectFit: 'cover' }}
               />
@@ -212,35 +221,42 @@ export const Layout = () => {
             <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '0.9rem', color: '#ff5a2d', flexShrink: 0 }}>
               {p.g5Rating ?? '—'}
             </div>
-          </button>
+          </motion.button>
         </div>
       </aside>
 
       {/* ─── Main ─── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
 
-        {/* Header */}
+        {/* Header — frosted glass */}
         <header style={{
-          height: 64,
+          height: 56,
           display: 'flex', alignItems: 'center',
-          padding: '0 24px',
+          padding: '0 20px',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
-          background: '#0a0a0a',
+          background: 'rgba(10,10,10,0.84)',
+          backdropFilter: 'blur(20px) saturate(1.5)',
+          WebkitBackdropFilter: 'blur(20px) saturate(1.5)',
           flexShrink: 0,
-          zIndex: 10,
-          gap: 16,
+          zIndex: 30,
+          gap: 14,
         }}>
-          {/* Mobile menu */}
-          <button
-            onClick={() => setMobileOpen(true)}
-            style={{ color: '#666', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}
-            className="flex md:hidden"
-          >
-            <Menu size={22} />
-          </button>
+          {/* Mobile logo */}
+          <div className="flex md:hidden" style={{ flexShrink: 0 }}>
+            <span style={{
+              fontFamily: 'Barlow Condensed, sans-serif',
+              fontWeight: 900,
+              fontSize: '1.35rem',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              color: '#fff',
+            }}>
+              HERS<span style={{ color: '#ff5a2d' }}>365</span>
+            </span>
+          </div>
 
-          {/* Search — centered and wide */}
-          <div style={{ flex: 1, position: 'relative', maxWidth: 540 }}>
+          {/* Search — desktop only */}
+          <div className="hidden md:block" style={{ flex: 1, position: 'relative', maxWidth: 500 }}>
             <Search size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#555', pointerEvents: 'none' }} />
             <input
               type="text"
@@ -250,11 +266,11 @@ export const Layout = () => {
                 background: '#161616',
                 border: '1px solid rgba(255,255,255,0.08)',
                 borderRadius: 9999,
-                padding: '8px 18px 8px 38px',
+                padding: '7px 18px 7px 38px',
                 fontSize: '0.8rem',
                 color: '#fff',
                 outline: 'none',
-                transition: 'border-color 0.15s',
+                transition: 'border-color 0.18s',
               }}
               onFocus={e => (e.target.style.borderColor = 'rgba(255,90,45,0.4)')}
               onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.08)')}
@@ -262,111 +278,59 @@ export const Layout = () => {
           </div>
 
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            {/* Notifications */}
-            <div style={{ position: 'relative' }} ref={notifRef}>
-              <button onClick={() => setNotifOpen(!notifOpen)} className="k-icon-btn">
-                <Bell size={18} />
-                {unreadCount > 0 && (
-                  <span style={{
-                    position: 'absolute', top: 6, right: 6,
-                    width: 7, height: 7, borderRadius: '50%',
-                    background: '#ff5a2d',
-                  }} />
-                )}
-              </button>
+            <NotificationBell />
 
-              <AnimatePresence>
-                {notifOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8, scale: 0.96 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.96 }}
-                    style={{
-                      position: 'absolute', top: '100%', right: 0, marginTop: 8,
-                      width: 300, background: '#111',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      borderRadius: 12, boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
-                      zIndex: 100,
-                    }}
-                  >
-                    <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#555' }}>Notifications</span>
-                    </div>
-                    {notifications.map(n => (
-                      <div key={n.id} style={{
-                        padding: '12px 16px',
-                        borderBottom: '1px solid rgba(255,255,255,0.04)',
-                        display: 'flex', gap: 10, alignItems: 'flex-start',
-                      }}>
-                        <div style={{
-                          width: 6, height: 6, borderRadius: '50%', marginTop: 5, flexShrink: 0,
-                          background: n.unread ? '#ff5a2d' : '#333',
-                        }} />
-                        <div>
-                          <div style={{ fontSize: '0.82rem', color: '#ddd' }}>{n.msg}</div>
-                          <div style={{ fontSize: '0.7rem', color: '#555', marginTop: 3 }}>{n.time}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* POST HIGHLIGHT — full pill */}
-            <button
+            {/* POST HIGHLIGHT — desktop only */}
+            <motion.button
+              whileTap={{ scale: 0.94 }}
               onClick={() => navigate('/training')}
-              className="k-btn k-btn-primary"
-              style={{ padding: '8px 18px', borderRadius: 9999 }}
+              className="k-btn k-btn-primary hidden md:flex"
+              style={{ padding: '7px 16px', borderRadius: 9999 }}
             >
               <Plus size={14} />
               POST HIGHLIGHT
-            </button>
+            </motion.button>
 
             {/* Avatar */}
-            <button
+            <motion.button
+              whileTap={{ scale: 0.9 }}
               onClick={() => navigate('/profile')}
               style={{
-                width: 34, height: 34, borderRadius: '50%',
+                width: 32, height: 32, borderRadius: '50%',
                 background: 'linear-gradient(135deg, #ff5a2d, #ff8c66)',
                 border: '2px solid rgba(255,90,45,0.5)',
                 cursor: 'pointer', flexShrink: 0, padding: 0,
                 transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
-                boxShadow: '0 0 0 0 rgba(255,90,45,0)',
               }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = '#ff5a2d';
-                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 0 3px rgba(255,90,45,0.2)';
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,90,45,0.5)';
-                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 0 0 rgba(255,90,45,0)';
+              whileHover={{
+                boxShadow: '0 0 0 3px rgba(255,90,45,0.2)',
+                borderColor: '#ff5a2d',
               }}
             />
           </div>
         </header>
 
+        <ProfileCompletionBanner />
         {/* Page Content */}
-        <main style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.18 }}
-            >
-              <Outlet />
-            </motion.div>
-          </AnimatePresence>
+        <main
+          className="main-scroll"
+          style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}
+        >
+          <div style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={location.pathname}
+                {...pageTransition}
+              >
+                <Outlet />
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </main>
       </div>
 
-      <MobileNav
-        isOpen={mobileOpen}
-        onClose={() => setMobileOpen(false)}
-        items={nav}
-      />
+      {/* Mobile bottom tab bar */}
+      <BottomTabBar unreadMessages={unreadMessages} />
     </div>
   );
 };

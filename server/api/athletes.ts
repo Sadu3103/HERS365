@@ -3,7 +3,14 @@ import express from 'express';
 import { and, eq } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
-import { requireAuth } from '../middleware/requireAuth';
+import { requireAuth } from '../auth';
+
+// Public projection of a player row. Email/zip are contact info for a
+// minor — never expose them on athlete endpoints.
+function publicAthlete(p: Record<string, unknown>) {
+  const { passwordHash, email, zipCode, ...safe } = p;
+  return safe;
+}
 
 const router = express.Router();
 
@@ -32,11 +39,87 @@ router.get('/', async (req, res) => {
       .limit(Number(limit))
       .offset(Number(offset));
 
-    const data = rows.map(({ passwordHash, ...safe }) => safe);
+    const data = rows.map(publicAthlete);
     res.json({ success: true, data, pagination: { limit: Number(limit), offset: Number(offset) } });
   } catch (err) {
     console.error('[athletes/list]', err);
     res.status(500).json({ success: false, error: 'Failed to fetch athletes' });
+  }
+});
+
+// Saved schools — /me routes resolve the athlete from the JWT and must be
+// registered before /:id so "me" is not parsed as an id.
+
+// GET /api/athletes/me/saved-schools
+router.get('/me/saved-schools', requireAuth, async (req, res) => {
+  try {
+    const rows = await db
+      .select({ programId: schema.savedSchools.programId })
+      .from(schema.savedSchools)
+      .where(eq(schema.savedSchools.athleteId, Number(req.user.id)));
+    res.json({ success: true, data: rows.map(r => r.programId) });
+  } catch (error) {
+    console.error('[athletes/saved-schools/list]', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch saved schools' });
+  }
+});
+
+// POST /api/athletes/me/saved-schools
+router.post('/me/saved-schools', requireAuth, async (req, res) => {
+  try {
+    const programId = parseInt(req.body?.schoolId, 10);
+    if (Number.isNaN(programId)) {
+      return res.status(400).json({ success: false, error: 'schoolId is required' });
+    }
+    const athleteId = Number(req.user.id);
+
+    const existing = await db
+      .select({ id: schema.savedSchools.id })
+      .from(schema.savedSchools)
+      .where(and(
+        eq(schema.savedSchools.athleteId, athleteId),
+        eq(schema.savedSchools.programId, programId),
+      ))
+      .limit(1);
+    if (existing.length === 0) {
+      await db.insert(schema.savedSchools).values({ athleteId, programId });
+    }
+
+    const rows = await db
+      .select({ programId: schema.savedSchools.programId })
+      .from(schema.savedSchools)
+      .where(eq(schema.savedSchools.athleteId, athleteId));
+    res.json({ success: true, data: rows.map(r => r.programId) });
+  } catch (error) {
+    console.error('[athletes/saved-schools/add]', error);
+    res.status(500).json({ success: false, error: 'Failed to save school' });
+  }
+});
+
+// DELETE /api/athletes/me/saved-schools/:schoolId
+router.delete('/me/saved-schools/:schoolId', requireAuth, async (req, res) => {
+  try {
+    const programId = parseInt(req.params.schoolId, 10);
+    if (Number.isNaN(programId)) {
+      return res.status(400).json({ success: false, error: 'Invalid school id' });
+    }
+    const athleteId = Number(req.user.id);
+
+    await db
+      .delete(schema.savedSchools)
+      .where(and(
+        eq(schema.savedSchools.athleteId, athleteId),
+        eq(schema.savedSchools.programId, programId),
+      ));
+
+    const rows = await db
+      .select({ programId: schema.savedSchools.programId })
+      .from(schema.savedSchools)
+      .where(eq(schema.savedSchools.athleteId, athleteId));
+    res.json({ success: true, data: rows.map(r => r.programId) });
+  } catch (error) {
+    console.error('[athletes/saved-schools/remove]', error);
+    res.status(500).json({ success: false, error: 'Failed to remove saved school' });
   }
 });
 
@@ -59,9 +142,7 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Athlete not found' });
     }
 
-    // Never leak the password hash
-    const { passwordHash, ...safe } = athlete;
-    res.json({ success: true, data: safe });
+    res.json({ success: true, data: publicAthlete(athlete) });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to fetch athlete profile' });
   }
@@ -106,8 +187,7 @@ router.put('/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Athlete not found' });
     }
 
-    const { passwordHash, ...safe } = updated[0];
-    res.json({ success: true, data: safe });
+    res.json({ success: true, data: publicAthlete(updated[0]) });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to update athlete profile' });
   }

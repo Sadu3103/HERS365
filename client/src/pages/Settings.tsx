@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   User,
   Bell,
@@ -8,11 +9,36 @@ import {
   Globe,
   Lock,
   Save,
-  Eye,
-  EyeOff,
-  Camera,
-  Trash2
+  Trash2,
+  Download,
+  CheckCircle,
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
+import { apiFetch } from '../lib/api';
+import { athleteAvatar } from '../lib/avatar';
+
+interface UserProfile {
+  id: number;
+  name: string;
+  email: string;
+  position?: string;
+  school?: string;
+  state?: string;
+  city?: string;
+  zipCode?: string;
+  gradYear?: number;
+  gpa?: string;
+  sport?: string;
+  bio?: string;
+  achievements?: string;
+  archetype?: string;
+  privacySetting?: string;
+  subscriptionTier?: string;
+  verificationStatus?: string;
+  createdAt?: string;
+  role?: string;
+}
 
 interface SettingSection {
   id: string;
@@ -21,16 +47,60 @@ interface SettingSection {
   description: string;
 }
 
+function loadNotifPrefs() {
+  try {
+    const raw = localStorage.getItem('hers365_notif_prefs');
+    if (raw) return JSON.parse(raw);
+  } catch (_e) {
+    // corrupted localStorage — fall through to defaults
+  }
+  return { email: true, push: true, scoutMessages: true, teamUpdates: false, marketing: false, quietStart: '22:00', quietEnd: '08:00' };
+}
+
+function loadAppearancePrefs() {
+  try {
+    const raw = localStorage.getItem('hers365_appearance_prefs');
+    if (raw) return JSON.parse(raw);
+  } catch (_e) {
+    // corrupted localStorage — fall through to defaults
+  }
+  return { theme: 'Dark', language: 'English (US)', timezone: 'Eastern Time (ET)' };
+}
+
 export const Settings = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string>('profile');
-  const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [notifications, setNotifications] = useState({
-    email: true,
-    push: true,
-    scoutMessages: true,
-    teamUpdates: false,
-    marketing: false
+
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
+
+  const [form, setForm] = useState({
+    name: '',
+    position: '',
+    school: '',
+    state: '',
+    city: '',
+    zipCode: '',
+    gradYear: '',
+    gpa: '',
+    sport: '',
+    bio: '',
+    achievements: '',
   });
+
+  const [privacySetting, setPrivacySetting] = useState('public');
+
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const [privacySaveStatus, setPrivacySaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  const [notifications, setNotifications] = useState(loadNotifPrefs());
+  const [notifSaved, setNotifSaved] = useState(false);
+
+  const [appearance, setAppearance] = useState(loadAppearancePrefs());
+  const [appearanceSaved, setAppearanceSaved] = useState(false);
 
   const settingSections: SettingSection[] = [
     { id: 'profile', title: 'Profile', icon: User, description: 'Manage your personal information' },
@@ -40,135 +110,310 @@ export const Settings = () => {
     { id: 'account', title: 'Account', icon: Lock, description: 'Account management and preferences' }
   ];
 
-  const handleNotificationChange = (key: string, value: boolean) => {
-    setNotifications(prev => ({ ...prev, [key]: value }));
+  const fetchProfile = useCallback(async () => {
+    setProfileLoading(true);
+    setProfileError(null);
+    try {
+      const res = await apiFetch<{ success: boolean; data: UserProfile }>('/api/users/profile');
+      const data = res.data;
+      setProfile(data);
+      setForm({
+        name: data.name || '',
+        position: data.position || '',
+        school: data.school || '',
+        state: data.state || '',
+        city: data.city || '',
+        zipCode: data.zipCode || '',
+        gradYear: data.gradYear ? String(data.gradYear) : '',
+        gpa: data.gpa || '',
+        sport: data.sport || '',
+        bio: data.bio || '',
+        achievements: data.achievements || '',
+      });
+      setPrivacySetting(data.privacySetting || 'public');
+    } catch (err: any) {
+      setProfileError(err.message || 'Failed to load profile');
+    } finally {
+      setProfileLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchProfile(); }, [fetchProfile]);
+
+  const handleFormChange = (field: string, value: string) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+    if (saveStatus === 'saved' || saveStatus === 'error') setSaveStatus('idle');
   };
 
-  const renderProfileTab = () => (
-    <div className="space-y-8">
-      {/* Profile Picture */}
-      <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
-        <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Profile Picture</h3>
-        <div className="flex items-center gap-6">
-          <div className="relative">
+  const handleSaveProfile = async () => {
+    setSaveStatus('saving');
+    setSaveError(null);
+    try {
+      const payload: Record<string, any> = {
+        name: form.name,
+        position: form.position,
+        school: form.school,
+        state: form.state,
+        city: form.city,
+        zipCode: form.zipCode,
+        gradYear: form.gradYear,
+        gpa: form.gpa,
+        sport: form.sport,
+        bio: form.bio,
+        achievements: form.achievements,
+      };
+      const res = await apiFetch<{ success: boolean; data: UserProfile }>('/api/users/profile', {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+      setProfile(res.data);
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    } catch (err: any) {
+      setSaveStatus('error');
+      setSaveError(err.message || 'Failed to save');
+    }
+  };
+
+  const handleSavePrivacy = async () => {
+    setPrivacySaveStatus('saving');
+    try {
+      await apiFetch<{ success: boolean; data: UserProfile }>('/api/users/profile', {
+        method: 'PUT',
+        body: JSON.stringify({ privacySetting }),
+      });
+      setPrivacySaveStatus('saved');
+      setTimeout(() => setPrivacySaveStatus('idle'), 3000);
+    } catch {
+      setPrivacySaveStatus('error');
+      setTimeout(() => setPrivacySaveStatus('idle'), 3000);
+    }
+  };
+
+  const handleSaveNotifications = () => {
+    localStorage.setItem('hers365_notif_prefs', JSON.stringify(notifications));
+    setNotifSaved(true);
+    setTimeout(() => setNotifSaved(false), 3000);
+  };
+
+  const handleSaveAppearance = () => {
+    localStorage.setItem('hers365_appearance_prefs', JSON.stringify(appearance));
+    setAppearanceSaved(true);
+    setTimeout(() => setAppearanceSaved(false), 3000);
+  };
+
+  const handleExportData = () => {
+    if (!profile) return;
+    const blob = new Blob([JSON.stringify(profile, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `hers365-profile-${profile.id}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  };
+
+  const renderProfileTab = () => {
+    if (profileLoading) {
+      return (
+        <div className="flex items-center justify-center py-24">
+          <Loader2 size={36} className="text-coral-500 animate-spin" />
+        </div>
+      );
+    }
+    if (profileError) {
+      return (
+        <div className="bg-surface-card border border-red-500/30 rounded-3xl p-8 text-center">
+          <AlertCircle size={36} className="text-red-400 mx-auto mb-3" />
+          <p className="text-red-400 font-bold">{profileError}</p>
+          <button onClick={fetchProfile} className="mt-4 px-6 py-2 bg-coral-500 text-white rounded-lg font-bold uppercase tracking-widest text-sm">Retry</button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-8">
+        {/* Avatar */}
+        <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
+          <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Profile Picture</h3>
+          <div className="flex items-center gap-6">
             <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-coral-500 to-green-500 p-1">
               <div className="w-full h-full rounded-[14px] bg-surface-card overflow-hidden">
-                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah" alt="Profile" />
+                <img src={athleteAvatar(profile?.name || '')} alt="Profile" className="w-full h-full object-cover" />
               </div>
             </div>
-            <button className="absolute bottom-0 right-0 p-2 bg-coral-500 hover:bg-coral-600 text-white rounded-lg transition-colors">
-              <Camera size={16} />
-            </button>
-          </div>
-          <div>
-            <button className="px-4 py-2 bg-coral-500 hover:bg-coral-600 text-white rounded-lg font-bold uppercase tracking-widest transition-colors mb-2">
-              Change Picture
-            </button>
-            <p className="text-sm text-ink-muted">JPG, PNG or GIF. Max size 2MB.</p>
+            <div>
+              <p className="text-sm text-ink-muted">Profile picture is generated from your name. Custom photo upload coming soon.</p>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Personal Information */}
-      <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
-        <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Personal Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">First Name</label>
-            <input
-              type="text"
-              defaultValue="Sarah"
-              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Last Name</label>
-            <input
-              type="text"
-              defaultValue="Johnson"
-              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Email</label>
-            <input
-              type="email"
-              defaultValue="sarah.johnson@email.com"
-              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Phone</label>
-            <input
-              type="tel"
-              defaultValue="+1 (555) 123-4567"
-              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Bio</label>
-            <textarea
-              rows={4}
-              defaultValue="Passionate quarterback with a love for the game and academics. Leading my team to victory while maintaining straight A's."
-              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500 resize-none"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Athletic Information */}
-      <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
-        <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Athletic Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Position</label>
-            <select className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500">
-              <option>Quarterback</option>
-              <option>Running Back</option>
-              <option>Wide Receiver</option>
-              <option>Tight End</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Graduation Year</label>
-            <select className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500">
-              <option>2026</option>
-              <option>2027</option>
-              <option>2028</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Height</label>
+        {/* Personal Information */}
+        <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
+          <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Personal Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Full Name</label>
               <input
                 type="text"
-                defaultValue="5'8&quot;"
+                value={form.name}
+                onChange={e => handleFormChange('name', e.target.value)}
                 className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
               />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Weight</label>
-            <input
-              type="text"
-              defaultValue="145 lbs"
-              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
-            />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Email <span className="text-xs text-ink-faint normal-case tracking-normal">(read-only)</span></label>
+              <input
+                type="email"
+                value={profile?.email || ''}
+                readOnly
+                className="w-full bg-surface-card/50 border border-white/10 rounded-lg py-3 px-4 text-ink-muted cursor-not-allowed"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Bio</label>
+              <textarea
+                rows={4}
+                value={form.bio}
+                onChange={e => handleFormChange('bio', e.target.value)}
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500 resize-none"
+              />
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="flex justify-end">
-        <button className="flex items-center gap-2 px-8 py-4 bg-coral-500 hover:bg-coral-600 text-white rounded-xl font-bold uppercase tracking-widest transition-colors">
-          <Save size={18} />
-          Save Changes
-        </button>
+        {/* Athletic Information */}
+        <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
+          <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Athletic Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Sport</label>
+              <input
+                type="text"
+                value={form.sport}
+                onChange={e => handleFormChange('sport', e.target.value)}
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
+                placeholder="e.g. Flag Football"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Position</label>
+              <input
+                type="text"
+                value={form.position}
+                onChange={e => handleFormChange('position', e.target.value)}
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
+                placeholder="e.g. Quarterback"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">School</label>
+              <input
+                type="text"
+                value={form.school}
+                onChange={e => handleFormChange('school', e.target.value)}
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Graduation Year</label>
+              <input
+                type="text"
+                value={form.gradYear}
+                onChange={e => handleFormChange('gradYear', e.target.value)}
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
+                placeholder="e.g. 2026"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">GPA</label>
+              <input
+                type="text"
+                value={form.gpa}
+                onChange={e => handleFormChange('gpa', e.target.value)}
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
+                placeholder="e.g. 3.8"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">State</label>
+              <input
+                type="text"
+                value={form.state}
+                onChange={e => handleFormChange('state', e.target.value)}
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
+                placeholder="e.g. CA"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">City</label>
+              <input
+                type="text"
+                value={form.city}
+                onChange={e => handleFormChange('city', e.target.value)}
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Zip Code</label>
+              <input
+                type="text"
+                value={form.zipCode}
+                onChange={e => handleFormChange('zipCode', e.target.value)}
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Achievements</label>
+              <textarea
+                rows={3}
+                value={form.achievements}
+                onChange={e => handleFormChange('achievements', e.target.value)}
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500 resize-none"
+                placeholder="List your key achievements..."
+              />
+            </div>
+          </div>
+        </div>
+
+        {saveStatus === 'error' && saveError && (
+          <div className="flex items-center gap-2 text-red-400 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
+            <AlertCircle size={16} />
+            <span className="text-sm font-bold">{saveError}</span>
+          </div>
+        )}
+
+        <div className="flex justify-end">
+          <button
+            onClick={handleSaveProfile}
+            disabled={saveStatus === 'saving'}
+            className={`flex items-center gap-2 px-8 py-4 rounded-xl font-bold uppercase tracking-widest transition-colors ${
+              saveStatus === 'saved'
+                ? 'bg-green-500 text-white'
+                : saveStatus === 'error'
+                ? 'bg-red-500 text-white'
+                : 'bg-coral-500 hover:bg-coral-600 text-white'
+            }`}
+          >
+            {saveStatus === 'saving' ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : saveStatus === 'saved' ? (
+              <CheckCircle size={18} />
+            ) : (
+              <Save size={18} />
+            )}
+            {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved!' : 'Save Changes'}
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderNotificationsTab = () => (
     <div className="space-y-6">
       <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
-        <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Notification Preferences</h3>
+        <h3 className="text-xl font-bold text-white mb-2 uppercase tracking-tight">Notification Preferences</h3>
+        <p className="text-xs text-ink-faint mb-6">Saved to this device only.</p>
 
         <div className="space-y-4">
           {[
@@ -186,8 +431,8 @@ export const Settings = () => {
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={notifications[item.key as keyof typeof notifications]}
-                  onChange={(e) => handleNotificationChange(item.key, e.target.checked)}
+                  checked={notifications[item.key as keyof typeof notifications] as boolean}
+                  onChange={(e) => setNotifications((prev: typeof notifications) => ({ ...prev, [item.key]: e.target.checked }))}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-surface-hover peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-coral-500/25 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-coral-500"></div>
@@ -198,14 +443,14 @@ export const Settings = () => {
       </div>
 
       <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
-        <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Notification Schedule</h3>
-
+        <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Quiet Hours</h3>
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Quiet Hours Start</label>
             <input
               type="time"
-              defaultValue="22:00"
+              value={notifications.quietStart}
+              onChange={e => setNotifications((prev: typeof notifications) => ({ ...prev, quietStart: e.target.value }))}
               className="bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
             />
           </div>
@@ -213,7 +458,8 @@ export const Settings = () => {
             <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Quiet Hours End</label>
             <input
               type="time"
-              defaultValue="08:00"
+              value={notifications.quietEnd}
+              onChange={e => setNotifications((prev: typeof notifications) => ({ ...prev, quietEnd: e.target.value }))}
               className="bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
             />
           </div>
@@ -221,9 +467,12 @@ export const Settings = () => {
       </div>
 
       <div className="flex justify-end">
-        <button className="flex items-center gap-2 px-8 py-4 bg-coral-500 hover:bg-coral-600 text-white rounded-xl font-bold uppercase tracking-widest transition-colors">
-          <Save size={18} />
-          Save Preferences
+        <button
+          onClick={handleSaveNotifications}
+          className={`flex items-center gap-2 px-8 py-4 rounded-xl font-bold uppercase tracking-widest transition-colors ${notifSaved ? 'bg-green-500 text-white' : 'bg-coral-500 hover:bg-coral-600 text-white'}`}
+        >
+          {notifSaved ? <CheckCircle size={18} /> : <Save size={18} />}
+          {notifSaved ? 'Saved!' : 'Save Preferences'}
         </button>
       </div>
     </div>
@@ -232,80 +481,73 @@ export const Settings = () => {
   const renderPrivacyTab = () => (
     <div className="space-y-6">
       <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
-        <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Privacy Settings</h3>
+        <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Profile Visibility</h3>
 
-        <div className="space-y-4">
+        <div className="p-4 bg-surface-card/50 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-white font-bold">Profile Visibility</h4>
+              <p className="text-sm text-ink-muted">Control who can see your profile</p>
+            </div>
+            <select
+              value={privacySetting}
+              onChange={e => setPrivacySetting(e.target.value)}
+              className="bg-surface-hover border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-coral-500"
+            >
+              <option value="public">Public</option>
+              <option value="friends">Friends Only</option>
+              <option value="private">Private</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-4">
           {[
-            { label: 'Profile Visibility', description: 'Control who can see your profile', value: 'Public' },
-            { label: 'Contact Information', description: 'Who can see your email and phone', value: 'Verified Users Only' },
+            { label: 'Contact Information', description: 'Who can see your email', value: 'Verified Users Only' },
             { label: 'Performance Stats', description: 'Who can view your athletic statistics', value: 'Everyone' },
-            { label: 'Activity Status', description: 'Show when you\'re online', value: 'Friends Only' }
+            { label: 'Activity Status', description: "Show when you're online", value: 'Friends Only' }
           ].map((item) => (
-            <div key={item.label} className="flex items-center justify-between p-4 bg-surface-card/50 rounded-lg">
+            <div key={item.label} className="flex items-center justify-between p-4 bg-surface-card/50 rounded-lg opacity-60">
               <div>
                 <h4 className="text-white font-bold">{item.label}</h4>
                 <p className="text-sm text-ink-muted">{item.description}</p>
               </div>
-              <select className="bg-surface-hover border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-coral-500">
-                <option>{item.value}</option>
-                <option>Public</option>
-                <option>Friends Only</option>
-                <option>Private</option>
-              </select>
+              <span className="text-xs text-ink-faint border border-white/10 rounded-lg py-2 px-3">Coming soon</span>
             </div>
           ))}
         </div>
       </div>
 
       <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
-        <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Security</h3>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Current Password</label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Enter current password"
-                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 pr-12 text-white placeholder:text-ink-faint focus:outline-none focus:border-coral-500"
-              />
-              <button
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-white"
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">New Password</label>
-            <input
-              type="password"
-              placeholder="Enter new password"
-              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white placeholder:text-ink-faint focus:outline-none focus:border-coral-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Confirm New Password</label>
-            <input
-              type="password"
-              placeholder="Confirm new password"
-              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white placeholder:text-ink-faint focus:outline-none focus:border-coral-500"
-            />
-          </div>
-        </div>
+        <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Password</h3>
+        <p className="text-ink-muted mb-4 text-sm">To change your password, use our password reset flow.</p>
+        <button
+          onClick={() => navigate('/forgot-password')}
+          className="flex items-center gap-2 px-6 py-3 bg-surface-hover hover:bg-white/10 border border-white/10 text-white rounded-lg font-bold uppercase tracking-widest text-sm transition-colors"
+        >
+          <Lock size={16} />
+          Go to Password Reset
+        </button>
       </div>
 
-      <div className="flex justify-end gap-4">
-        <button className="flex items-center gap-2 px-8 py-4 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold uppercase tracking-widest transition-colors">
-          <Trash2 size={18} />
-          Delete Account
-        </button>
-        <button className="flex items-center gap-2 px-8 py-4 bg-coral-500 hover:bg-coral-600 text-white rounded-xl font-bold uppercase tracking-widest transition-colors">
-          <Save size={18} />
-          Save Changes
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-ink-faint text-sm">
+          <Trash2 size={16} className="opacity-50" />
+          <span>To delete your account, contact <span className="text-ink-muted">support@hers365.com</span></span>
+        </div>
+        <button
+          onClick={handleSavePrivacy}
+          disabled={privacySaveStatus === 'saving'}
+          className={`flex items-center gap-2 px-8 py-4 rounded-xl font-bold uppercase tracking-widest transition-colors ${
+            privacySaveStatus === 'saved'
+              ? 'bg-green-500 text-white'
+              : privacySaveStatus === 'error'
+              ? 'bg-red-500 text-white'
+              : 'bg-coral-500 hover:bg-coral-600 text-white'
+          }`}
+        >
+          {privacySaveStatus === 'saving' ? <Loader2 size={18} className="animate-spin" /> : privacySaveStatus === 'saved' ? <CheckCircle size={18} /> : <Save size={18} />}
+          {privacySaveStatus === 'saving' ? 'Saving…' : privacySaveStatus === 'saved' ? 'Saved!' : privacySaveStatus === 'error' ? "Couldn't save — retry" : 'Save Changes'}
         </button>
       </div>
     </div>
@@ -314,24 +556,24 @@ export const Settings = () => {
   const renderAppearanceTab = () => (
     <div className="space-y-6">
       <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
-        <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Theme</h3>
+        <h3 className="text-xl font-bold text-white mb-2 uppercase tracking-tight">Theme</h3>
+        <p className="text-xs text-ink-faint mb-6">Saved to this device only.</p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            { name: 'Dark', description: 'Classic dark theme', active: true },
-            { name: 'Light', description: 'Light theme for better readability', active: false },
-            { name: 'Auto', description: 'Follow system preference', active: false }
-          ].map((theme) => (
+          {['Dark', 'Light', 'Auto'].map((themeName) => (
             <div
-              key={theme.name}
+              key={themeName}
+              onClick={() => setAppearance((prev: typeof appearance) => ({ ...prev, theme: themeName }))}
               className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                theme.active
+                appearance.theme === themeName
                   ? 'border-coral-500 bg-coral-500/10'
                   : 'border-white/10 hover:border-white/20'
               }`}
             >
-              <h4 className="text-white font-bold mb-2">{theme.name}</h4>
-              <p className="text-sm text-ink-muted">{theme.description}</p>
+              <h4 className="text-white font-bold mb-2">{themeName}</h4>
+              <p className="text-sm text-ink-muted">
+                {themeName === 'Dark' ? 'Classic dark theme' : themeName === 'Light' ? 'Light theme for better readability' : 'Follow system preference'}
+              </p>
             </div>
           ))}
         </div>
@@ -339,21 +581,27 @@ export const Settings = () => {
 
       <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
         <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Language & Region</h3>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Language</label>
-            <select className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500">
+            <select
+              value={appearance.language}
+              onChange={e => setAppearance((prev: typeof appearance) => ({ ...prev, language: e.target.value }))}
+              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
+            >
               <option>English (US)</option>
               <option>English (UK)</option>
               <option>Spanish</option>
               <option>French</option>
             </select>
           </div>
-
           <div>
             <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Timezone</label>
-            <select className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500">
+            <select
+              value={appearance.timezone}
+              onChange={e => setAppearance((prev: typeof appearance) => ({ ...prev, timezone: e.target.value }))}
+              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
+            >
               <option>Pacific Time (PT)</option>
               <option>Eastern Time (ET)</option>
               <option>Central Time (CT)</option>
@@ -364,79 +612,106 @@ export const Settings = () => {
       </div>
 
       <div className="flex justify-end">
-        <button className="flex items-center gap-2 px-8 py-4 bg-coral-500 hover:bg-coral-600 text-white rounded-xl font-bold uppercase tracking-widest transition-colors">
-          <Save size={18} />
-          Save Preferences
+        <button
+          onClick={handleSaveAppearance}
+          className={`flex items-center gap-2 px-8 py-4 rounded-xl font-bold uppercase tracking-widest transition-colors ${appearanceSaved ? 'bg-green-500 text-white' : 'bg-coral-500 hover:bg-coral-600 text-white'}`}
+        >
+          {appearanceSaved ? <CheckCircle size={18} /> : <Save size={18} />}
+          {appearanceSaved ? 'Saved!' : 'Save Preferences'}
         </button>
       </div>
     </div>
   );
 
-  const renderAccountTab = () => (
-    <div className="space-y-6">
-      <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
-        <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Account Information</h3>
+  const renderAccountTab = () => {
+    const memberSince = profile?.createdAt
+      ? new Date(profile.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+      : '—';
 
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-surface-card/50 rounded-lg">
-            <div>
-              <h4 className="text-white font-bold">Account Status</h4>
-              <p className="text-sm text-ink-muted">Your account is active and verified</p>
+    const tier = profile?.subscriptionTier || 'free';
+    const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1);
+    const tierColor = tier === 'premium' ? 'bg-coral-500' : tier === 'elite' ? 'bg-yellow-500' : 'bg-surface-hover';
+
+    const vStatus = profile?.verificationStatus || 'unverified';
+    const isVerified = vStatus === 'verified';
+
+    return (
+      <div className="space-y-6">
+        <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
+          <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Account Information</h3>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-surface-card/50 rounded-lg">
+              <div>
+                <h4 className="text-white font-bold">Account Status</h4>
+                <p className="text-sm text-ink-muted capitalize">{vStatus}</p>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-sm font-bold ${isVerified ? 'bg-green-500 text-white' : 'bg-surface-hover text-ink-muted border border-white/10'}`}>
+                {isVerified ? 'Verified' : 'Unverified'}
+              </span>
             </div>
-            <span className="px-3 py-1 bg-green-500 text-white rounded-full text-sm font-bold">Verified</span>
+
+            <div className="flex items-center justify-between p-4 bg-surface-card/50 rounded-lg">
+              <div>
+                <h4 className="text-white font-bold">Member Since</h4>
+                <p className="text-sm text-ink-muted">{memberSince}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-surface-card/50 rounded-lg">
+              <div>
+                <h4 className="text-white font-bold">Account Type</h4>
+                <p className="text-sm text-ink-muted capitalize">{tier} Athlete Account</p>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-sm font-bold text-white ${tierColor}`}>
+                {tierLabel}
+              </span>
+            </div>
           </div>
+        </div>
 
-          <div className="flex items-center justify-between p-4 bg-surface-card/50 rounded-lg">
-            <div>
-              <h4 className="text-white font-bold">Member Since</h4>
-              <p className="text-sm text-ink-muted">January 15, 2023</p>
-            </div>
-            <span className="text-ink-muted">1 year ago</span>
+        <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
+          <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Data Management</h3>
+
+          <div className="space-y-4">
+            <button
+              onClick={handleExportData}
+              disabled={!profile}
+              className="w-full flex items-center justify-between p-4 bg-surface-card/50 hover:bg-surface-card/70 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div>
+                <h4 className="text-white font-bold">Download My Data</h4>
+                <p className="text-sm text-ink-muted">Download your profile as JSON</p>
+              </div>
+              <Download size={20} className="text-ink-muted" />
+            </button>
+
+            <button
+              onClick={() => setActiveTab('privacy')}
+              className="w-full flex items-center justify-between p-4 bg-surface-card/50 hover:bg-surface-card/70 rounded-lg transition-colors"
+            >
+              <div>
+                <h4 className="text-white font-bold">Privacy Settings</h4>
+                <p className="text-sm text-ink-muted">Manage how your data is used</p>
+              </div>
+              <Globe size={20} className="text-ink-muted" />
+            </button>
           </div>
+        </div>
 
-          <div className="flex items-center justify-between p-4 bg-surface-card/50 rounded-lg">
+        <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
+          <h3 className="text-xl font-bold text-white mb-4 uppercase tracking-tight">Danger Zone</h3>
+          <div className="flex items-start gap-3 p-4 bg-red-500/5 border border-red-500/20 rounded-lg">
+            <Trash2 size={18} className="text-red-400 mt-0.5 shrink-0" />
             <div>
-              <h4 className="text-white font-bold">Account Type</h4>
-              <p className="text-sm text-ink-muted">Premium Athlete Account</p>
+              <h4 className="text-red-400 font-bold text-sm uppercase tracking-widest mb-1">Delete Account</h4>
+              <p className="text-sm text-ink-muted">Account deletion is handled by our support team. Email <span className="text-ink-light">support@hers365.com</span> to request deletion.</p>
             </div>
-            <span className="px-3 py-1 bg-coral-500 text-white rounded-full text-sm font-bold">Premium</span>
           </div>
         </div>
       </div>
-
-      <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
-        <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Data Management</h3>
-
-        <div className="space-y-4">
-          <button className="w-full flex items-center justify-between p-4 bg-surface-card/50 hover:bg-surface-card/70 rounded-lg transition-colors">
-            <div>
-              <h4 className="text-white font-bold">Download My Data</h4>
-              <p className="text-sm text-ink-muted">Get a copy of all your data</p>
-            </div>
-            <Globe size={20} className="text-ink-muted" />
-          </button>
-
-          <button className="w-full flex items-center justify-between p-4 bg-surface-card/50 hover:bg-surface-card/70 rounded-lg transition-colors">
-            <div>
-              <h4 className="text-white font-bold">Privacy Settings</h4>
-              <p className="text-sm text-ink-muted">Manage how your data is used</p>
-            </div>
-            <Shield size={20} className="text-ink-muted" />
-          </button>
-        </div>
-      </div>
-
-      <div className="flex justify-end gap-4">
-        <button className="flex items-center gap-2 px-8 py-4 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold uppercase tracking-widest transition-colors">
-          <Trash2 size={18} />
-          Delete Account
-        </button>
-        <button className="flex items-center gap-2 px-8 py-4 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl font-bold uppercase tracking-widest transition-colors">
-          Export Data
-        </button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   const renderActiveTab = () => {
     switch (activeTab) {
@@ -451,7 +726,6 @@ export const Settings = () => {
 
   return (
     <div className="max-w-6xl mx-auto py-8">
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-4xl font-black text-white uppercase tracking-tighter mb-4">
           Settings
@@ -462,7 +736,6 @@ export const Settings = () => {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
-        {/* Sidebar */}
         <div className="lg:w-80 space-y-2">
           {settingSections.map((section) => {
             const Icon = section.icon;
@@ -486,7 +759,6 @@ export const Settings = () => {
           })}
         </div>
 
-        {/* Content */}
         <div className="flex-1">
           {renderActiveTab()}
         </div>
