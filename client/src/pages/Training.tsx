@@ -156,7 +156,18 @@ export const Training = () => {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555' }}>Combine Personal Bests</div>
               <button
-                onClick={() => { setShowForm(f => !f); setFormError(null); setFormSuccess(false); }}
+                onClick={() => {
+                  const opening = !showForm;
+                  if (opening) {
+                    const seed: Record<string, string> = {};
+                    METRICS.forEach(m => { const v = stats?.[m.key]; if (v) seed[m.key] = String(v); });
+                    if (stats?.season) seed.season = String(stats.season);
+                    setFormValues(seed);
+                  }
+                  setShowForm(opening);
+                  setFormError(null);
+                  setFormSuccess(false);
+                }}
                 style={{
                   background: '#ff5a2d', border: 'none', borderRadius: 7,
                   color: '#fff', fontSize: '0.72rem', fontWeight: 700,
@@ -217,7 +228,7 @@ export const Training = () => {
                       <input
                         type="text"
                         placeholder={m.placeholder}
-                        defaultValue={stats ? (stats[m.key] ?? '') : ''}
+                        value={formValues[m.key] ?? ''}
                         onChange={e => handleFormChange(m.key, e.target.value)}
                         style={{
                           width: '100%', boxSizing: 'border-box',
@@ -235,7 +246,7 @@ export const Training = () => {
                     <input
                       type="text"
                       placeholder="e.g. 2026"
-                      defaultValue={stats?.season ?? ''}
+                      value={formValues.season ?? ''}
                       onChange={e => handleFormChange('season', e.target.value)}
                       style={{
                         width: '100%', boxSizing: 'border-box',
