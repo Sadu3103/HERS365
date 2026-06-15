@@ -99,6 +99,9 @@ router.post('/stats', async (req, res) => {
 
     const [existing] = await db.select().from(schema.combineStats).where(eq(schema.combineStats.playerId, userId)).limit(1);
     let row;
+    if (existing && Object.keys(updates).length === 0) {
+      return res.json({ success: true, data: existing });
+    }
     if (existing) {
       [row] = await db.update(schema.combineStats).set(updates).where(eq(schema.combineStats.playerId, userId)).returning();
     } else {
