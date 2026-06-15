@@ -36,7 +36,7 @@ export async function sendEmail({ to, subject, html, from }: EmailOptions) {
 }
 
 export async function sendPasswordResetEmail(to: string, resetToken: string) {
-  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/reset?token=${resetToken}`;
+  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
   
   return sendEmail({
     to,
