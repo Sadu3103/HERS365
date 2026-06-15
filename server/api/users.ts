@@ -21,7 +21,7 @@ function tableForRole(role: string) {
 
 const UPDATABLE_PLAYER_FIELDS = [
   'name', 'position', 'age', 'state', 'city', 'zipCode', 'school',
-  'gradYear', 'gpa', 'sport', 'achievements', 'archetype', 'privacySetting',
+  'gradYear', 'gpa', 'sport', 'achievements', 'archetype', 'privacySetting', 'bio',
 ];
 const INT_FIELDS = new Set(['age', 'gradYear']);
 
