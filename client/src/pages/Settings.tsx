@@ -210,7 +210,7 @@ export const Settings = () => {
     a.href = url;
     a.download = `hers365-profile-${profile.id}.json`;
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
   };
 
   const renderProfileTab = () => {
@@ -541,11 +541,13 @@ export const Settings = () => {
           className={`flex items-center gap-2 px-8 py-4 rounded-xl font-bold uppercase tracking-widest transition-colors ${
             privacySaveStatus === 'saved'
               ? 'bg-green-500 text-white'
+              : privacySaveStatus === 'error'
+              ? 'bg-red-500 text-white'
               : 'bg-coral-500 hover:bg-coral-600 text-white'
           }`}
         >
           {privacySaveStatus === 'saving' ? <Loader2 size={18} className="animate-spin" /> : privacySaveStatus === 'saved' ? <CheckCircle size={18} /> : <Save size={18} />}
-          {privacySaveStatus === 'saving' ? 'Saving…' : privacySaveStatus === 'saved' ? 'Saved!' : 'Save Changes'}
+          {privacySaveStatus === 'saving' ? 'Saving…' : privacySaveStatus === 'saved' ? 'Saved!' : privacySaveStatus === 'error' ? "Couldn't save — retry" : 'Save Changes'}
         </button>
       </div>
     </div>
