@@ -8,6 +8,7 @@ export function CoachMessages() {
   const [newMessage, setNewMessage] = useState('');
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const { showNotification } = useNotifications();
 
   useEffect(() => {
@@ -15,6 +16,7 @@ export function CoachMessages() {
   }, []);
 
   const fetchMessages = async () => {
+    setLoadError(false);
     try {
       const token = localStorage.getItem('coachToken');
       const response = await fetch('/api/coach/messages', {
@@ -27,8 +29,8 @@ export function CoachMessages() {
         const data = await response.json();
         setMessages(data.messages || []);
       }
-    } catch (error) {
-      console.error('Failed to fetch messages:', error);
+    } catch {
+      setLoadError(true);
       showNotification('error', 'Load Failed', 'Could not load messages. Please refresh.');
     } finally {
       setLoading(false);
@@ -55,8 +57,7 @@ export function CoachMessages() {
         showNotification('success', 'Message Sent', 'Your message has been delivered.');
         fetchMessages();
       }
-    } catch (error) {
-      console.error('Failed to send message:', error);
+    } catch {
       showNotification('error', 'Send Failed', 'Could not send message. Please try again.');
     }
   };
@@ -100,6 +101,16 @@ export function CoachMessages() {
               {loading ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                </div>
+              ) : loadError ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <p className="text-gray-400 mb-4">Could not load messages.</p>
+                  <button
+                    onClick={() => { setLoading(true); fetchMessages(); }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                  >
+                    Retry
+                  </button>
                 </div>
               ) : messages.length === 0 ? (
                 <div className="text-center py-12">

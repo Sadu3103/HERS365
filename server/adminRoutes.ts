@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Admin Routes - Administrative functions for platform management
  */
@@ -267,9 +266,9 @@ router.post('/events', requireAdmin, async (req: Request, res: Response) => {
 
     const newEvent = await db.insert(schema.events).values({
       name,
-      date: date ? new Date(date) : null,
+      date: date ?? '',
       location,
-      registrationDeadline: registrationDeadline ? new Date(registrationDeadline) : null,
+      registrationDeadline: registrationDeadline ?? null,
       participantCount: participantCount || 0,
     }).returning();
 
@@ -288,9 +287,9 @@ router.patch('/events/:id', requireAdmin, async (req: Request, res: Response) =>
     const updated = await db.update(schema.events)
       .set({
         ...(name && { name }),
-        ...(date && { date: new Date(date) }),
+        ...(date && { date: date as string }),
         ...(location && { location }),
-        ...(registrationDeadline && { registrationDeadline: new Date(registrationDeadline) }),
+        ...(registrationDeadline && { registrationDeadline: registrationDeadline as string }),
         ...(participantCount && { participantCount }),
       })
       .where(eq(schema.events.id, eventId))
@@ -327,18 +326,25 @@ router.get('/payments', requireAdmin, async (req: Request, res: Response) => {
     const { status, page = 1, limit = 50 } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
 
-    let query = db.select({
-      ...schema.payments,
+    const baseQuery = db.select({
+      id: schema.payments.id,
+      playerId: schema.payments.playerId,
+      amount: schema.payments.amount,
+      currency: schema.payments.currency,
+      status: schema.payments.status,
+      paymentMethod: schema.payments.paymentMethod,
+      paymentType: schema.payments.paymentType,
+      description: schema.payments.description,
+      createdAt: schema.payments.createdAt,
       playerName: schema.players.name,
     })
       .from(schema.payments)
       .leftJoin(schema.players, eq(schema.payments.playerId, schema.players.id));
 
-    if (status) {
-      query = query.where(eq(schema.payments.status, status as string)) as any;
-    }
-
-    const payments = await query
+    const payments = await (status
+      ? baseQuery.where(eq(schema.payments.status, status as string))
+      : baseQuery
+    )
       .orderBy(desc(schema.payments.createdAt))
       .limit(Number(limit))
       .offset(offset);

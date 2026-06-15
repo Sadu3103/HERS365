@@ -38,6 +38,7 @@ const GRAD_YEARS = [2025, 2026, 2027, 2028, 2029, 2030];
 export function CoachPlayerSearch() {
   const [players, setPlayers] = useState<PlayerSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [filters, setFilters] = useState<SearchFilters>({});
   const [showFilters, setShowFilters] = useState(false);
   const [savedPlayers, setSavedPlayers] = useState<Set<number>>(new Set());
@@ -49,6 +50,7 @@ export function CoachPlayerSearch() {
 
   const searchPlayers = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const queryParams = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
@@ -69,8 +71,8 @@ export function CoachPlayerSearch() {
         const data = await response.json();
         setPlayers(data.players || []);
       }
-    } catch (error) {
-      console.error('Search failed:', error);
+    } catch {
+      setLoadError(true);
       showNotification('error', 'Search Failed', 'Could not complete the search. Please try again.');
     } finally {
       setLoading(false);
@@ -105,8 +107,7 @@ export function CoachPlayerSearch() {
         });
         setSavedPlayers(prev => new Set(prev).add(playerId));
       }
-    } catch (error) {
-      console.error('Failed to save player:', error);
+    } catch {
       showNotification('error', 'Save Failed', 'Could not update player save status. Please try again.');
     }
   };
@@ -443,7 +444,18 @@ export function CoachPlayerSearch() {
           ))}
         </div>
 
-        {players.length === 0 && !loading && (
+        {loadError && !loading && (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <p className="text-gray-400 mb-4">Search failed. Could not load players.</p>
+            <button
+              onClick={searchPlayers}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+        {players.length === 0 && !loading && !loadError && (
           <div className="text-center py-12">
             <Search className="w-12 h-12 text-gray-600 mx-auto mb-4" />
             <h3 className="text-xl font-medium text-gray-400 mb-2">No players found</h3>

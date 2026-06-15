@@ -31,8 +31,7 @@ export function CoachPlayerProfile() {
         const data = await response.json();
         setPlayer(data);
       }
-    } catch (error) {
-      console.error('Failed to fetch player profile:', error);
+    } catch {
       showNotification('error', 'Load Failed', 'Could not load player profile. Please try again.');
     } finally {
       setLoading(false);
@@ -63,8 +62,7 @@ export function CoachPlayerProfile() {
         });
         setIsSaved(true);
       }
-    } catch (error) {
-      console.error('Failed to save player:', error);
+    } catch {
       showNotification('error', 'Save Failed', 'Could not update player. Please try again.');
     }
   };
@@ -86,8 +84,7 @@ export function CoachPlayerProfile() {
       });
 
       showNotification('success', 'Message Sent', 'Your message has been delivered to the player.');
-    } catch (error) {
-      console.error('Failed to send message:', error);
+    } catch {
       showNotification('error', 'Send Failed', 'Could not send message. Please try again.');
     }
   };
