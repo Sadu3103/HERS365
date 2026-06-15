@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Check, Zap, MessageSquare, Heart, UserPlus, TrendingUp, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useNotifications, Notification, NOTIF_TYPE_LABELS } from '../hooks/useNotifications';
+import { useNotifications, NOTIF_TYPE_LABELS, type Notification } from '../hooks/useNotifications';
 
 const FLAME = '#ff5a2d';
 const LINE = 'rgba(255,255,255,0.07)';

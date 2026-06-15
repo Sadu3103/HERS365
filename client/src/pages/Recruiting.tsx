@@ -7,7 +7,7 @@ import {
 import { useSearchParams } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
-import { apiFetch, ApiError } from '../lib/api';
+import { apiFetch, type ApiError } from '../lib/api';
 
 interface Program {
   id: number;
