@@ -1,125 +1,85 @@
+// @ts-nocheck
 import express from 'express';
+import { desc, eq } from 'drizzle-orm';
+import { db } from '../db';
+import * as schema from '../schema';
 
 const router = express.Router();
 
-// Mock data for rankings
-const mockRankings = [
-  {
-    id: 1,
-    name: 'Sarah Johnson',
-    school: 'Lincoln High',
-    position: 'QB',
-    rating: 98.5,
-    change: 2.1,
-    stats: { speed: 95, strength: 88, agility: 92, technique: 97 },
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah'
-  },
-  {
-    id: 2,
-    name: 'Emma Davis',
-    school: 'Washington Prep',
-    position: 'WR',
-    rating: 97.8,
-    change: -0.5,
-    stats: { speed: 98, strength: 85, agility: 96, technique: 94 },
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emma'
-  },
-  {
-    id: 3,
-    name: 'Olivia Brown',
-    school: 'Jefferson Academy',
-    position: 'RB',
-    rating: 97.2,
-    change: 1.8,
-    stats: { speed: 97, strength: 90, agility: 95, technique: 92 },
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Olivia'
-  }
-];
-
-// GET /api/rankings - Get all player rankings
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const { position, school, sortBy = 'rating', limit = 50 } = req.query;
+    const { position, limit = 50 } = req.query;
 
-    let filteredRankings = [...mockRankings];
+    const rows = await db
+      .select({
+        id: schema.players.id,
+        name: schema.players.name,
+        school: schema.players.school,
+        position: schema.players.position,
+        gpa: schema.players.gpa,
+        gradYear: schema.players.gradYear,
+        g5Rating: schema.players.g5Rating,
+        xpPoints: schema.players.xpPoints,
+        verificationStatus: schema.players.verificationStatus,
+      })
+      .from(schema.players)
+      .where(eq(schema.players.privacySetting, 'public'))
+      .orderBy(desc(schema.players.g5Rating), desc(schema.players.xpPoints))
+      .limit(Number(limit));
 
-    // Apply filters
+    let data = rows.map((p, i) => ({
+      id: p.id,
+      rank: i + 1,
+      name: p.name,
+      school: p.school ?? '',
+      position: p.position ?? '–',
+      gpa: p.gpa ?? null,
+      gradYear: p.gradYear ?? null,
+      rating: Math.min(99, (p.g5Rating ?? 0) * 18 + Math.round((p.xpPoints ?? 0) / 100)),
+      change: 0,
+      verified: p.verificationStatus === 'verified',
+    }));
+
     if (position && position !== 'All') {
-      filteredRankings = filteredRankings.filter(r => r.position === position);
+      data = data.filter(r => r.position === position);
     }
 
-    if (school && school !== 'All') {
-      filteredRankings = filteredRankings.filter(r => r.school === school);
-    }
-
-    // Apply sorting
-    filteredRankings.sort((a, b) => {
-      if (sortBy === 'rating') return b.rating - a.rating;
-      if (sortBy === 'name') return a.name.localeCompare(b.name);
-      return 0;
-    });
-
-    // Apply limit
-    filteredRankings = filteredRankings.slice(0, Number(limit));
-
-    res.json({
-      success: true,
-      data: filteredRankings,
-      total: mockRankings.length,
-      filtered: filteredRankings.length
-    });
+    res.json({ success: true, data, total: data.length });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch rankings'
-    });
+    console.error('[rankings]', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch rankings' });
   }
 });
 
-// GET /api/rankings/:id - Get specific player ranking
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    const ranking = mockRankings.find(r => r.id === parseInt(id));
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ success: false, error: 'Invalid id' });
 
-    if (!ranking) {
-      return res.status(404).json({
-        success: false,
-        error: 'Player not found'
-      });
-    }
+    const [p] = await db
+      .select()
+      .from(schema.players)
+      .where(eq(schema.players.id, id))
+      .limit(1);
+
+    if (!p) return res.status(404).json({ success: false, error: 'Player not found' });
 
     res.json({
       success: true,
-      data: ranking
+      data: {
+        id: p.id,
+        name: p.name,
+        school: p.school,
+        position: p.position,
+        gpa: p.gpa,
+        gradYear: p.gradYear,
+        rating: Math.min(99, (p.g5Rating ?? 0) * 18 + Math.round((p.xpPoints ?? 0) / 100)),
+        verified: p.verificationStatus === 'verified',
+      },
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch player ranking'
-    });
-  }
-});
-
-// GET /api/rankings/stats/overview - Get rankings overview stats
-router.get('/stats/overview', (req, res) => {
-  try {
-    const overview = {
-      totalPlayers: mockRankings.length,
-      averageRating: mockRankings.reduce((sum, r) => sum + r.rating, 0) / mockRankings.length,
-      topPosition: 'QB',
-      lastUpdated: new Date().toISOString()
-    };
-
-    res.json({
-      success: true,
-      data: overview
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch overview stats'
-    });
+    console.error('[rankings/:id]', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch player ranking' });
   }
 });
 

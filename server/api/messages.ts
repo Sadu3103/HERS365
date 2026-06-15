@@ -292,7 +292,10 @@ router.post('/requests/:id/respond', async (req, res) => {
 
     await db
       .update(schema.messageRequests)
-      .set({ status: action === 'approve' ? 'approved' : 'rejected' })
+      .set({
+        status: action === 'approve' ? 'approved' : 'rejected',
+        ...(action === 'approve' ? { parentId: userId } : {}),
+      })
       .where(eq(schema.messageRequests.id, id));
 
     res.json({ success: true });

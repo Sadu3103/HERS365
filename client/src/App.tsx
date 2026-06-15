@@ -167,7 +167,6 @@ function App() {
               <Route path="/faq" element={<FAQ />} />
               <Route path="/help" element={<Help />} />
               <Route path="/thank-you" element={<ThankYou />} />
-              <Route path="/landing" element={<LandingPage />} />
               <Route path="/explore" element={<Explore />} />
               <Route path="/events" element={<Events />} />
               <Route path="/drills" element={<Drills />} />
@@ -197,8 +196,7 @@ function App() {
             <Route path="/landing" element={<LandingPage />} />
             <Route path="/auth" element={<Auth />} />
 
-            {/* Athlete onboarding + auth (full-screen, no nav chrome) */}
-            <Route path="/auth" element={<Auth />} />
+            {/* Athlete onboarding (full-screen, no nav chrome) */}
             <Route path="/onboarding" element={<Onboarding />} />
 
             {/* Coach Portal Routes */}

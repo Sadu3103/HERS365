@@ -538,10 +538,10 @@ export const LandingPage = () => {
                 <span className="lp-live"><span className="lp-live-dot" />Live</span>
               </div>
               {leaderboard.map((r, i) => (
-                <div key={r.name} className="lb-row" style={{
+                <div key={r.name} className="lb-row" onClick={() => navigate('/rankings')} style={{
                   display: 'flex', gap: 12, padding: '14px 18px',
                   borderBottom: i < leaderboard.length - 1 ? `1px solid ${LINE}` : 'none',
-                  alignItems: 'center',
+                  alignItems: 'center', cursor: 'pointer',
                 }}>
                   <div style={{ width: 16, ...disp, fontWeight: 900, fontSize: '.8rem', color: MUTED_2, flexShrink: 0 }}>{i + 1}</div>
                   <div style={{

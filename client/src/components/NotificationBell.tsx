@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Check, Zap, MessageSquare, Heart, UserPlus, TrendingUp, Star } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useNotifications, Notification, NOTIF_TYPE_LABELS } from '../hooks/useNotifications';
 
 const FLAME = '#ff5a2d';
@@ -30,18 +31,28 @@ function timeAgo(iso: string): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-function NotifRow({ n, onRead }: { n: Notification; onRead: (id: number) => void }) {
+function navTargetFor(type: string): string | null {
+  if (type === 'message_request' || type === 'coach_interest') return '/messages';
+  if (type === 'ranking_change') return '/rankings';
+  return null;
+}
+
+function NotifRow({ n, onRead, onNav }: { n: Notification; onRead: (id: number) => void; onNav: (path: string) => void }) {
   const label = NOTIF_TYPE_LABELS[n.type] || n.type;
+  const target = navTargetFor(n.type);
   return (
     <motion.div
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
-      onClick={() => !n.read && onRead(n.id)}
+      onClick={() => {
+        if (!n.read) onRead(n.id);
+        if (target) onNav(target);
+      }}
       style={{
         display: 'flex', gap: 10, padding: '11px 14px',
         background: n.read ? 'transparent' : 'rgba(255,90,45,0.05)',
         borderBottom: `1px solid ${LINE}`,
-        cursor: n.read ? 'default' : 'pointer',
+        cursor: 'pointer',
         transition: 'background 0.18s',
       }}
     >
@@ -60,6 +71,7 @@ function NotifRow({ n, onRead }: { n: Notification; onRead: (id: number) => void
 }
 
 export function NotificationBell() {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const token = localStorage.getItem('token');
@@ -132,7 +144,7 @@ export function NotificationBell() {
               </div>
             ) : (
               notifications.map((n) => (
-                <NotifRow key={n.id} n={n} onRead={markOneRead} />
+                <NotifRow key={n.id} n={n} onRead={markOneRead} onNav={(path) => { setOpen(false); navigate(path); }} />
               ))
             )}
           </motion.div>
