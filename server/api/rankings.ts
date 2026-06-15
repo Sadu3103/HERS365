@@ -1,6 +1,6 @@
 // @ts-nocheck
 import express from 'express';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, and, isNotNull } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 
@@ -23,7 +23,9 @@ router.get('/', async (req, res) => {
         verificationStatus: schema.players.verificationStatus,
       })
       .from(schema.players)
-      .where(eq(schema.players.privacySetting, 'public'))
+      // Only rated athletes appear on the board. This also keeps unrated test
+      // accounts out, and avoids Postgres sorting NULL g5Rating first under DESC.
+      .where(and(eq(schema.players.privacySetting, 'public'), isNotNull(schema.players.g5Rating)))
       .orderBy(desc(schema.players.g5Rating), desc(schema.players.xpPoints))
       .limit(Number(limit));
 
