@@ -290,6 +290,11 @@ router.post('/requests/:id/respond', async (req, res) => {
       return res.status(403).json({ success: false, error: 'Not your request to respond to' });
     }
 
+    // NOTE: this endpoint must never set parentId. The parent gate
+    // (hasParentApprovedLink) may only be unlocked by an actual parent via
+    // POST /api/parent/requests/:id/respond. Setting parentId here would let a
+    // non-parent receiver open coach↔athlete messaging — unsafe on a minors
+    // platform.
     await db
       .update(schema.messageRequests)
       .set({ status: action === 'approve' ? 'approved' : 'rejected' })

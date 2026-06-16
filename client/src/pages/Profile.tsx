@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Edit3, CheckCircle2, Share2, MessageSquare, Loader2, AlertTriangle, UserX, Link2, Instagram } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -15,11 +15,21 @@ interface ApiProfile {
   school: string;
   gradYear: number;
   gpa: string | null;
+  bio: string | null;
   achievements: string;
   verificationStatus: string;
   g5Rating: number;
   archetype: string;
   nilPoints: number;
+}
+
+interface EditForm {
+  name: string;
+  position: string;
+  school: string;
+  location: string;
+  gradYear: string;
+  bio: string;
 }
 
 const tabs = ['Overview', 'Stats', 'Highlights', 'Activity'];
@@ -35,6 +45,11 @@ export const Profile = () => {
   const [isEmpty, setIsEmpty] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const shareRef = useRef<HTMLDivElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState<EditForm>({ name: '', position: '', school: '', location: '', gradYear: '', bio: '' });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -46,9 +61,66 @@ export const Profile = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [shareOpen]);
 
+  const closeEdit = useCallback(() => setEditOpen(false), []);
+
+  useEffect(() => {
+    if (!editOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeEdit(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [editOpen, closeEdit]);
+
+  useEffect(() => {
+    if (editOpen) nameInputRef.current?.focus();
+  }, [editOpen]);
+
   const profileUrl = id
     ? `https://hers365.com/profile/${id}`
     : `https://hers365.com/profile`;
+
+  const openEdit = () => {
+    if (!profile) return;
+    setEditForm({
+      name: profile.name ?? '',
+      position: profile.position ?? '',
+      school: profile.school ?? '',
+      location: profile.state ?? '',
+      gradYear: profile.gradYear != null ? String(profile.gradYear) : '',
+      bio: profile.bio ?? '',
+    });
+    setEditError(null);
+    setEditOpen(true);
+  };
+
+  const saveEdit = async () => {
+    if (!editForm.name.trim()) { setEditError('Name is required.'); return; }
+    if (editForm.gradYear && (!/^\d{4}$/.test(editForm.gradYear) || Number(editForm.gradYear) < 2020 || Number(editForm.gradYear) > 2035)) {
+      setEditError('Graduation year must be a valid 4-digit year (2020–2035).');
+      return;
+    }
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      const updated = await apiFetch<ApiProfile>('/api/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: editForm.name.trim(),
+          position: editForm.position.trim() || undefined,
+          school: editForm.school.trim() || undefined,
+          state: editForm.location.trim() || undefined,
+          gradYear: editForm.gradYear ? Number(editForm.gradYear) : undefined,
+          bio: editForm.bio.trim() || undefined,
+        }),
+      });
+      setProfile(updated);
+      setEditOpen(false);
+      showNotification('success', 'Profile updated', 'Your changes have been saved.');
+    } catch (err: any) {
+      setEditError(err.message || 'Failed to save. Please try again.');
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -157,7 +229,7 @@ export const Profile = () => {
 
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button onClick={() => navigate('/messages')} className="k-btn k-btn-primary"><MessageSquare size={14} /> Message</button>
-              <button className="k-btn k-btn-ghost"><Edit3 size={14} /> Edit Profile</button>
+              <button className="k-btn k-btn-ghost" onClick={openEdit}><Edit3 size={14} /> Edit Profile</button>
               <div ref={shareRef} style={{ position: 'relative' }}>
                 <button className="k-btn k-btn-ghost" onClick={() => setShareOpen(v => !v)}><Share2 size={14} /> Share</button>
                 <AnimatePresence>
@@ -275,6 +347,90 @@ export const Profile = () => {
           </div>
         )}
       </motion.div>
+
+      <AnimatePresence>
+        {editOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+            onClick={e => { if (e.target === e.currentTarget) setEditOpen(false); }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 12, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.97 }}
+              transition={{ duration: 0.15 }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="edit-profile-title"
+              style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '28px 24px', width: '100%', maxWidth: 480, boxShadow: '0 24px 64px rgba(0,0,0,0.8)' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
+                <h2 id="edit-profile-title" style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.3rem', textTransform: 'uppercase', color: '#fff', margin: 0 }}>Edit Profile</h2>
+                <button onClick={() => setEditOpen(false)} style={{ background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', padding: 4, lineHeight: 1, fontSize: '1.2rem' }}>✕</button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {[
+                  { label: 'Name', key: 'name', placeholder: 'Full name' },
+                  { label: 'Position', key: 'position', placeholder: 'e.g. QB, WR, CB' },
+                  { label: 'School', key: 'school', placeholder: 'High school name' },
+                  { label: 'Location (State)', key: 'location', placeholder: 'e.g. CA, TX' },
+                  { label: 'Graduation Year', key: 'gradYear', placeholder: 'e.g. 2026', inputMode: 'numeric' as const },
+                ].map(({ label, key, placeholder, inputMode }) => (
+                  <div key={key}>
+                    <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#555', marginBottom: 6 }}>{label}</label>
+                    <input
+                      ref={key === 'name' ? nameInputRef : undefined}
+                      value={editForm[key as keyof EditForm]}
+                      onChange={e => { setEditForm(f => ({ ...f, [key]: e.target.value })); setEditError(null); }}
+                      placeholder={placeholder}
+                      inputMode={inputMode}
+                      style={{ width: '100%', background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '10px 12px', color: '#fff', fontSize: '0.88rem', outline: 'none', boxSizing: 'border-box' }}
+                      onFocus={e => (e.currentTarget.style.borderColor = 'rgba(255,90,45,0.5)')}
+                      onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
+                    />
+                  </div>
+                ))}
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#555', marginBottom: 6 }}>Bio</label>
+                  <textarea
+                    value={editForm.bio}
+                    onChange={e => { setEditForm(f => ({ ...f, bio: e.target.value })); setEditError(null); }}
+                    placeholder="A short bio about yourself"
+                    rows={3}
+                    style={{ width: '100%', background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '10px 12px', color: '#fff', fontSize: '0.88rem', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(255,90,45,0.5)')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
+                  />
+                </div>
+              </div>
+
+              {editError && (
+                <div style={{ marginTop: 14, padding: '10px 12px', background: 'rgba(255,90,45,0.1)', border: '1px solid rgba(255,90,45,0.3)', borderRadius: 8, color: '#ff5a2d', fontSize: '0.82rem' }}>
+                  {editError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 22, justifyContent: 'flex-end' }}>
+                <button onClick={() => setEditOpen(false)} className="k-btn k-btn-ghost" disabled={editSaving}>Cancel</button>
+                <button
+                  onClick={saveEdit}
+                  className="k-btn k-btn-primary"
+                  disabled={editSaving}
+                  style={{ opacity: editSaving ? 0.6 : 1 }}
+                >
+                  {editSaving ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Saving…</> : 'Save Changes'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

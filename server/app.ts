@@ -16,6 +16,7 @@ import { trainingRouter } from './api/training';
 import { usersRouter } from './api/users';
 import { programsRouter } from './api/programs';
 import { coachesRouter } from './api/coaches';
+import { parentRouter } from './api/parent';
 
 export function createApp() {
   const app = express();
@@ -38,6 +39,7 @@ export function createApp() {
   app.use('/api/users', usersRouter);
   app.use('/api/programs', programsRouter);
   app.use('/api/coaches', coachesRouter);
+  app.use('/api/parent', parentRouter);
   app.use('/api/coach', coachRouter);
   app.use('/api/auth', authRoutesRouter);
   app.use('/api/auth/secure', authRoutesRouter);

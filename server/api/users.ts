@@ -21,7 +21,7 @@ function tableForRole(role: string) {
 
 const UPDATABLE_PLAYER_FIELDS = [
   'name', 'position', 'age', 'state', 'city', 'zipCode', 'school',
-  'gradYear', 'gpa', 'sport', 'achievements', 'archetype', 'privacySetting',
+  'gradYear', 'gpa', 'sport', 'achievements', 'archetype', 'privacySetting', 'bio',
 ];
 const INT_FIELDS = new Set(['age', 'gradYear']);
 
@@ -79,6 +79,38 @@ router.get('/stats', async (req, res) => {
   } catch (err) {
     console.error('[users/stats]', err);
     res.status(500).json({ success: false, error: 'Failed to fetch stats' });
+  }
+});
+
+const COMBINE_FIELDS = ['season', 'fortyDash', 'shuttle', 'vertical', 'broadJump', 'threeCone'] as const;
+
+// POST /api/users/stats — upsert the caller's combine stats row (athletes only)
+router.post('/stats', async (req, res) => {
+  try {
+    const { userId, role } = caller(req);
+    if (role !== 'athlete') return res.status(403).json({ success: false, error: 'Athletes only' });
+
+    const updates: Record<string, string> = {};
+    for (const field of COMBINE_FIELDS) {
+      if (req.body[field] !== undefined && req.body[field] !== null) {
+        updates[field] = String(req.body[field]);
+      }
+    }
+
+    const [existing] = await db.select().from(schema.combineStats).where(eq(schema.combineStats.playerId, userId)).limit(1);
+    let row;
+    if (existing && Object.keys(updates).length === 0) {
+      return res.json({ success: true, data: existing });
+    }
+    if (existing) {
+      [row] = await db.update(schema.combineStats).set(updates).where(eq(schema.combineStats.playerId, userId)).returning();
+    } else {
+      [row] = await db.insert(schema.combineStats).values({ playerId: userId, ...updates }).returning();
+    }
+    res.json({ success: true, data: row });
+  } catch (err) {
+    console.error('[users/stats POST]', err);
+    res.status(500).json({ success: false, error: 'Failed to save stats' });
   }
 });
 

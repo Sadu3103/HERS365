@@ -36,8 +36,8 @@ export function useProfileCompletion() {
     { key: 'position', label: 'Add your position', done: !!profile.position, path: '/onboarding' },
     { key: 'school', label: 'Add your school', done: !!profile.school, path: '/onboarding' },
     { key: 'gradYear', label: 'Add graduation year', done: !!profile.gradYear, path: '/onboarding' },
-    { key: 'gpa', label: 'Add your GPA', done: !!profile.gpa, path: '/profile/edit' },
-    { key: 'achievements', label: 'Add achievements', done: !!profile.achievements, path: '/profile/edit' },
+    { key: 'gpa', label: 'Add your GPA', done: !!profile.gpa, path: '/settings' },
+    { key: 'achievements', label: 'Add achievements', done: !!profile.achievements, path: '/settings' },
   ], [profile]);
 
   const doneCount = steps.filter((s) => s.done).length;

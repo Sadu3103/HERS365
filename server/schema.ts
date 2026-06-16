@@ -1,4 +1,3 @@
-// @ts-nocheck - Drizzle ORM type compatibility
 import { pgTable, text, integer, serial, boolean, timestamp, jsonb, doublePrecision } from "drizzle-orm/pg-core";
 import { sql } from 'drizzle-orm';
 
@@ -7,6 +6,7 @@ export const players = pgTable('players', {
   email: text('email').notNull().unique(),
   passwordHash: text('password_hash'),
   name: text('name').notNull(),
+  bio: text('bio'),
   position: text('position'),
   age: integer('age'),
   state: text('state'),

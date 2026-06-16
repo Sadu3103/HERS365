@@ -18,6 +18,7 @@ export function CoachDashboard() {
   const [analytics, setAnalytics] = useState<CoachAnalyticsType | null>(null);
   const [clips, setClips] = useState<PlayerClip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const { showNotification } = useNotifications();
 
   useEffect(() => {
@@ -38,13 +39,13 @@ export function CoachDashboard() {
         const data = await response.json();
         setAnalytics(data);
       }
-    } catch (error) {
-      console.error('Failed to fetch analytics:', error);
+    } catch {
       showNotification('error', 'Load Failed', 'Could not load analytics data.');
     }
   };
 
   const fetchClips = async () => {
+    setLoadError(false);
     try {
       const token = localStorage.getItem('coachToken');
       const response = await fetch('/api/coach/player-clips', {
@@ -57,8 +58,8 @@ export function CoachDashboard() {
         const data = await response.json();
         setClips(data.clips || []);
       }
-    } catch (error) {
-      console.error('Failed to fetch clips:', error);
+    } catch {
+      setLoadError(true);
       showNotification('error', 'Load Failed', 'Could not load player clips.');
     } finally {
       setLoading(false);
@@ -251,6 +252,16 @@ export function CoachDashboard() {
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+          ) : loadError ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <p className="text-gray-400 mb-4">Could not load player highlights.</p>
+              <button
+                onClick={() => { setLoading(true); fetchClips(); }}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                Retry
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

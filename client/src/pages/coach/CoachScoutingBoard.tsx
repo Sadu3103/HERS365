@@ -14,6 +14,7 @@ export function CoachScoutingBoard() {
   const [board, setBoard] = useState<ScoutingBoardItem[]>([]);
   const [players, setPlayers] = useState<Map<number, PlayerSearchResult>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [activeTier, setActiveTier] = useState<string>('all');
   const [editingNotes, setEditingNotes] = useState<number | null>(null);
   const [notesText, setNotesText] = useState('');
@@ -24,6 +25,7 @@ export function CoachScoutingBoard() {
   }, []);
 
   const fetchScoutingBoard = async () => {
+    setLoadError(false);
     try {
       const token = localStorage.getItem('coachToken');
       const response = await fetch('/api/coach/board', {
@@ -48,8 +50,7 @@ export function CoachScoutingBoard() {
               const playerData = await playerResponse.json();
               return { id: item.playerId, data: playerData };
             }
-          } catch (error) {
-            console.error(`Failed to fetch player ${item.playerId}:`, error);
+          } catch {
             showNotification('error', 'Player Load Failed', `Could not load data for player ${item.playerId}.`);
           }
           return null;
@@ -87,8 +88,8 @@ export function CoachScoutingBoard() {
         });
         setPlayers(playerMap);
       }
-    } catch (error) {
-      console.error('Failed to fetch scouting board:', error);
+    } catch {
+      setLoadError(true);
       showNotification('error', 'Load Failed', 'Could not load your scouting board. Please refresh.');
     } finally {
       setLoading(false);
@@ -106,8 +107,7 @@ export function CoachScoutingBoard() {
       });
 
       setBoard(prev => prev.filter(item => item.playerId !== playerId));
-    } catch (error) {
-      console.error('Failed to remove player from board:', error);
+    } catch {
       showNotification('error', 'Remove Failed', 'Could not remove player from board. Please try again.');
     }
   };
@@ -129,8 +129,7 @@ export function CoachScoutingBoard() {
           item.playerId === playerId ? { ...item, tier: newTier as ScoutingBoardItem['tier'] } : item
         ));
       }
-    } catch (error) {
-      console.error('Failed to update tier:', error);
+    } catch {
       showNotification('error', 'Update Failed', 'Could not update player tier. Please try again.');
     }
   };
@@ -152,8 +151,7 @@ export function CoachScoutingBoard() {
       ));
       setEditingNotes(null);
       setNotesText('');
-    } catch (error) {
-      console.error('Failed to update notes:', error);
+    } catch {
       showNotification('error', 'Save Failed', 'Could not save notes. Please try again.');
     }
   };
@@ -248,6 +246,16 @@ export function CoachScoutingBoard() {
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          </div>
+        ) : loadError ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <p className="text-gray-400 mb-4">Could not load your scouting board.</p>
+            <button
+              onClick={() => { setLoading(true); fetchScoutingBoard(); }}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              Retry
+            </button>
           </div>
         ) : filteredBoard.length === 0 ? (
           <div className="text-center py-12">
