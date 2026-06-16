@@ -36,6 +36,32 @@ export async function invalidateToken(token: string): Promise<void> {
   await client.del(`token:${token}`);
 }
 
+// [D-06] Token blocklist for server-side logout / forced revocation.
+// A logged-out (or compromised) JWT is added here with a TTL equal to its
+// remaining lifetime, so it self-expires from the blocklist exactly when the
+// token would have expired anyway — no unbounded growth.
+const BLOCKLIST_PREFIX = 'bl:';
+
+export async function blocklistToken(token: string, ttlSeconds: number): Promise<void> {
+  if (!token || ttlSeconds <= 0) return;
+  const client = await getRedisClient();
+  await client.setEx(`${BLOCKLIST_PREFIX}${token}`, ttlSeconds, '1');
+}
+
+export async function isTokenBlocklisted(token: string): Promise<boolean> {
+  try {
+    const client = await getRedisClient();
+    const exists = await client.exists(`${BLOCKLIST_PREFIX}${token}`);
+    return exists === 1;
+  } catch (err) {
+    // Fail open: if Redis is unreachable we fall back to today's behaviour
+    // (token valid until its own expiry) rather than locking every user out
+    // on a transient Redis hiccup. Logged so the outage is visible.
+    console.error('[redis] blocklist check failed, allowing token:', err);
+    return false;
+  }
+}
+
 // Session caching
 export async function cacheSession(sessionId: string, data: object, ttlSeconds: number = 3600): Promise<void> {
   const client = await getRedisClient();

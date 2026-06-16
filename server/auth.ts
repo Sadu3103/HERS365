@@ -2,9 +2,22 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
 import type { Request, Response, NextFunction } from 'express';
+import { isTokenBlocklisted } from './redis';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 const JWT_EXPIRES = (process.env.JWT_EXPIRES || '7d') as string;
+
+// [D-06] Seconds remaining before a token expires — used to set the blocklist
+// TTL on logout so the entry self-expires when the token would have anyway.
+export function getTokenTtlSeconds(token: string): number {
+  try {
+    const decoded = jwt.decode(token) as { exp?: number } | null;
+    if (!decoded?.exp) return 0;
+    return Math.max(0, decoded.exp - Math.floor(Date.now() / 1000));
+  } catch {
+    return 0;
+  }
+}
 
 export type UserRole = 'athlete' | 'coach' | 'parent' | 'admin';
 
@@ -31,7 +44,7 @@ export function verifyToken(token: string): TokenPayload {
   return jwt.verify(token, JWT_SECRET) as TokenPayload;
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const header = req.headers.authorization ?? '';
   const [scheme, token] = header.split(' ');
   if (scheme !== 'Bearer' || !token) {
@@ -40,6 +53,11 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   }
   try {
     const decoded = verifyToken(token);
+    // [D-06] Reject tokens that were explicitly revoked via logout.
+    if (await isTokenBlocklisted(token)) {
+      res.status(401).json({ error: 'Token has been revoked' });
+      return;
+    }
     (req as any).user = decoded;
     next();
   } catch {
