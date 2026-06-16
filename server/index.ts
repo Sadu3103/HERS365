@@ -20,7 +20,17 @@ import { logger } from './logger';
 dotenv.config();
 
 // [D-02] Fail fast on missing required env vars
-const REQUIRED_ENV_VARS = ['DATABASE_URL', 'JWT_SECRET', 'STRIPE_SECRET_KEY', 'SESSION_SECRET'];
+const REQUIRED_ENV_VARS = ['DATABASE_URL', 'JWT_SECRET', 'SESSION_SECRET'];
+
+// [D-09] Payments can be disabled in dev (PAYMENTS_ENABLED=false) so the
+// platform runs without Stripe. When enabled (the default), all three Stripe
+// keys are required at startup — otherwise the server boots fine and only
+// fails when a user actually tries to pay.
+const PAYMENTS_ENABLED = process.env.PAYMENTS_ENABLED !== 'false';
+if (PAYMENTS_ENABLED) {
+  REQUIRED_ENV_VARS.push('STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRO_PRICE_ID');
+}
+
 if (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'development') {
   const missing = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
   if (missing.length > 0) {
