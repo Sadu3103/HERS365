@@ -1,8 +1,7 @@
 // @ts-nocheck
 import express from 'express';
 import { desc, eq, and, isNotNull } from 'drizzle-orm';
-import { db } from '../db.js';
-import * as schema from '../schema.js';
+
 
 const router = express.Router();
 

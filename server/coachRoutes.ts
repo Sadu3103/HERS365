@@ -4,8 +4,8 @@
  * All routes require coach role JWT token
  */
 import express from 'express';
-import { db } from './db';
-import * as schema from './schema';
+import { db } from './db.js';
+import * as schema from './schema.js';
 import { eq, ilike, and, desc, sql } from 'drizzle-orm';
 import { requireCoach } from './auth';
 import { generatePredictiveAnalytics, AthleteData } from './rankingAlgorithm';
@@ -408,11 +408,11 @@ router.get('/messages', async (req, res) => {
       coachEmail: schema.coaches.email,
       athleteName: schema.players.name,
     })
-    .from(schema.messages)
-    .leftJoin(schema.coaches, eq(schema.messages.coachId, schema.coaches.id))
-    .leftJoin(schema.players, eq(schema.messages.athleteId, schema.players.id))
-    .where(eq(schema.messages.coachId, coachId))
-    .orderBy(desc(schema.messages.createdAt));
+      .from(schema.messages)
+      .leftJoin(schema.coaches, eq(schema.messages.coachId, schema.coaches.id))
+      .leftJoin(schema.players, eq(schema.messages.athleteId, schema.players.id))
+      .where(eq(schema.messages.coachId, coachId))
+      .orderBy(desc(schema.messages.createdAt));
 
     res.json({ messages });
   } catch (error) {
