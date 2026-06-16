@@ -1,8 +1,8 @@
 import express from 'express';
 import { and, eq, or, desc, sql, isNotNull } from 'drizzle-orm';
-import { db } from '../db';
-import * as schema from '../schema';
-import { requireAuth } from '../auth';
+import { db } from '../db.js';
+import * as schema from '../schema.js';
+import { requireAuth } from '../auth.js';
 
 const router = express.Router();
 router.use(requireAuth);
