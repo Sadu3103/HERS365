@@ -39,6 +39,31 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit
 
+  # [D-04] Fail the build if schema.ts has changed without a committed migration.
+  migrations-check:
+    name: Server — migrations up to date
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - run: npm run db:generate
+      - name: Verify no uncommitted migration
+        run: |
+          if [ -n "$(git status --porcelain migrations)" ]; then
+            echo "::error::schema.ts changed but no migration was committed. Run 'npm run db:generate' and commit the result under server/migrations/."
+            git --no-pager diff migrations
+            git status --porcelain migrations
+            exit 1
+          fi
+
   server-tests:
     name: Server — tests
     runs-on: ubuntu-latest
@@ -71,5 +96,5 @@ jobs:
           cache: npm
           cache-dependency-path: server/package-lock.json
       - run: npm ci
-      - run: npx drizzle-kit push --force
+      - run: npm run db:migrate
       - run: npm test
