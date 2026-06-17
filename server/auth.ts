@@ -47,6 +47,19 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   }
 }
 
+export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
+  const header = req.headers.authorization ?? '';
+  const [scheme, token] = header.split(' ');
+  if (scheme === 'Bearer' && token) {
+    try {
+      (req as any).user = verifyToken(token);
+    } catch {
+      // optional route: ignore an invalid token and continue unauthenticated
+    }
+  }
+  next();
+}
+
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   requireAuth(req, res, () => {
     const user = (req as any).user as TokenPayload;
