@@ -260,6 +260,59 @@ router.get('/stories', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/posts/:id/like', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const postId = parseInt(req.params.id);
+
+  const updated = await db
+    .update(schema.posts)
+    .set({
+      likes: sql`${schema.posts.likes} + 1`,
+    })
+    .where(eq(schema.posts.id, postId))
+    .returning({ likes: schema.posts.likes });
+
+  res.json({
+    liked: true,
+    likes: updated[0]?.likes ?? 0,
+  });
+});
+
+router.delete('/posts/:id/like', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const postId = parseInt(req.params.id);
+
+  const updated = await db
+    .update(schema.posts)
+    .set({
+      likes: sql`greatest(${schema.posts.likes} - 1, 0)`,
+    })
+    .where(eq(schema.posts.id, postId))
+    .returning({ likes: schema.posts.likes });
+
+  res.json({
+    liked: false,
+    likes: updated[0]?.likes ?? 0,
+  });
+});
+
+router.post('/posts/:id/comments', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const postId = parseInt(req.params.id);
+  const userId = req.user.userId;
+  const { content } = req.body;
+
+  const comment = await db.insert(schema.comments).values({
+    postId,
+    userId,
+    content
+  }).returning();
+
+  await db
+    .update(schema.posts)
+    .set({ comments: sql`${schema.posts.comments} + 1` })
+    .where(eq(schema.posts.id, postId));
+
+  res.json(comment[0]);
+});
+
 // AI BOTS & TRAINING
 router.get('/bot/:playerId', async (req: Request, res: Response) => {
   try {

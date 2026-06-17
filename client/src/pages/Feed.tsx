@@ -35,6 +35,7 @@ import {
   kicker,
   disp,
 } from '../lib/theme';
+import { apiFetch } from '../lib/api';
 
 interface PostData {
   id: number;
@@ -100,6 +101,7 @@ function CountPulse({ value, active }: { value: string; active?: boolean }) {
     </AnimatePresence>
   );
 }
+
 
 const PostCard = ({
   post,
@@ -738,6 +740,41 @@ export const Feed = () => {
   const [athleteCount, setAthleteCount] = useState<number | null>(null);
   const [topAthletes, setTopAthletes] = useState<RankedAthlete[]>([]);
   const [topLoading, setTopLoading] = useState(true);
+  
+
+  const handleCreatePost = async (content: string) => {
+  if (!content.trim()) return;
+
+  try {
+    const created = await apiFetch<any>('/api/feed', {
+      method: 'POST',
+      body: JSON.stringify({
+        content: content.trim(),
+        mediaUrl: null,
+        mediaType: null,
+      }),
+    });
+
+    const newPost = {
+      id: created.id,
+      user: {
+        name: created.playerName || 'Athlete',
+        avatar: created.avatarUrl || null,
+      },
+      time: timeAgo(created.createdAt),
+      content: created.content || '',
+      image: created.mediaType === 'image' ? created.mediaUrl : undefined,
+      likes: fmtCount(created.likeCount ?? 0),
+      comments: fmtCount(created.commentCount ?? 0),
+      highlights: created.mediaType === 'video' || created.category === 'game',
+      isLiked: false,
+    };
+
+    setPosts(prev => [newPost, ...prev]);
+  } catch {
+    showNotification('error', 'Post failed', 'Your post could not be published.');
+  }
+};
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -788,19 +825,87 @@ export const Feed = () => {
     ? [...posts].sort((a, b) => parseLikeCount(b.likes) - parseLikeCount(a.likes))
     : posts;
 
-  const handleLike = (postId: number) => {
-    setPosts(prevPosts =>
-      prevPosts.map(post =>
-        post.id === postId
-          ? { ...post, isLiked: !post.isLiked }
-          : post
+const handleLike = async (postId: number) => {
+  const post = posts.find(p => p.id === postId);
+  if (!post) return;
+
+  const newLikedState = !post.isLiked;
+
+  // optimistic UI
+  setPosts(prev =>
+    prev.map(p =>
+      p.id === postId
+        ? {
+            ...p,
+            isLiked: newLikedState,
+            likes: fmtCount(
+              parseLikeCount(p.likes) + (newLikedState ? 1 : -1)
+            ),
+          }
+        : p
+    )
+  );
+
+  try {
+    const res = await apiFetch(`/api/posts/${postId}/like`, {
+      method: newLikedState ? 'POST' : 'DELETE',
+    });
+
+    const data = await res.json();
+
+    
+    setPosts(prev =>
+      prev.map(p =>
+        p.id === postId
+          ? {
+              ...p,
+              isLiked: newLikedState,
+              likes: fmtCount(data.likes),
+            }
+          : p
       )
     );
-  };
+  } catch {
+    // rollback
+    setPosts(prev =>
+      prev.map(p =>
+        p.id === postId
+          ? {
+              ...p,
+              isLiked: post.isLiked,
+              likes: post.likes,
+            }
+          : p
+      )
+    );
+  }
+};
 
-  const handleComment = (_postId: number) => {
-    showNotification('info', 'Coming Soon', 'Comments are on the way — stay tuned!');
-  };
+const handleComment = async (postId: number) => {
+  const content = window.prompt('Write a comment');
+  if (!content?.trim()) return;
+
+  try {
+    await apiFetch(`/api/posts/${postId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ content: content.trim() }),
+    });
+
+    setPosts(prev =>
+      prev.map(p =>
+        p.id === postId
+          ? {
+              ...p,
+              comments: fmtCount(parseLikeCount(p.comments) + 1),
+            }
+          : p
+      )
+    );
+  } catch {
+    showNotification('error', 'Failed', 'Could not post comment');
+  }
+};
+
 
   const handleShare = (postId: number) => {
     const postUrl = `${window.location.origin}/post/${postId}`;
