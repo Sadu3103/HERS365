@@ -24,7 +24,7 @@ cd HERS365
 cd server
 npm install
 cp ../.env.example .env       # fill in your values (see below)
-npx drizzle-kit push          # run schema migrations
+npm run db:migrate            # apply tracked schema migrations
 npm run seed                  # seed dev data
 npm run dev                   # starts on :4000
 ```
@@ -91,7 +91,7 @@ OAuth (Google/GitHub) is optional for local dev — email/password auth works wi
 | Thing | Detail |
 |---|---|
 | Auth | JWT Bearer token — get one from `POST /api/auth/login`. Attach as `Authorization: Bearer <token>` |
-| DB changes | Edit `server/schema.ts`, then run `npx drizzle-kit push` |
+| DB changes | Edit `server/schema.ts`, then `npm run db:generate` to create a migration, commit the new file under `server/migrations/`, and `npm run db:migrate` to apply it. Don't use `db:push` outside throwaway local prototyping — it alters the DB without a tracked, reversible migration. |
 | Toast notifications | Use `useNotifications()` hook — never use `alert()` |
 | Stub pages | `<UnderConstruction />` = needs to be built. Issue exists for it. |
 | Tier check | Wrap premium routes with `requireTier('pro')` middleware |
