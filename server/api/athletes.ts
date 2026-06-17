@@ -3,7 +3,7 @@ import express from 'express';
 import { and, eq } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
-import { requireAuth } from '../auth';
+import { requireAuth, optionalAuth } from '../auth';
 
 // Public projection of a player row. Email/zip are contact info for a
 // minor — never expose them on athlete endpoints.
@@ -124,7 +124,7 @@ router.delete('/me/saved-schools/:schoolId', requireAuth, async (req, res) => {
 });
 
 // GET /api/athletes/:id - Get specific athlete profile (DB-backed)
-router.get('/:id', async (req, res) => {
+router.get('/:id',optionalAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (Number.isNaN(id)) {
@@ -140,6 +140,20 @@ router.get('/:id', async (req, res) => {
     const athlete = rows[0];
     if (!athlete) {
       return res.status(404).json({ success: false, error: 'Athlete not found' });
+    }
+
+    //Privacy Check
+    const isOwner = req.user?.userId ? Number(req.user.userId) === id : false;
+    const isCoach = req.user?.role === 'coach';
+
+    // Privacy enforcement
+    const isPrivate = athlete.privacySetting === 'private';
+
+    if (isPrivate && !isOwner && !isCoach) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden',
+      });
     }
 
     res.json({ success: true, data: publicAthlete(athlete) });

@@ -47,7 +47,7 @@ export const PlayerProfile = () => {
         return;
       }
       try {
-        const res = await fetch(`/api/players/${playerId}`);
+        const res = await fetch(`/api/athletes/${playerId}`);
         if (res.ok) {
           const data = await res.json();
           if (data) setPlayer(data);
@@ -60,7 +60,7 @@ export const PlayerProfile = () => {
       }
 
       try {
-        const sRes = await fetch(`/api/players/${playerId}/stats`);
+        const sRes = await fetch(`/api/athletes/${playerId}/stats`);
         if (sRes.ok) setStats(await sRes.json());
       } catch { /* stats optional */ }
 
