@@ -24,6 +24,7 @@ export const players = pgTable('players', {
   achievements: text('achievements'),
   collegeOffers: jsonb('college_offers'),
   verificationStatus: text('verification_status').default('unverified'),
+  emailVerified: boolean('email_verified').default(true),
   subscriptionTier: text('subscription_tier').default('free'),
   privacySetting: text('privacy_setting').default('public'),
   segment: text('segment').default('high_school'), // youth, high_school, college, elite
@@ -213,6 +214,7 @@ export const parents = pgTable('parents', {
   passwordHash: text('password_hash').notNull(),
   name: text('name').notNull(),
   phone: text('phone'),
+  emailVerified: boolean('email_verified').default(true),
   createdAt: timestamp('created_at').default(sql`now()`),
 });
 
@@ -235,6 +237,7 @@ export const coaches = pgTable('coaches', {
   recruitingPositions: text('recruiting_positions'),
   recruitingStates: text('recruiting_states'),
   verifiedStatus: boolean('verified_status').default(false),
+  emailVerified: boolean('email_verified').default(true),
 });
 
 export const adminUsers = pgTable('admin_users', {
@@ -834,6 +837,28 @@ export const savedSchools = pgTable('saved_schools', {
   athleteId: integer('athlete_id').references(() => players.id).notNull(),
   programId: integer('program_id').notNull(),
   savedAt: timestamp('saved_at').default(sql`now()`),
+});
+
+export const emailVerificationTokens = pgTable('email_verification_tokens', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull(),
+  userType: text('user_type').notNull(),
+  email: text('email').notNull(),
+  tokenHash: text('token_hash').notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  usedAt: timestamp('used_at'),
+  createdAt: timestamp('created_at').default(sql`now()`),
+});
+
+export const personalTrainingSessions = pgTable('personal_training_sessions', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').references(() => players.id).notNull(),
+  name: text('name').notNull(),
+  category: text('category'),
+  duration: integer('duration').notNull(),
+  notes: text('notes'),
+  completedAt: timestamp('completed_at').default(sql`now()`),
+  createdAt: timestamp('created_at').default(sql`now()`),
 });
 
 export const programApplications = pgTable('program_applications', {

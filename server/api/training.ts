@@ -1,4 +1,8 @@
 import express from 'express';
+import { desc, eq } from 'drizzle-orm';
+import { db } from '../db';
+import * as schema from '../schema';
+import { requireAuth } from '../auth';
 
 const router = express.Router();
 
@@ -271,6 +275,66 @@ router.post('/programs/:id/enroll', (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to enroll in program'
+    });
+  }
+});
+
+router.post('/sessions', requireAuth, async (req, res) => {
+  try {
+    const playerId = Number((req as any).user.id);
+    const { name, category, duration, notes, completedAt } = req.body ?? {};
+    const minutes = Number(duration);
+
+    if (!name || Number.isNaN(minutes) || minutes <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'name and a positive duration are required',
+      });
+    }
+
+    const [session] = await db
+      .insert(schema.personalTrainingSessions)
+      .values({
+        playerId,
+        name: String(name),
+        category: category ? String(category) : null,
+        duration: Math.round(minutes),
+        notes: notes ? String(notes) : null,
+        completedAt: completedAt ? new Date(String(completedAt)) : new Date(),
+      })
+      .returning();
+
+    res.status(201).json({
+      success: true,
+      data: session,
+    });
+  } catch (error) {
+    console.error('[training/sessions/create]', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to log training session',
+    });
+  }
+});
+
+router.get('/sessions/personal', requireAuth, async (req, res) => {
+  try {
+    const playerId = Number((req as any).user.id);
+    const rows = await db
+      .select()
+      .from(schema.personalTrainingSessions)
+      .where(eq(schema.personalTrainingSessions.playerId, playerId))
+      .orderBy(desc(schema.personalTrainingSessions.completedAt));
+
+    res.json({
+      success: true,
+      data: rows,
+    });
+  } catch (error) {
+    console.error('[training/sessions/personal]', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch personal training sessions',
     });
   }
 });

@@ -15,6 +15,9 @@ type MPPlayer = {
   state?: string;
   stats: {
     touchdowns?: number;
+    passingTouchdowns?: number;
+    rushingTouchdowns?: number;
+    receivingTouchdowns?: number;
     passingYards?: number;
     rushingYards?: number;
     receptions?: number;
@@ -33,6 +36,10 @@ type MPTeam = {
 
 const STATES = ['', 'CA', 'TX', 'FL', 'OH', 'GA', 'AZ', 'WA', 'CO', 'NY', 'NC'];
 const CATS = ['passing', 'rushing', 'receiving', 'touchdowns', 'interceptions'];
+const MAXPREPS_CATEGORY_MAP: Record<string, string> = {
+  touchdowns: 'receiving',
+  interceptions: 'defense',
+};
 
 type Tab = 'search' | 'leaders' | 'rankings';
 
@@ -52,6 +59,7 @@ export const MaxPrepsLookup = () => {
   const [leaders, setLeaders] = useState<MPPlayer[]>([]);
   const [loadingLeaders, setLoadingLeaders] = useState(false);
   const [leadersLoaded, setLeadersLoaded] = useState(false);
+  const [leadersAvailable, setLeadersAvailable] = useState(false);
 
   // Rankings
   const [rankState, setRankState] = useState('CA');
@@ -62,13 +70,15 @@ export const MaxPrepsLookup = () => {
   const fetchLeaders = async () => {
     setLoadingLeaders(true);
     try {
-      const qs = new URLSearchParams({ category: leaderCat });
+      const qs = new URLSearchParams({ category: MAXPREPS_CATEGORY_MAP[leaderCat] || leaderCat });
       if (leaderState) qs.set('state', leaderState);
       const res = await fetch(`/api/maxpreps/leaders?${qs}`);
       const data = await res.json();
       setLeaders(data.leaders || []);
+      setLeadersAvailable(data.available === true);
     } catch {
       setLeaders([]);
+      setLeadersAvailable(false);
     } finally {
       setLoadingLeaders(false);
       setLeadersLoaded(true);
@@ -109,7 +119,8 @@ export const MaxPrepsLookup = () => {
   const statLine = (p: MPPlayer) => {
     const s = p.stats;
     const parts: string[] = [];
-    if (s.touchdowns) parts.push(`${s.touchdowns} TDs`);
+    const touchdowns = s.touchdowns ?? s.passingTouchdowns ?? s.rushingTouchdowns ?? s.receivingTouchdowns;
+    if (touchdowns) parts.push(`${touchdowns} TDs`);
     if (s.passingYards) parts.push(`${s.passingYards} pass yds`);
     if (s.rushingYards) parts.push(`${s.rushingYards} rush yds`);
     if (s.receivingYards) parts.push(`${s.receivingYards} rec yds`);
@@ -128,6 +139,11 @@ export const MaxPrepsLookup = () => {
           Girls Flag Football Stats
         </h1>
         <p style={{ color: MUTED, fontSize: '0.85rem', margin: 0 }}>Live data from MaxPreps — national stat leaders, team rankings, and player lookup.</p>
+        {leadersLoaded && (
+          <div style={{ marginTop: 10, fontSize: '0.72rem', color: leadersAvailable ? '#4ade80' : MUTED_2 }}>
+            {leadersAvailable ? 'Live MaxPreps data loaded' : 'No live MaxPreps data available for this filter'}
+          </div>
+        )}
       </div>
 
       {/* Tabs */}

@@ -20,7 +20,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function signToken(player) {
   return jwt.sign(
-    { id: player.id, email: player.email, subscriptionTier: player.subscriptionTier },
+    { id: player.id, email: player.email, role: 'athlete', name: player.name, emailVerified: player.emailVerified ?? true },
     process.env.JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
@@ -90,6 +90,9 @@ router.post('/login', async (req, res) => {
     const player = rows[0];
     if (!player || !player.passwordHash) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    if (!player.emailVerified) {
+      return res.status(403).json({ error: 'Email verification required' });
     }
 
     const valid = await bcrypt.compare(password, player.passwordHash);

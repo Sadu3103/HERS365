@@ -10,9 +10,11 @@ export type UserRole = 'athlete' | 'coach' | 'parent' | 'admin';
 
 export interface TokenPayload {
   userId: number;
+  id?: number;
   email: string;
   role: UserRole;
   name: string;
+  emailVerified?: boolean;
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -40,7 +42,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   }
   try {
     const decoded = verifyToken(token);
-    (req as any).user = decoded;
+    (req as any).user = { ...decoded, id: decoded.id ?? decoded.userId };
     next();
   } catch {
     res.status(401).json({ error: 'Invalid or expired token' });

@@ -19,6 +19,9 @@ const MUTED_2  = '#7d7d78';
 const DISP     = "'Barlow Condensed', sans-serif";
 const BODY     = "'DM Sans', sans-serif";
 
+type AuthUserResponse = { id: number; email: string; name: string; role: 'athlete' | 'coach' | 'parent' | 'admin' };
+type AuthResponse = { token?: string; user?: AuthUserResponse; verificationRequired?: boolean; message?: string };
+
 const EASE: [number, number, number, number] = [0.22, 0.8, 0.2, 1];
 
 function GoogleMark({ size = 16 }: { size?: number }) {
@@ -144,10 +147,12 @@ export const Auth = () => {
   const [searchParams] = useSearchParams();
   const [isLogin,  setIsLogin]  = useState(searchParams.get('tab') !== 'signup');
   const [name,     setName]     = useState('');
+  const [role,     setRole]     = useState<'athlete' | 'parent' | 'coach'>('athlete');
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState('');
+  const [verificationSent, setVerificationSent] = useState(false);
   const navigate  = useNavigate();
   const { login } = useAuth();
   const reduced   = !!useReducedMotion();
@@ -159,7 +164,12 @@ export const Auth = () => {
     try {
       const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
       const body: Record<string, string> = { email, password };
-      if (!isLogin && name) body.name = name;
+      if (isLogin) {
+        body.role = role;
+      } else {
+        if (name) body.name = name;
+        body.role = role;
+      }
       const res  = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -173,6 +183,10 @@ export const Auth = () => {
             ? "We couldn't sign you in — check your email and password."
             : "We couldn't create your account — please try again.")
         );
+        return;
+      }
+      if (data.verificationRequired) {
+        setVerificationSent(true);
         return;
       }
       if (data.token && data.user) login(data.token, data.user);
@@ -194,10 +208,14 @@ export const Auth = () => {
     setError('');
     setLoading(true);
     try {
-      const data = await apiFetch<{ token: string; user: { id: number; email: string; name: string; role: 'athlete' | 'coach' | 'parent' | 'admin' } }>(
+      const data = await apiFetch<AuthResponse>(
         '/api/auth/google',
-        { method: 'POST', body: JSON.stringify({ credential: credentialResponse.credential, role: 'athlete' }) },
+        { method: 'POST', body: JSON.stringify({ credential: credentialResponse.credential, role }) },
       );
+      if (data.verificationRequired) {
+        setVerificationSent(true);
+        return;
+      }
       login(data.token, data.user);
       navigate('/feed');
     } catch (err: unknown) {
@@ -399,6 +417,35 @@ export const Auth = () => {
             </span>
           </div>
 
+          {verificationSent && (
+            <div style={{ marginBottom: 24, padding: 14, borderRadius: 12, background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.22)' }}>
+              <div style={{ fontFamily: DISP, fontWeight: 900, color: '#86efac', marginBottom: 6 }}>Verification Email Sent</div>
+              <p style={{ color: MUTED, fontSize: '.82rem', lineHeight: 1.5, margin: '0 0 10px' }}>
+                Check your inbox and click the verification link to activate your account.
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  setError('');
+                  try {
+                    const res = await fetch('/api/auth/resend-verification', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ email, role }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) setError(data.error || 'Could not resend verification email');
+                  } catch {
+                    setError('Could not resend verification email');
+                  }
+                }}
+                style={{ background: 'rgba(255,90,45,0.12)', border: '1px solid rgba(255,90,45,0.25)', color: FLAME, borderRadius: 8, padding: '9px 12px', fontWeight: 800, cursor: 'pointer' }}
+              >
+                Resend Verification Email
+              </button>
+            </div>
+          )}
+
           {/* Segmented toggle */}
           <div
             role="group"
@@ -419,7 +466,7 @@ export const Auth = () => {
                 key={label}
                 type="button"
                 aria-pressed={isLogin === val}
-                onClick={() => { setIsLogin(val); setError(''); }}
+                onClick={() => { setIsLogin(val); setError(''); setVerificationSent(false); }}
                 style={{
                   position: 'relative', zIndex: 1, flex: 1, padding: '10px 0',
                   borderRadius: 8, border: 'none', cursor: 'pointer', background: 'transparent',
@@ -443,6 +490,31 @@ export const Auth = () => {
                   style={{ overflow: 'hidden' }}
                 >
                   <Field id="auth-name" label="Full Name" icon={User} value={name} onChange={setName} autoComplete="name" />
+                  <div style={{ marginBottom: 16 }}>
+                    <label
+                      htmlFor="auth-role"
+                      style={{ display: 'block', fontFamily: DISP, fontWeight: 700, fontSize: '.7rem', letterSpacing: '.16em', textTransform: 'uppercase', color: MUTED, marginBottom: 9 }}
+                    >
+                      Account Type
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <User size={16} aria-hidden style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: MUTED_2, pointerEvents: 'none' }} />
+                      <select
+                        id="auth-role"
+                        value={role}
+                        onChange={e => setRole(e.target.value as 'athlete' | 'parent' | 'coach')}
+                        style={{
+                          width: '100%', background: FIELD, border: `1px solid ${LINE}`, borderRadius: 12,
+                          outline: 'none', color: TEXT, fontFamily: BODY, fontSize: '1rem',
+                          padding: '15px 16px 15px 44px', appearance: 'none',
+                        }}
+                      >
+                        <option value="athlete">Athlete</option>
+                        <option value="parent">Parent / Guardian</option>
+                        <option value="coach">Coach</option>
+                      </select>
+                    </div>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -454,6 +526,27 @@ export const Auth = () => {
               <p style={{ color: MUTED, fontSize: '.72rem', margin: '-8px 0 16px', fontFamily: BODY, lineHeight: 1.4 }}>
                 At least 8 characters.
               </p>
+            )}
+
+            {isLogin && (
+              <div style={{ marginBottom: 16 }}>
+                <label
+                  htmlFor="auth-login-role"
+                  style={{ display: 'block', fontFamily: DISP, fontWeight: 700, fontSize: '.7rem', letterSpacing: '.16em', textTransform: 'uppercase', color: MUTED, marginBottom: 9 }}
+                >
+                  Sign In As
+                </label>
+                <select
+                  id="auth-login-role"
+                  value={role}
+                  onChange={e => setRole(e.target.value as 'athlete' | 'parent' | 'coach')}
+                  style={{ width: '100%', background: FIELD, border: `1px solid ${LINE}`, borderRadius: 12, outline: 'none', color: TEXT, fontFamily: BODY, fontSize: '1rem', padding: '14px 16px', appearance: 'none' }}
+                >
+                  <option value="athlete">Athlete</option>
+                  <option value="parent">Parent / Guardian</option>
+                  <option value="coach">Coach</option>
+                </select>
+              </div>
             )}
 
             {isLogin && (

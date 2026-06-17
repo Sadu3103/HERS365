@@ -15,6 +15,7 @@ export const CoachSignup = () => {
   const [division, setDivision] = useState(DIVISIONS[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [verificationSent, setVerificationSent] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,6 +45,10 @@ export const CoachSignup = () => {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || data.message || 'Unable to create account');
+        return;
+      }
+      if (data.verificationRequired) {
+        setVerificationSent(true);
         return;
       }
       if (data.token) localStorage.setItem('coachToken', data.token);
@@ -166,6 +171,12 @@ export const CoachSignup = () => {
           </div>
 
           {error && <p className="text-red-400 text-sm font-semibold text-center">{error}</p>}
+          {verificationSent && (
+            <div className="rounded-2xl border border-green-400/30 bg-green-400/10 p-4 text-center">
+              <p className="text-green-300 text-sm font-black uppercase tracking-widest">Verification Email Sent</p>
+              <p className="text-ink-muted text-xs mt-2">Check your inbox and click the verification link before signing in as a coach.</p>
+            </div>
+          )}
 
           <button
             type="submit" disabled={loading}

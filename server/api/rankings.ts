@@ -1,6 +1,6 @@
 // @ts-nocheck
 import express from 'express';
-import { desc, eq, and, isNotNull } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 
@@ -8,7 +8,21 @@ const router = express.Router();
 
 router.get('/', async (req, res) => {
   try {
-    const { position, limit = 50 } = req.query;
+    const { position, search, limit = '50', offset = '0' } = req.query;
+    const pageLimit = Math.min(Math.max(Number(limit), 1), 100);
+    const pageOffset = Math.max(Number(offset), 0);
+    const conditions = [eq(schema.players.privacySetting, 'public'), isNotNull(schema.players.g5Rating)];
+
+    if (position && position !== 'All') conditions.push(eq(schema.players.position, String(position)));
+    if (search && String(search).trim()) {
+      const q = `%${String(search).trim().toLowerCase()}%`;
+      conditions.push(sql`lower(${schema.players.name}) like ${q} or lower(coalesce(${schema.players.school}, '')) like ${q}`);
+    }
+
+    const [countRow] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.players)
+      .where(and(...conditions));
 
     const rows = await db
       .select({
@@ -23,15 +37,14 @@ router.get('/', async (req, res) => {
         verificationStatus: schema.players.verificationStatus,
       })
       .from(schema.players)
-      // Only rated athletes appear on the board. This also keeps unrated test
-      // accounts out, and avoids Postgres sorting NULL g5Rating first under DESC.
-      .where(and(eq(schema.players.privacySetting, 'public'), isNotNull(schema.players.g5Rating)))
+      .where(and(...conditions))
       .orderBy(desc(schema.players.g5Rating), desc(schema.players.xpPoints))
-      .limit(Number(limit));
+      .limit(pageLimit)
+      .offset(pageOffset);
 
     let data = rows.map((p, i) => ({
       id: p.id,
-      rank: i + 1,
+      rank: pageOffset + i + 1,
       name: p.name,
       school: p.school ?? '',
       position: p.position ?? '–',
@@ -42,11 +55,12 @@ router.get('/', async (req, res) => {
       verified: p.verificationStatus === 'verified',
     }));
 
-    if (position && position !== 'All') {
-      data = data.filter(r => r.position === position);
-    }
-
-    res.json({ success: true, data, total: data.length });
+    res.json({
+      success: true,
+      data,
+      total: Number(countRow?.count ?? 0),
+      pagination: { limit: pageLimit, offset: pageOffset },
+    });
   } catch (error) {
     console.error('[rankings]', error);
     res.status(500).json({ success: false, error: 'Failed to fetch rankings' });

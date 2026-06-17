@@ -1,9 +1,11 @@
 import express from 'express';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
+import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { db } from './db';
 import * as schema from './schema';
 import * as auth from './auth';
+import { sendEmailVerificationEmail } from './email';
 
 const router = express.Router();
 
@@ -15,48 +17,95 @@ const loginLimiter = rateLimit({
   message: { error: 'Too many attempts — try again in 15 minutes' },
 });
 
-// ─── DB helpers ──────────────────────────────────────────────────────────────
-
 type FoundUser = {
   id: number;
   email: string;
   passwordHash: string | null;
   name: string;
   role: auth.UserRole;
+  emailVerified: boolean;
 };
+
+function normalizeRole(role: unknown): auth.UserRole | null {
+  if (role === 'athlete' || role === 'coach' || role === 'parent') return role;
+  return null;
+}
+
+function hashVerificationToken(token: string) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+async function markEmailVerified(userType: auth.UserRole, userId: number) {
+  if (userType === 'coach') {
+    await db.update(schema.coaches).set({ emailVerified: true }).where(eq(schema.coaches.id, userId));
+    return;
+  }
+  if (userType === 'parent') {
+    await db.update(schema.parents).set({ emailVerified: true }).where(eq(schema.parents.id, userId));
+    return;
+  }
+  await db.update(schema.players).set({ emailVerified: true }).where(eq(schema.players.id, userId));
+}
 
 async function findUserByEmail(email: string, role: auth.UserRole): Promise<FoundUser | null> {
   const e = email.toLowerCase().trim();
   if (role === 'coach') {
     const [row] = await db.select().from(schema.coaches).where(eq(schema.coaches.email, e)).limit(1);
     if (!row) return null;
-    return { id: row.id, email: row.email, passwordHash: row.passwordHash, name: row.name ?? '', role: 'coach' };
+    return { id: row.id, email: row.email, passwordHash: row.passwordHash, name: row.name ?? '', role: 'coach', emailVerified: row.emailVerified ?? true };
   }
   if (role === 'parent') {
     const [row] = await db.select().from(schema.parents).where(eq(schema.parents.email, e)).limit(1);
     if (!row) return null;
-    return { id: row.id, email: row.email, passwordHash: row.passwordHash, name: row.name, role: 'parent' };
+    return { id: row.id, email: row.email, passwordHash: row.passwordHash, name: row.name, role: 'parent', emailVerified: row.emailVerified ?? true };
   }
-  // default: athlete
   const [row] = await db.select().from(schema.players).where(eq(schema.players.email, e)).limit(1);
   if (!row) return null;
-  return { id: row.id, email: row.email, passwordHash: row.passwordHash, name: row.name, role: 'athlete' };
+  return { id: row.id, email: row.email, passwordHash: row.passwordHash, name: row.name, role: 'athlete', emailVerified: row.emailVerified ?? true };
 }
 
-// ─── POST /api/auth/register ──────────────────────────────────────────────────
+async function sendVerificationEmail(userType: auth.UserRole, userId: number, email: string) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const tokenHash = hashVerificationToken(token);
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  await db.delete(schema.emailVerificationTokens)
+    .where(and(eq(schema.emailVerificationTokens.userId, userId), eq(schema.emailVerificationTokens.userType, userType)));
+  await db.insert(schema.emailVerificationTokens).values({
+    userId,
+    userType,
+    email,
+    tokenHash,
+    expiresAt,
+  });
+  await sendEmailVerificationEmail(email, token);
+}
+
+function publicUser(user: FoundUser) {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    emailVerified: user.emailVerified,
+  };
+}
 
 router.post('/register', async (req, res) => {
   const { email, password, name, role = 'athlete', school, division } = req.body ?? {};
+  const userRole = normalizeRole(role);
 
   if (!email || !password || !name) {
     return res.status(400).json({ error: 'email, password, and name are required' });
+  }
+  if (!userRole) {
+    return res.status(400).json({ error: 'Choose athlete, parent, or coach' });
   }
   if (password.length < 8) {
     return res.status(400).json({ error: 'Password must be at least 8 characters' });
   }
 
   const normalEmail = (email as string).toLowerCase().trim();
-  const userRole = (role as auth.UserRole) || 'athlete';
 
   const existing = await findUserByEmail(normalEmail, userRole);
   if (existing) {
@@ -65,47 +114,74 @@ router.post('/register', async (req, res) => {
 
   try {
     const passwordHash = await auth.hashPassword(password as string);
-    let userId: number;
 
     if (userRole === 'coach') {
       const [row] = await db.insert(schema.coaches).values({
-        email: normalEmail, passwordHash, name: name as string,
+        email: normalEmail,
+        passwordHash,
+        name: name as string,
         university: school as string | undefined,
         division: (division as string) || 'D1',
+        emailVerified: false,
       }).returning({ id: schema.coaches.id });
-      userId = row.id;
-    } else if (userRole === 'parent') {
-      const [row] = await db.insert(schema.parents).values({
-        email: normalEmail, passwordHash, name: name as string,
-      }).returning({ id: schema.parents.id });
-      userId = row.id;
-    } else {
-      const [row] = await db.insert(schema.players).values({
-        email: normalEmail, passwordHash, name: name as string,
-      }).returning({ id: schema.players.id });
-      userId = row.id;
+
+      await sendVerificationEmail('coach', row.id, normalEmail);
+      return res.status(201).json({
+        verificationRequired: true,
+        message: 'Verification email sent',
+        user: { id: row.id, email: normalEmail, name, role: 'coach', emailVerified: false },
+      });
     }
 
-    const token = auth.signToken({ userId, email: normalEmail, role: userRole, name: name as string });
-    res.status(201).json({ token, user: { id: userId, email: normalEmail, name, role: userRole } });
+    if (userRole === 'parent') {
+      const [row] = await db.insert(schema.parents).values({
+        email: normalEmail,
+        passwordHash,
+        name: name as string,
+        emailVerified: false,
+      }).returning({ id: schema.parents.id });
+
+      await sendVerificationEmail('parent', row.id, normalEmail);
+      return res.status(201).json({
+        verificationRequired: true,
+        message: 'Verification email sent',
+        user: { id: row.id, email: normalEmail, name, role: 'parent', emailVerified: false },
+      });
+    }
+
+    const [row] = await db.insert(schema.players).values({
+      email: normalEmail,
+      passwordHash,
+      name: name as string,
+      emailVerified: false,
+    }).returning({ id: schema.players.id });
+
+    await sendVerificationEmail('athlete', row.id, normalEmail);
+    return res.status(201).json({
+      verificationRequired: true,
+      message: 'Verification email sent',
+      user: { id: row.id, email: normalEmail, name, role: 'athlete', emailVerified: false },
+    });
   } catch (err: any) {
     console.error('[auth/register]', err);
     res.status(500).json({ error: 'Registration failed' });
   }
 });
 
-// ─── POST /api/auth/login ─────────────────────────────────────────────────────
-
 router.post('/login', loginLimiter, async (req, res) => {
   const { email, password, role = 'athlete' } = req.body ?? {};
+  const userRole = normalizeRole(role) || 'athlete';
 
   if (!email || !password) {
     return res.status(400).json({ error: 'email and password are required' });
   }
 
-  const user = await findUserByEmail((email as string).toLowerCase(), (role as auth.UserRole) || 'athlete');
+  const user = await findUserByEmail((email as string).toLowerCase(), userRole);
   if (!user || !user.passwordHash) {
     return res.status(401).json({ error: 'Invalid credentials' });
+  }
+  if (!user.emailVerified) {
+    return res.status(403).json({ error: 'Email verification required' });
   }
 
   const valid = await auth.comparePassword(password as string, user.passwordHash);
@@ -113,12 +189,10 @@ router.post('/login', loginLimiter, async (req, res) => {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 
-  const token = auth.signToken({ userId: user.id, email: user.email, role: user.role, name: user.name });
-  res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+  const token = auth.signToken({ userId: user.id, email: user.email, role: user.role, name: user.name, emailVerified: true });
+  res.json({ token, user: publicUser({ ...user, emailVerified: true }) });
 });
 
-// ─── POST /api/auth/(secure/)coach/login ──────────────────────────────────────
-// The coach UI posts here without a role field; force the coach realm.
 router.post('/coach/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body ?? {};
   if (!email || !password) {
@@ -128,15 +202,17 @@ router.post('/coach/login', loginLimiter, async (req, res) => {
   if (!user || !user.passwordHash) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
+  if (!user.emailVerified) {
+    return res.status(403).json({ error: 'Email verification required' });
+  }
   const valid = await auth.comparePassword(password as string, user.passwordHash);
   if (!valid) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
-  const token = auth.signToken({ userId: user.id, email: user.email, role: 'coach', name: user.name });
-  res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: 'coach' } });
+  const token = auth.signToken({ userId: user.id, email: user.email, role: 'coach', name: user.name, emailVerified: true });
+  res.json({ token, user: publicUser({ ...user, emailVerified: true }) });
 });
 
-// ─── POST /api/auth/(secure/)coach/register ───────────────────────────────────
 router.post('/coach/register', async (req, res) => {
   const { email, password, name, school, university, division } = req.body ?? {};
   if (!email || !password || !name) {
@@ -153,22 +229,28 @@ router.post('/coach/register', async (req, res) => {
   try {
     const passwordHash = await auth.hashPassword(password as string);
     const [row] = await db.insert(schema.coaches).values({
-      email: normalEmail, passwordHash, name: name as string,
+      email: normalEmail,
+      passwordHash,
+      name: name as string,
       university: (university as string) || (school as string | undefined),
       division: (division as string) || 'D1',
+      emailVerified: false,
     }).returning({ id: schema.coaches.id });
-    const token = auth.signToken({ userId: row.id, email: normalEmail, role: 'coach', name: name as string });
-    res.status(201).json({ token, user: { id: row.id, email: normalEmail, name, role: 'coach' } });
+    await sendVerificationEmail('coach', row.id, normalEmail);
+    res.status(201).json({
+      verificationRequired: true,
+      message: 'Verification email sent',
+      user: { id: row.id, email: normalEmail, name, role: 'coach', emailVerified: false },
+    });
   } catch (err: any) {
     console.error('[auth/coach/register]', err);
     res.status(500).json({ error: 'Registration failed' });
   }
 });
 
-// ─── POST /api/auth/google ────────────────────────────────────────────────────
-
 router.post('/google', loginLimiter, async (req, res) => {
   const { credential, role = 'athlete' } = req.body ?? {};
+  const userRole = normalizeRole(req.body?.role ?? req.query?.role) || normalizeRole(role) || 'athlete';
 
   if (!credential) {
     return res.status(400).json({ error: 'Google credential is required' });
@@ -180,33 +262,41 @@ router.post('/google', loginLimiter, async (req, res) => {
   try {
     const google = await auth.verifyGoogleToken(credential as string);
     const normalEmail = google.email.toLowerCase();
-    const userRole = (role as auth.UserRole) || 'athlete';
-
     let user = await findUserByEmail(normalEmail, userRole);
 
     if (!user) {
       let userId: number;
       if (userRole === 'coach') {
         const [row] = await db.insert(schema.coaches).values({
-          email: normalEmail, name: google.name,
+          email: normalEmail,
+          name: google.name,
+          emailVerified: true,
         }).returning({ id: schema.coaches.id });
         userId = row.id;
       } else if (userRole === 'parent') {
         const [row] = await db.insert(schema.parents).values({
-          email: normalEmail, passwordHash: '', name: google.name,
+          email: normalEmail,
+          passwordHash: '',
+          name: google.name,
+          emailVerified: true,
         }).returning({ id: schema.parents.id });
         userId = row.id;
       } else {
         const [row] = await db.insert(schema.players).values({
-          email: normalEmail, name: google.name,
+          email: normalEmail,
+          name: google.name,
+          emailVerified: true,
         }).returning({ id: schema.players.id });
         userId = row.id;
       }
-      user = { id: userId, email: normalEmail, passwordHash: null, name: google.name, role: userRole };
+      user = { id: userId, email: normalEmail, passwordHash: null, name: google.name, role: userRole, emailVerified: true };
+    } else if (!user.emailVerified) {
+      await markEmailVerified(user.role, user.id);
+      user = { ...user, emailVerified: true };
     }
 
-    const token = auth.signToken({ userId: user.id, email: user.email, role: user.role, name: user.name });
-    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+    const token = auth.signToken({ userId: user.id, email: user.email, role: user.role, name: user.name, emailVerified: true });
+    res.json({ token, user: publicUser({ ...user, emailVerified: true }) });
   } catch (err: any) {
     console.error('[auth/google]', err);
     if (err.message?.includes('Invalid token') || err.message?.includes('Token used too late')) {
@@ -216,16 +306,67 @@ router.post('/google', loginLimiter, async (req, res) => {
   }
 });
 
-// ─── GET /api/auth/me ─────────────────────────────────────────────────────────
+router.post('/verify-email', async (req, res) => {
+  const { token } = req.body ?? {};
+  if (!token) {
+    return res.status(400).json({ error: 'Verification token is required' });
+  }
+
+  try {
+    const tokenHash = hashVerificationToken(String(token));
+    const [entry] = await db.select()
+      .from(schema.emailVerificationTokens)
+      .where(eq(schema.emailVerificationTokens.tokenHash, tokenHash))
+      .limit(1);
+
+    if (!entry || entry.usedAt || entry.expiresAt.getTime() < Date.now()) {
+      return res.status(400).json({ error: 'Verification token is invalid or expired' });
+    }
+
+    const userType = normalizeRole(entry.userType);
+    if (!userType) {
+      return res.status(400).json({ error: 'Invalid verification user type' });
+    }
+
+    await db.update(schema.emailVerificationTokens)
+      .set({ usedAt: new Date() })
+      .where(eq(schema.emailVerificationTokens.id, entry.id));
+    await markEmailVerified(userType, entry.userId);
+
+    res.json({ success: true, message: 'Email verified' });
+  } catch (err: any) {
+    console.error('[auth/verify-email]', err);
+    res.status(500).json({ error: 'Email verification failed' });
+  }
+});
+
+router.post('/resend-verification', async (req, res) => {
+  const { email, role } = req.body ?? {};
+  const userRole = normalizeRole(role);
+
+  if (!email || !userRole) {
+    return res.status(400).json({ error: 'email and role are required' });
+  }
+
+  try {
+    const user = await findUserByEmail(String(email), userRole);
+    if (!user || user.emailVerified) {
+      return res.json({ success: true, message: 'Verification email sent' });
+    }
+
+    await sendVerificationEmail(userRole, user.id, user.email);
+    res.json({ success: true, message: 'Verification email sent' });
+  } catch (err: any) {
+    console.error('[auth/resend-verification]', err);
+    res.status(500).json({ error: 'Could not resend verification email' });
+  }
+});
 
 router.get('/me', auth.requireAuth, (req, res) => {
   res.json({ user: (req as any).user });
 });
 
-// ─── POST /api/auth/logout ────────────────────────────────────────────────────
-
 router.post('/logout', (_req, res) => {
-  // JWT is stateless — client drops the token. Nothing to do server-side.
   res.json({ success: true });
 });
 

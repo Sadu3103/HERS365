@@ -123,6 +123,69 @@ router.delete('/me/saved-schools/:schoolId', requireAuth, async (req, res) => {
   }
 });
 
+router.get('/:id/combine-stats', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ success: false, error: 'Invalid athlete id' });
+    }
+
+    const rows = await db
+      .select()
+      .from(schema.combineStats)
+      .where(eq(schema.combineStats.playerId, id))
+      .orderBy(schema.combineStats.season);
+
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error('[athletes/combine-stats/list]', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch combine stats' });
+  }
+});
+
+router.put('/:id/combine-stats', requireAuth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ success: false, error: 'Invalid athlete id' });
+    }
+    if (Number(req.user?.id) !== id) {
+      return res.status(403).json({ success: false, error: 'You can only update your own combine stats' });
+    }
+
+    const updates: Record<string, unknown> = {};
+    for (const field of COMBINE_FIELDS) {
+      if (req.body[field] !== undefined) updates[field] = coerceNullableString(req.body[field]);
+    }
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ success: false, error: 'No combine stat fields provided' });
+    }
+
+    const season = updates.season ? String(updates.season) : null;
+    const existing = season
+      ? await db.select().from(schema.combineStats).where(and(eq(schema.combineStats.playerId, id), eq(schema.combineStats.season, season))).limit(1)
+      : await db.select().from(schema.combineStats).where(eq(schema.combineStats.playerId, id)).orderBy(schema.combineStats.id).limit(1);
+
+    if (existing.length > 0) {
+      const [updated] = await db
+        .update(schema.combineStats)
+        .set(updates)
+        .where(eq(schema.combineStats.id, existing[0].id))
+        .returning();
+      return res.json({ success: true, data: updated });
+    }
+
+    const [created] = await db
+      .insert(schema.combineStats)
+      .values({ ...updates, playerId: id })
+      .returning();
+    res.json({ success: true, data: created });
+  } catch (error) {
+    console.error('[athletes/combine-stats/update]', error);
+    res.status(500).json({ success: false, error: 'Failed to update combine stats' });
+  }
+});
+
 // GET /api/athletes/:id - Get specific athlete profile (DB-backed)
 router.get('/:id', async (req, res) => {
   try {

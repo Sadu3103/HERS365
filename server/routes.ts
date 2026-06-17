@@ -352,7 +352,7 @@ router.get('/maxpreps/leaders', async (req: Request, res: Response) => {
   const { category = 'receiving', state, season = '2025' } = req.query as Record<string, string>;
   try {
     const leaders = await mp.fetchFlagFootballLeaders(category as any, state, season);
-    res.json({ source: 'maxpreps', category, state: state || 'national', season, leaders });
+    res.json({ source: 'maxpreps', category, state: state || 'national', season, available: leaders.length > 0, leaders });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -362,7 +362,7 @@ router.get('/maxpreps/rankings', async (req: Request, res: Response) => {
   const { state = 'TX', season = '2025' } = req.query as Record<string, string>;
   try {
     const teams = await mp.fetchStateTeamRankings(state, season);
-    res.json({ source: 'maxpreps', state, season, teams });
+    res.json({ source: 'maxpreps', state, season, available: teams.length > 0, teams });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

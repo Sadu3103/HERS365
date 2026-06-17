@@ -57,6 +57,28 @@ export async function sendPasswordResetEmail(to: string, resetToken: string) {
   });
 }
 
+export async function sendEmailVerificationEmail(to: string, token: string) {
+  const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/verify?token=${encodeURIComponent(token)}`;
+
+  return sendEmail({
+    to,
+    subject: 'Verify your H.E.R.S.365 email',
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #7c3aed;">Verify your H.E.R.S.365 email</h1>
+        <p>Thanks for registering. Please verify your email to activate your account:</p>
+        <a href="${verificationUrl}" style="display: inline-block; background: #7c3aed; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">
+          Verify Email
+        </a>
+        <p>If you did not create this account, you can ignore this message.</p>
+        <p style="color: #666; font-size: 12px; margin-top: 24px;">
+          This link expires in 24 hours.
+        </p>
+      </div>
+    `,
+  });
+}
+
 export async function sendWelcomeEmail(to: string, name: string) {
   return sendEmail({
     to,

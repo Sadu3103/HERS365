@@ -209,6 +209,7 @@ function normalizeStats(raw: any): MaxPrepsFlagFootballStats {
     receptions: raw.receptions ?? raw.rec ?? undefined,
     receivingYards: raw.receivingYards ?? raw.recYds ?? undefined,
     receivingTouchdowns: raw.receivingTouchdowns ?? raw.recTds ?? undefined,
+    touchdowns: raw.touchdowns ?? raw.totalTouchdowns ?? undefined,
     flagPulls: raw.flagPulls ?? raw.tkl ?? undefined,
     interceptions: raw.interceptions ?? raw.defInt ?? undefined,
     gamesPlayed: raw.gamesPlayed ?? raw.gp ?? undefined,
@@ -227,32 +228,4 @@ function normalizeMaxPrepsTeam(raw: any): MaxPrepsTeam {
     record: raw.record ? `${raw.record.wins}-${raw.record.losses}` : undefined,
     season: raw.season || undefined,
   };
-}
-
-// ─── Mock / Fallback Data ─────────────────────────────────────────────────────
-
-function getMockLeaders(category: string): MaxPrepsPlayer[] {
-  const BASE_PLAYER = { source: 'maxpreps' as const, schoolName: 'Demo HS', schoolState: 'TX', position: 'WR', gradYear: 2026 };
-
-  if (category === 'receiving') {
-    return [
-      { ...BASE_PLAYER, name: 'Aaliyah Thompson', stats: { receptions: 64, receivingYards: 1204, receivingTouchdowns: 18, gamesPlayed: 12, season: '2025' } },
-      { ...BASE_PLAYER, name: 'Maya Johnson', stats: { receptions: 58, receivingYards: 1022, receivingTouchdowns: 14, gamesPlayed: 12, season: '2025' } },
-      { ...BASE_PLAYER, name: 'Destiny Williams', stats: { receptions: 52, receivingYards: 934, receivingTouchdowns: 12, gamesPlayed: 11, season: '2025' } },
-    ];
-  }
-  if (category === 'passing') {
-    return [
-      { ...BASE_PLAYER, name: 'Jordan Davis', position: 'QB', stats: { passingYards: 2840, passingTouchdowns: 32, passingInterceptions: 4, passingAttempts: 220, passingCompletions: 162, gamesPlayed: 12, season: '2025' } },
-    ];
-  }
-  return [];
-}
-
-function getMockTeamRankings(state: string): MaxPrepsTeam[] {
-  return [
-    { source: 'maxpreps', name: 'Dallas Elite High', city: 'Dallas', state, record: '12-1', season: '2025' },
-    { source: 'maxpreps', name: 'Plano West', city: 'Plano', state, record: '10-3', season: '2025' },
-    { source: 'maxpreps', name: 'Cedar Hill', city: 'Cedar Hill', state, record: '9-4', season: '2025' },
-  ];
 }

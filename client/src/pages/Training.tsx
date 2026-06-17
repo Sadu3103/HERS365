@@ -61,6 +61,9 @@ export const Training = () => {
   const [statsError, setStatsError] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
+  const [sessionForm, setSessionForm] = useState({ name: '', category: '', duration: '', notes: '' });
+  const [sessionSaving, setSessionSaving] = useState(false);
+  const [sessionSuccess, setSessionSuccess] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [formSaving, setFormSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -116,6 +119,28 @@ export const Training = () => {
       setFormError(err?.message || 'Failed to save. Try again.');
     } finally {
       setFormSaving(false);
+    }
+  };
+
+  const handleSessionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sessionForm.name.trim() || !sessionForm.duration.trim()) return;
+    setSessionSaving(true);
+    setSessionSuccess(false);
+    try {
+      await apiFetch('/api/training/sessions', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: sessionForm.name.trim(),
+          category: sessionForm.category.trim() || 'Personal',
+          duration: Number(sessionForm.duration),
+          notes: sessionForm.notes.trim(),
+        }),
+      });
+      setSessionForm({ name: '', category: '', duration: '', notes: '' });
+      setSessionSuccess(true);
+    } finally {
+      setSessionSaving(false);
     }
   };
 
@@ -399,6 +424,45 @@ export const Training = () => {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Log Personal Session */}
+          <div className="k-card" style={{ padding: '18px 16px' }}>
+            <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555', marginBottom: 14 }}>Log Personal Session</div>
+            <form onSubmit={handleSessionSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <input
+                value={sessionForm.name}
+                onChange={e => setSessionForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="Session name"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 7, color: '#fff', fontSize: '0.82rem', padding: '9px 10px', outline: 'none' }}
+              />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px', gap: 8 }}>
+                <input
+                  value={sessionForm.category}
+                  onChange={e => setSessionForm(f => ({ ...f, category: e.target.value }))}
+                  placeholder="Category"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 7, color: '#fff', fontSize: '0.82rem', padding: '9px 10px', outline: 'none' }}
+                />
+                <input
+                  value={sessionForm.duration}
+                  onChange={e => setSessionForm(f => ({ ...f, duration: e.target.value }))}
+                  placeholder="Minutes"
+                  inputMode="numeric"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 7, color: '#fff', fontSize: '0.82rem', padding: '9px 10px', outline: 'none' }}
+                />
+              </div>
+              <textarea
+                value={sessionForm.notes}
+                onChange={e => setSessionForm(f => ({ ...f, notes: e.target.value }))}
+                placeholder="Notes, reps, or PRs"
+                rows={3}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 7, color: '#fff', fontSize: '0.82rem', padding: '9px 10px', outline: 'none', resize: 'none' }}
+              />
+              <button disabled={sessionSaving || !sessionForm.name.trim() || !sessionForm.duration.trim()} style={{ background: sessionSaving ? '#333' : '#ff5a2d', border: 'none', borderRadius: 7, color: '#fff', fontSize: '0.75rem', fontWeight: 800, padding: '10px 12px', cursor: sessionSaving ? 'not-allowed' : 'pointer', textTransform: 'uppercase' }}>
+                {sessionSaving ? 'Logging...' : 'Log Session'}
+              </button>
+            </form>
+            {sessionSuccess && <div style={{ color: '#64c864', fontSize: '0.78rem', marginTop: 8 }}>Session logged</div>}
           </div>
 
           {/* Quick actions */}

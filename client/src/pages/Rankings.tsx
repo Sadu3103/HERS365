@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Minus, Search, CheckCircle2, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Search, CheckCircle2, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { athleteAvatar } from '../lib/avatar';
 
@@ -39,15 +39,27 @@ export const Rankings = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [pos, setPos] = useState('All');
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [pageSize] = useState(25);
 
   useEffect(() => {
-    fetch('/api/rankings?limit=50')
-      .then(r => r.ok ? r.json() : null)
-      .then(j => {
+    let cancelled = false;
+
+    const loadRankings = async () => {
+      setLoading(true);
+      const params = new URLSearchParams({ limit: String(pageSize), offset: String(page * pageSize) });
+      if (pos !== 'All') params.set('position', pos);
+      if (search.trim()) params.set('search', search.trim());
+
+      try {
+        const res = await fetch(`/api/rankings?${params.toString()}`);
+        const j = res.ok ? await res.json() : null;
+        if (cancelled) return;
         const rows: any[] = j?.data ?? [];
         setPlayers(rows.map((p, i) => ({
           id: p.id,
-          rank: p.rank ?? i + 1,
+          rank: p.rank ?? page * pageSize + i + 1,
           name: p.name,
           school: p.school ?? '',
           position: p.position ?? '–',
@@ -57,16 +69,40 @@ export const Rankings = () => {
           change: p.change ?? 0,
           verified: p.verified ?? p.verificationStatus === 'verified',
         })));
-      })
-      .catch(() => setPlayers([]))
-      .finally(() => setLoading(false));
-  }, []);
+        setTotal(Number(j?.total ?? rows.length));
+      } catch {
+        if (!cancelled) {
+          setPlayers([]);
+          setTotal(0);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadRankings();
+    return () => { cancelled = true; };
+  }, [page, pageSize, pos, search]);
 
   const filtered = players.filter(p => {
     const q = search.toLowerCase();
     return (!q || p.name.toLowerCase().includes(q) || p.school.toLowerCase().includes(q))
       && (pos === 'All' || p.position === pos);
   });
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const start = total === 0 ? 0 : page * pageSize + 1;
+  const end = Math.min(total, (page + 1) * pageSize);
+
+  const updateSearch = (value: string) => {
+    setSearch(value);
+    setPage(0);
+  };
+
+  const updatePosition = (value: string) => {
+    setPos(value);
+    setPage(0);
+  };
 
   const top3 = filtered.slice(0, 3);
 
@@ -140,12 +176,12 @@ export const Rankings = () => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
         <div style={{ position: 'relative' }}>
           <Search size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#444', pointerEvents: 'none' }} />
-          <input type="text" placeholder="Search athletes or schools..." value={search} onChange={e => setSearch(e.target.value)}
+          <input type="text" placeholder="Search athletes or schools..." value={search} onChange={e => updateSearch(e.target.value)}
             style={{ width: '100%', background: '#111', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px 9px 32px', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
         </div>
         <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' as 'auto' }}>
           {positions.map(p => (
-            <button key={p} onClick={() => setPos(p)} style={{
+            <button key={p} onClick={() => updatePosition(p)} style={{
               background: pos === p ? '#ff5a2d' : '#111',
               border: '1px solid',
               borderColor: pos === p ? '#ff5a2d' : 'rgba(255,255,255,0.08)',
@@ -155,6 +191,15 @@ export const Rankings = () => {
               cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0,
             }}>{p}</button>
           ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#555', fontSize: '0.76rem', marginBottom: 12 }}>
+        <span>{total === 0 ? 'No athletes on the board' : `Showing ${start}–${end} of ${total}`}</span>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button disabled={page === 0 || loading} onClick={() => setPage(p => Math.max(0, p - 1))} style={{ background: '#111', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 7, padding: '7px 10px', color: page === 0 || loading ? '#444' : '#fff', cursor: page === 0 || loading ? 'not-allowed' : 'pointer' }}><ChevronLeft size={14} /></button>
+          <span style={{ padding: '7px 4px' }}>Page {page + 1} / {totalPages}</span>
+          <button disabled={page >= totalPages - 1 || loading} onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} style={{ background: '#111', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 7, padding: '7px 10px', color: page >= totalPages - 1 || loading ? '#444' : '#fff', cursor: page >= totalPages - 1 || loading ? 'not-allowed' : 'pointer' }}><ChevronRight size={14} /></button>
         </div>
       </div>
 
