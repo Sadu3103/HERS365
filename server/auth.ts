@@ -1,11 +1,27 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
 import type { Request, Response, NextFunction } from 'express';
 import { isTokenBlocklisted } from './redis';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
-const JWT_EXPIRES = (process.env.JWT_EXPIRES || '7d') as string;
+// [D-05] Access tokens are now short-lived; clients silently renew them with a
+// long-lived refresh token (see /api/auth/refresh). Default 15 minutes.
+const JWT_EXPIRES = (process.env.JWT_EXPIRES || '15m') as string;
+
+// [D-05] Opaque refresh tokens are random strings stored *hashed* in the
+// refresh_tokens table and delivered to the browser in an httpOnly cookie.
+export const REFRESH_TOKEN_TTL_DAYS = Number(process.env.REFRESH_TOKEN_TTL_DAYS) || 30;
+export const REFRESH_TOKEN_TTL_MS = REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000;
+
+export function generateRefreshTokenRaw(): string {
+  return crypto.randomBytes(48).toString('hex');
+}
+
+export function hashRefreshToken(raw: string): string {
+  return crypto.createHash('sha256').update(raw).digest('hex');
+}
 
 // [D-06] Seconds remaining before a token expires — used to set the blocklist
 // TTL on logout so the entry self-expires when the token would have anyway.

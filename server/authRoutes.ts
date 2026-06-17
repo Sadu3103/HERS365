@@ -44,6 +44,58 @@ async function findUserByEmail(email: string, role: auth.UserRole): Promise<Foun
   return { id: row.id, email: row.email, passwordHash: row.passwordHash, name: row.name, role: 'athlete' };
 }
 
+async function findUserById(id: number, role: auth.UserRole): Promise<FoundUser | null> {
+  if (role === 'coach') {
+    const [row] = await db.select().from(schema.coaches).where(eq(schema.coaches.id, id)).limit(1);
+    return row ? { id: row.id, email: row.email, passwordHash: row.passwordHash, name: row.name ?? '', role: 'coach' } : null;
+  }
+  if (role === 'parent') {
+    const [row] = await db.select().from(schema.parents).where(eq(schema.parents.id, id)).limit(1);
+    return row ? { id: row.id, email: row.email, passwordHash: row.passwordHash, name: row.name, role: 'parent' } : null;
+  }
+  const [row] = await db.select().from(schema.players).where(eq(schema.players.id, id)).limit(1);
+  return row ? { id: row.id, email: row.email, passwordHash: row.passwordHash, name: row.name, role: 'athlete' } : null;
+}
+
+// ─── [D-05] Refresh-token helpers ─────────────────────────────────────────────
+const REFRESH_COOKIE = 'refreshToken';
+const REFRESH_COOKIE_PATH = '/api/auth';
+
+function refreshCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    path: REFRESH_COOKIE_PATH,
+    maxAge: auth.REFRESH_TOKEN_TTL_MS,
+  };
+}
+
+// Issue a fresh refresh token: persist its hash, set the httpOnly cookie.
+async function issueRefreshCookie(res: express.Response, req: express.Request, userId: number, role: auth.UserRole): Promise<void> {
+  const raw = auth.generateRefreshTokenRaw();
+  await db.insert(schema.refreshTokens).values({
+    userId,
+    userType: role,
+    tokenHash: auth.hashRefreshToken(raw),
+    expiresAt: new Date(Date.now() + auth.REFRESH_TOKEN_TTL_MS),
+    ipAddress: req.ip ?? null,
+    userAgent: (req.headers['user-agent'] as string) ?? null,
+  });
+  res.cookie(REFRESH_COOKIE, raw, refreshCookieOptions());
+}
+
+// Read the refresh token out of the Cookie header without needing cookie-parser.
+function readRefreshCookie(req: express.Request): string | null {
+  const raw = req.headers.cookie;
+  if (!raw) return null;
+  for (const part of raw.split(';')) {
+    const [k, ...v] = part.trim().split('=');
+    if (k === REFRESH_COOKIE) return decodeURIComponent(v.join('='));
+  }
+  return null;
+}
+
 // ─── POST /api/auth/register ──────────────────────────────────────────────────
 
 router.post('/register', async (req, res) => {
@@ -88,6 +140,7 @@ router.post('/register', async (req, res) => {
     }
 
     const token = auth.signToken({ userId, email: normalEmail, role: userRole, name: name as string });
+    await issueRefreshCookie(res, req, userId, userRole);
     res.status(201).json({ token, user: { id: userId, email: normalEmail, name, role: userRole } });
   } catch (err: any) {
     console.error('[auth/register]', err);
@@ -115,6 +168,7 @@ router.post('/login', loginLimiter, async (req, res) => {
   }
 
   const token = auth.signToken({ userId: user.id, email: user.email, role: user.role, name: user.name });
+  await issueRefreshCookie(res, req, user.id, user.role);
   res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
 });
 
@@ -134,6 +188,7 @@ router.post('/coach/login', loginLimiter, async (req, res) => {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
   const token = auth.signToken({ userId: user.id, email: user.email, role: 'coach', name: user.name });
+  await issueRefreshCookie(res, req, user.id, 'coach');
   res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: 'coach' } });
 });
 
@@ -159,6 +214,7 @@ router.post('/coach/register', async (req, res) => {
       division: (division as string) || 'D1',
     }).returning({ id: schema.coaches.id });
     const token = auth.signToken({ userId: row.id, email: normalEmail, role: 'coach', name: name as string });
+    await issueRefreshCookie(res, req, row.id, 'coach');
     res.status(201).json({ token, user: { id: row.id, email: normalEmail, name, role: 'coach' } });
   } catch (err: any) {
     console.error('[auth/coach/register]', err);
@@ -207,6 +263,7 @@ router.post('/google', loginLimiter, async (req, res) => {
     }
 
     const token = auth.signToken({ userId: user.id, email: user.email, role: user.role, name: user.name });
+    await issueRefreshCookie(res, req, user.id, user.role);
     res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
   } catch (err: any) {
     console.error('[auth/google]', err);
@@ -214,6 +271,47 @@ router.post('/google', loginLimiter, async (req, res) => {
       return res.status(401).json({ error: 'Invalid Google credential' });
     }
     res.status(500).json({ error: 'Google authentication failed' });
+  }
+});
+
+// ─── POST /api/auth/refresh ───────────────────────────────────────────────────
+
+// [D-05] Exchange a valid refresh-token cookie for a new short-lived access
+// token. Rotates the refresh token (revokes the old, issues a new one) so a
+// stolen refresh token is single-use.
+router.post('/refresh', async (req, res) => {
+  const raw = readRefreshCookie(req);
+  if (!raw) return res.status(401).json({ error: 'No refresh token' });
+
+  try {
+    const [row] = await db
+      .select()
+      .from(schema.refreshTokens)
+      .where(eq(schema.refreshTokens.tokenHash, auth.hashRefreshToken(raw)))
+      .limit(1);
+
+    if (!row || row.isRevoked || new Date(row.expiresAt) <= new Date()) {
+      res.clearCookie(REFRESH_COOKIE, { path: REFRESH_COOKIE_PATH });
+      return res.status(401).json({ error: 'Invalid or expired refresh token' });
+    }
+
+    const user = await findUserById(row.userId, row.userType as auth.UserRole);
+    if (!user) {
+      return res.status(401).json({ error: 'Account no longer exists' });
+    }
+
+    // Rotate: revoke the used token, issue a fresh one.
+    await db
+      .update(schema.refreshTokens)
+      .set({ isRevoked: true, revokedAt: new Date(), revokedReason: 'rotated', lastUsedAt: new Date() })
+      .where(eq(schema.refreshTokens.id, row.id));
+    await issueRefreshCookie(res, req, user.id, user.role);
+
+    const token = auth.signToken({ userId: user.id, email: user.email, role: user.role, name: user.name });
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+  } catch (err) {
+    console.error('[auth/refresh]', err);
+    res.status(500).json({ error: 'Token refresh failed' });
   }
 });
 
@@ -225,10 +323,10 @@ router.get('/me', auth.requireAuth, (req, res) => {
 
 // ─── POST /api/auth/logout ────────────────────────────────────────────────────
 
-// [D-06] Real server-side logout: add the presented token to the Redis blocklist
-// (TTL = its remaining lifetime) so it can no longer be used even though it's
-// otherwise still within its expiry window. requireAuth rejects blocklisted
-// tokens. Also clears the refresh-token cookie if one is present.
+// [D-06] Blocklist the presented access token (TTL = its remaining lifetime) so
+//        it can't be reused before expiry. requireAuth rejects blocklisted tokens.
+// [D-05] Also revoke the refresh token so it can't mint new access tokens, and
+//        clear the cookie.
 router.post('/logout', auth.requireAuth, async (req, res) => {
   const header = req.headers.authorization ?? '';
   const [, token] = header.split(' ');
@@ -239,7 +337,20 @@ router.post('/logout', auth.requireAuth, async (req, res) => {
     console.error('[auth/logout] blocklist failed:', err);
     // Don't fail the logout — the client still drops its token.
   }
-  res.clearCookie('refreshToken', { httpOnly: true, sameSite: 'lax' });
+
+  const raw = readRefreshCookie(req);
+  if (raw) {
+    try {
+      await db
+        .update(schema.refreshTokens)
+        .set({ isRevoked: true, revokedAt: new Date(), revokedReason: 'user_logout' })
+        .where(eq(schema.refreshTokens.tokenHash, auth.hashRefreshToken(raw)));
+    } catch (err) {
+      console.error('[auth/logout] refresh revoke failed:', err);
+    }
+  }
+
+  res.clearCookie(REFRESH_COOKIE, { path: REFRESH_COOKIE_PATH });
   res.json({ success: true });
 });
 
