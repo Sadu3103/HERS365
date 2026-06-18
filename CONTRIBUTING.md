@@ -23,10 +23,10 @@ cd HERS365
 ```bash
 cd server
 npm install
-cp ../.env.example .env       # fill in your values (see below)
-npm run db:migrate            # apply tracked schema migrations
-npm run seed                  # seed dev data
-npm run dev                   # starts on :4000
+cp .env.example .env          # pre-filled with working dev defaults, no changes needed
+npx drizzle-kit push          # run schema migrations
+npm run db:seed               # seed dev data + create test accounts
+npm run dev:core              # starts on :4000
 ```
 
 **Client** (new terminal)
@@ -40,20 +40,22 @@ App is live at `http://localhost:5173`
 
 ---
 
-## Minimum env vars to run locally
+## Test accounts (created by db:seed)
 
-Create `server/.env`:
+All passwords are `hers365`.
 
-```
-DATABASE_URL=postgres://localhost:5432/hers365
-JWT_SECRET=any-random-string-32-chars-min
-SESSION_SECRET=another-random-string
-STRIPE_SECRET_KEY=sk_test_...       # from dashboard.stripe.com
-STRIPE_WEBHOOK_SECRET=whsec_...     # from Stripe CLI: stripe listen
-STRIPE_PRO_PRICE_ID=price_...       # create a product in Stripe dashboard
-```
+| Role | Email |
+|---|---|
+| Athlete | maya@hers365.com |
+| Athlete | jordan@hers365.com |
+| Athlete | aaliyah@hers365.com |
+| Coach | coach@hers365.com |
 
-OAuth (Google/GitHub) is optional for local dev — email/password auth works without it.
+---
+
+## Why `dev:core` not `dev`?
+
+`npm run dev` boots the full enterprise server (Azure Cosmos, Service Bus, compliance) and crashes immediately without real Azure credentials. `dev:core` is the lean REST API + Postgres — the only one that works locally.
 
 ---
 
