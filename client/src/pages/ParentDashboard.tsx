@@ -191,7 +191,16 @@ export const ParentDashboard = () => {
             ) : (
               <div style={{ display: 'grid', gap: 12, marginBottom: 20 }}>
                 {children.length === 0 ? (
-                  <div style={{ color: MUTED_2, fontSize: '0.85rem', padding: '24px 0' }}>No athletes linked to your account.</div>
+                  <div style={{ textAlign: 'center', padding: '40px 24px', border: `1px dashed ${LINE}`, borderRadius: 14 }}>
+                    <Users size={32} color={MUTED_2} style={{ marginBottom: 14, opacity: 0.6 }} />
+                    <div style={{ fontFamily: DISP, fontSize: '1.15rem', fontWeight: 800, color: '#e0e0de', textTransform: 'uppercase', letterSpacing: '0.02em', marginBottom: 6 }}>Link your athlete</div>
+                    <p style={{ color: MUTED, fontSize: '0.85rem', maxWidth: 360, margin: '0 auto 18px', lineHeight: 1.55 }}>
+                      Connect your daughter's HERS365 profile to stay updated on her stats, highlights, and coach communication.
+                    </p>
+                    <a href="/settings/link-athlete" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 22px', background: FLAME, color: '#fff', borderRadius: 10, fontSize: '0.82rem', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', textDecoration: 'none' }}>
+                      Link Athlete <ChevronRight size={14} />
+                    </a>
+                  </div>
                 ) : children.map((c) => {
                   const snap = snapshots[c.id];
                   return (
