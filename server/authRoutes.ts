@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import { db } from './db';
 import * as schema from './schema';
 import * as auth from './auth';
+import { blocklistToken } from './redis';
 
 const router = express.Router();
 
@@ -234,8 +235,21 @@ router.get('/me', auth.requireAuth, (req, res) => {
 
 // ─── POST /api/auth/logout ────────────────────────────────────────────────────
 
-router.post('/logout', (_req, res) => {
-  // JWT is stateless — client drops the token. Nothing to do server-side.
+// [D-06] Real server-side logout: add the presented token to the Redis blocklist
+// (TTL = its remaining lifetime) so it can no longer be used even though it's
+// otherwise still within its expiry window. requireAuth rejects blocklisted
+// tokens. Also clears the refresh-token cookie if one is present.
+router.post('/logout', auth.requireAuth, async (req, res) => {
+  const header = req.headers.authorization ?? '';
+  const [, token] = header.split(' ');
+  try {
+    const ttl = auth.getTokenTtlSeconds(token);
+    if (ttl > 0) await blocklistToken(token, ttl);
+  } catch (err) {
+    console.error('[auth/logout] blocklist failed:', err);
+    // Don't fail the logout — the client still drops its token.
+  }
+  res.clearCookie('refreshToken', { httpOnly: true, sameSite: 'lax' });
   res.json({ success: true });
 });
 
