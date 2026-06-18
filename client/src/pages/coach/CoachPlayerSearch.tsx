@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Filter, Eye, Star, MapPin, GraduationCap, Award, Users, Heart } from 'lucide-react';
+import { Search, Filter, Eye, Star, MapPin, GraduationCap, Award, Users, Heart, Navigation, Flame, Zap } from 'lucide-react';
 import type { PlayerSearchResult } from '../../types';
 import { useNotifications } from '../../context/NotificationContext';
 
@@ -42,7 +42,38 @@ export function CoachPlayerSearch() {
   const [filters, setFilters] = useState<SearchFilters>({});
   const [showFilters, setShowFilters] = useState(false);
   const [savedPlayers, setSavedPlayers] = useState<Set<number>>(new Set());
+  const [coachState, setCoachState] = useState<string>('');
   const { showNotification } = useNotifications();
+
+  // Pull the coach's recruiting state once so we can offer a one-tap "Near Me"
+  // chip — Elena's #1 pain point is finding local athletes fast.
+  useEffect(() => {
+    const token = localStorage.getItem('coachToken');
+    if (!token) return;
+    fetch('/api/coaches/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const states = d?.data?.recruitingStates || d?.recruitingStates;
+        if (typeof states === 'string' && states.length >= 2) setCoachState(states.split(',')[0].trim());
+      })
+      .catch(() => {});
+  }, []);
+
+  const currentYear = new Date().getFullYear();
+  const isChipActive = (chipFilters: Partial<SearchFilters>) =>
+    Object.entries(chipFilters).every(([k, v]) => filters[k as keyof SearchFilters] === v);
+  const applyChip = (chipFilters: Partial<SearchFilters>) => {
+    // Toggle: if all chip filters already match, clear them; otherwise apply.
+    if (isChipActive(chipFilters)) {
+      setFilters(f => {
+        const next = { ...f };
+        for (const k of Object.keys(chipFilters)) delete next[k as keyof SearchFilters];
+        return next;
+      });
+    } else {
+      setFilters(f => ({ ...f, ...chipFilters }));
+    }
+  };
 
   useEffect(() => {
     searchPlayers();
@@ -150,6 +181,43 @@ export function CoachPlayerSearch() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Quick-action chips — one tap to common coach searches */}
+        <div className="mb-4 flex flex-wrap gap-2">
+          {([
+            coachState ? { key: 'near', label: `Near Me · ${coachState}`, icon: <Navigation className="w-3.5 h-3.5" />, filters: { state: coachState } } : null,
+            { key: 'class', label: `Class of ${currentYear + 1}`, icon: <GraduationCap className="w-3.5 h-3.5" />, filters: { gradYear: String(currentYear + 1) } },
+            { key: 'top', label: 'Top Rated (80+)', icon: <Flame className="w-3.5 h-3.5" />, filters: { minBreakoutScore: '80' } },
+            { key: 'verified', label: 'Verified Only', icon: <Award className="w-3.5 h-3.5" />, filters: { verified: true } as Partial<SearchFilters> },
+            { key: 'qb', label: 'QBs', icon: <Zap className="w-3.5 h-3.5" />, filters: { position: 'QB' } },
+            { key: 'wr', label: 'WRs', icon: <Zap className="w-3.5 h-3.5" />, filters: { position: 'WR' } },
+            { key: 'rb', label: 'RBs', icon: <Zap className="w-3.5 h-3.5" />, filters: { position: 'RB' } },
+          ].filter(Boolean) as Array<{ key: string; label: string; icon: React.ReactNode; filters: Partial<SearchFilters> }>).map(chip => {
+            const active = isChipActive(chip.filters);
+            return (
+              <button
+                key={chip.key}
+                onClick={() => applyChip(chip.filters)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                  active
+                    ? 'bg-blue-600 text-white border border-blue-500'
+                    : 'bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700'
+                }`}
+              >
+                {chip.icon}
+                {chip.label}
+              </button>
+            );
+          })}
+          {Object.keys(filters).length > 0 && (
+            <button
+              onClick={() => setFilters({})}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-gray-400 hover:text-white transition-colors"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
+
         {/* Search Bar */}
         <div className="mb-6">
           <div className="flex gap-4">

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Filter, Bookmark, BookmarkCheck, X, Send, MapPin,
   Users, Award, Mail, ChevronDown, CheckCircle2, RefreshCw,
+  Sparkles, Navigation, Trophy, ArrowUpDown, Flame,
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
@@ -37,21 +38,100 @@ interface Coach {
 }
 
 const divisions     = ['All', 'NCAA D1', 'NCAA D2', 'NCAA D3', 'NAIA', 'JUCO'];
-const stateOptions  = ['All', 'California', 'Florida', 'Georgia', 'Kansas', 'Missouri', 'Texas'];
-const conferences   = ['All', 'ACC', 'ASC', 'Big 12', 'GSAC', 'HAAC', 'OVC', 'PCAC', 'SAC'];
 const sizes         = ['All', 'Small', 'Medium', 'Large'];
 const positions     = FLAG_POSITIONS;
 
+// Deterministic gradient per program so each school reads as its own "brand"
+// instead of identical grey boxes. Hue derived from the name.
+function hueOf(name: string): number {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return h % 360;
+}
+
 function ProgramAvatar({ name }: { name: string }) {
+  const hue = hueOf(name);
   return (
     <div style={{
-      width: 48, height: 48, borderRadius: 12, background: 'rgba(255,90,45,0.12)',
-      border: '1px solid rgba(255,90,45,0.25)', display: 'flex', alignItems: 'center',
-      justifyContent: 'center', flexShrink: 0,
+      width: 48, height: 48, borderRadius: 12,
+      background: `linear-gradient(135deg, hsl(${hue} 60% 32%), hsl(${(hue + 35) % 360} 65% 20%))`,
+      border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center',
+      justifyContent: 'center', flexShrink: 0, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)',
     }}>
-      <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.1rem', color: '#ff5a2d' }}>
+      <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.1rem', color: '#fff' }}>
         {name.split(' ').map(w => w[0]).slice(0, 2).join('')}
       </span>
+    </div>
+  );
+}
+
+interface AthleteFit { state: string; position: string; gpa: number | null; }
+
+interface FitResult { score: number; reasons: string[]; }
+
+// Fit score = how well a program matches THIS athlete. Recruiting should tell
+// her where to spend effort, not show every school as equally relevant. Each
+// factor is derived from real athlete + program data, no subscription proxy.
+function computeFit(program: Program, athlete: AthleteFit | null): FitResult {
+  if (!athlete) return { score: 0, reasons: [] };
+  let score = 48; // neutral baseline
+  const reasons: string[] = [];
+
+  // Location — "talent near you". Same state is a real recruiting advantage
+  // (travel, in-state tuition, local visibility).
+  if (athlete.state && program.state === athlete.state) {
+    score += 24;
+    reasons.push('In your state');
+  }
+
+  // Scholarships — universally valuable to a recruit. Weighted up further when
+  // the school is also affordable in-state (best aid + cost combination).
+  if (program.hasScholarships) {
+    score += 16;
+    reasons.push('Offers scholarships');
+    if (program.tuitionInState <= 20000) { score += 6; reasons.push('Affordable'); }
+  }
+
+  // Academic fit — a strong GPA opens doors; surface schools where she clears
+  // the bar comfortably. (Programs don't expose a GPA floor, so this rewards
+  // academically-strong athletes broadly rather than gating them out.)
+  if (athlete.gpa != null) {
+    if (athlete.gpa >= 3.5) { score += 8; reasons.push('Strong academic match'); }
+    else if (athlete.gpa >= 3.0) { score += 4; }
+  }
+
+  // Actively recruiting — bigger recent classes mean more open spots.
+  if (program.athletesRecruited >= 40) { score += 10; reasons.push('Actively recruiting'); }
+  else if (program.athletesRecruited >= 24) { score += 5; }
+
+  // Winning program — a nod to ambition (Olivia wants to get noticed).
+  const wins = parseInt(program.winRecord.split('-')[0], 10) || 0;
+  const losses = parseInt(program.winRecord.split('-')[1], 10) || 0;
+  if (wins + losses > 0 && wins / (wins + losses) >= 0.7) { score += 8; reasons.push('Winning program'); }
+
+  return { score: Math.max(0, Math.min(99, Math.round(score))), reasons };
+}
+
+function fitColor(score: number): string {
+  if (score >= 80) return '#4ade80';
+  if (score >= 65) return '#ff5a2d';
+  return '#888';
+}
+
+function FitRing({ score }: { score: number }) {
+  const color = fitColor(score);
+  const r = 18, c = 2 * Math.PI * r;
+  return (
+    <div style={{ position: 'relative', width: 46, height: 46, flexShrink: 0 }}>
+      <svg width={46} height={46} style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={23} cy={23} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={3.5} />
+        <circle cx={23} cy={23} r={r} fill="none" stroke={color} strokeWidth={3.5}
+          strokeDasharray={c} strokeDashoffset={c - (score / 100) * c} strokeLinecap="round" />
+      </svg>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '0.92rem', color, lineHeight: 1 }}>{score}</span>
+        <span style={{ fontSize: '0.42rem', fontWeight: 700, letterSpacing: '0.08em', color: '#555', textTransform: 'uppercase' }}>fit</span>
+      </div>
     </div>
   );
 }
@@ -92,6 +172,7 @@ export const Recruiting = () => {
   const [filterSize, setFilterSize]       = useState(searchParams.get('size') || 'All');
   const [showFilters, setShowFilters]     = useState(false);
   const [activeTab, setActiveTab]         = useState<'browse' | 'saved'>('browse');
+  const [sortBy, setSortBy]               = useState<'fit' | 'name'>('fit');
 
   const [programs, setPrograms]   = useState<Program[]>([]);
   const [loading, setLoading]     = useState(true);
@@ -99,6 +180,7 @@ export const Recruiting = () => {
 
   const [savedSchools, setSavedSchools]       = useState<Set<number>>(new Set());
   const [appliedPrograms, setAppliedPrograms] = useState<Set<number>>(new Set());
+  const [coachConversations, setCoachConversations] = useState(0);
 
   const [coachModal, setCoachModal] = useState<{ open: boolean; coach: Coach | null; program: Program | null }>({
     open: false, coach: null, program: null,
@@ -112,6 +194,7 @@ export const Recruiting = () => {
     open: false, program: null,
   });
   const [profile, setProfile] = useState<{ name: string; gradYear: string }>({ name: '', gradYear: '' });
+  const [athleteFit, setAthleteFit] = useState<AthleteFit | null>(null);
   const [applyForm, setApplyForm] = useState({ position: '', note: '' });
   const [applySubmitting, setApplySubmitting] = useState(false);
   const [applySubmitted, setApplySubmitted]   = useState(false);
@@ -164,9 +247,19 @@ export const Recruiting = () => {
     apiFetch<{ data: { programId: number }[] }>('/api/programs/me/applications')
       .then(res => setAppliedPrograms(new Set(res.data.map(a => a.programId))))
       .catch(() => {});
-    apiFetch<{ data: { name?: string; gradYear?: number; position?: string } }>(`/api/athletes/${user.id}`)
+    // "In Conversation" — one row per coach the athlete is messaging.
+    apiFetch<{ data: { partnerRole?: string }[] }>('/api/messages/conversations')
+      .then(res => setCoachConversations((res.data || []).filter(c => (c.partnerRole || 'coach') === 'coach').length))
+      .catch(() => {});
+    apiFetch<{ data: { name?: string; gradYear?: number; position?: string; state?: string; gpa?: string; subscriptionTier?: string } }>(`/api/athletes/${user.id}`)
       .then(res => {
         setProfile({ name: res.data.name || user.name, gradYear: res.data.gradYear ? String(res.data.gradYear) : '' });
+        const gpaNum = res.data.gpa ? parseFloat(res.data.gpa) : NaN;
+        setAthleteFit({
+          state: res.data.state || '',
+          position: res.data.position || '',
+          gpa: Number.isFinite(gpaNum) ? gpaNum : null,
+        });
         if (res.data.position && positions.includes(res.data.position)) {
           setApplyForm(f => (f.position ? f : { ...f, position: res.data.position! }));
         }
@@ -174,8 +267,20 @@ export const Recruiting = () => {
       .catch(() => setProfile({ name: user.name, gradYear: '' }));
   }, [isAuthenticated, user]);
 
-  const savedPrograms   = programs.filter(p => savedSchools.has(p.id));
-  const displayPrograms = activeTab === 'browse' ? programs : savedPrograms;
+  // State / conference lists are derived from the actual program catalog so
+  // they grow with the scraper instead of needing manual updates.
+  const stateOptions = ['All', ...Array.from(new Set(programs.map(p => p.state).filter(Boolean))).sort()];
+  const conferences  = ['All', ...Array.from(new Set(programs.map(p => p.conference).filter(c => c && c !== 'Unknown'))).sort()];
+
+  // Attach a fit result to each program, then sort. Default sort is best-fit so
+  // the highest-signal schools surface first instead of a flat alphabetical list.
+  const withFit = programs.map(p => ({ program: p, fit: computeFit(p, athleteFit) }));
+  const sorted = [...withFit].sort((a, b) =>
+    sortBy === 'fit' ? b.fit.score - a.fit.score : a.program.name.localeCompare(b.program.name)
+  );
+  const savedSorted     = sorted.filter(x => savedSchools.has(x.program.id));
+  const displayPrograms = activeTab === 'browse' ? sorted : savedSorted;
+  const topFitId        = sortBy === 'fit' && athleteFit && sorted.length > 0 && sorted[0].fit.score >= 65 ? sorted[0].program.id : null;
 
   const toggleSave = async (programId: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -331,12 +436,43 @@ export const Recruiting = () => {
   return (
     <div style={{ padding: '24px', maxWidth: 1100, margin: '0 auto' }}>
 
-      {/* Header */}
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '2rem', textTransform: 'uppercase', color: '#fff', marginBottom: 4 }}>
-          College Recruiting
-        </h1>
-        <p style={{ color: '#555', fontSize: '0.85rem' }}>Explore flag football programs, connect with coaches, and apply to schools</p>
+      {/* Hero header */}
+      <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 16, marginBottom: 18, padding: '26px 24px', background: 'linear-gradient(120deg, #1a0d08 0%, #0d0d0d 55%)', border: '1px solid rgba(255,90,45,0.18)' }}>
+        <div style={{ position: 'absolute', top: -60, right: -40, width: 260, height: 260, background: 'radial-gradient(circle, rgba(255,90,45,0.18) 0%, transparent 65%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+            <Flame size={15} color="#ff5a2d" />
+            <span style={{ fontSize: '0.66rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#ff5a2d' }}>Your Recruiting Journey</span>
+          </div>
+          <h1 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '2.1rem', textTransform: 'uppercase', color: '#fff', marginBottom: 4, lineHeight: 1 }}>
+            College Recruiting
+          </h1>
+          <p style={{ color: '#999', fontSize: '0.85rem', maxWidth: 520 }}>
+            {athleteFit?.state
+              ? `Schools ranked by fit for you${athleteFit.position ? ` · ${athleteFit.position}` : ''}${athleteFit.state ? ` · ${athleteFit.state}` : ''}`
+              : 'Explore flag football programs, connect with coaches, and apply to schools'}
+          </p>
+
+          {/* Pipeline funnel — gives Olivia (and her mom) the journey view */}
+          <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
+            {[
+              { label: 'Saved', value: savedSchools.size, icon: <Bookmark size={13} />, color: '#ff5a2d' },
+              { label: 'Applied', value: appliedPrograms.size, icon: <Send size={13} />, color: '#fbbf24' },
+              { label: 'In Conversation', value: coachConversations, icon: <Mail size={13} />, color: '#4ade80' },
+            ].map((s, idx, arr) => (
+              <React.Fragment key={s.label}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '9px 14px', minWidth: 116 }}>
+                  <div style={{ color: s.color, display: 'flex' }}>{s.icon}</div>
+                  <div>
+                    <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.3rem', color: '#fff', lineHeight: 1 }}>{s.value}</div>
+                    <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#666', marginTop: 2 }}>{s.label}</div>
+                  </div>
+                </div>
+                {idx < arr.length - 1 && <ChevronDown size={14} color="#444" style={{ transform: 'rotate(-90deg)', alignSelf: 'center' }} />}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -440,9 +576,12 @@ export const Recruiting = () => {
           )}
         </span>
         {activeTab === 'browse' && (
-          <span style={{ fontSize: '0.78rem', color: '#555' }}>
-            {savedSchools.size} saved · {appliedPrograms.size} applied
-          </span>
+          <button
+            onClick={() => setSortBy(s => (s === 'fit' ? 'name' : 'fit'))}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 7, padding: '5px 11px', color: '#888', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            <ArrowUpDown size={12} /> Sort: {sortBy === 'fit' ? 'Best Fit' : 'Name'}
+          </button>
         )}
       </div>
 
@@ -461,13 +600,21 @@ export const Recruiting = () => {
       {/* Program Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
         {loading && !loadError && Array.from({ length: 4 }, (_, i) => <SkeletonCard key={i} />)}
-        {!loading && !loadError && displayPrograms.map((program, i) => {
+        {!loading && !loadError && displayPrograms.map(({ program, fit }, i) => {
           const isSaved   = savedSchools.has(program.id);
           const isApplied = appliedPrograms.has(program.id);
+          const isTopFit  = program.id === topFitId;
 
           return (
             <motion.div key={program.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
-              className="k-card-hover" style={{ padding: '18px 18px 14px', position: 'relative' }}>
+              className="k-card-hover" style={{ padding: '18px 18px 14px', position: 'relative', border: isTopFit ? '1px solid rgba(74,222,128,0.35)' : undefined, boxShadow: isTopFit ? '0 0 0 1px rgba(74,222,128,0.12), 0 8px 28px rgba(74,222,128,0.06)' : undefined }}>
+
+              {/* Best Fit ribbon */}
+              {isTopFit && (
+                <div style={{ position: 'absolute', top: 0, left: 18, transform: 'translateY(-50%)', background: '#4ade80', color: '#062b12', fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '3px 9px', borderRadius: 5, display: 'flex', alignItems: 'center', gap: 4, boxShadow: '0 4px 12px rgba(74,222,128,0.3)' }}>
+                  <Sparkles size={9} /> Best Fit
+                </div>
+              )}
 
               {/* Save button */}
               <button onClick={e => toggleSave(program.id, e)} style={{
@@ -489,7 +636,20 @@ export const Recruiting = () => {
                     <span style={{ fontSize: '0.72rem', color: '#555' }}>{program.city}, {program.state}</span>
                   </div>
                 </div>
+                {athleteFit && <FitRing score={fit.score} />}
               </div>
+
+              {/* Why-it-fits reasons */}
+              {athleteFit && fit.reasons.length > 0 && (
+                <div style={{ display: 'flex', gap: 5, marginBottom: 10, flexWrap: 'wrap' }}>
+                  {fit.reasons.slice(0, 3).map(r => (
+                    <span key={r} style={{ display: 'flex', alignItems: 'center', gap: 3, background: 'rgba(74,222,128,0.08)', color: '#4ade80', fontSize: '0.64rem', fontWeight: 600, padding: '2px 7px', borderRadius: 20 }}>
+                      {r === 'In your state' ? <Navigation size={8} /> : r === 'Winning program' ? <Trophy size={8} /> : r === 'Actively recruiting' ? <Flame size={8} /> : <Award size={8} />}
+                      {r}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {/* Badges row */}
               <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>

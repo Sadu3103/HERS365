@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Users, MessageSquare, Activity, Bell, CheckCircle2, XCircle, ChevronRight, Lock } from 'lucide-react';
+import { Shield, Users, MessageSquare, Activity, Bell, CheckCircle2, XCircle, ChevronRight, Lock, Trophy, Film, TrendingUp, Sparkles } from 'lucide-react';
 
 const FLAME = '#ff5a2d';
 const LINE = 'rgba(255,255,255,0.07)';
@@ -16,6 +16,15 @@ type Tab = 'overview' | 'messages' | 'activity' | 'settings';
 type Child = { id: number; name: string; age: number | null; school: string | null; position: string | null; gradYear: number | null };
 type PendingMsg = { id: number; from: string; role: string; org: string; preview: string; child: string; createdAt: string };
 type ActivityItem = { text: string; ts: string; type: 'message' };
+type ChildSnapshot = {
+  childId: number;
+  childName: string;
+  rank: number | null;
+  score: number | null;
+  lastHighlight: { videoUrl: string | null; thumbnailUrl: string | null; createdAt: string } | null;
+  lastGame: { passingYards: number | null; rushingYards: number | null; receivingYards: number | null; flagPulls: number | null } | null;
+  applicationCount: number;
+};
 
 const SETTING_DEFS = [
   { label: 'Email Notifications', desc: 'Get emailed when a coach sends a message request', defaultOn: true },
@@ -62,6 +71,7 @@ export const ParentDashboard = () => {
   const [children, setChildren] = useState<Child[]>([]);
   const [requests, setRequests] = useState<PendingMsg[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [snapshots, setSnapshots] = useState<Record<number, ChildSnapshot>>({});
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<number | null>(null);
   const [recentActions, setRecentActions] = useState<{ id: number; from: string; action: 'approved' | 'rejected' }[]>([]);
@@ -77,6 +87,35 @@ export const ParentDashboard = () => {
       if (cData.success) setChildren(cData.data);
       if (rData.success) setRequests(rData.data);
       if (aData.success) setActivity(aData.data);
+
+      // For each child, pull a "what's new" snapshot so Maya doesn't have to
+      // hunt across tabs to see how her daughter is doing this week.
+      if (cData.success && Array.isArray(cData.data)) {
+        const snaps = await Promise.all(cData.data.map(async (c: Child): Promise<ChildSnapshot | null> => {
+          try {
+            const [rankRes, hlRes, statRes] = await Promise.all([
+              fetch(`/api/rankings?playerId=${c.id}`).then(r => r.ok ? r.json() : null).catch(() => null),
+              fetch(`/api/players/${c.id}/highlights`).then(r => r.ok ? r.json() : null).catch(() => null),
+              fetch(`/api/players/${c.id}/stats`).then(r => r.ok ? r.json() : null).catch(() => null),
+            ]);
+            const ranked = Array.isArray(rankRes?.data) ? rankRes.data.find((p: any) => p.id === c.id) : null;
+            const highlights = Array.isArray(hlRes) ? hlRes : [];
+            const stats = Array.isArray(statRes) ? statRes : [];
+            return {
+              childId: c.id,
+              childName: c.name,
+              rank: ranked?.rank ?? null,
+              score: ranked?.rating ?? null,
+              lastHighlight: highlights[0] ? { videoUrl: highlights[0].videoUrl, thumbnailUrl: highlights[0].thumbnailUrl, createdAt: highlights[0].createdAt } : null,
+              lastGame: stats[stats.length - 1] || null,
+              applicationCount: 0,
+            };
+          } catch { return null; }
+        }));
+        const map: Record<number, ChildSnapshot> = {};
+        for (const s of snaps) { if (s) map[s.childId] = s; }
+        setSnapshots(map);
+      }
     } catch (err) {
       console.error('[ParentDashboard] fetch error', err);
     } finally {
@@ -153,7 +192,9 @@ export const ParentDashboard = () => {
               <div style={{ display: 'grid', gap: 12, marginBottom: 20 }}>
                 {children.length === 0 ? (
                   <div style={{ color: MUTED_2, fontSize: '0.85rem', padding: '24px 0' }}>No athletes linked to your account.</div>
-                ) : children.map((c) => (
+                ) : children.map((c) => {
+                  const snap = snapshots[c.id];
+                  return (
                   <div key={c.id} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 14, padding: '18px 20px' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                       <div>
@@ -162,12 +203,54 @@ export const ParentDashboard = () => {
                           {[c.position, c.school, c.gradYear ? `Class of ${c.gradYear}` : null].filter(Boolean).join(' · ')}
                         </div>
                       </div>
-                      {c.age != null && (
+                      {snap?.score != null ? (
+                        <div style={{ background: `${FLAME}15`, border: `1px solid ${FLAME}40`, borderRadius: 8, padding: '6px 12px', textAlign: 'center', flexShrink: 0 }}>
+                          <div style={{ fontFamily: DISP, fontSize: '1.3rem', fontWeight: 900, color: FLAME, lineHeight: 1 }}>{snap.score}</div>
+                          <div style={{ fontSize: '0.55rem', color: MUTED, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 2 }}>Score</div>
+                        </div>
+                      ) : c.age != null && (
                         <div style={{ background: `${FLAME}15`, border: `1px solid ${FLAME}40`, borderRadius: 8, padding: '6px 10px', textAlign: 'center', flexShrink: 0 }}>
                           <div style={{ fontFamily: DISP, fontSize: '1.1rem', fontWeight: 900, color: FLAME }}>Age {c.age}</div>
                         </div>
                       )}
                     </div>
+
+                    {/* What's new — the missing-update fix for Maya */}
+                    {snap && (snap.rank || snap.lastHighlight || snap.lastGame) && (
+                      <div style={{ marginTop: 14, padding: '12px 14px', background: 'rgba(255,90,45,0.04)', border: `1px solid ${FLAME}20`, borderRadius: 10 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8, fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: FLAME }}>
+                          <Sparkles size={10} /> What's New with {c.name.split(' ')[0]}
+                        </div>
+                        <div style={{ display: 'grid', gap: 6 }}>
+                          {snap.rank != null && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.78rem', color: '#e4e4e2' }}>
+                              <Trophy size={12} color={AMBER} />
+                              <span>Currently ranked <strong style={{ color: '#fff' }}>#{snap.rank}</strong> nationally</span>
+                            </div>
+                          )}
+                          {snap.lastGame && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.78rem', color: '#e4e4e2' }}>
+                              <TrendingUp size={12} color={GREEN} />
+                              <span>
+                                Last game: {[
+                                  snap.lastGame.passingYards ? `${snap.lastGame.passingYards} pass yds` : null,
+                                  snap.lastGame.rushingYards ? `${snap.lastGame.rushingYards} rush yds` : null,
+                                  snap.lastGame.receivingYards ? `${snap.lastGame.receivingYards} rec yds` : null,
+                                  snap.lastGame.flagPulls ? `${snap.lastGame.flagPulls} flag pulls` : null,
+                                ].filter(Boolean).join(' · ') || 'recorded'}
+                              </span>
+                            </div>
+                          )}
+                          {snap.lastHighlight && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.78rem', color: '#e4e4e2' }}>
+                              <Film size={12} color="#a78bfa" />
+                              <span>New highlight uploaded {formatTs(snap.lastHighlight.createdAt)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <div style={{ marginTop: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                       {[
                         { label: 'Profile Visible', val: 'Public', ok: true },
@@ -181,7 +264,8 @@ export const ParentDashboard = () => {
                       ))}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
