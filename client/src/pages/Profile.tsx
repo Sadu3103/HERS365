@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Edit3, CheckCircle2, Share2, MessageSquare, Loader2, AlertTriangle, UserX, Link2, Instagram } from 'lucide-react';
+import {
+  MapPin, Edit3, CheckCircle2, Share2, MessageSquare, Loader2, AlertTriangle,
+  UserX, Link2, Instagram, Eye, Play, Upload, Film, Image, Trophy, Zap,
+  Activity, X
+} from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
@@ -22,6 +26,8 @@ interface ApiProfile {
   g5Rating: number;
   archetype: string;
   nilPoints: number;
+  heightIn: number | null;
+  weightLbs: number | null;
 }
 
 interface EditForm {
@@ -31,9 +37,68 @@ interface EditForm {
   location: string;
   gradYear: string;
   bio: string;
+  heightIn: string;
+  weightLbs: string;
+}
+
+interface GameStat {
+  passingAttempts: number | null;
+  passingCompletions: number | null;
+  passingYards: number | null;
+  passingTds: number | null;
+  interceptionsThrown: number | null;
+  rushingAttempts: number | null;
+  rushingYards: number | null;
+  rushingTds: number | null;
+  receptions: number | null;
+  receivingYards: number | null;
+  receivingTds: number | null;
+  flagPulls: number | null;
+  interceptionsCaught: number | null;
+  passBreakups: number | null;
+  defensiveTds: number | null;
+}
+
+interface CombineStat {
+  fortyDash: string | null;
+  shuttle: string | null;
+  vertical: string | null;
+  broadJump: string | null;
+  threeCone: string | null;
+}
+
+interface Highlight {
+  id: number;
+  videoUrl: string | null;
+  thumbnailUrl: string | null;
+  category: string | null;
+  season: string | null;
+  createdAt: string;
 }
 
 const tabs = ['Overview', 'Stats', 'Highlights', 'Activity'];
+
+function fmtHeight(inches: number | null): string {
+  if (!inches) return '--';
+  const ft = Math.floor(inches / 12);
+  const rem = inches % 12;
+  return `${ft}'${rem}"`;
+}
+
+function sumGameStats(stats: GameStat[]): GameStat {
+  const acc: Record<string, number> = {
+    passingAttempts: 0, passingCompletions: 0, passingYards: 0, passingTds: 0,
+    interceptionsThrown: 0, rushingAttempts: 0, rushingYards: 0, rushingTds: 0,
+    receptions: 0, receivingYards: 0, receivingTds: 0, flagPulls: 0,
+    interceptionsCaught: 0, passBreakups: 0, defensiveTds: 0,
+  };
+  for (const s of stats) {
+    for (const k of Object.keys(acc)) {
+      acc[k] += (s as any)[k] ?? 0;
+    }
+  }
+  return acc as any;
+}
 
 export const Profile = () => {
   const navigate = useNavigate();
@@ -48,39 +113,43 @@ export const Profile = () => {
   const [isError, setIsError] = useState(false);
   const [isEmpty, setIsEmpty] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [viewAsCoach, setViewAsCoach] = useState(false);
   const shareRef = useRef<HTMLDivElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const [editOpen, setEditOpen] = useState(false);
-  const [editForm, setEditForm] = useState<EditForm>({ name: '', position: '', school: '', location: '', gradYear: '', bio: '' });
+  const [editForm, setEditForm] = useState<EditForm>({
+    name: '', position: '', school: '', location: '', gradYear: '', bio: '', heightIn: '', weightLbs: '',
+  });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
+  const [gameStats, setGameStats] = useState<GameStat[]>([]);
+  const [combineStats, setCombineStats] = useState<CombineStat | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+
+  const [highlights, setHighlights] = useState<Highlight[]>([]);
+  const [highlightsLoading, setHighlightsLoading] = useState(false);
+  const [uploadingHighlight, setUploadingHighlight] = useState(false);
+  const highlightInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (shareRef.current && !shareRef.current.contains(e.target as Node)) {
-        setShareOpen(false);
-      }
+      if (shareRef.current && !shareRef.current.contains(e.target as Node)) setShareOpen(false);
     };
     if (shareOpen) document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [shareOpen]);
 
   const closeEdit = useCallback(() => setEditOpen(false), []);
-
   useEffect(() => {
     if (!editOpen) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeEdit(); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [editOpen, closeEdit]);
+  useEffect(() => { if (editOpen) nameInputRef.current?.focus(); }, [editOpen]);
 
-  useEffect(() => {
-    if (editOpen) nameInputRef.current?.focus();
-  }, [editOpen]);
-
-  const profileUrl = id
-    ? `https://hers365.com/profile/${id}`
-    : `https://hers365.com/profile`;
+  const profileUrl = id ? `https://hers365.com/profile/${id}` : `https://hers365.com/profile`;
 
   const openEdit = () => {
     if (!profile) return;
@@ -91,6 +160,8 @@ export const Profile = () => {
       location: profile.state ?? '',
       gradYear: profile.gradYear != null ? String(profile.gradYear) : '',
       bio: profile.bio ?? '',
+      heightIn: profile.heightIn != null ? String(profile.heightIn) : '',
+      weightLbs: profile.weightLbs != null ? String(profile.weightLbs) : '',
     });
     setEditError(null);
     setEditOpen(true);
@@ -99,7 +170,7 @@ export const Profile = () => {
   const saveEdit = async () => {
     if (!editForm.name.trim()) { setEditError('Name is required.'); return; }
     if (editForm.gradYear && (!/^\d{4}$/.test(editForm.gradYear) || Number(editForm.gradYear) < 2020 || Number(editForm.gradYear) > 2035)) {
-      setEditError('Graduation year must be a valid 4-digit year (2020–2035).');
+      setEditError('Graduation year must be a valid 4-digit year (2020-2035).');
       return;
     }
     setEditSaving(true);
@@ -114,6 +185,8 @@ export const Profile = () => {
           state: editForm.location.trim() || undefined,
           gradYear: editForm.gradYear ? Number(editForm.gradYear) : undefined,
           bio: editForm.bio.trim() || undefined,
+          heightIn: editForm.heightIn || undefined,
+          weightLbs: editForm.weightLbs || undefined,
         }),
       });
       setProfile(updated);
@@ -132,20 +205,68 @@ export const Profile = () => {
       setIsError(false);
       setIsEmpty(false);
       try {
-        const data = await apiFetch<ApiProfile | null>('/api/profile');
-        if (!data || !data.name) {
-          setIsEmpty(true);
-        } else {
-          setProfile(data);
-        }
-      } catch {
-        setIsError(true);
-      } finally {
-        setIsLoading(false);
-      }
+        const endpoint = id ? `/api/players/${id}` : '/api/profile';
+        const data = await apiFetch<ApiProfile | null>(endpoint);
+        if (!data || !data.name) { setIsEmpty(true); } else { setProfile(data); }
+      } catch { setIsError(true); }
+      finally { setIsLoading(false); }
     };
     loadProfile();
-  }, []);
+  }, [id]);
+
+  useEffect(() => {
+    if (!profile) return;
+    setStatsLoading(true);
+    if (isOwnProfile) {
+      apiFetch<{ game: GameStat[]; combine: CombineStat | null }>('/api/profile/stats')
+        .then(d => { setGameStats(d.game ?? []); setCombineStats(d.combine ?? null); })
+        .catch(() => {})
+        .finally(() => setStatsLoading(false));
+    } else {
+      apiFetch<GameStat[]>(`/api/players/${profile.id}/stats`)
+        .then(d => { setGameStats(Array.isArray(d) ? d : []); })
+        .catch(() => {})
+        .finally(() => setStatsLoading(false));
+    }
+  }, [profile, isOwnProfile]);
+
+  useEffect(() => {
+    if (!profile) return;
+    setHighlightsLoading(true);
+    apiFetch<Highlight[]>(`/api/players/${profile.id}/highlights`)
+      .then(d => setHighlights(Array.isArray(d) ? d : []))
+      .catch(() => setHighlights([]))
+      .finally(() => setHighlightsLoading(false));
+  }, [profile]);
+
+  const handleHighlightUpload = async (file: File) => {
+    if (!profile) return;
+    setUploadingHighlight(true);
+    try {
+      const isVideo = file.type.startsWith('video/');
+      const presignEndpoint = isVideo ? '/api/upload/video/presign' : '/api/upload/presign';
+      const { uploadUrl, publicUrl } = await apiFetch<{ uploadUrl: string; publicUrl: string }>(presignEndpoint, {
+        method: 'POST',
+        body: JSON.stringify({ contentType: file.type, fileName: file.name }),
+      });
+      await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+      const hl = await apiFetch<Highlight>(`/api/players/${profile.id}/highlights`, {
+        method: 'POST',
+        body: JSON.stringify({
+          videoUrl: isVideo ? publicUrl : null,
+          thumbnailUrl: !isVideo ? publicUrl : null,
+          category: 'general',
+          season: String(new Date().getFullYear()),
+        }),
+      });
+      setHighlights(prev => [hl, ...prev]);
+      showNotification('success', 'Uploaded!', 'Your highlight has been added.');
+    } catch (err: any) {
+      showNotification('error', 'Upload failed', err.message || 'Please try again.');
+    } finally {
+      setUploadingHighlight(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -163,7 +284,7 @@ export const Profile = () => {
         <AlertTriangle size={48} color="#444" />
         <div style={{ textAlign: 'center' }}>
           <p style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ccc', marginBottom: 6 }}>Something went wrong</p>
-          <p style={{ fontSize: '0.85rem', color: '#555', marginBottom: 16 }}>Unable to load your profile. Please try again.</p>
+          <p style={{ fontSize: '0.85rem', color: '#555', marginBottom: 16 }}>Unable to load this profile. Please try again.</p>
           <button onClick={() => window.location.reload()} className="k-btn k-btn-primary">Retry</button>
         </div>
       </div>
@@ -190,9 +311,21 @@ export const Profile = () => {
   const achievementList = profile.achievements
     ? profile.achievements.split(/[\n,]+/).map(a => a.trim()).filter(Boolean)
     : [];
+  const totals = gameStats.length > 0 ? sumGameStats(gameStats) : null;
+
+  const effectiveCanEdit = canEdit && !viewAsCoach;
 
   return (
     <div style={{ padding: '24px', maxWidth: 1000, margin: '0 auto', position: 'relative' }}>
+      {viewAsCoach && (
+        <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 10, padding: '10px 14px' }}>
+          <Eye size={14} color="#a78bfa" />
+          <span style={{ fontSize: '0.78rem', color: '#a78bfa', fontWeight: 600 }}>Viewing as Coach — edit controls hidden</span>
+          <button onClick={() => setViewAsCoach(false)} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: '#a78bfa', cursor: 'pointer', display: 'flex' }}><X size={14} /></button>
+        </div>
+      )}
+
+      {/* Hero card */}
       <div className="k-card" style={{ padding: '28px 24px', marginBottom: 20, position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: -80, right: -80, width: 280, height: 280, background: 'radial-gradient(circle, rgba(255,90,45,0.12) 0%, transparent 65%)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)', backgroundSize: '32px 32px', pointerEvents: 'none', borderRadius: 12 }} />
@@ -223,6 +356,9 @@ export const Profile = () => {
                     <span style={{ fontSize: '0.72rem', color: '#555' }}>{location}</span>
                   </div>
                 )}
+                {profile.bio && (
+                  <p style={{ fontSize: '0.8rem', color: '#888', marginTop: 8, maxWidth: 420, lineHeight: 1.5 }}>{profile.bio}</p>
+                )}
               </div>
 
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -231,12 +367,15 @@ export const Profile = () => {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
               {!isOwnProfile && (
                 <button onClick={() => navigate('/messages')} className="k-btn k-btn-primary"><MessageSquare size={14} /> Message</button>
               )}
-              {canEdit && (
-                <button className={`k-btn ${isOwnProfile ? 'k-btn-primary' : 'k-btn-ghost'}`} onClick={openEdit}><Edit3 size={14} /> Edit Profile</button>
+              {effectiveCanEdit && (
+                <button className="k-btn k-btn-primary" onClick={openEdit}><Edit3 size={14} /> Edit Profile</button>
+              )}
+              {isOwnProfile && !viewAsCoach && (
+                <button className="k-btn k-btn-ghost" onClick={() => setViewAsCoach(true)}><Eye size={14} /> View As Coach</button>
               )}
               <div ref={shareRef} style={{ position: 'relative' }}>
                 <button className="k-btn k-btn-ghost" onClick={() => setShareOpen(v => !v)}><Share2 size={14} /> Share</button>
@@ -249,44 +388,9 @@ export const Profile = () => {
                       transition={{ duration: 0.12 }}
                       style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 50, background: '#161616', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '6px', minWidth: 230, boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}
                     >
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(profileUrl);
-                          showNotification('success', 'Link copied!', profileUrl);
-                          setShareOpen(false);
-                        }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', background: 'transparent', border: 'none', borderRadius: 7, padding: '9px 12px', color: '#ccc', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                      >
-                        <Link2 size={15} color="#ff5a2d" />
-                        Copy Link
-                      </button>
-                      <button
-                        onClick={() => {
-                          const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent('Check out my HERS365 profile')}&url=${encodeURIComponent(profileUrl)}`;
-                          window.open(tweetUrl, '_blank', 'noopener,noreferrer');
-                          setShareOpen(false);
-                        }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', background: 'transparent', border: 'none', borderRadius: 7, padding: '9px 12px', color: '#ccc', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                      >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="#ccc"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.857L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
-                        Share on X
-                      </button>
-                      <button
-                        onClick={() => {
-                          showNotification('info', 'Instagram', 'Copy the link and paste it in your Instagram bio.');
-                          setShareOpen(false);
-                        }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', background: 'transparent', border: 'none', borderRadius: 7, padding: '9px 12px', color: '#ccc', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                      >
-                        <Instagram size={15} color="#e1306c" />
-                        Share on Instagram
-                      </button>
+                      <ShareItem icon={<Link2 size={15} color="#ff5a2d" />} label="Copy Link" onClick={() => { navigator.clipboard.writeText(profileUrl); showNotification('success', 'Link copied!', profileUrl); setShareOpen(false); }} />
+                      <ShareItem icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="#ccc"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.857L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>} label="Share on X" onClick={() => { window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent('Check out my HERS365 profile')}&url=${encodeURIComponent(profileUrl)}`, '_blank', 'noopener,noreferrer'); setShareOpen(false); }} />
+                      <ShareItem icon={<Instagram size={15} color="#e1306c" />} label="Share on Instagram" onClick={() => { showNotification('info', 'Instagram', 'Copy the link and paste it in your Instagram bio.'); setShareOpen(false); }} />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -295,11 +399,13 @@ export const Profile = () => {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0, marginTop: 20, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        {/* Stat strip */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, marginTop: 20, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
           {[
-            { label: '40YD', value: '--' },
+            { label: '40YD', value: combineStats?.fortyDash ?? '--' },
             { label: 'GPA', value: profile.gpa ?? '--' },
-            { label: 'HGT', value: '--' },
+            { label: 'HGT', value: fmtHeight(profile.heightIn) },
+            { label: 'WGT', value: profile.weightLbs ? `${profile.weightLbs} lbs` : '--' },
           ].map(({ label, value }, i, arr) => (
             <div key={label} style={{ textAlign: 'center', borderRight: i < arr.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none', padding: '0 8px' }}>
               <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#444', marginBottom: 4 }}>{label}</div>
@@ -309,6 +415,7 @@ export const Profile = () => {
         </div>
       </div>
 
+      {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
         {tabs.map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)} style={{ background: activeTab === tab ? '#ff5a2d' : 'transparent', border: '1px solid', borderColor: activeTab === tab ? '#ff5a2d' : 'rgba(255,255,255,0.08)', borderRadius: 7, padding: '7px 16px', color: activeTab === tab ? '#fff' : '#666', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s' }}>{tab}</button>
@@ -316,13 +423,37 @@ export const Profile = () => {
       </div>
 
       <motion.div key={activeTab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }}>
+
+        {/* OVERVIEW */}
         {activeTab === 'Overview' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <div className="k-card" style={{ padding: '48px', textAlign: 'center', color: '#444' }}>
-              <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '1.3rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>Stats Coming Soon</div>
-              <div style={{ fontSize: '0.82rem' }}>Season stats will appear here once available.</div>
+            {/* Season totals */}
+            <div className="k-card" style={{ padding: '18px 16px' }}>
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555', marginBottom: 14 }}>Season Totals</div>
+              {statsLoading ? (
+                <div style={{ color: '#444', fontSize: '0.82rem' }}>Loading...</div>
+              ) : totals ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {[
+                    { label: 'Pass Yards', value: totals.passingYards },
+                    { label: 'Pass TDs', value: totals.passingTds },
+                    { label: 'Rush Yards', value: totals.rushingYards },
+                    { label: 'Rec Yards', value: totals.receivingYards },
+                    { label: 'Flag Pulls', value: totals.flagPulls },
+                    { label: 'INT', value: totals.interceptionsCaught },
+                  ].map(({ label, value }) => (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#666' }}>{label}</span>
+                      <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: '#ddd' }}>{value ?? '--'}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ fontSize: '0.82rem', color: '#555' }}>No game stats recorded yet.</p>
+              )}
             </div>
 
+            {/* Achievements */}
             <div className="k-card" style={{ padding: '18px 16px' }}>
               <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555', marginBottom: 14 }}>Achievements</div>
               {achievementList.length > 0 ? (
@@ -341,40 +472,226 @@ export const Profile = () => {
           </div>
         )}
 
-        {activeTab === 'Activity' && (
-          <div className="k-card" style={{ padding: '18px 16px' }}>
-            <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555', marginBottom: 14 }}>Recent Activity</div>
-            <p style={{ fontSize: '0.82rem', color: '#555' }}>No recent activity yet.</p>
+        {/* STATS */}
+        {activeTab === 'Stats' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Combine */}
+            <div className="k-card" style={{ padding: '18px 16px' }}>
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555', marginBottom: 14 }}>Combine / Measurables</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 0 }}>
+                {[
+                  { label: '40 Yard', value: combineStats?.fortyDash ?? '--' },
+                  { label: 'Shuttle', value: combineStats?.shuttle ?? '--' },
+                  { label: 'Vertical', value: combineStats?.vertical ?? '--' },
+                  { label: 'Broad Jump', value: combineStats?.broadJump ?? '--' },
+                  { label: '3-Cone', value: combineStats?.threeCone ?? '--' },
+                ].map(({ label, value }, i, arr) => (
+                  <div key={label} style={{ textAlign: 'center', borderRight: i < arr.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none', padding: '0 8px' }}>
+                    <div style={{ fontSize: '0.6rem', color: '#444', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>{label}</div>
+                    <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.3rem', color: '#ddd' }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Game stats */}
+            {statsLoading ? (
+              <div className="k-card" style={{ padding: '32px', textAlign: 'center', color: '#555' }}>Loading stats...</div>
+            ) : gameStats.length > 0 ? (
+              <>
+                {totals && (
+                  <div className="k-card" style={{ padding: '18px 16px' }}>
+                    <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555', marginBottom: 14 }}>Season Totals ({gameStats.length} games)</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                      {[
+                        { section: 'Passing', items: [
+                          { label: 'Attempts', value: totals.passingAttempts },
+                          { label: 'Completions', value: totals.passingCompletions },
+                          { label: 'Yards', value: totals.passingYards },
+                          { label: 'TDs', value: totals.passingTds },
+                          { label: 'INTs', value: totals.interceptionsThrown },
+                        ]},
+                        { section: 'Rushing', items: [
+                          { label: 'Attempts', value: totals.rushingAttempts },
+                          { label: 'Yards', value: totals.rushingYards },
+                          { label: 'TDs', value: totals.rushingTds },
+                        ]},
+                        { section: 'Receiving', items: [
+                          { label: 'Receptions', value: totals.receptions },
+                          { label: 'Yards', value: totals.receivingYards },
+                          { label: 'TDs', value: totals.receivingTds },
+                        ]},
+                        { section: 'Defense', items: [
+                          { label: 'Flag Pulls', value: totals.flagPulls },
+                          { label: 'INTs', value: totals.interceptionsCaught },
+                          { label: 'Pass BUs', value: totals.passBreakups },
+                          { label: 'Def TDs', value: totals.defensiveTds },
+                        ]},
+                      ].map(({ section, items }) => (
+                        <div key={section}>
+                          <div style={{ fontSize: '0.62rem', fontWeight: 700, color: '#ff5a2d', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>{section}</div>
+                          {items.map(({ label, value }) => (
+                            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                              <span style={{ fontSize: '0.74rem', color: '#666' }}>{label}</span>
+                              <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.9rem', color: value ? '#ddd' : '#444' }}>{value ?? '--'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Per-game log */}
+                <div className="k-card" style={{ overflow: 'hidden' }}>
+                  <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555' }}>Game Log</div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                      <thead>
+                        <tr>
+                          {['#', 'Pass YDS', 'Pass TD', 'Rush YDS', 'Rec YDS', 'Flag Pulls'].map(h => (
+                            <th key={h} style={{ padding: '8px 12px', textAlign: 'center', fontSize: '0.6rem', fontWeight: 700, color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {gameStats.map((g, i) => (
+                          <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                            <td style={{ padding: '8px 12px', textAlign: 'center', color: '#555', fontWeight: 700 }}>G{i + 1}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center', color: '#ddd' }}>{g.passingYards ?? '--'}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center', color: '#ddd' }}>{g.passingTds ?? '--'}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center', color: '#ddd' }}>{g.rushingYards ?? '--'}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center', color: '#ddd' }}>{g.receivingYards ?? '--'}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center', color: '#ddd' }}>{g.flagPulls ?? '--'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="k-card" style={{ padding: '48px', textAlign: 'center' }}>
+                <Zap size={32} color="#333" style={{ marginBottom: 12 }} />
+                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '1.1rem', fontWeight: 700, textTransform: 'uppercase', color: '#444', marginBottom: 6 }}>No game stats yet</div>
+                <div style={{ fontSize: '0.82rem', color: '#555' }}>Stats will appear here once games are logged.</div>
+              </div>
+            )}
           </div>
         )}
 
-        {(activeTab === 'Stats' || activeTab === 'Highlights') && (
-          <div className="k-card" style={{ padding: '48px', textAlign: 'center', color: '#444' }}>
-            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '1.3rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>{activeTab} Coming Soon</div>
-            <div style={{ fontSize: '0.82rem' }}>This section is being built out. Check back soon.</div>
+        {/* HIGHLIGHTS */}
+        {activeTab === 'Highlights' && (
+          <div>
+            {effectiveCanEdit && (
+              <div style={{ marginBottom: 16 }}>
+                <input
+                  type="file"
+                  accept="video/*,image/*"
+                  ref={highlightInputRef}
+                  style={{ display: 'none' }}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleHighlightUpload(f); e.target.value = ''; }}
+                />
+                <button
+                  className="k-btn k-btn-primary"
+                  onClick={() => highlightInputRef.current?.click()}
+                  disabled={uploadingHighlight}
+                  style={{ opacity: uploadingHighlight ? 0.6 : 1 }}
+                >
+                  {uploadingHighlight ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Uploading...</> : <><Upload size={14} /> Upload Highlight</>}
+                </button>
+                <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+              </div>
+            )}
+
+            {highlightsLoading ? (
+              <div className="k-card" style={{ padding: '32px', textAlign: 'center', color: '#555' }}>Loading highlights...</div>
+            ) : highlights.length > 0 ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+                {highlights.map(h => (
+                  <div key={h.id} className="k-card" style={{ overflow: 'hidden', cursor: 'pointer', position: 'relative' }}
+                    onClick={() => h.videoUrl && window.open(h.videoUrl, '_blank', 'noopener,noreferrer')}>
+                    <div style={{ aspectRatio: '16/9', background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                      {h.thumbnailUrl ? (
+                        <img src={h.thumbnailUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }} alt="Highlight" />
+                      ) : null}
+                      {h.videoUrl ? (
+                        <div style={{ position: 'relative', zIndex: 1, background: 'rgba(0,0,0,0.5)', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Play size={18} color="#fff" fill="#fff" />
+                        </div>
+                      ) : (
+                        <Image size={24} color="#444" />
+                      )}
+                    </div>
+                    <div style={{ padding: '10px 12px' }}>
+                      <div style={{ fontSize: '0.72rem', color: '#666' }}>
+                        {h.videoUrl ? <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Film size={11} /> Video</span> : <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Image size={11} /> Photo</span>}
+                      </div>
+                      {h.season && <div style={{ fontSize: '0.65rem', color: '#444', marginTop: 2 }}>{h.season}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="k-card" style={{ padding: '48px', textAlign: 'center' }}>
+                <Film size={32} color="#333" style={{ marginBottom: 12 }} />
+                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '1.1rem', fontWeight: 700, textTransform: 'uppercase', color: '#444', marginBottom: 6 }}>No highlights yet</div>
+                {effectiveCanEdit ? (
+                  <div style={{ fontSize: '0.82rem', color: '#555' }}>Upload a video or photo to get started.</div>
+                ) : (
+                  <div style={{ fontSize: '0.82rem', color: '#555' }}>This athlete hasn't uploaded highlights yet.</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ACTIVITY */}
+        {activeTab === 'Activity' && (
+          <div className="k-card" style={{ padding: '18px 16px' }}>
+            <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555', marginBottom: 14 }}>
+              <Activity size={12} style={{ display: 'inline', marginRight: 6 }} />Recent Activity
+            </div>
+            {profile.nilPoints || profile.archetype ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {profile.archetype && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,90,45,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Trophy size={14} color="#ff5a2d" /></div>
+                    <div>
+                      <div style={{ fontSize: '0.82rem', color: '#ccc', fontWeight: 600 }}>Archetype: {profile.archetype}</div>
+                      <div style={{ fontSize: '0.7rem', color: '#555' }}>Playing style identified</div>
+                    </div>
+                  </div>
+                )}
+                {(profile.nilPoints ?? 0) > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(74,222,128,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Zap size={14} color="#4ade80" /></div>
+                    <div>
+                      <div style={{ fontSize: '0.82rem', color: '#ccc', fontWeight: 600 }}>{profile.nilPoints} NIL Points earned</div>
+                      <div style={{ fontSize: '0.7rem', color: '#555' }}>NIL activity</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p style={{ fontSize: '0.82rem', color: '#555' }}>No recent activity yet.</p>
+            )}
           </div>
         )}
       </motion.div>
 
+      {/* Edit modal */}
       <AnimatePresence>
         {editOpen && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
             onClick={e => { if (e.target === e.currentTarget) setEditOpen(false); }}
           >
             <motion.div
-              initial={{ opacity: 0, y: 12, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 12, scale: 0.97 }}
-              transition={{ duration: 0.15 }}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="edit-profile-title"
-              style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '28px 24px', width: '100%', maxWidth: 480, boxShadow: '0 24px 64px rgba(0,0,0,0.8)' }}
+              initial={{ opacity: 0, y: 12, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12, scale: 0.97 }} transition={{ duration: 0.15 }}
+              role="dialog" aria-modal="true" aria-labelledby="edit-profile-title"
+              style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '28px 24px', width: '100%', maxWidth: 520, boxShadow: '0 24px 64px rgba(0,0,0,0.8)', maxHeight: '90vh', overflowY: 'auto' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
                 <h2 id="edit-profile-title" style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.3rem', textTransform: 'uppercase', color: '#fff', margin: 0 }}>Edit Profile</h2>
@@ -388,6 +705,8 @@ export const Profile = () => {
                   { label: 'School', key: 'school', placeholder: 'High school name' },
                   { label: 'Location (State)', key: 'location', placeholder: 'e.g. CA, TX' },
                   { label: 'Graduation Year', key: 'gradYear', placeholder: 'e.g. 2026', inputMode: 'numeric' as const },
+                  { label: 'Height (inches)', key: 'heightIn', placeholder: 'e.g. 68 (for 5\'8")', inputMode: 'numeric' as const },
+                  { label: 'Weight (lbs)', key: 'weightLbs', placeholder: 'e.g. 145', inputMode: 'numeric' as const },
                 ].map(({ label, key, placeholder, inputMode }) => (
                   <div key={key}>
                     <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#555', marginBottom: 6 }}>{label}</label>
@@ -419,19 +738,12 @@ export const Profile = () => {
               </div>
 
               {editError && (
-                <div style={{ marginTop: 14, padding: '10px 12px', background: 'rgba(255,90,45,0.1)', border: '1px solid rgba(255,90,45,0.3)', borderRadius: 8, color: '#ff5a2d', fontSize: '0.82rem' }}>
-                  {editError}
-                </div>
+                <div style={{ marginTop: 14, padding: '10px 12px', background: 'rgba(255,90,45,0.1)', border: '1px solid rgba(255,90,45,0.3)', borderRadius: 8, color: '#ff5a2d', fontSize: '0.82rem' }}>{editError}</div>
               )}
 
               <div style={{ display: 'flex', gap: 10, marginTop: 22, justifyContent: 'flex-end' }}>
                 <button onClick={() => setEditOpen(false)} className="k-btn k-btn-ghost" disabled={editSaving}>Cancel</button>
-                <button
-                  onClick={saveEdit}
-                  className="k-btn k-btn-primary"
-                  disabled={editSaving}
-                  style={{ opacity: editSaving ? 0.6 : 1 }}
-                >
+                <button onClick={saveEdit} className="k-btn k-btn-primary" disabled={editSaving} style={{ opacity: editSaving ? 0.6 : 1 }}>
                   {editSaving ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Saving…</> : 'Save Changes'}
                 </button>
               </div>
@@ -442,3 +754,16 @@ export const Profile = () => {
     </div>
   );
 };
+
+function ShareItem({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', background: 'transparent', border: 'none', borderRadius: 7, padding: '9px 12px', color: '#ccc', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
+      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+    >
+      {icon}{label}
+    </button>
+  );
+}
