@@ -1,6 +1,6 @@
 // @ts-nocheck
 import express from 'express';
-import { desc, eq, and, isNotNull } from 'drizzle-orm';
+import { asc, desc, eq, and, isNotNull } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 
@@ -26,7 +26,10 @@ router.get('/', async (req, res) => {
       // Only rated athletes appear on the board. This also keeps unrated test
       // accounts out, and avoids Postgres sorting NULL g5Rating first under DESC.
       .where(and(eq(schema.players.privacySetting, 'public'), isNotNull(schema.players.g5Rating)))
-      .orderBy(desc(schema.players.g5Rating), desc(schema.players.xpPoints))
+      // Tiebreak order: rating, then activity (XP), then name. The final name
+      // sort makes ties deterministic so the board does not reshuffle equal
+      // scores between refreshes (which reads as arbitrary to athletes).
+      .orderBy(desc(schema.players.g5Rating), desc(schema.players.xpPoints), asc(schema.players.name))
       .limit(Number(limit));
 
     let data = rows.map((p, i) => ({

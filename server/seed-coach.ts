@@ -1,6 +1,7 @@
 // @ts-nocheck
 // Seeds a demo coach account for previewing the coach side. Idempotent.
-// Run with DATABASE_PUBLIC_URL/DATABASE_URL set to the target Postgres.
+// Loads .env (same as the server) so DATABASE_URL resolves when run standalone.
+import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';

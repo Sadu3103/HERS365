@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, SlidersHorizontal, X, ArrowUpRight, Flame } from 'lucide-react';
+import { POSITION_FILTERS } from '../lib/positions';
 
 const FLAME = '#ff5a2d';
 const INK = '#0a0a0a';
@@ -12,7 +13,7 @@ const MUTED = '#8a8a86';
 const MUTED_2 = '#5a5a56';
 const DISP = "'Barlow Condensed', sans-serif";
 
-const POSITIONS = ['All', 'QB', 'WR', 'RB', 'Center', 'Rusher', 'Safety', 'Cornerback', 'Blitzer'];
+const POSITIONS = POSITION_FILTERS;
 const GRAD_YEARS = ['All', '2025', '2026', '2027', '2028', '2029'];
 const STATES = ['All', 'CA', 'TX', 'FL', 'NY', 'GA', 'OH', 'PA', 'IL', 'NC', 'AZ'];
 

@@ -8,6 +8,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch, type ApiError } from '../lib/api';
+import { FLAG_POSITIONS } from '../lib/positions';
 
 interface Program {
   id: number;
@@ -39,7 +40,7 @@ const divisions     = ['All', 'NCAA D1', 'NCAA D2', 'NCAA D3', 'NAIA', 'JUCO'];
 const stateOptions  = ['All', 'California', 'Florida', 'Georgia', 'Kansas', 'Missouri', 'Texas'];
 const conferences   = ['All', 'ACC', 'ASC', 'Big 12', 'GSAC', 'HAAC', 'OVC', 'PCAC', 'SAC'];
 const sizes         = ['All', 'Small', 'Medium', 'Large'];
-const positions     = ['QB', 'RB', 'WR', 'TE', 'LB', 'DB'];
+const positions     = FLAG_POSITIONS;
 
 function ProgramAvatar({ name }: { name: string }) {
   return (

@@ -4,6 +4,7 @@ import {
   GraduationCap, CheckCircle2, AlertCircle,
   Zap, ChevronDown, ChevronUp, Star,
 } from 'lucide-react';
+import { FLAG_POSITIONS } from '../lib/positions';
 
 const FLAME_C = '#ff5a2d';
 const INK_2 = '#111111';
@@ -114,7 +115,7 @@ export const CollegeFitCalculator = () => {
         <div style={{ marginBottom: 18 }}>
           <div style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED_2, marginBottom: 8 }}>Position</div>
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-            {['QB', 'WR', 'RB', 'TE', 'LB', 'DB'].map((p) => (
+            {FLAG_POSITIONS.map((p) => (
               <motion.button key={p} whileTap={{ scale: 0.93 }} onClick={() => setPos(p)}
                 style={{ padding: '5px 12px', borderRadius: 7, border: 'none', background: pos === p ? FLAME_C : 'rgba(255,255,255,0.05)', color: pos === p ? '#fff' : MUTED, fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.15s' }}>
                 {p}
