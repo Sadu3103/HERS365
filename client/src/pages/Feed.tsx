@@ -831,7 +831,7 @@ const handleLike = async (postId: number) => {
 
   const newLikedState = !post.isLiked;
 
-  // optimistic UI
+  
   setPosts(prev =>
     prev.map(p =>
       p.id === postId
@@ -866,7 +866,7 @@ const handleLike = async (postId: number) => {
       )
     );
   } catch {
-    // rollback
+    
     setPosts(prev =>
       prev.map(p =>
         p.id === postId
