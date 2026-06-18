@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Target, GraduationCap, Trophy, ChevronRight, ChevronLeft, Check, Star, Zap, MapPin, BookOpen } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
+import { FLAG_POSITIONS } from '../lib/positions';
 
 const FLAME   = '#ff5a2d';
 const FLAME_S = '#ff8c66';
@@ -17,7 +18,7 @@ const BODY    = "'DM Sans', sans-serif";
 const GRAIN   = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`;
 
 const SPORTS    = ['Flag Football', '7v7 Flag', 'Tackle Football'];
-const POSITIONS = ['QB', 'WR', 'RB', 'Center', 'Rusher', 'Safety', 'Cornerback', 'Blitzer'];
+const POSITIONS = FLAG_POSITIONS;
 const GRAD_YEARS = ['2025', '2026', '2027', '2028', '2029', '2030', '2031'];
 const STATES = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS',
@@ -107,9 +108,23 @@ function StyledSelect({ label, value, onChange, children }: {
   );
 }
 
+// Projected rating shown in the onboarding preview. This is NOT the verified
+// HERS Rating (that comes from logged performance) — it is a provisional number
+// that only ever climbs as the athlete completes more of their profile. Never
+// let it move backward, and show nothing until a position is picked.
+function projectedRating(form: Record<string, string>, step: number): number | '—' {
+  if (step < 1 || !form.position) return '—';
+  let r = 60;                                              // base, once a position is set
+  if (form.school && form.gradYear && form.state) r += 8;  // verified school details
+  const gpa = parseFloat(form.gpa);
+  if (!Number.isNaN(gpa)) r += Math.round((Math.min(Math.max(gpa, 0), 4) / 4) * 12); // up to +12 for a 4.0
+  return Math.min(r, 99);
+}
+
 function ProfilePreview({ form, step, userName }: {
   form: Record<string, string>; step: number; userName: string;
 }) {
+  const rating = projectedRating(form, step);
   return (
     <div style={{
       background: `linear-gradient(160deg, ${INK_3}, ${INK_2})`,
@@ -139,8 +154,8 @@ function ProfilePreview({ form, step, userName }: {
           transition={{ duration: 0.4 }}
           style={{ fontFamily: DISP, fontWeight: 900, fontSize: '2rem', lineHeight: 1, textAlign: 'right' }}
         >
-          {step >= 3 && form.gpa ? parseFloat(form.gpa) * 10 : step >= 2 ? '74' : step >= 1 && form.position ? '61' : '—'}
-          <small style={{ display: 'block', fontSize: '.52rem', letterSpacing: '.16em', color: MUTED_2, fontWeight: 700 }}>HERS RATING</small>
+          {rating}
+          <small style={{ display: 'block', fontSize: '.52rem', letterSpacing: '.16em', color: MUTED_2, fontWeight: 700 }}>PROJECTED RATING</small>
         </motion.div>
       </div>
 

@@ -232,9 +232,11 @@ export const Profile = () => {
             </div>
 
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <button onClick={() => navigate('/messages')} className="k-btn k-btn-primary"><MessageSquare size={14} /> Message</button>
+              {!isOwnProfile && (
+                <button onClick={() => navigate('/messages')} className="k-btn k-btn-primary"><MessageSquare size={14} /> Message</button>
+              )}
               {canEdit && (
-                <button className="k-btn k-btn-ghost" onClick={openEdit}><Edit3 size={14} /> Edit Profile</button>
+                <button className={`k-btn ${isOwnProfile ? 'k-btn-primary' : 'k-btn-ghost'}`} onClick={openEdit}><Edit3 size={14} /> Edit Profile</button>
               )}
               <div ref={shareRef} style={{ position: 'relative' }}>
                 <button className="k-btn k-btn-ghost" onClick={() => setShareOpen(v => !v)}><Share2 size={14} /> Share</button>

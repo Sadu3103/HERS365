@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Minus, Search, CheckCircle2, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { athleteAvatar } from '../lib/avatar';
+import { POSITION_FILTERS } from '../lib/positions';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 type RankedPlayer = {
   id: number;
@@ -17,7 +19,7 @@ type RankedPlayer = {
   verified: boolean;
 };
 
-const positions = ['All', 'QB', 'RB', 'WR', 'TE', 'LB', 'DB'];
+const positions = POSITION_FILTERS;
 
 function Avatar({ name, size = 36 }: { name: string; size?: number }) {
   return (
@@ -39,6 +41,15 @@ export const Rankings = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [pos, setPos] = useState('All');
+  const isMobile = useIsMobile();
+
+  // On phones the six-column table is wider than the screen, which clips the
+  // Score column (the whole point of a ranking). Drop POS/YEAR/GPA on mobile and
+  // keep RK, ATHLETE, SCORE so the score is always visible.
+  const tableCols = isMobile ? '32px 1fr 52px' : '48px 1fr 80px 80px 80px 80px';
+  const headers = isMobile
+    ? ['RK', 'ATHLETE', 'SCORE']
+    : ['RK', 'ATHLETE', 'POS', 'YEAR', 'GPA', 'SCORE'];
 
   useEffect(() => {
     fetch('/api/rankings?limit=50')
@@ -89,8 +100,10 @@ export const Rankings = () => {
         <p style={{ color: '#555', fontSize: '0.85rem' }}>Top female high school athletes ranked by performance score</p>
       </div>
 
-      {/* Podium — top 3 */}
-      {search === '' && pos === 'All' && top3.length >= 3 && (
+      {/* Podium — top 3. Desktop only: at phone widths three cards are too narrow
+          for names, and the table directly below already lists the top 3 with full
+          names and scores, so the podium would just be a cramped duplicate. */}
+      {search === '' && pos === 'All' && top3.length >= 3 && !isMobile && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 28 }}>
           {top3.map((p, i) => (
             <motion.div key={p.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
@@ -161,11 +174,11 @@ export const Rankings = () => {
       {/* Table */}
       <div className="k-card" style={{ overflow: 'hidden' }}>
         <div style={{
-          display: 'grid', gridTemplateColumns: '48px 1fr 80px 80px 80px 80px',
+          display: 'grid', gridTemplateColumns: tableCols,
           padding: '10px 16px',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
         }}>
-          {['RK', 'ATHLETE', 'POS', 'YEAR', 'GPA', 'SCORE'].map(h => (
+          {headers.map(h => (
             <div key={h} style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#444', textAlign: h === 'ATHLETE' ? 'left' : 'center' }}>{h}</div>
           ))}
         </div>
@@ -174,7 +187,7 @@ export const Rankings = () => {
           <motion.div key={p.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
             onClick={() => navigate(`/profile/${p.id}`)}
             style={{
-              display: 'grid', gridTemplateColumns: '48px 1fr 80px 80px 80px 80px',
+              display: 'grid', gridTemplateColumns: tableCols,
               padding: '12px 16px', alignItems: 'center',
               borderBottom: '1px solid rgba(255,255,255,0.04)',
               transition: 'background 0.15s', cursor: 'pointer',
@@ -200,13 +213,19 @@ export const Rankings = () => {
               </div>
             </div>
 
-            <div style={{ textAlign: 'center' }}>
-              <span style={{ background: 'rgba(255,90,45,0.1)', color: '#ff5a2d', fontSize: '0.65rem', fontWeight: 700, padding: '2px 7px', borderRadius: 4 }}>{p.position}</span>
-            </div>
+            {!isMobile && (
+              <div style={{ textAlign: 'center' }}>
+                <span style={{ background: 'rgba(255,90,45,0.1)', color: '#ff5a2d', fontSize: '0.65rem', fontWeight: 700, padding: '2px 7px', borderRadius: 4 }}>{p.position}</span>
+              </div>
+            )}
 
-            <div style={{ textAlign: 'center', fontSize: '0.82rem', fontWeight: 600, color: '#ccc' }}>{p.gradYear ?? '–'}</div>
+            {!isMobile && (
+              <div style={{ textAlign: 'center', fontSize: '0.82rem', fontWeight: 600, color: '#ccc' }}>{p.gradYear ?? '–'}</div>
+            )}
 
-            <div style={{ textAlign: 'center', fontSize: '0.82rem', fontWeight: 600, color: '#ccc' }}>{p.gpa ?? '–'}</div>
+            {!isMobile && (
+              <div style={{ textAlign: 'center', fontSize: '0.82rem', fontWeight: 600, color: '#ccc' }}>{p.gpa ?? '–'}</div>
+            )}
 
             <div style={{ textAlign: 'center' }}>
               <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.1rem', color: '#ff5a2d' }}>{p.rating}</span>

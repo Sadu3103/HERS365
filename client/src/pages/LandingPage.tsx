@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, MotionConfig } from 'framer-motion';
 import { Check, Play, ArrowRight, Crosshair, Megaphone, Share2 } from 'lucide-react';
 import { athleteAvatar } from '../lib/avatar';
 
@@ -247,6 +247,10 @@ export const LandingPage = () => {
   }, []);
 
   return (
+    // reducedMotion="user" makes every reveal below snap straight to its visible
+    // end state for visitors who prefer reduced motion, so the page never reads
+    // as a blank void waiting on scroll animations that will not play.
+    <MotionConfig reducedMotion="user">
     <div className="lp-grain" style={{ background: INK, color: '#f4f4f2', fontFamily: "'DM Sans', sans-serif", fontSize: 17, lineHeight: 1.6, overflowX: 'hidden', minHeight: '100vh' }}>
       <style>{css}</style>
 
@@ -603,5 +607,6 @@ export const LandingPage = () => {
         </div>
       </footer>
     </div>
+    </MotionConfig>
   );
 };

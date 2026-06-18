@@ -33,7 +33,9 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ unreadMessages = 0 }
         backdropFilter: 'blur(24px) saturate(1.6)',
         WebkitBackdropFilter: 'blur(24px) saturate(1.6)',
         borderTop: '1px solid rgba(255,255,255,0.07)',
-        display: 'flex',
+        // display is controlled by the `flex md:hidden` classes so the bar shows
+        // on mobile and hides on desktop. An inline display here would override
+        // md:hidden and leak the mobile bar onto desktop.
         alignItems: 'stretch',
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}
