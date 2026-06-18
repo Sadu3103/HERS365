@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Edit3, CheckCircle2, Share2, MessageSquare, Loader2, AlertTriangle, UserX, Link2, Instagram } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
+import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/api';
 import { athleteAvatar } from '../lib/avatar';
 
@@ -37,9 +38,12 @@ const tabs = ['Overview', 'Stats', 'Highlights', 'Activity'];
 export const Profile = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
+  const { user } = useAuth();
   const { showNotification } = useNotifications();
   const [activeTab, setActiveTab] = useState('Overview');
   const [profile, setProfile] = useState<ApiProfile | null>(null);
+  const isOwnProfile = !!profile && !!user && user.id === profile.id;
+  const canEdit = isOwnProfile && user.role !== 'coach';
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [isEmpty, setIsEmpty] = useState(false);
@@ -229,7 +233,9 @@ export const Profile = () => {
 
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button onClick={() => navigate('/messages')} className="k-btn k-btn-primary"><MessageSquare size={14} /> Message</button>
-              <button className="k-btn k-btn-ghost" onClick={openEdit}><Edit3 size={14} /> Edit Profile</button>
+              {canEdit && (
+                <button className="k-btn k-btn-ghost" onClick={openEdit}><Edit3 size={14} /> Edit Profile</button>
+              )}
               <div ref={shareRef} style={{ position: 'relative' }}>
                 <button className="k-btn k-btn-ghost" onClick={() => setShareOpen(v => !v)}><Share2 size={14} /> Share</button>
                 <AnimatePresence>
@@ -264,7 +270,7 @@ export const Profile = () => {
                         onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
                         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                       >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="#ccc"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.857L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="#ccc"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.857L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
                         Share on X
                       </button>
                       <button
@@ -290,8 +296,8 @@ export const Profile = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0, marginTop: 20, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
           {[
             { label: '40YD', value: '--' },
-            { label: 'GPA',  value: profile.gpa ?? '--' },
-            { label: 'HGT',  value: '--' },
+            { label: 'GPA', value: profile.gpa ?? '--' },
+            { label: 'HGT', value: '--' },
           ].map(({ label, value }, i, arr) => (
             <div key={label} style={{ textAlign: 'center', borderRight: i < arr.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none', padding: '0 8px' }}>
               <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#444', marginBottom: 4 }}>{label}</div>
