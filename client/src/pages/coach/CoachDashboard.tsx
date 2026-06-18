@@ -9,7 +9,10 @@ import {
   Eye,
   MapPin,
   Star,
-  ChevronRight
+  ChevronRight,
+  Inbox,
+  Mail,
+  AlertCircle,
 } from 'lucide-react';
 import type { CoachAnalytics as CoachAnalyticsType, PlayerClip } from '../../types';
 import { useNotifications } from '../../context/NotificationContext';
@@ -19,12 +22,37 @@ export function CoachDashboard() {
   const [clips, setClips] = useState<PlayerClip[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [inbox, setInbox] = useState<{ unreadMessages: number; activeConversations: number; pendingRequests: number }>({
+    unreadMessages: 0, activeConversations: 0, pendingRequests: 0,
+  });
   const { showNotification } = useNotifications();
 
   useEffect(() => {
     fetchAnalytics();
     fetchClips();
+    fetchInbox();
   }, []);
+
+  // Pull the coach's actionable inbox — what needs attention today. Stub
+  // "Recent Activity" with hardcoded "2 hours ago" lines didn't help Elena
+  // decide where to spend her morning.
+  const fetchInbox = async () => {
+    const token = localStorage.getItem('coachToken');
+    if (!token) return;
+    const auth = { Authorization: `Bearer ${token}` };
+    try {
+      const [unreadRes, convRes, reqRes] = await Promise.all([
+        fetch('/api/messages/unread-count', { headers: auth }).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch('/api/messages/conversations', { headers: auth }).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch('/api/messages/requests', { headers: auth }).then(r => r.ok ? r.json() : null).catch(() => null),
+      ]);
+      setInbox({
+        unreadMessages: unreadRes?.count ?? unreadRes?.data?.count ?? 0,
+        activeConversations: Array.isArray(convRes?.data) ? convRes.data.length : 0,
+        pendingRequests: Array.isArray(reqRes?.data) ? reqRes.data.length : 0,
+      });
+    } catch { /* leave zeros */ }
+  };
 
   const fetchAnalytics = async () => {
     try {
@@ -173,31 +201,51 @@ export function CoachDashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Recent Activity */}
+          {/* Today's Inbox — actionable, replaces stub "Recent Activity" */}
           <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Recent Activity</h3>
-            <div className="space-y-4">
-              {analytics?.recentlyViewed?.slice(0, 5).map((playerId) => (
-                <div key={playerId} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
-                      <Users className="w-5 h-5 text-gray-400" />
-                    </div>
-                    <div>
-                      <p className="text-white font-medium">Viewed Player #{playerId}</p>
-                      <p className="text-gray-400 text-sm">2 hours ago</p>
-                    </div>
+            <div className="flex items-center gap-2 mb-4">
+              <Inbox className="w-5 h-5 text-orange-400" />
+              <h3 className="text-lg font-semibold text-white">Today's Inbox</h3>
+            </div>
+            <div className="space-y-3">
+              <Link to="/coach/messages" className="flex items-center justify-between p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${inbox.unreadMessages > 0 ? 'bg-orange-500/20' : 'bg-gray-600'}`}>
+                    <Mail className={`w-5 h-5 ${inbox.unreadMessages > 0 ? 'text-orange-400' : 'text-gray-400'}`} />
                   </div>
-                  <Link
-                    to={`/coach/player/${playerId}`}
-                    className="text-blue-400 hover:text-blue-300 text-sm"
-                  >
-                    View
-                  </Link>
+                  <div>
+                    <p className="text-white font-medium">{inbox.unreadMessages} unread message{inbox.unreadMessages === 1 ? '' : 's'}</p>
+                    <p className="text-gray-400 text-sm">{inbox.activeConversations} active conversation{inbox.activeConversations === 1 ? '' : 's'}</p>
+                  </div>
                 </div>
-              )) || (
-                <p className="text-gray-400 text-center py-4">No recent activity</p>
-              )}
+                <ChevronRight className="w-5 h-5 text-gray-400" />
+              </Link>
+
+              <Link to="/coach/messages?tab=requests" className="flex items-center justify-between p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${inbox.pendingRequests > 0 ? 'bg-yellow-500/20' : 'bg-gray-600'}`}>
+                    <AlertCircle className={`w-5 h-5 ${inbox.pendingRequests > 0 ? 'text-yellow-400' : 'text-gray-400'}`} />
+                  </div>
+                  <div>
+                    <p className="text-white font-medium">{inbox.pendingRequests} contact request{inbox.pendingRequests === 1 ? '' : 's'}</p>
+                    <p className="text-gray-400 text-sm">Awaiting parent approval</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400" />
+              </Link>
+
+              <Link to="/coach/board" className="flex items-center justify-between p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-red-500/20">
+                    <Heart className="w-5 h-5 text-red-400" />
+                  </div>
+                  <div>
+                    <p className="text-white font-medium">{analytics?.boardCount || 0} prospect{(analytics?.boardCount || 0) === 1 ? '' : 's'} on board</p>
+                    <p className="text-gray-400 text-sm">Review your watchlist</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400" />
+              </Link>
             </div>
           </div>
 

@@ -802,13 +802,25 @@ export const Feed = () => {
     showNotification('info', 'Coming Soon', 'Comments are on the way — stay tuned!');
   };
 
-  const handleShare = (postId: number) => {
+  const handleShare = async (postId: number) => {
     const postUrl = `${window.location.origin}/post/${postId}`;
-    navigator.clipboard.writeText(postUrl).then(() => {
-      showNotification('success', 'Link Copied', 'Post link copied to clipboard!');
-    }).catch(() => {
+    // Native share sheet first — Olivia lives on social, and the iOS/Android
+    // share menu gets her into IG/TikTok/X with one tap. Fall back to copy.
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: 'HERS365 Highlight', text: 'Check out this play on HERS365', url: postUrl });
+        return;
+      } catch (err) {
+        // User cancelled — treat as no-op. Real errors fall through to copy.
+        if ((err as Error).name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(postUrl);
+      showNotification('success', 'Link Copied', 'Paste it in your Instagram bio or send it to a coach.');
+    } catch {
       showNotification('error', 'Copy Failed', `Share this link: ${postUrl}`);
-    });
+    }
   };
 
   const handleUserClick = (userName: string) => {
