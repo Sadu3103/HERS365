@@ -107,7 +107,7 @@ router.get('/profile', requireAuth, async (req: AuthenticatedRequest, res: Respo
 
 router.put('/profile', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { name, bio, position, school, state, gradYear, heightIn, weightLbs, phone } = req.body;
+    const { name, bio, position, school, state, gradYear, heightIn, weightLbs, phone, profileImage } = req.body;
     const updates: Record<string, any> = {};
     if (name !== undefined) updates.name = name;
     if (bio !== undefined) updates.bio = bio;
@@ -118,6 +118,9 @@ router.put('/profile', requireAuth, async (req: AuthenticatedRequest, res: Respo
     if (heightIn !== undefined) updates.heightIn = heightIn === '' ? null : Number(heightIn);
     if (weightLbs !== undefined) updates.weightLbs = weightLbs === '' ? null : Number(weightLbs);
     if (phone !== undefined) updates.phone = phone || null;
+    // Custom profile photo URL. Client uploads to /api/upload/presign first,
+    // then sends the resulting publicUrl here.
+    if (profileImage !== undefined) updates.profileImage = profileImage || null;
     const updated = await db.update(schema.players).set(updates).where(eq(schema.players.id, req.user.userId)).returning();
     res.json(stripPlayer(updated[0]));
   } catch (err: any) {
