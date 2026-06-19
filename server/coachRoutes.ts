@@ -182,36 +182,37 @@ router.get('/players/search', async (req, res) => {
  * GET /coach/players/:id — Full unlocked athlete profile (coaches see everything)
  */
 router.get('/players/:id', async (req, res) => {
-  const id = parseInt(req.params.id);
-  const mockFull = {
-    id,
-    name: 'Aaliyah Thompson',
-    position: 'WR',
-    state: 'TX',
-    city: 'Dallas',
-    school: 'Westlake High',
-    gradYear: 2026,
-    height: '5\'8"',
-    weight: 135,
-    gpa: 3.8,
-    breakoutScore: 98,
-    stars: 5,
-    archetype: 'WR Speedster',
-    email: 'available@premium',
-    phone: 'available@premium',
-    parentContact: 'available@premium',
-    highlights: [
-      { title: 'Junior Season Full Game', url: 'https://youtube.com/...', locked: false },
-      { title: 'State Championship Highlights', url: 'https://youtube.com/...', locked: false },
-    ],
-    stats: { receptions: 64, receivingYards: 1204, receivingTouchdowns: 18, ydsPerCatch: 18.8, gamesPlayed: 12 },
-    combineStats: { fortyYard: '4.52', vertical: 36, broadJump: 118, shuttle: '4.15', verified: true },
-    academicProfile: { gpa: 3.8, act: 27, sat: 1280, major: 'Sports Medicine' },
-    offers: ['TCU', 'Baylor', 'UTSA', 'Rice'],
-    committed: false,
-    nilPoints: 4200,
-  };
-  res.json(mockFull);
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid player ID' });
+
+    const [player] = await db.select().from(schema.players).where(eq(schema.players.id, id));
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+
+    const { passwordHash, ...safe } = player;
+
+    const combine = await db.select().from(schema.combineStats)
+      .where(eq(schema.combineStats.playerId, id))
+      .orderBy(desc(schema.combineStats.id))
+      .limit(1);
+
+    res.json({
+      ...safe,
+      stars: safe.g5Rating,
+      offers: safe.collegeOffers ?? [],
+      combineStats: combine[0] ? {
+        fortyYard: combine[0].fortyDash,
+        vertical: combine[0].vertical,
+        broadJump: combine[0].broadJump,
+        shuttle: combine[0].shuttle,
+        verified: false,
+      } : null,
+      highlights: [],
+    });
+  } catch (error) {
+    console.error('Player profile fetch failed:', error);
+    res.status(500).json({ error: 'Failed to fetch player profile' });
+  }
 });
 
 // ─── Scouting Board ───────────────────────────────────────────────────────────
