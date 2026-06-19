@@ -42,6 +42,16 @@ export interface TokenPayload {
   email: string;
   role: UserRole;
   name: string;
+  // `id` mirrors `userId` on the request object after auth. The token is signed
+  // with `userId`, but a lot of route code reads `req.user.id`. We normalize on
+  // the way in (attachUser) so both names always resolve to the same value.
+  id?: number;
+}
+
+// Single boundary where a decoded token becomes req.user. Aliasing id->userId
+// here means every downstream route works whether it reads `id` or `userId`.
+function attachUser(req: Request, decoded: TokenPayload): void {
+  (req as any).user = { ...decoded, id: decoded.id ?? decoded.userId };
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -74,11 +84,24 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       res.status(401).json({ error: 'Token has been revoked' });
       return;
     }
-    (req as any).user = decoded;
+    attachUser(req, decoded);
     next();
   } catch {
     res.status(401).json({ error: 'Invalid or expired token' });
   }
+}
+
+export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
+  const header = req.headers.authorization ?? '';
+  const [scheme, token] = header.split(' ');
+  if (scheme === 'Bearer' && token) {
+    try {
+      attachUser(req, verifyToken(token));
+    } catch {
+      // optional route: ignore an invalid token and continue unauthenticated
+    }
+  }
+  next();
 }
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {

@@ -23,10 +23,10 @@ cd HERS365
 ```bash
 cd server
 npm install
-cp ../.env.example .env       # fill in your values (see below)
+cp .env.example .env          # pre-filled with working dev defaults, no changes needed
 npx drizzle-kit push          # run schema migrations
-npm run seed                  # seed dev data
-npm run dev                   # starts on :4000
+npm run db:seed               # seed dev data + create test accounts
+npm run dev:core              # starts on :4000
 ```
 
 **Client** (new terminal)
@@ -40,20 +40,22 @@ App is live at `http://localhost:5173`
 
 ---
 
-## Minimum env vars to run locally
+## Test accounts (created by db:seed)
 
-Create `server/.env`:
+All passwords are `hers365`.
 
-```
-DATABASE_URL=postgres://localhost:5432/hers365
-JWT_SECRET=any-random-string-32-chars-min
-SESSION_SECRET=another-random-string
-STRIPE_SECRET_KEY=sk_test_...       # from dashboard.stripe.com
-STRIPE_WEBHOOK_SECRET=whsec_...     # from Stripe CLI: stripe listen
-STRIPE_PRO_PRICE_ID=price_...       # create a product in Stripe dashboard
-```
+| Role | Email |
+|---|---|
+| Athlete | maya@hers365.com |
+| Athlete | jordan@hers365.com |
+| Athlete | aaliyah@hers365.com |
+| Coach | coach@hers365.com |
 
-OAuth (Google/GitHub) is optional for local dev — email/password auth works without it.
+---
+
+## Why `dev:core` not `dev`?
+
+`npm run dev` boots the full enterprise server (Azure Cosmos, Service Bus, compliance) and crashes immediately without real Azure credentials. `dev:core` is the lean REST API + Postgres — the only one that works locally.
 
 ---
 
@@ -91,7 +93,7 @@ OAuth (Google/GitHub) is optional for local dev — email/password auth works wi
 | Thing | Detail |
 |---|---|
 | Auth | JWT Bearer token — get one from `POST /api/auth/login`. Attach as `Authorization: Bearer <token>` |
-| DB changes | Edit `server/schema.ts`, then run `npx drizzle-kit push` |
+| DB changes | Edit `server/schema.ts`, then `npm run db:generate` to create a migration, commit the new file under `server/migrations/`, and `npm run db:migrate` to apply it. Don't use `db:push` outside throwaway local prototyping — it alters the DB without a tracked, reversible migration. |
 | Toast notifications | Use `useNotifications()` hook — never use `alert()` |
 | Stub pages | `<UnderConstruction />` = needs to be built. Issue exists for it. |
 | Tier check | Wrap premium routes with `requireTier('pro')` middleware |

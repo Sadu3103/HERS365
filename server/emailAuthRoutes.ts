@@ -7,6 +7,7 @@ import express from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import rateLimit from 'express-rate-limit';
 import { eq } from 'drizzle-orm';
 import { db } from './db';
 import * as schema from './schema';
@@ -18,6 +19,15 @@ const BCRYPT_ROUNDS = 12;
 const JWT_EXPIRES_IN = '7d';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// [D-10] Cap account creation at 5 per IP per hour to block bulk fake signups.
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many accounts created from this network — try again later' },
+});
+
 function signToken(player) {
   return jwt.sign(
     { id: player.id, email: player.email, subscriptionTier: player.subscriptionTier },
@@ -26,7 +36,7 @@ function signToken(player) {
   );
 }
 
-router.post('/register', async (req, res) => {
+router.post('/register', registerLimiter, async (req, res) => {
   const { email, password, name } = req.body || {};
 
   if (!email || !password) {

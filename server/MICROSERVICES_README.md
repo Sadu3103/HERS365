@@ -249,7 +249,7 @@ npm test -- --grep "event processing"
 
 1. **Database Migration**
    ```bash
-   npm run db:migrate
+   npm run db:migrate:services
    ```
 
 2. **Event Store Initialization**

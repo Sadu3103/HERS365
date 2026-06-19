@@ -16,6 +16,16 @@ const loginLimiter = rateLimit({
   message: { error: 'Too many attempts — try again in 15 minutes' },
 });
 
+// [D-10] Tighter limit on account creation to stop bots from mass-registering
+// fake athlete accounts that pollute coach search and rankings.
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // 5 new accounts per IP per hour
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many accounts created from this network — try again later' },
+});
+
 // ─── DB helpers ──────────────────────────────────────────────────────────────
 
 type FoundUser = {
@@ -98,7 +108,7 @@ function readRefreshCookie(req: express.Request): string | null {
 
 // ─── POST /api/auth/register ──────────────────────────────────────────────────
 
-router.post('/register', async (req, res) => {
+router.post('/register', registerLimiter, async (req, res) => {
   const { email, password, name, role = 'athlete', school, division } = req.body ?? {};
 
   if (!email || !password || !name) {
@@ -193,7 +203,7 @@ router.post('/coach/login', loginLimiter, async (req, res) => {
 });
 
 // ─── POST /api/auth/(secure/)coach/register ───────────────────────────────────
-router.post('/coach/register', async (req, res) => {
+router.post('/coach/register', registerLimiter, async (req, res) => {
   const { email, password, name, school, university, division } = req.body ?? {};
   if (!email || !password || !name) {
     return res.status(400).json({ error: 'email, password, and name are required' });

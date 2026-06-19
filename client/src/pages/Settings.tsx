@@ -87,6 +87,9 @@ export const Settings = () => {
     sport: '',
     bio: '',
     achievements: '',
+    heightIn: '',
+    weightLbs: '',
+    phone: '',
   });
 
   const [privacySetting, setPrivacySetting] = useState('public');
@@ -129,6 +132,9 @@ export const Settings = () => {
         sport: data.sport || '',
         bio: data.bio || '',
         achievements: data.achievements || '',
+        heightIn: (data as any).heightIn ? String((data as any).heightIn) : '',
+        weightLbs: (data as any).weightLbs ? String((data as any).weightLbs) : '',
+        phone: (data as any).phone || '',
       });
       setPrivacySetting(data.privacySetting || 'public');
     } catch (err: any) {
@@ -161,6 +167,9 @@ export const Settings = () => {
         sport: form.sport,
         bio: form.bio,
         achievements: form.achievements,
+        heightIn: form.heightIn || undefined,
+        weightLbs: form.weightLbs || undefined,
+        phone: form.phone || undefined,
       };
       const res = await apiFetch<{ success: boolean; data: UserProfile }>('/api/users/profile', {
         method: 'PUT',
@@ -270,6 +279,16 @@ export const Settings = () => {
                 className="w-full bg-surface-card/50 border border-white/10 rounded-lg py-3 px-4 text-ink-muted cursor-not-allowed"
               />
             </div>
+            <div>
+              <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Phone</label>
+              <input
+                type="tel"
+                value={form.phone}
+                onChange={e => handleFormChange('phone', e.target.value)}
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
+                placeholder="e.g. 555.867.5309"
+              />
+            </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Bio</label>
               <textarea
@@ -361,6 +380,26 @@ export const Settings = () => {
                 value={form.zipCode}
                 onChange={e => handleFormChange('zipCode', e.target.value)}
                 className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Height (inches)</label>
+              <input
+                type="number"
+                value={form.heightIn}
+                onChange={e => handleFormChange('heightIn', e.target.value)}
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
+                placeholder="e.g. 68 (for 5'8&quot;)"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-ink-muted uppercase tracking-widest mb-2">Weight (lbs)</label>
+              <input
+                type="number"
+                value={form.weightLbs}
+                onChange={e => handleFormChange('weightLbs', e.target.value)}
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
+                placeholder="e.g. 145"
               />
             </div>
             <div className="md:col-span-2">

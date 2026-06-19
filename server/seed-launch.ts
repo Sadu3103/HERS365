@@ -2,6 +2,7 @@
 // Launch-day seed: replaces placeholder athletes with real CA girls' flag-football
 // profiles and seeds an on-brand feed. Idempotent — safe to re-run.
 // Run against prod with DATABASE_URL set to the production Postgres URL.
+import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema';
