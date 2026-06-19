@@ -75,6 +75,15 @@ const mockCoaches: Record<number, any> = {
   },
 };
 
+// Public DTO: whitelist of fields safe to return to unauthenticated callers.
+// Email and any other contact info must come from an authenticated endpoint
+// after a connection request has been accepted.
+function toPublicCoach(c: any) {
+  if (!c) return c;
+  const { email, ...publicFields } = c;
+  return publicFields;
+}
+
 // GET /api/coaches/:id
 router.get('/:id', (req, res) => {
   try {
@@ -82,7 +91,9 @@ router.get('/:id', (req, res) => {
     if (!coach) {
       return res.status(404).json({ success: false, error: 'Coach not found' });
     }
-    res.json({ success: true, data: coach });
+    // Authenticated callers can be served the full record by a future RBAC
+    // middleware; for now this endpoint is public and must not leak PII.
+    res.json({ success: true, data: toPublicCoach(coach) });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to fetch coach profile' });
   }

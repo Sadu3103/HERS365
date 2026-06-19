@@ -15,6 +15,13 @@
       "when": 1781810621624,
       "tag": "0001_thankful_bushwacker",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781843035241,
+      "tag": "0002_worried_tenebrous",
+      "breakpoints": true
     }
   ]
 }

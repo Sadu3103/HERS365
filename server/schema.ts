@@ -483,6 +483,9 @@ export const messages = pgTable('messages', {
   senderType: text('sender_type'), // 'coach' or 'athlete'
   content: text('content').notNull(),
   read: boolean('read').default(false),
+  // Soft-delete: hidden in UI but retained for safety audits.
+  deletedAt: timestamp('deleted_at'),
+  deletedBy: text('deleted_by'), // 'coach' | 'athlete' | 'admin'
   createdAt: timestamp('created_at').default(sql`now()`),
 });
 
