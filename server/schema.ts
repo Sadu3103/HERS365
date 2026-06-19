@@ -39,6 +39,9 @@ export const players = pgTable('players', {
   // Persisted user preferences (notification prefs, theme, language, etc.).
   // Server-backed replacement for localStorage-only toggles.
   preferences: jsonb('preferences').default(sql`'{}'::jsonb`),
+  // Custom profile photo. Public URL returned from /api/upload/presign.
+  // Falls back to the generated initials avatar when null.
+  profileImage: text('profile_image'),
   createdAt: timestamp('created_at').default(sql`now()`),
 });
 
