@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { useNotifications } from '../../context/NotificationContext';
 import { gsap } from 'gsap';
 import * as THREE from 'three';
 
@@ -201,6 +202,7 @@ function TypingDots() {
 
 export function CoachMessages() {
   const qc = useQueryClient();
+  const { showNotification } = useNotifications();
   const [activeId, setActiveId] = useState<number | null>(null);
   const [msgText, setMsgText] = useState('');
   const [searchQ, setSearchQ] = useState('');
@@ -215,11 +217,15 @@ export function CoachMessages() {
 
   // ── Data ──────────────────────────────────────────────────────────────────
 
-  const { data: rawMsgs = [], isLoading } = useQuery({
+  const { data: rawMsgs = [], isLoading, isError } = useQuery({
     queryKey: ['coach-messages'],
     queryFn: () => coachFetch<{ messages: RawMessage[] }>('/api/coach/messages').then(d => d.messages ?? []),
     refetchInterval: 8000,
   });
+
+  useEffect(() => {
+    if (isError) showNotification('error', 'Messages Unavailable', 'Could not load your conversations. Check your connection and try again.');
+  }, [isError]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const convos = useMemo(() => groupMessages(rawMsgs), [rawMsgs]);
   const activeConvo = useMemo(() => convos.find(c => c.athleteId === activeId) ?? null, [convos, activeId]);
@@ -246,6 +252,9 @@ export function CoachMessages() {
     onSuccess: () => {
       setMsgText('');
       qc.invalidateQueries({ queryKey: ['coach-messages'] });
+    },
+    onError: () => {
+      showNotification('error', 'Message Not Sent', 'Failed to deliver your message. Please try again.');
     },
   });
 
@@ -585,6 +594,17 @@ export function CoachMessages() {
               <div style={{ padding: 20, textAlign: 'center', color: '#444', fontSize: '0.78rem' }}>
                 Loading…
               </div>
+            ) : isError ? (
+              <div style={{ padding: 24, textAlign: 'center', color: '#555' }}>
+                <div style={{ fontSize: '1.4rem', marginBottom: 8 }}>⚠️</div>
+                <div style={{ fontSize: '0.78rem', lineHeight: 1.5, marginBottom: 12 }}>Could not load messages.</div>
+                <button
+                  onClick={() => qc.invalidateQueries({ queryKey: ['coach-messages'] })}
+                  style={{ background: 'rgba(255,90,45,0.1)', border: '1px solid rgba(255,90,45,0.25)', borderRadius: 8, color: '#ff5a2d', fontSize: '0.72rem', fontWeight: 700, padding: '6px 14px', cursor: 'pointer' }}
+                >
+                  Retry
+                </button>
+              </div>
             ) : filtered.length === 0 ? (
               <div style={{ padding: 24, textAlign: 'center', color: '#444' }}>
                 <div style={{ fontSize: '1.5rem', marginBottom: 8 }}>📭</div>
@@ -658,7 +678,7 @@ export function CoachMessages() {
                     </div>
                   );
                 })}
-                {isTyping && <TypingDots />}
+                {sendMut.isPending && <TypingDots />}
               </div>
 
               {/* Compose footer */}
