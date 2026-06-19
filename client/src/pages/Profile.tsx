@@ -28,6 +28,7 @@ interface ApiProfile {
   nilPoints: number;
   heightIn: number | null;
   weightLbs: number | null;
+  profileImage: string | null;
 }
 
 interface EditForm {
@@ -121,6 +122,45 @@ export const Profile = () => {
     name: '', position: '', school: '', location: '', gradYear: '', bio: '', heightIn: '', weightLbs: '',
   });
   const [editSaving, setEditSaving] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+
+  // Upload a new profile photo: presign → PUT to S3 → PUT /api/profile.
+  // Refreshes the profile state inline so the avatar swaps without a reload.
+  const uploadPhoto = async (file: File) => {
+    if (!profile) return;
+    if (!file.type.startsWith('image/')) {
+      showNotification('error', 'Invalid file', 'Please pick an image.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showNotification('error', 'Too large', 'Photo must be under 5MB.');
+      return;
+    }
+    setPhotoUploading(true);
+    try {
+      const presign = await apiFetch<{ uploadUrl: string; publicUrl: string }>('/api/upload/presign', {
+        method: 'POST',
+        body: JSON.stringify({ filename: file.name, contentType: file.type, size: file.size }),
+      });
+      const putRes = await fetch(presign.uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+      if (!putRes.ok) throw new Error('upload failed');
+      const updated = await apiFetch<ApiProfile>('/api/profile', {
+        method: 'PUT',
+        body: JSON.stringify({ profileImage: presign.publicUrl }),
+      });
+      setProfile(updated);
+      showNotification('success', 'Photo updated', 'Looking good.');
+    } catch (err) {
+      showNotification('error', 'Upload failed', err instanceof Error ? err.message : 'Try again');
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
   const [editError, setEditError] = useState<string | null>(null);
 
   const [gameStats, setGameStats] = useState<GameStat[]>([]);
@@ -332,7 +372,47 @@ export const Profile = () => {
 
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, position: 'relative' }}>
           <div style={{ position: 'relative', flexShrink: 0 }}>
-            <img src={athleteAvatar(profile.name)} alt={profile.name} style={{ width: 80, height: 80, borderRadius: '50%', background: '#1c1c1c', border: '2px solid rgba(255,90,45,0.3)', objectFit: 'cover' }} />
+            <img
+              src={profile.profileImage || athleteAvatar(profile.name)}
+              alt={profile.name}
+              style={{
+                width: 80, height: 80, borderRadius: '50%', background: '#1c1c1c',
+                border: '2px solid rgba(255,90,45,0.3)', objectFit: 'cover',
+                opacity: photoUploading ? 0.5 : 1, transition: 'opacity .2s',
+              }}
+            />
+            {isOwnProfile && !viewAsCoach && (
+              <>
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadPhoto(f);
+                    e.target.value = '';
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={photoUploading}
+                  aria-label="Change profile photo"
+                  title="Change photo"
+                  style={{
+                    position: 'absolute', bottom: -2, left: -2,
+                    width: 26, height: 26, borderRadius: '50%',
+                    background: '#ff5a2d', border: '2px solid #111',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: photoUploading ? 'wait' : 'pointer', color: '#fff',
+                    boxShadow: '0 2px 8px rgba(0,0,0,.5)',
+                  }}
+                >
+                  {photoUploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                </button>
+              </>
+            )}
             {verified && (
               <div style={{ position: 'absolute', bottom: 2, right: 2 }}>
                 <CheckCircle2 size={18} color="#ff5a2d" fill="#ff5a2d" style={{ background: '#111', borderRadius: '50%' }} />

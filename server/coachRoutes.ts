@@ -78,6 +78,12 @@ function mapPlayerToScout(p: any) {
     committed: false,
     nilPoints: p.nilPoints ?? 0,
     avatarUrl: null,
+    // Surface the athlete's own profile photo so coach search cards aren't
+    // just initial bubbles. Falls back to null when the athlete hasn't uploaded.
+    profileImage: p.profileImage ?? null,
+    // Latest highlight thumbnail, populated by a post-query enrichment step
+    // below when the field exists. Null when the athlete has no highlights yet.
+    highlightThumbnailUrl: p.latestHighlightThumbnail ?? null,
   };
 }
 
@@ -128,7 +134,31 @@ router.get('/players/search', async (req, res) => {
     const rows = await db.select().from(schema.players)
       .where(conditions.length ? and(...conditions) : undefined);
 
-    let results = rows
+    // Enrich with each athlete's most recent highlight thumbnail so the coach
+    // search cards aren't faceless. Single batched query, not an N+1.
+    const playerIds = rows.map((p) => p.id);
+    const thumbnailByPlayer = new Map<number, string>();
+    if (playerIds.length > 0) {
+      const highlights = await db
+        .select({
+          playerId: schema.playerHighlights.playerId,
+          thumbnailUrl: schema.playerHighlights.thumbnailUrl,
+          createdAt: schema.playerHighlights.createdAt,
+        })
+        .from(schema.playerHighlights)
+        .orderBy(desc(schema.playerHighlights.createdAt));
+      for (const h of highlights) {
+        if (h.playerId != null && h.thumbnailUrl && !thumbnailByPlayer.has(h.playerId)) {
+          thumbnailByPlayer.set(h.playerId, h.thumbnailUrl);
+        }
+      }
+    }
+    const rowsWithThumbs = rows.map((p) => ({
+      ...p,
+      latestHighlightThumbnail: thumbnailByPlayer.get(p.id) ?? null,
+    }));
+
+    let results = rowsWithThumbs
       .filter((p) => p.name && p.position) // skip incomplete / test rows
       .map(mapPlayerToScout);
 
