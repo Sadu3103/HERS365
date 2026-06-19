@@ -29,6 +29,20 @@ if (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'development') {
   }
 }
 
+// [D-07] Guard against weak JWT signing secrets. Runs in every environment —
+// a short/known secret used in dev tends to leak into prod, and a forgeable
+// token is forgeable everywhere. Require at least 32 characters.
+if (process.env.NODE_ENV !== 'test') {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.length < 32) {
+    console.error(
+      `JWT_SECRET must be set and at least 32 characters (got ${secret ? `${secret.length} chars` : 'unset'}). ` +
+      `Generate one with:  openssl rand -base64 48`
+    );
+    process.exit(1);
+  }
+}
+
 // Initialize tracing
 tracing;
 
