@@ -28,7 +28,20 @@ export const players = pgTable('players', {
   privacySetting: text('privacy_setting').default('public'),
   segment: text('segment').default('high_school'), // youth, high_school, college, elite
   skillTier: text('skill_tier').default('beginner'), // beginner, intermediate, advanced, elite
+  heightIn: integer('height_in'),
+  weightLbs: integer('weight_lbs'),
+  phone: text('phone'),
   isRecreational: boolean('is_recreational').default(false),
+  // Date of birth: collected at signup. Drives COPPA / minor / parent-gate logic.
+  dob: timestamp('dob'),
+  // Optional parent email captured at signup. Used to send a parent-link invite.
+  pendingParentEmail: text('pending_parent_email'),
+  // Persisted user preferences (notification prefs, theme, language, etc.).
+  // Server-backed replacement for localStorage-only toggles.
+  preferences: jsonb('preferences').default(sql`'{}'::jsonb`),
+  // Custom profile photo. Public URL returned from /api/upload/presign.
+  // Falls back to the generated initials avatar when null.
+  profileImage: text('profile_image'),
   createdAt: timestamp('created_at').default(sql`now()`),
 });
 
@@ -213,6 +226,10 @@ export const parents = pgTable('parents', {
   passwordHash: text('password_hash').notNull(),
   name: text('name').notNull(),
   phone: text('phone'),
+  // Persisted parent-side preferences (notification toggles, visibility
+  // defaults, etc.). Server-backed replacement for the local useState
+  // toggles that lived in ParentHub and ParentDashboard.
+  preferences: jsonb('preferences').default(sql`'{}'::jsonb`),
   createdAt: timestamp('created_at').default(sql`now()`),
 });
 
@@ -235,6 +252,12 @@ export const coaches = pgTable('coaches', {
   recruitingPositions: text('recruiting_positions'),
   recruitingStates: text('recruiting_states'),
   verifiedStatus: boolean('verified_status').default(false),
+  // When the coach submitted their verification request (signup time).
+  verificationRequestedAt: timestamp('verification_requested_at'),
+  // When an admin approved them. Null until cleared.
+  verifiedAt: timestamp('verified_at'),
+  // Free-text reason / staff page URL / .edu email proof, captured at signup.
+  verificationNote: text('verification_note'),
 });
 
 export const adminUsers = pgTable('admin_users', {
@@ -480,6 +503,9 @@ export const messages = pgTable('messages', {
   senderType: text('sender_type'), // 'coach' or 'athlete'
   content: text('content').notNull(),
   read: boolean('read').default(false),
+  // Soft-delete: hidden in UI but retained for safety audits.
+  deletedAt: timestamp('deleted_at'),
+  deletedBy: text('deleted_by'), // 'coach' | 'athlete' | 'admin'
   createdAt: timestamp('created_at').default(sql`now()`),
 });
 

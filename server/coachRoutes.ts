@@ -8,13 +8,17 @@ import { db } from './db';
 import * as schema from './schema';
 import { eq, ilike, and, desc, sql } from 'drizzle-orm';
 import { requireCoach } from './auth';
+import { requireVerifiedCoach } from './middleware/requireVerifiedCoach';
 import { generatePredictiveAnalytics, AthleteData } from './rankingAlgorithm';
 import { hasParentApprovedLink } from './api/messages';
 
 const router = express.Router();
 
-// Apply coach middleware to ALL coach routes
+// All coach routes require a coach JWT AND a verified coach account. New
+// coach accounts land unverified and are blocked from search/messaging until
+// an admin clears them via /api/admin/coaches/verification.
 router.use(requireCoach);
+router.use(requireVerifiedCoach);
 
 // ── Map a real DB player row → the scouting-card shape the coach UI expects ──
 // Identity, academics, and recruiting fields are real. The platform does not yet
@@ -74,6 +78,12 @@ function mapPlayerToScout(p: any) {
     committed: false,
     nilPoints: p.nilPoints ?? 0,
     avatarUrl: null,
+    // Surface the athlete's own profile photo so coach search cards aren't
+    // just initial bubbles. Falls back to null when the athlete hasn't uploaded.
+    profileImage: p.profileImage ?? null,
+    // Latest highlight thumbnail, populated by a post-query enrichment step
+    // below when the field exists. Null when the athlete has no highlights yet.
+    highlightThumbnailUrl: p.latestHighlightThumbnail ?? null,
   };
 }
 
@@ -124,7 +134,31 @@ router.get('/players/search', async (req, res) => {
     const rows = await db.select().from(schema.players)
       .where(conditions.length ? and(...conditions) : undefined);
 
-    let results = rows
+    // Enrich with each athlete's most recent highlight thumbnail so the coach
+    // search cards aren't faceless. Single batched query, not an N+1.
+    const playerIds = rows.map((p) => p.id);
+    const thumbnailByPlayer = new Map<number, string>();
+    if (playerIds.length > 0) {
+      const highlights = await db
+        .select({
+          playerId: schema.playerHighlights.playerId,
+          thumbnailUrl: schema.playerHighlights.thumbnailUrl,
+          createdAt: schema.playerHighlights.createdAt,
+        })
+        .from(schema.playerHighlights)
+        .orderBy(desc(schema.playerHighlights.createdAt));
+      for (const h of highlights) {
+        if (h.playerId != null && h.thumbnailUrl && !thumbnailByPlayer.has(h.playerId)) {
+          thumbnailByPlayer.set(h.playerId, h.thumbnailUrl);
+        }
+      }
+    }
+    const rowsWithThumbs = rows.map((p) => ({
+      ...p,
+      latestHighlightThumbnail: thumbnailByPlayer.get(p.id) ?? null,
+    }));
+
+    let results = rowsWithThumbs
       .filter((p) => p.name && p.position) // skip incomplete / test rows
       .map(mapPlayerToScout);
 
@@ -182,36 +216,37 @@ router.get('/players/search', async (req, res) => {
  * GET /coach/players/:id — Full unlocked athlete profile (coaches see everything)
  */
 router.get('/players/:id', async (req, res) => {
-  const id = parseInt(req.params.id);
-  const mockFull = {
-    id,
-    name: 'Aaliyah Thompson',
-    position: 'WR',
-    state: 'TX',
-    city: 'Dallas',
-    school: 'Westlake High',
-    gradYear: 2026,
-    height: '5\'8"',
-    weight: 135,
-    gpa: 3.8,
-    breakoutScore: 98,
-    stars: 5,
-    archetype: 'WR Speedster',
-    email: 'available@premium',
-    phone: 'available@premium',
-    parentContact: 'available@premium',
-    highlights: [
-      { title: 'Junior Season Full Game', url: 'https://youtube.com/...', locked: false },
-      { title: 'State Championship Highlights', url: 'https://youtube.com/...', locked: false },
-    ],
-    stats: { receptions: 64, receivingYards: 1204, receivingTouchdowns: 18, ydsPerCatch: 18.8, gamesPlayed: 12 },
-    combineStats: { fortyYard: '4.52', vertical: 36, broadJump: 118, shuttle: '4.15', verified: true },
-    academicProfile: { gpa: 3.8, act: 27, sat: 1280, major: 'Sports Medicine' },
-    offers: ['TCU', 'Baylor', 'UTSA', 'Rice'],
-    committed: false,
-    nilPoints: 4200,
-  };
-  res.json(mockFull);
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid player ID' });
+
+    const [player] = await db.select().from(schema.players).where(eq(schema.players.id, id));
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+
+    const { passwordHash, ...safe } = player;
+
+    const combine = await db.select().from(schema.combineStats)
+      .where(eq(schema.combineStats.playerId, id))
+      .orderBy(desc(schema.combineStats.id))
+      .limit(1);
+
+    res.json({
+      ...safe,
+      stars: safe.g5Rating,
+      offers: safe.collegeOffers ?? [],
+      combineStats: combine[0] ? {
+        fortyYard: combine[0].fortyDash,
+        vertical: combine[0].vertical,
+        broadJump: combine[0].broadJump,
+        shuttle: combine[0].shuttle,
+        verified: false,
+      } : null,
+      highlights: [],
+    });
+  } catch (error) {
+    console.error('Player profile fetch failed:', error);
+    res.status(500).json({ error: 'Failed to fetch player profile' });
+  }
 });
 
 // ─── Scouting Board ───────────────────────────────────────────────────────────

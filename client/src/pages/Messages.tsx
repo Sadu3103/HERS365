@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Send, Inbox, Clock, Plus, X, Shield, Check, CheckCheck, MessagesSquare, ShieldCheck, ArrowLeft, Search, AlertCircle, Zap, MoreVertical, Flag, Ban } from 'lucide-react';
+import { Send, Inbox, Clock, Plus, X, Shield, Check, CheckCheck, MessagesSquare, ShieldCheck, ArrowLeft, Search, AlertCircle, Zap, MoreVertical, Flag, Ban, ChevronDown, Filter } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { apiFetch } from '../lib/api';
 
@@ -125,8 +125,11 @@ export const Messages = () => {
   const [reportReason, setReportReason] = useState('');
   const [reportDetails, setReportDetails] = useState('');
   const [reportSent, setReportSent] = useState(false);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [unreadOnly, setUnreadOnly] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
+  const threadScrollRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const reduce = useReducedMotion();
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 760);
@@ -164,9 +167,12 @@ export const Messages = () => {
     queryFn: () => apiFetch<{ data: Conversation[] }>('/api/messages/conversations'),
   });
   const allConversations = convData?.data ?? [];
-  const conversations = convSearch.trim()
-    ? allConversations.filter((c) => c.partnerName.toLowerCase().includes(convSearch.toLowerCase().trim()))
-    : allConversations;
+  const conversations = allConversations.filter((c) => {
+    const q = convSearch.trim().toLowerCase();
+    const matchesSearch = !q || c.partnerName.toLowerCase().includes(q);
+    const matchesUnread = !unreadOnly || c.unreadCount > 0;
+    return matchesSearch && matchesUnread;
+  });
 
   const { data: reqData } = useQuery({
     queryKey: ['message-requests'],
@@ -254,7 +260,15 @@ export const Messages = () => {
 
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth' });
+    setShowScrollBtn(false);
   }, [thread.length, activePartner, reduce]);
+
+  const handleThreadScroll = useCallback(() => {
+    const el = threadScrollRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollBtn(distFromBottom > 120);
+  }, []);
 
   useEffect(() => {
     if (activePartner != null && !isMobile) composerRef.current?.focus();
@@ -364,6 +378,12 @@ export const Messages = () => {
                   style={{ width: '100%', boxSizing: 'border-box', background: INK_3, border: `1px solid ${LINE}`, borderRadius: 9999, padding: '7px 12px 7px 32px', color: '#fff', fontSize: '0.76rem', outline: 'none' }}
                 />
               </div>
+              <button
+                onClick={() => setUnreadOnly(v => !v)}
+                style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 5, background: unreadOnly ? FLAME : 'transparent', border: `1px solid ${unreadOnly ? FLAME : LINE}`, borderRadius: 9999, padding: '4px 10px', color: unreadOnly ? '#fff' : MUTED_2, fontSize: '0.65rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.06em' }}
+              >
+                <Filter size={10} /> UNREAD ONLY
+              </button>
             </div>
           )}
 
@@ -463,7 +483,7 @@ export const Messages = () => {
         ) : (
           <>
             {/* Thread header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', borderBottom: `1px solid ${LINE}`, background: INK }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', borderBottom: `1px solid ${LINE}`, background: INK, position: 'relative', zIndex: 1 }}>
               {isMobile && (
                 <button onClick={() => setActivePartner(null)} aria-label="Back" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: 0, display: 'flex', flexShrink: 0 }}>
                   <ArrowLeft size={20} />
@@ -507,8 +527,9 @@ export const Messages = () => {
               </div>
             </div>
 
-            {/* Messages */}
-            <div className="msg-scroll" style={{ flex: 1, overflowY: 'auto', padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {/* Messages + scroll-to-bottom */}
+            <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+            <div ref={threadScrollRef} onScroll={handleThreadScroll} className="msg-scroll" style={{ height: '100%', overflowY: 'auto', padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 3 }}>
               {threadLoading && thread.length === 0 && <ThreadSkeleton />}
               {!threadLoading && thread.length === 0 && (
                 <div style={{ margin: 'auto', textAlign: 'center', color: MUTED_2, fontSize: '0.82rem' }}>
@@ -569,6 +590,16 @@ export const Messages = () => {
                 );
               })}
               <div ref={threadEndRef} />
+            </div>
+            {showScrollBtn && (
+              <button
+                onClick={() => threadEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                style={{ position: 'absolute', bottom: 12, right: 16, zIndex: 10, background: INK_2, border: `1px solid ${LINE}`, borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 16px rgba(0,0,0,0.5)' }}
+                aria-label="Scroll to bottom"
+              >
+                <ChevronDown size={18} color={MUTED} />
+              </button>
+            )}
             </div>
 
             {/* Composer (or blocked notice) */}

@@ -537,7 +537,10 @@ router.patch('/coaches/:id/verify', requireAdmin, async (req: Request, res: Resp
     const { verified } = req.body;
 
     const updated = await db.update(schema.coaches)
-      .set({ verifiedStatus: verified })
+      .set({
+        verifiedStatus: Boolean(verified),
+        verifiedAt: verified ? new Date() : null,
+      })
       .where(eq(schema.coaches.id, coachId))
       .returning();
 

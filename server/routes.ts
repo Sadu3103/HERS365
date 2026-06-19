@@ -107,7 +107,7 @@ router.get('/profile', requireAuth, async (req: AuthenticatedRequest, res: Respo
 
 router.put('/profile', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { name, bio, position, school, state, gradYear } = req.body;
+    const { name, bio, position, school, state, gradYear, heightIn, weightLbs, phone, profileImage } = req.body;
     const updates: Record<string, any> = {};
     if (name !== undefined) updates.name = name;
     if (bio !== undefined) updates.bio = bio;
@@ -115,8 +115,24 @@ router.put('/profile', requireAuth, async (req: AuthenticatedRequest, res: Respo
     if (school !== undefined) updates.school = school;
     if (state !== undefined) updates.state = state;
     if (gradYear !== undefined) updates.gradYear = gradYear;
+    if (heightIn !== undefined) updates.heightIn = heightIn === '' ? null : Number(heightIn);
+    if (weightLbs !== undefined) updates.weightLbs = weightLbs === '' ? null : Number(weightLbs);
+    if (phone !== undefined) updates.phone = phone || null;
+    // Custom profile photo URL. Client uploads to /api/upload/presign first,
+    // then sends the resulting publicUrl here.
+    if (profileImage !== undefined) updates.profileImage = profileImage || null;
     const updated = await db.update(schema.players).set(updates).where(eq(schema.players.id, req.user.userId)).returning();
     res.json(stripPlayer(updated[0]));
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/profile/stats', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const gameStats = await db.select().from(schema.gameStats).where(eq(schema.gameStats.playerId, req.user.userId));
+    const combineStats = await db.select().from(schema.combineStats).where(eq(schema.combineStats.playerId, req.user.userId)).limit(1);
+    res.json({ game: gameStats, combine: combineStats[0] || null });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

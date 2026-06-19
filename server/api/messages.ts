@@ -1,11 +1,18 @@
 import express from 'express';
-import { and, eq, or, desc, sql, isNotNull } from 'drizzle-orm';
+import { and, eq, or, desc, sql, isNotNull, isNull } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 import { requireAuth } from '../auth';
+import { requireVerifiedCoach } from '../middleware/requireVerifiedCoach';
 
 const router = express.Router();
 router.use(requireAuth);
+// Coaches must be verified before sending, listing threads, or reading messages.
+// Athletes and parents pass through unaffected.
+router.use(requireVerifiedCoach);
+
+// Soft-delete: exclude messages whose deleted_at is set from all read paths.
+const notDeleted = isNull(schema.messages.deletedAt);
 
 // Returns { userId, role } for the authenticated caller.
 function caller(req: express.Request) {
@@ -23,7 +30,10 @@ router.get('/conversations', async (req, res) => {
     const rows = await db
       .select()
       .from(schema.messages)
-      .where(isCoach ? eq(schema.messages.coachId, userId) : eq(schema.messages.athleteId, userId))
+      .where(and(
+        isCoach ? eq(schema.messages.coachId, userId) : eq(schema.messages.athleteId, userId),
+        notDeleted,
+      ))
       .orderBy(desc(schema.messages.createdAt));
 
     // Group by the partner id (the other side of the pair).
@@ -94,7 +104,7 @@ router.get('/conversations/:partnerId/messages', async (req, res) => {
     const rows = await db
       .select()
       .from(schema.messages)
-      .where(pairWhere)
+      .where(and(pairWhere, notDeleted))
       .orderBy(schema.messages.createdAt)
       .limit(limit)
       .offset(offset);
@@ -237,12 +247,37 @@ router.get('/unread-count', async (req, res) => {
     const rows = await db
       .select()
       .from(schema.messages)
-      .where(and(sideWhere, eq(schema.messages.read, false), sql`${schema.messages.senderId} <> ${userId}`));
+      .where(and(sideWhere, notDeleted, eq(schema.messages.read, false), sql`${schema.messages.senderId} <> ${userId}`));
 
     res.json({ success: true, data: { totalUnread: rows.length } });
   } catch (err) {
     console.error('[messages/unread-count]', err);
     res.status(500).json({ success: false, error: 'Failed to get unread count' });
+  }
+});
+
+// DELETE /api/messages/:id — soft-delete a message the caller sent.
+// Row stays in DB for safety audits; UI hides it.
+router.delete('/:id', async (req, res) => {
+  try {
+    const { userId, role } = caller(req);
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ success: false, error: 'Invalid message id' });
+    }
+    const [row] = await db.select().from(schema.messages).where(eq(schema.messages.id, id)).limit(1);
+    if (!row) return res.status(404).json({ success: false, error: 'Not found' });
+    if (row.senderId !== userId) {
+      return res.status(403).json({ success: false, error: 'Can only delete your own messages' });
+    }
+    await db
+      .update(schema.messages)
+      .set({ deletedAt: new Date(), deletedBy: role })
+      .where(eq(schema.messages.id, id));
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[messages/delete]', err);
+    res.status(500).json({ success: false, error: 'Failed to delete message' });
   }
 });
 
