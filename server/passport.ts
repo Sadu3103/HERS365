@@ -23,7 +23,12 @@ export function configurePassport(): void {
         callbackURL,
         scope: ['user:email'],
       },
-      async (_accessToken: string, _refreshToken: string, profile: Profile, done) => {
+      async (
+        _accessToken: string,
+        _refreshToken: string,
+        profile: Profile,
+        done: (err: Error | null, user?: { userId: number; email: string; name: string; role: auth.UserRole }) => void,
+      ) => {
         try {
           const email = profile.emails?.[0]?.value?.toLowerCase().trim();
           if (!email) return done(new Error('GitHub did not return an email'));
