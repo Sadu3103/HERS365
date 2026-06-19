@@ -15,6 +15,10 @@ const MUTED = '#8a8a86';
 const MUTED_2 = '#5a5a56';
 const DISP = "'Barlow Condensed', sans-serif";
 
+const DEMO_VIDEO_URL =
+  (import.meta.env.VITE_DEMO_VIDEO_URL as string | undefined) ||
+  'https://www.youtube.com/watch?v=763pUAkLfWU';
+
 const css = `
   *,*::before,*::after{box-sizing:border-box}
 
@@ -352,7 +356,9 @@ export const LandingPage = () => {
 
             <motion.div {...reveal} transition={{ ...reveal.transition, delay: 0.28 }} style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginTop: 26 }}>
               <Link to="/auth?tab=signup" className="lp-btn lp-btn-primary">Claim Your Profile <ArrowRight size={15} /></Link>
-              <a href="#how" className="lp-btn lp-btn-ghost"><Play size={14} fill="currentColor" /> See How It Works</a>
+              <button type="button" className="lp-btn lp-btn-ghost" onClick={() => window.open(DEMO_VIDEO_URL, '_blank', 'noopener,noreferrer')}>
+                <Play size={14} fill="currentColor" /> Watch Demo
+              </button>
             </motion.div>
           </div>
 

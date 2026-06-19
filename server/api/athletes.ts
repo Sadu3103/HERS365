@@ -31,7 +31,7 @@ function authUser(req: Request): TokenPayload | undefined {
 const UPDATABLE_FIELDS = [
   'name', 'sport', 'position', 'age', 'state', 'city', 'zipCode',
   'school', 'gradYear', 'gpa', 'achievements', 'archetype',
-  'segment', 'skillTier', 'privacySetting',
+  'segment', 'skillTier', 'privacySetting', 'profileImage',
 ];
 const INT_FIELDS = new Set(['age', 'gradYear']);
 
