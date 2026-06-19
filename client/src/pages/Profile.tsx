@@ -415,6 +415,57 @@ export const Profile = () => {
         </div>
       </div>
 
+      {/* Profile completion bar — only on the owner's view, only while incomplete. */}
+      {isOwnProfile && !viewAsCoach && (() => {
+        const steps = [
+          { key: 'bio', label: 'Write a bio', done: Boolean(profile.bio && profile.bio.trim().length >= 20), action: openEdit },
+          { key: 'hw', label: 'Add height & weight', done: Boolean(profile.heightIn && profile.weightLbs), action: openEdit },
+          { key: 'gpa', label: 'Set your GPA', done: Boolean(profile.gpa && profile.gpa.trim()), action: openEdit },
+          { key: 'highlight', label: 'Upload a highlight', done: highlights.length > 0, action: () => setActiveTab('Highlights') },
+          { key: 'achievements', label: 'List achievements', done: Boolean(profile.achievements && profile.achievements.trim()), action: openEdit },
+        ];
+        const doneCount = steps.filter(s => s.done).length;
+        const pct = Math.round((doneCount / steps.length) * 100);
+        if (pct === 100) return null;
+        return (
+          <div className="k-card" style={{ padding: '16px 20px', marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 12, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '0.78rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#ff5a2d' }}>
+                  Profile {pct}% Complete
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#888', marginTop: 4 }}>
+                  Complete profiles get 4x more coach views.
+                </div>
+              </div>
+              <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1rem', color: '#ddd' }}>
+                {doneCount}/{steps.length}
+              </span>
+            </div>
+            <div style={{ height: 6, borderRadius: 9999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden', marginBottom: 14 }}>
+              <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg,#ff5a2d,#ff8c66)', transition: 'width .4s' }} />
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {steps.filter(s => !s.done).slice(0, 3).map(s => (
+                <button
+                  key={s.key}
+                  onClick={s.action}
+                  style={{
+                    background: 'rgba(255,90,45,0.08)', border: '1px solid rgba(255,90,45,0.25)',
+                    color: '#ffb091', borderRadius: 9999, padding: '7px 14px', fontSize: '0.74rem',
+                    fontWeight: 700, cursor: 'pointer', transition: 'all .18s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,90,45,0.16)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,90,45,0.08)'; }}
+                >
+                  + {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
         {tabs.map(tab => (

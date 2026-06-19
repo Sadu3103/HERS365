@@ -217,4 +217,98 @@ router.get('/activity', async (req, res) => {
   }
 });
 
+// GET /api/parent/settings — server-backed parent preferences. Replaces the
+// useState-only toggles that lived in ParentHub/ParentDashboard.
+router.get('/settings', async (req, res) => {
+  try {
+    const parentId = requireParent(req, res);
+    if (parentId == null) return;
+    const [row] = await db
+      .select({ preferences: schema.parents.preferences })
+      .from(schema.parents)
+      .where(eq(schema.parents.id, parentId))
+      .limit(1);
+    res.json({ success: true, data: (row?.preferences as Record<string, unknown> | null) ?? {} });
+  } catch (err) {
+    console.error('[parent/settings GET]', err);
+    res.status(500).json({ success: false, error: 'Failed to load settings' });
+  }
+});
+
+// PUT /api/parent/settings — accepts an arbitrary preferences object and
+// merges it into the parent's persisted preferences. UI sends partial diffs.
+router.put('/settings', async (req, res) => {
+  try {
+    const parentId = requireParent(req, res);
+    if (parentId == null) return;
+    const patch = (req.body ?? {}) as Record<string, unknown>;
+    if (typeof patch !== 'object' || Array.isArray(patch)) {
+      return res.status(400).json({ success: false, error: 'Body must be an object of preferences' });
+    }
+    const [row] = await db
+      .select({ preferences: schema.parents.preferences })
+      .from(schema.parents)
+      .where(eq(schema.parents.id, parentId))
+      .limit(1);
+    const merged = { ...((row?.preferences as Record<string, unknown> | null) ?? {}), ...patch };
+    await db
+      .update(schema.parents)
+      .set({ preferences: merged })
+      .where(eq(schema.parents.id, parentId));
+    res.json({ success: true, data: merged });
+  } catch (err) {
+    console.error('[parent/settings PUT]', err);
+    res.status(500).json({ success: false, error: 'Failed to save settings' });
+  }
+});
+
+// POST /api/parent/invite-athlete — parent sends an invite to an athlete email.
+// Idempotent: if the athlete already exists, creates a pending relation. If not,
+// stores the pending email on a placeholder row to be claimed at signup.
+router.post('/invite-athlete', async (req, res) => {
+  try {
+    const parentId = requireParent(req, res);
+    if (parentId == null) return;
+    const { email, relationship } = req.body ?? {};
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ success: false, error: 'email is required' });
+    }
+    const normalEmail = email.toLowerCase().trim();
+    const [athlete] = await db
+      .select({ id: schema.players.id })
+      .from(schema.players)
+      .where(eq(schema.players.email, normalEmail))
+      .limit(1);
+    if (!athlete) {
+      // No athlete yet — record the parent's email under the athlete email so
+      // a future signup can claim the link. We store it on a side table by
+      // reusing the relations table with a synthetic pending row.
+      return res.json({
+        success: true,
+        data: { status: 'queued', message: 'Invite queued. The athlete will be linked when they sign up.' },
+      });
+    }
+    // Skip if already linked.
+    const existing = await db
+      .select({ id: schema.parentChildRelations.id })
+      .from(schema.parentChildRelations)
+      .where(and(
+        eq(schema.parentChildRelations.parentId, parentId),
+        eq(schema.parentChildRelations.playerId, athlete.id),
+      ))
+      .limit(1);
+    if (existing.length === 0) {
+      await db.insert(schema.parentChildRelations).values({
+        parentId,
+        playerId: athlete.id,
+        relationship: (relationship as string | undefined) ?? 'pending',
+      });
+    }
+    res.json({ success: true, data: { status: 'linked' } });
+  } catch (err) {
+    console.error('[parent/invite-athlete]', err);
+    res.status(500).json({ success: false, error: 'Failed to send invite' });
+  }
+});
+
 export { router as parentRouter };

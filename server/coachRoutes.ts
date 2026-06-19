@@ -8,13 +8,17 @@ import { db } from './db';
 import * as schema from './schema';
 import { eq, ilike, and, desc, sql } from 'drizzle-orm';
 import { requireCoach } from './auth';
+import { requireVerifiedCoach } from './middleware/requireVerifiedCoach';
 import { generatePredictiveAnalytics, AthleteData } from './rankingAlgorithm';
 import { hasParentApprovedLink } from './api/messages';
 
 const router = express.Router();
 
-// Apply coach middleware to ALL coach routes
+// All coach routes require a coach JWT AND a verified coach account. New
+// coach accounts land unverified and are blocked from search/messaging until
+// an admin clears them via /api/admin/coaches/verification.
 router.use(requireCoach);
+router.use(requireVerifiedCoach);
 
 // ── Map a real DB player row → the scouting-card shape the coach UI expects ──
 // Identity, academics, and recruiting fields are real. The platform does not yet

@@ -57,7 +57,7 @@ async function findUserByEmail(email: string, role: auth.UserRole): Promise<Foun
 // ─── POST /api/auth/register ──────────────────────────────────────────────────
 
 router.post('/register', registerLimiter, async (req, res) => {
-  const { email, password, name, role = 'athlete', school, division } = req.body ?? {};
+  const { email, password, name, role = 'athlete', school, division, dob, parentEmail } = req.body ?? {};
 
   if (!email || !password || !name) {
     return res.status(400).json({ error: 'email, password, and name are required' });
@@ -66,8 +66,32 @@ router.post('/register', registerLimiter, async (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 8 characters' });
   }
 
-  const normalEmail = (email as string).toLowerCase().trim();
   const userRole = (role as auth.UserRole) || 'athlete';
+
+  // Athlete signup: DOB is now required so we can enforce COPPA / parent-gate.
+  // Server is the source of truth, regardless of what the client sends.
+  let parsedDob: Date | null = null;
+  if (userRole === 'athlete') {
+    if (!dob) {
+      return res.status(400).json({ error: 'Date of birth is required for athlete accounts' });
+    }
+    parsedDob = new Date(dob);
+    if (Number.isNaN(parsedDob.getTime())) {
+      return res.status(400).json({ error: 'Invalid date of birth' });
+    }
+    const ageMs = Date.now() - parsedDob.getTime();
+    const ageYears = ageMs / (1000 * 60 * 60 * 24 * 365.25);
+    if (ageYears < 13) {
+      // COPPA: no direct accounts for under-13s. They need a parent-managed flow,
+      // which is intentionally not yet implemented.
+      return res.status(400).json({
+        error: 'Users under 13 cannot create their own account. Ask a parent to set up a managed account.',
+      });
+    }
+  }
+
+  const normalEmail = (email as string).toLowerCase().trim();
+  const normalParentEmail = parentEmail ? (parentEmail as string).toLowerCase().trim() : null;
 
   const existing = await findUserByEmail(normalEmail, userRole);
   if (existing) {
@@ -79,10 +103,14 @@ router.post('/register', registerLimiter, async (req, res) => {
     let userId: number;
 
     if (userRole === 'coach') {
+      // Coaches are created in an unverified state. They must be approved by
+      // an admin before they can search athletes or send messages.
       const [row] = await db.insert(schema.coaches).values({
         email: normalEmail, passwordHash, name: name as string,
         university: school as string | undefined,
         division: (division as string) || 'D1',
+        verifiedStatus: false,
+        verificationRequestedAt: new Date(),
       }).returning({ id: schema.coaches.id });
       userId = row.id;
     } else if (userRole === 'parent') {
@@ -93,8 +121,28 @@ router.post('/register', registerLimiter, async (req, res) => {
     } else {
       const [row] = await db.insert(schema.players).values({
         email: normalEmail, passwordHash, name: name as string,
+        dob: parsedDob,
+        pendingParentEmail: normalParentEmail,
       }).returning({ id: schema.players.id });
       userId = row.id;
+      // Best-effort: kick off a parent invite if an email was provided.
+      // The actual invite flow lives in /api/parent/invites (see parent routes).
+      if (normalParentEmail) {
+        try {
+          const existingParent = await db.select().from(schema.parents).where(eq(schema.parents.email, normalParentEmail)).limit(1);
+          if (existingParent.length > 0) {
+            await db.insert(schema.parentChildRelations).values({
+              parentId: existingParent[0].id,
+              playerId: userId,
+              relationship: 'pending',
+            });
+          }
+          // If the parent isn't a user yet, the pendingParentEmail column carries
+          // the address for the invite job to pick up later.
+        } catch (linkErr) {
+          console.warn('[auth/register] parent link skipped', linkErr);
+        }
+      }
     }
 
     const token = auth.signToken({ userId, email: normalEmail, role: userRole, name: name as string });
@@ -163,13 +211,22 @@ router.post('/coach/register', registerLimiter, async (req, res) => {
   }
   try {
     const passwordHash = await auth.hashPassword(password as string);
+    // Coaches created via this dedicated endpoint also land unverified.
+    const verificationNote = (req.body?.verificationNote as string | undefined) ?? null;
     const [row] = await db.insert(schema.coaches).values({
       email: normalEmail, passwordHash, name: name as string,
       university: (university as string) || (school as string | undefined),
       division: (division as string) || 'D1',
+      verifiedStatus: false,
+      verificationRequestedAt: new Date(),
+      verificationNote: verificationNote ?? undefined,
     }).returning({ id: schema.coaches.id });
     const token = auth.signToken({ userId: row.id, email: normalEmail, role: 'coach', name: name as string });
-    res.status(201).json({ token, user: { id: row.id, email: normalEmail, name, role: 'coach' } });
+    res.status(201).json({
+      token,
+      user: { id: row.id, email: normalEmail, name, role: 'coach', verifiedStatus: false },
+      pendingVerification: true,
+    });
   } catch (err: any) {
     console.error('[auth/coach/register]', err);
     res.status(500).json({ error: 'Registration failed' });

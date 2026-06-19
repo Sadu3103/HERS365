@@ -18,32 +18,72 @@ type PendingMsg = { id: number; from: string; role: string; org: string; preview
 type ActivityItem = { text: string; ts: string; type: 'message' };
 
 const SETTING_DEFS = [
-  { label: 'Email Notifications', desc: 'Get emailed when a coach sends a message request', defaultOn: true },
-  { label: 'SMS Alerts', desc: 'Text message alerts for urgent approvals', defaultOn: false },
-  { label: 'Profile Visibility', desc: "Allow athlete's profile to appear in coach searches", defaultOn: true },
-  { label: 'Ranking Visibility', desc: 'Include athlete in public HERS365 rankings', defaultOn: true },
+  { key: 'emailNotifications', label: 'Email Notifications', desc: 'Get emailed when a coach sends a message request', defaultOn: true },
+  { key: 'smsAlerts',           label: 'SMS Alerts',           desc: 'Text message alerts for urgent approvals',         defaultOn: false },
+  { key: 'profileVisibility',   label: 'Profile Visibility',   desc: "Allow athlete's profile to appear in coach searches", defaultOn: true },
+  { key: 'rankingVisibility',   label: 'Ranking Visibility',   desc: 'Include athlete in public HERS365 rankings',       defaultOn: true },
 ] as const;
 
-const SettingRow = ({ label, desc, defaultOn }: { label: string; desc: string; defaultOn: boolean }) => {
-  const [on, setOn] = useState(defaultOn);
+type SettingKey = (typeof SETTING_DEFS)[number]['key'];
+
+const SettingRow = ({ label, desc, on, onToggle }: { label: string; desc: string; on: boolean; onToggle: () => void }) => (
+  <div style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${LINE}`, borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
+    <div>
+      <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#f4f4f2', marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: '0.72rem', color: MUTED }}>{desc}</div>
+    </div>
+    <motion.div whileTap={{ scale: 0.9 }} onClick={onToggle} style={{ width: 40, height: 22, borderRadius: 99, background: on ? FLAME : 'rgba(255,255,255,0.1)', position: 'relative', cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s' }}>
+      <motion.div animate={{ x: on ? 20 : 2 }} transition={{ type: 'spring', stiffness: 400, damping: 28 }} style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute', top: 2 }} />
+    </motion.div>
+  </div>
+);
+
+// Server-backed parent settings. Loads from /api/parent/settings on mount,
+// PUTs a partial diff on every toggle. Optimistic UI: if the PUT fails, we
+// revert the toggle and surface nothing (settings are non-critical).
+const SettingsPanel = () => {
+  const [prefs, setPrefs] = useState<Record<SettingKey, boolean>>(() =>
+    SETTING_DEFS.reduce((acc, s) => ({ ...acc, [s.key]: s.defaultOn }), {} as Record<SettingKey, boolean>),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/parent/settings');
+        const json = await res.json();
+        if (cancelled || !json?.success) return;
+        const merged = { ...prefs, ...(json.data as Partial<Record<SettingKey, boolean>>) };
+        setPrefs(merged);
+      } catch { /* keep defaults */ }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const toggle = async (key: SettingKey) => {
+    const next = !prefs[key];
+    setPrefs((p) => ({ ...p, [key]: next }));
+    try {
+      const res = await fetch('/api/parent/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [key]: next }),
+      });
+      if (!res.ok) throw new Error('save failed');
+    } catch {
+      setPrefs((p) => ({ ...p, [key]: !next })); // revert
+    }
+  };
+
   return (
-    <div style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${LINE}`, borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
-      <div>
-        <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#f4f4f2', marginBottom: 2 }}>{label}</div>
-        <div style={{ fontSize: '0.72rem', color: MUTED }}>{desc}</div>
-      </div>
-      <motion.div whileTap={{ scale: 0.9 }} onClick={() => setOn(!on)} style={{ width: 40, height: 22, borderRadius: 99, background: on ? FLAME : 'rgba(255,255,255,0.1)', position: 'relative', cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s' }}>
-        <motion.div animate={{ x: on ? 20 : 2 }} transition={{ type: 'spring', stiffness: 400, damping: 28 }} style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute', top: 2 }} />
-      </motion.div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {SETTING_DEFS.map((s) => (
+        <SettingRow key={s.key} label={s.label} desc={s.desc} on={prefs[s.key]} onToggle={() => toggle(s.key)} />
+      ))}
     </div>
   );
 };
-
-const SettingsPanel = () => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-    {SETTING_DEFS.map((s) => <SettingRow key={s.label} {...s} />)}
-  </div>
-);
 
 function formatTs(iso: string): string {
   const d = new Date(iso);

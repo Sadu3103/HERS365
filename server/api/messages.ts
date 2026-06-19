@@ -3,9 +3,13 @@ import { and, eq, or, desc, sql, isNotNull, isNull } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 import { requireAuth } from '../auth';
+import { requireVerifiedCoach } from '../middleware/requireVerifiedCoach';
 
 const router = express.Router();
 router.use(requireAuth);
+// Coaches must be verified before sending, listing threads, or reading messages.
+// Athletes and parents pass through unaffected.
+router.use(requireVerifiedCoach);
 
 // Soft-delete: exclude messages whose deleted_at is set from all read paths.
 const notDeleted = isNull(schema.messages.deletedAt);
