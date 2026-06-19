@@ -182,36 +182,36 @@ router.get('/players/search', async (req, res) => {
  * GET /coach/players/:id — Full unlocked athlete profile (coaches see everything)
  */
 router.get('/players/:id', async (req, res) => {
-  const id = parseInt(req.params.id);
-  const mockFull = {
-    id,
-    name: 'Aaliyah Thompson',
-    position: 'WR',
-    state: 'TX',
-    city: 'Dallas',
-    school: 'Westlake High',
-    gradYear: 2026,
-    height: '5\'8"',
-    weight: 135,
-    gpa: 3.8,
-    breakoutScore: 98,
-    stars: 5,
-    archetype: 'WR Speedster',
-    email: 'available@premium',
-    phone: 'available@premium',
-    parentContact: 'available@premium',
-    highlights: [
-      { title: 'Junior Season Full Game', url: 'https://youtube.com/...', locked: false },
-      { title: 'State Championship Highlights', url: 'https://youtube.com/...', locked: false },
-    ],
-    stats: { receptions: 64, receivingYards: 1204, receivingTouchdowns: 18, ydsPerCatch: 18.8, gamesPlayed: 12 },
-    combineStats: { fortyYard: '4.52', vertical: 36, broadJump: 118, shuttle: '4.15', verified: true },
-    academicProfile: { gpa: 3.8, act: 27, sat: 1280, major: 'Sports Medicine' },
-    offers: ['TCU', 'Baylor', 'UTSA', 'Rice'],
-    committed: false,
-    nilPoints: 4200,
-  };
-  res.json(mockFull);
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid player id' });
+    }
+
+    const [p] = await db.select().from(schema.players).where(eq(schema.players.id, id)).limit(1);
+    if (!p) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    const coachId = req.user.userId;
+    const contactUnlocked = await hasParentApprovedLink(id, coachId);
+
+    const base = mapPlayerToScout(p);
+
+    res.json({
+      ...base,
+      email: contactUnlocked ? p.email ?? null : 'locked',
+      phone: contactUnlocked ? p.phone ?? null : 'locked',
+      parentContact: contactUnlocked ? p.parentEmail ?? p.parentPhone ?? null : 'locked',
+      highlights: Array.isArray(p.highlightLinks) ? p.highlightLinks : [],
+      academicProfile: { gpa: base.gpa, act: p.act ?? null, sat: p.sat ?? null, major: p.intendedMajor ?? null },
+      offers: Array.isArray(p.collegeOffers) ? p.collegeOffers : [],
+      committed: Boolean(p.committed),
+    });
+  } catch (error) {
+    console.error('Failed to fetch player profile:', error);
+    res.status(500).json({ error: 'Failed to fetch player profile' });
+  }
 });
 
 // ─── Scouting Board ───────────────────────────────────────────────────────────
@@ -408,11 +408,11 @@ router.get('/messages', async (req, res) => {
       coachEmail: schema.coaches.email,
       athleteName: schema.players.name,
     })
-    .from(schema.messages)
-    .leftJoin(schema.coaches, eq(schema.messages.coachId, schema.coaches.id))
-    .leftJoin(schema.players, eq(schema.messages.athleteId, schema.players.id))
-    .where(eq(schema.messages.coachId, coachId))
-    .orderBy(desc(schema.messages.createdAt));
+      .from(schema.messages)
+      .leftJoin(schema.coaches, eq(schema.messages.coachId, schema.coaches.id))
+      .leftJoin(schema.players, eq(schema.messages.athleteId, schema.players.id))
+      .where(eq(schema.messages.coachId, coachId))
+      .orderBy(desc(schema.messages.createdAt));
 
     res.json({ messages });
   } catch (error) {
@@ -424,39 +424,137 @@ router.get('/messages', async (req, res) => {
 // ─── Coach Analytics ──────────────────────────────────────────────────────────
 
 /**
-  * GET /coach/analytics — Recently viewed players, board stats
+  * GET /coach/analytics — Real DB-backed recruiting stats
+  *
+  * Metrics with no tracking table (profileViews, searchQueries, commitsReceived)
+  * are returned as null. Track them by adding a coach_activity_log table and
+  * instrumenting the relevant endpoints.
   */
 router.get('/analytics', async (req, res) => {
   try {
     const coachId = req.user.userId;
 
-    // Get board count
-    const boardCount = await db.select({ count: sql<number>`count(*)` })
+    // ── Counts ────────────────────────────────────────────────────────────────
+
+    // Total prospects on board
+    const [{ boardCount }] = await db
+      .select({ boardCount: sql<number>`count(*)::int` })
       .from(schema.coachProspects)
       .where(eq(schema.coachProspects.coachId, coachId));
 
-    // Get messages sent count
-    const messagesSent = await db.select({ count: sql<number>`count(*)` })
+    // Total messages this coach has sent
+    const [{ messagesSent }] = await db
+      .select({ messagesSent: sql<number>`count(*)::int` })
       .from(schema.messages)
-      .where(eq(schema.messages.coachId, coachId));
+      .where(and(eq(schema.messages.coachId, coachId), eq(schema.messages.senderType, 'coach')));
 
-    // For now, using mock data for other metrics
+    // Distinct athletes the coach has ever messaged (one message = "contacted")
+    const [{ playersContacted }] = await db
+      .select({ playersContacted: sql<number>`count(distinct ${schema.messages.athleteId})::int` })
+      .from(schema.messages)
+      .where(and(eq(schema.messages.coachId, coachId), eq(schema.messages.senderType, 'coach')));
+
+    // Prospects in the "offered" tier
+    const [{ offersExtended }] = await db
+      .select({ offersExtended: sql<number>`count(*)::int` })
+      .from(schema.coachProspects)
+      .where(and(eq(schema.coachProspects.coachId, coachId), eq(schema.coachProspects.tier, 'offered')));
+
+    // ── Board position breakdown ──────────────────────────────────────────────
+
+    const positionRows = await db
+      .select({ position: schema.players.position, count: sql<number>`count(*)::int` })
+      .from(schema.coachProspects)
+      .leftJoin(schema.players, eq(schema.coachProspects.athleteId, schema.players.id))
+      .where(eq(schema.coachProspects.coachId, coachId))
+      .groupBy(schema.players.position);
+
+    const totalOnBoard = positionRows.reduce((s, r) => s + (r.count || 0), 0);
+    const positionBreakdown = positionRows
+      .filter((r) => r.position)
+      .map((r) => ({
+        position: r.position!,
+        count: r.count,
+        percentage: totalOnBoard ? Math.round((r.count / totalOnBoard) * 100) : 0,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6);
+
+    // ── Top recruiting states (derived from board players' home states) ───────
+
+    const stateRows = await db
+      .select({ state: schema.players.state, count: sql<number>`count(*)::int` })
+      .from(schema.coachProspects)
+      .leftJoin(schema.players, eq(schema.coachProspects.athleteId, schema.players.id))
+      .where(eq(schema.coachProspects.coachId, coachId))
+      .groupBy(schema.players.state);
+
+    const totalWithState = stateRows.reduce((s, r) => s + (r.count || 0), 0);
+    const topRecruitingStates = stateRows
+      .filter((r) => r.state)
+      .map((r) => ({
+        state: r.state!,
+        players: r.count,
+        percentage: totalWithState ? Math.round((r.count / totalWithState) * 100) : 0,
+      }))
+      .sort((a, b) => b.players - a.players)
+      .slice(0, 5);
+
+    const topStates = topRecruitingStates.map((r) => r.state);
+
+    // ── Weekly board saves (last 7 days, one row per day) ────────────────────
+    // searches and views require an activity-log table — those columns are null.
+
+    const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const savesRows = await db
+      .select({
+        dow: sql<number>`extract(dow from ${schema.coachProspects.createdAt})::int`,
+        saves: sql<number>`count(*)::int`,
+      })
+      .from(schema.coachProspects)
+      .where(
+        and(
+          eq(schema.coachProspects.coachId, coachId),
+          sql`${schema.coachProspects.createdAt} >= now() - interval '7 days'`,
+        ),
+      )
+      .groupBy(sql`extract(dow from ${schema.coachProspects.createdAt})`);
+
+    const savesByDow = Object.fromEntries(savesRows.map((r) => [r.dow, r.saves]));
+    const weeklyActivity = DAY_LABELS.map((day, i) => ({
+      day,
+      saves: savesByDow[i] ?? 0,
+      // searches / views have no tracking table yet — return null so the UI
+      // can render a "—" instead of a misleading hardcoded number.
+      searches: null as number | null,
+      views: null as number | null,
+    }));
+
+    // ── Metrics with no DB source yet ────────────────────────────────────────
+    // profileViews  — needs a coach_profile_views log table
+    // searchQueries — needs a search_log table
+    // commitsReceived — players table has no commitment field
+
     res.json({
-      boardCount: boardCount[0]?.count || 0,
-      messagesSent: messagesSent[0]?.count || 0,
-      profileViews: 47, // mock
-      topStates: ['TX', 'FL', 'CA', 'GA'],
-      recentlyViewed: [1, 2, 3],
-      searchQueries: 23, // mock
-      playersContacted: 18, // mock
-      offersExtended: 5, // mock
-      commitsReceived: 2, // mock
+      boardCount,
+      messagesSent,
+      playersContacted,
+      offersExtended,
+      commitsReceived: null,   // no DB source — add a commitments table to track
+      profileViews: null,      // no DB source — instrument /coach/players/:id to log
+      searchQueries: null,     // no DB source — instrument /coach/players/search to log
+      recentlyViewed: [],      // no DB source — add a recently_viewed table
+      topStates,
+      topRecruitingStates,
+      positionBreakdown,
+      weeklyActivity,
     });
   } catch (error) {
     console.error('Failed to fetch analytics:', error);
     res.status(500).json({ error: 'Failed to fetch analytics' });
   }
 });
+
 
 /**
   * GET /coach/player-clips — Get player highlight clips
@@ -596,7 +694,7 @@ router.get('/player-clips', (req, res) => {
  */
 router.get('/profile', async (req, res) => {
   try {
-    const coachId = req.user?.id;
+    const coachId = req.user.userId;
     if (!coachId) return res.status(401).json({ error: 'Unauthorized' });
 
     const rows = await db.select().from(schema.coaches).where(eq(schema.coaches.id, coachId)).limit(1);
@@ -614,7 +712,7 @@ router.get('/profile', async (req, res) => {
  */
 router.put('/profile', async (req, res) => {
   try {
-    const coachId = req.user?.id;
+    const coachId = req.user.userId;
     if (!coachId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { name, university, division, recruitingPositions, recruitingStates } = req.body || {};

@@ -29,12 +29,12 @@ router.get('/', async (req, res) => {
       // Tiebreak order: rating, then activity (XP), then name. The final name
       // sort makes ties deterministic so the board does not reshuffle equal
       // scores between refreshes (which reads as arbitrary to athletes).
-      .orderBy(desc(schema.players.g5Rating), desc(schema.players.xpPoints), asc(schema.players.name))
-      .limit(Number(limit));
+      .orderBy(desc(schema.players.g5Rating), desc(schema.players.xpPoints), asc(schema.players.name));
+    // NOTE: no .limit() here — global rank requires ranking the full board first.
 
-    let data = rows.map((p, i) => ({
+    const ranked = rows.map((p, i) => ({
       id: p.id,
-      rank: i + 1,
+      rank: i + 1, // true global rank, stable regardless of position filter
       name: p.name,
       school: p.school ?? '',
       position: p.position ?? '–',
@@ -45,11 +45,13 @@ router.get('/', async (req, res) => {
       verified: p.verificationStatus === 'verified',
     }));
 
-    if (position && position !== 'All') {
-      data = data.filter(r => r.position === position);
-    }
+    const filtered = position && position !== 'All'
+      ? ranked.filter(r => r.position === position)
+      : ranked;
 
-    res.json({ success: true, data, total: data.length });
+    const data = filtered.slice(0, Number(limit));
+
+    res.json({ success: true, data, total: filtered.length });
   } catch (error) {
     console.error('[rankings]', error);
     res.status(500).json({ success: false, error: 'Failed to fetch rankings' });
