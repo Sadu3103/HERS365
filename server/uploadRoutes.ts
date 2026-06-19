@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import express from 'express';
 import { getSignedUploadUrl } from './cloud-storage';
 import { requireAuth } from './auth';

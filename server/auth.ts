@@ -82,7 +82,7 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction): 
     try {
       attachUser(req, verifyToken(token));
     } catch {
-      // optional route: ignore an invalid token and continue unauthenticated
+      // Optional route: ignore an invalid token and continue unauthenticated
     }
   }
   next();

@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import bcrypt from 'bcryptjs';
 import { db } from './db';
 import * as schema from './schema';

@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 // Surgical, idempotent migration: create the two messaging-safety tables only.
 // Does not touch any existing table. Run with DATABASE_PUBLIC_URL/DATABASE_URL set.
 import { Pool } from 'pg';

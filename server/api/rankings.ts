@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import express from 'express';
 import { asc, desc, eq, and, isNotNull } from 'drizzle-orm';
 import { db } from '../db';

@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 // TODO: npm install zod
 import { z } from 'zod';
 

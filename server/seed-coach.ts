@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 // Seeds a demo coach account for previewing the coach side. Idempotent.
 // Loads .env (same as the server) so DATABASE_URL resolves when run standalone.
 import 'dotenv/config';

@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Email/password authentication (bcrypt + JWT).
  * Mounted under /api/auth alongside the OAuth router.

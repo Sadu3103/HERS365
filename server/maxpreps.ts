@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * MaxPreps Girls Flag Football Data Service
  * 

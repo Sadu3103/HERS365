@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+﻿
 // HERS365 Sports Data Service
 import fetch from "node-fetch";
 import { db } from "./db";

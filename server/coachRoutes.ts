@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Coach Scouting Portal — API Routes
  * All routes require coach role JWT token

@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Token Routes - NIL points and XP management
  */

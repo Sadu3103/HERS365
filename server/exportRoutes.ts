@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import express from 'express';
 import { db } from './db';
 import * as schema from './schema';
