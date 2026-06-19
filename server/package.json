@@ -19,6 +19,7 @@
     "db:check": "drizzle-kit check",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx seed.ts",
+    "audit:endpoints": "tsx audit-endpoints.ts",
     "db:migrate:services": "tsx scripts/migrate-microservices.ts",
     "services:health": "node scripts/check-services-health.js",
     "services:logs": "docker-compose logs -f",
