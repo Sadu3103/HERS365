@@ -69,10 +69,12 @@ export function ProfileCompletionBanner() {
           )}
 
           <button
+            type="button"
             onClick={() => setDismissed(true)}
+            aria-label="Dismiss profile completion banner"
             style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: 4, flexShrink: 0 }}
           >
-            <X size={13} />
+            <X size={13} aria-hidden="true" />
           </button>
         </div>
       </motion.div>
