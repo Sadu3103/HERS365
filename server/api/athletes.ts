@@ -5,6 +5,12 @@ import { db } from '../db';
 import * as schema from '../schema';
 import { requireAuth, optionalAuth } from '../auth';
 import { publicPlayerView } from '../lib/playerPrivacy';
+import { validateBody, validateParams } from '../middleware/validate';
+import {
+  savedSchoolBody,
+  savedSchoolParams,
+  athletePutBody,
+} from '../middleware/safetySchemas';
 
 // Cross-user view: strips email/phone/dob/zip/pendingParentEmail/passwordHash
 // per the directive 1 rule "minor PII never leaves cross-user endpoints."
@@ -63,7 +69,7 @@ router.get('/me/saved-schools', requireAuth, async (req, res) => {
 });
 
 // POST /api/athletes/me/saved-schools
-router.post('/me/saved-schools', requireAuth, async (req, res) => {
+router.post('/me/saved-schools', requireAuth, validateBody(savedSchoolBody), async (req, res) => {
   try {
     const programId = parseInt(req.body?.schoolId, 10);
     if (Number.isNaN(programId)) {
@@ -95,7 +101,7 @@ router.post('/me/saved-schools', requireAuth, async (req, res) => {
 });
 
 // DELETE /api/athletes/me/saved-schools/:schoolId
-router.delete('/me/saved-schools/:schoolId', requireAuth, async (req, res) => {
+router.delete('/me/saved-schools/:schoolId', requireAuth, validateParams(savedSchoolParams), async (req, res) => {
   try {
     const programId = parseInt(req.params.schoolId, 10);
     if (Number.isNaN(programId)) {
@@ -161,7 +167,7 @@ router.get('/:id',optionalAuth, async (req, res) => {
 });
 
 // PUT /api/athletes/:id - Update own athlete profile (DB-backed, auth required)
-router.put('/:id', requireAuth, async (req, res) => {
+router.put('/:id', requireAuth, validateBody(athletePutBody), async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (Number.isNaN(id)) {

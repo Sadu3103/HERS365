@@ -175,3 +175,34 @@ export const coachProfilePutBody = z.object({
   recruitingPositions: stringList(32).optional(),
   recruitingStates: stringList(60).optional(),
 }).refine((b) => Object.keys(b).length > 0, { message: 'At least one updatable field is required' });
+
+// ─── Athlete saved-schools mutations ────────────────────────────────────────
+
+export const savedSchoolBody = z.object({
+  schoolId: positiveIdParam,
+});
+
+export const savedSchoolParams = z.object({
+  schoolId: positiveIdParam,
+});
+
+// ─── Athlete profile PUT (athletes router) ──────────────────────────────────
+// Same shape as userProfilePutBody but lets a few extra fields through that
+// the athletes/:id endpoint allows: segment, skillTier.
+export const athletePutBody = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  sport: optionalString(32),
+  position: optionalString(64),
+  age: optionalInt,
+  state: optionalString(64),
+  city: optionalString(120),
+  zipCode: optionalString(16),
+  school: optionalString(200),
+  gradYear: optionalInt,
+  gpa: optionalString(8),
+  achievements: optionalString(4000),
+  archetype: optionalString(64),
+  segment: optionalString(64),
+  skillTier: optionalString(64),
+  privacySetting: z.enum(['public', 'private', 'parent_only']).optional(),
+}).refine((b) => Object.keys(b).length > 0, { message: 'At least one updatable field is required' });
