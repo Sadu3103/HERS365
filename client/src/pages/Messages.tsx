@@ -156,7 +156,7 @@ export const Messages = () => {
     if (composeAthletes.length > 0) return;
     try {
       const res = await apiFetch<{ data: AthleteRow[] }>('/api/athletes?limit=30');
-      setComposeAthletes((res.data ?? []).map((a: any) => ({
+      setComposeAthletes((res.data ?? []).map((a) => ({
         id: a.id, name: a.name ?? '', position: a.position ?? '', school: a.school ?? '',
       })));
     } catch { /* sidebar still opens, just empty */ }
@@ -227,10 +227,10 @@ export const Messages = () => {
       await qc.cancelQueries({ queryKey: ['thread', vars.partnerId] });
       const prev = qc.getQueryData<{ data: ThreadMessage[] }>(['thread', vars.partnerId]);
       const optimistic: ThreadMessage = { id: -Date.now(), content: vars.content, isFromMe: true, read: false, createdAt: new Date().toISOString() };
-      qc.setQueryData(['thread', vars.partnerId], (old: any) => ({ data: [...(old?.data ?? []), optimistic] }));
+      qc.setQueryData(['thread', vars.partnerId], (old: { data: ThreadMessage[] } | undefined) => ({ data: [...(old?.data ?? []), optimistic] }));
       return { prev };
     },
-    onError: (_e, vars, ctx: any) => {
+    onError: (_e, vars, ctx) => {
       if (ctx?.prev) qc.setQueryData(['thread', vars.partnerId], ctx.prev);
       setDraft(vars.content); // restore the text so the user can retry
     },
