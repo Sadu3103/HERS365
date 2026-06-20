@@ -34,3 +34,13 @@ export function selfPlayerView<T extends Record<string, unknown>>(row: T | null 
   delete out.passwordHash;
   return out as Partial<T>;
 }
+
+// Strip the password hash from any user row before it ships. Use for admin
+// dashboards / staff tools where the operator IS authorized to see PII (email,
+// phone, dob) but the cryptographic secret must never leave the server.
+export function withoutPasswordHash<T extends Record<string, unknown>>(row: T | null | undefined): Partial<T> | T | null | undefined {
+  if (!row) return row;
+  const out: Record<string, unknown> = { ...row };
+  delete out.passwordHash;
+  return out as Partial<T>;
+}

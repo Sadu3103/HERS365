@@ -7,6 +7,7 @@ import { db } from './db';
 import * as schema from './schema';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { requireAdmin } from './auth';
+import { withoutPasswordHash } from './lib/playerPrivacy';
 
 const router = express.Router();
 
@@ -97,16 +98,22 @@ router.get('/users', requireAdmin, async (req: Request, res: Response, next: Nex
     let users: any[] = [];
     let total = 0;
 
+    // Even on admin endpoints we never ship bcrypt hashes back to the
+    // client. They have no operational use in a dashboard and the row was
+    // already loaded with .select() so the hash is in memory.
     if (role === 'player') {
-      users = await db.select().from(schema.players).limit(Number(limit)).offset(offset);
+      const rows = await db.select().from(schema.players).limit(Number(limit)).offset(offset);
+      users = rows.map(withoutPasswordHash);
       const count = await db.select({ count: sql<number>`count(*)::int` }).from(schema.players);
       total = count[0]?.count || 0;
     } else if (role === 'coach') {
-      users = await db.select().from(schema.coaches).limit(Number(limit)).offset(offset);
+      const rows = await db.select().from(schema.coaches).limit(Number(limit)).offset(offset);
+      users = rows.map(withoutPasswordHash);
       const count = await db.select({ count: sql<number>`count(*)::int` }).from(schema.coaches);
       total = count[0]?.count || 0;
     } else if (role === 'parent') {
-      users = await db.select().from(schema.parents).limit(Number(limit)).offset(offset);
+      const rows = await db.select().from(schema.parents).limit(Number(limit)).offset(offset);
+      users = rows.map(withoutPasswordHash);
       const count = await db.select({ count: sql<number>`count(*)::int` }).from(schema.parents);
       total = count[0]?.count || 0;
     } else {
@@ -153,7 +160,7 @@ router.patch('/users/:id/verify', requireAdmin, async (req: Request, res: Respon
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json(updated[0]);
+    res.json(withoutPasswordHash(updated[0]));
   } catch (err: any) {
     next(err);
   }
@@ -174,7 +181,7 @@ router.patch('/users/:id/subscription', requireAdmin, async (req: Request, res: 
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json(updated[0]);
+    res.json(withoutPasswordHash(updated[0]));
   } catch (err: any) {
     next(err);
   }
@@ -509,7 +516,7 @@ router.post('/athletes/:id/verify', requireAdmin, async (req: Request, res: Resp
       return res.status(404).json({ error: 'Athlete not found' });
     }
 
-    res.json(updated[0]);
+    res.json(withoutPasswordHash(updated[0]));
   } catch (err: any) {
     next(err);
   }
@@ -524,7 +531,7 @@ router.get('/coaches/verification', requireAdmin, async (req: Request, res: Resp
   try {
     const coaches = await db.select().from(schema.coaches)
       .where(eq(schema.coaches.verifiedStatus, false));
-    res.json(coaches);
+    res.json(coaches.map(withoutPasswordHash));
   } catch (err: any) {
     next(err);
   }
@@ -548,7 +555,7 @@ router.patch('/coaches/:id/verify', requireAdmin, async (req: Request, res: Resp
       return res.status(404).json({ error: 'Coach not found' });
     }
 
-    res.json(updated[0]);
+    res.json(withoutPasswordHash(updated[0]));
   } catch (err: any) {
     next(err);
   }
