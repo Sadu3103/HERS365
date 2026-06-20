@@ -22,6 +22,7 @@ import {
   coachProfilePutBody,
 } from './middleware/safetySchemas';
 import { publicPlayerView } from './lib/playerPrivacy';
+import { moderateMessage } from './lib/moderation';
 
 const router = express.Router();
 
@@ -419,6 +420,18 @@ router.post('/message/:playerId', validateParams(coachMessageParams), validateBo
 
     if (!(await hasParentApprovedLink(playerId, coachId))) {
       return res.status(403).json({ success: false, error: 'Messaging requires a parent-approved contact request' });
+    }
+
+    // Moderation gate sits between the parent-approval check and the DB
+    // write so unsafe text never reaches the messages table even when the
+    // contact link is open.
+    const verdict = await moderateMessage(String(message));
+    if (!verdict.allowed) {
+      console.warn('[coach/message] rejected by moderation', { reason: verdict.reason, coachId, playerId });
+      return res.status(422).json({
+        success: false,
+        error: "Your message couldn't be sent. Please revise and try again.",
+      });
     }
 
     const newMessage = await db.insert(schema.messages).values({

@@ -12,6 +12,7 @@ import {
   blockBody,
   reportBody,
 } from '../middleware/safetySchemas';
+import { moderateMessage } from '../lib/moderation';
 
 const router = express.Router();
 router.use(requireAuth);
@@ -195,6 +196,18 @@ router.post('/', validateBody(sendMessageBody), async (req, res) => {
     const partnerRole = isCoach ? 'athlete' : 'coach';
     if (await eitherBlocked(userId, role, partnerIdNum, partnerRole)) {
       return res.status(403).json({ success: false, error: 'This conversation is unavailable.' });
+    }
+
+    // Content moderation runs after all the relational gates so we don't pay
+    // for an OpenAI call when the message would be rejected anyway. Generic
+    // 422 message keeps the rejected category out of the response.
+    const verdict = await moderateMessage(String(content));
+    if (!verdict.allowed) {
+      console.warn('[messages/send] rejected by moderation', { reason: verdict.reason, userId, partnerIdNum });
+      return res.status(422).json({
+        success: false,
+        error: "Your message couldn't be sent. Please revise and try again.",
+      });
     }
 
     const [row] = await db
