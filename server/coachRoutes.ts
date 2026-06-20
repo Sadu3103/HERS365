@@ -12,7 +12,15 @@ import { requireVerifiedCoach } from './middleware/requireVerifiedCoach';
 import { generatePredictiveAnalytics, AthleteData } from './rankingAlgorithm';
 import { hasParentApprovedLink } from './api/messages';
 import { validateBody, validateParams } from './middleware/validate';
-import { coachMessageBody, coachMessageParams } from './middleware/safetySchemas';
+import {
+  coachMessageBody,
+  coachMessageParams,
+  coachPlayerSaveBody,
+  coachPlayerNotesBody,
+  coachPlayerTierBody,
+  coachPlayerParams,
+  coachProfilePutBody,
+} from './middleware/safetySchemas';
 
 const router = express.Router();
 
@@ -275,7 +283,7 @@ router.get('/board', async (req, res) => {
 /**
  * POST /coach/players/:id/save — Add player to scouting board
  */
-router.post('/players/:id/save', async (req, res) => {
+router.post('/players/:id/save', validateParams(coachPlayerParams), validateBody(coachPlayerSaveBody), async (req, res) => {
   try {
     const coachId = req.user.userId;
     const playerId = parseInt(req.params.id);
@@ -325,7 +333,7 @@ router.post('/players/:id/save', async (req, res) => {
 /**
  * DELETE /coach/players/:id/save — Remove from scouting board
  */
-router.delete('/players/:id/save', async (req, res) => {
+router.delete('/players/:id/save', validateParams(coachPlayerParams), async (req, res) => {
   try {
     const coachId = req.user.userId;
     const playerId = parseInt(req.params.id);
@@ -346,7 +354,7 @@ router.delete('/players/:id/save', async (req, res) => {
 /**
  * PATCH /coach/players/:id/notes — Update notes for a player on scouting board
  */
-router.patch('/players/:id/notes', async (req, res) => {
+router.patch('/players/:id/notes', validateParams(coachPlayerParams), validateBody(coachPlayerNotesBody), async (req, res) => {
   try {
     const coachId = req.user.userId;
     const playerId = parseInt(req.params.id);
@@ -369,7 +377,7 @@ router.patch('/players/:id/notes', async (req, res) => {
 /**
  * PATCH /coach/players/:id/tier — Update tier for a player on scouting board
  */
-router.patch('/players/:id/tier', async (req, res) => {
+router.patch('/players/:id/tier', validateParams(coachPlayerParams), validateBody(coachPlayerTierBody), async (req, res) => {
   try {
     const coachId = req.user.userId;
     const playerId = parseInt(req.params.id);
@@ -649,7 +657,7 @@ router.get('/profile', async (req, res) => {
 /**
  * PUT /coach/profile — Update the authenticated coach's own profile
  */
-router.put('/profile', async (req, res) => {
+router.put('/profile', validateBody(coachProfilePutBody), async (req, res) => {
   try {
     const coachId = req.user?.id;
     if (!coachId) return res.status(401).json({ error: 'Unauthorized' });
