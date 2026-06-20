@@ -24,6 +24,7 @@ import {
 import { publicPlayerView } from './lib/playerPrivacy';
 import { moderateMessage } from './lib/moderation';
 import { eitherBlocked } from './lib/messageBlocks';
+import { messageRateLimit } from './middleware/messageRateLimit';
 
 const router = express.Router();
 
@@ -413,7 +414,7 @@ router.patch('/players/:id/tier', validateParams(coachPlayerParams), validateBod
 /**
  * POST /coach/message/:playerId — Send a message to an athlete
  */
-router.post('/message/:playerId', validateParams(coachMessageParams), validateBody(coachMessageBody), async (req, res) => {
+router.post('/message/:playerId', messageRateLimit, validateParams(coachMessageParams), validateBody(coachMessageBody), async (req, res) => {
   try {
     const { message } = req.body;
     const coachId = req.user.userId;
