@@ -71,3 +71,63 @@ export const parentInviteBody = z.object({
   email: z.string().trim().toLowerCase().email(),
   relationship: z.string().trim().min(1).max(64).optional(),
 });
+
+// ─── Token / NIL routes ──────────────────────────────────────────────────────
+// NOTE: these handlers currently sit behind `requireAuth` only — any logged-in
+// user can mint or redeem points for any playerId. That is a separate authz
+// bug. These schemas at least make sure malformed input can't reach the DB
+// write or trip a 500.
+
+const tokenActivityType = z.string().trim().min(1).max(64);
+const points = z.coerce.number().int().positive().max(1_000_000);
+
+export const tokenEarnBody = z.object({
+  playerId: positiveIdParam,
+  points,
+  activityType: tokenActivityType,
+  description: z.string().trim().max(500).optional(),
+});
+
+export const tokenXpEarnBody = z.object({
+  playerId: positiveIdParam,
+  points,
+  activityType: tokenActivityType,
+});
+
+export const tokenRedeemBody = z.object({
+  playerId: positiveIdParam,
+  cost: points,
+  rewardType: z.string().trim().min(1).max(64),
+  rewardId: z.union([z.coerce.number().int().positive(), z.string().trim().min(1).max(128)]).optional(),
+});
+
+// ─── Athlete profile / stats ────────────────────────────────────────────────
+
+const optionalString = (max: number) => z.string().trim().max(max).optional().nullable();
+const optionalInt = z.coerce.number().int().optional().nullable();
+
+export const userProfilePutBody = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  position: optionalString(64),
+  age: optionalInt,
+  state: optionalString(64),
+  city: optionalString(120),
+  zipCode: optionalString(16),
+  school: optionalString(200),
+  gradYear: optionalInt,
+  gpa: optionalString(8),
+  sport: optionalString(32),
+  achievements: optionalString(4000),
+  archetype: optionalString(64),
+  privacySetting: z.enum(['public', 'private', 'parent_only']).optional(),
+  bio: optionalString(2000),
+}).refine((b) => Object.keys(b).length > 0, { message: 'At least one updatable field is required' });
+
+export const userStatsPostBody = z.object({
+  season: optionalString(16),
+  fortyDash: optionalString(16),
+  shuttle: optionalString(16),
+  vertical: optionalString(16),
+  broadJump: optionalString(16),
+  threeCone: optionalString(16),
+});

@@ -6,6 +6,8 @@ import express from 'express';
 import { db } from './db';
 import * as schema from './schema';
 import { eq, desc, and, sql } from 'drizzle-orm';
+import { validateBody } from './middleware/validate';
+import { tokenEarnBody, tokenXpEarnBody, tokenRedeemBody } from './middleware/safetySchemas';
 
 const router = express.Router();
 
@@ -42,7 +44,7 @@ router.get('/player/:playerId', async (req, res, next) => {
 // ----------------------
 
 // POST /tokens/earn - Award NIL points to a player
-router.post('/earn', async (req, res, next) => {
+router.post('/earn', validateBody(tokenEarnBody), async (req, res, next) => {
   try {
     const { playerId, points, activityType, description } = req.body;
 
@@ -84,7 +86,7 @@ router.post('/earn', async (req, res, next) => {
 // ----------------------
 
 // POST /tokens/xp/earn - Award XP points to a player
-router.post('/xp/earn', async (req, res, next) => {
+router.post('/xp/earn', validateBody(tokenXpEarnBody), async (req, res, next) => {
   try {
     const { playerId, points, activityType } = req.body;
 
@@ -164,7 +166,7 @@ router.get('/history/:playerId', async (req, res, next) => {
 // ----------------------
 
 // POST /tokens/redeem - Redeem tokens for rewards
-router.post('/redeem', async (req, res, next) => {
+router.post('/redeem', validateBody(tokenRedeemBody), async (req, res, next) => {
   try {
     const { playerId, cost, rewardType, rewardId } = req.body;
 
