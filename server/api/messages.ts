@@ -13,6 +13,7 @@ import {
   reportBody,
 } from '../middleware/safetySchemas';
 import { moderateMessage } from '../lib/moderation';
+import { eitherBlocked } from '../lib/messageBlocks';
 
 const router = express.Router();
 router.use(requireAuth);
@@ -146,18 +147,6 @@ export async function hasParentApprovedLink(athleteId: number, coachId: number):
     ))
     .limit(1);
   return Boolean(link);
-}
-
-// Safety: true if either party has blocked the other.
-async function eitherBlocked(aId: number, aRole: string, bId: number, bRole: string): Promise<boolean> {
-  const [row] = await db.select({ id: schema.messageBlocks.id })
-    .from(schema.messageBlocks)
-    .where(or(
-      and(eq(schema.messageBlocks.blockerId, aId), eq(schema.messageBlocks.blockerRole, aRole), eq(schema.messageBlocks.blockedId, bId), eq(schema.messageBlocks.blockedRole, bRole)),
-      and(eq(schema.messageBlocks.blockerId, bId), eq(schema.messageBlocks.blockerRole, bRole), eq(schema.messageBlocks.blockedId, aId), eq(schema.messageBlocks.blockedRole, aRole)),
-    ))
-    .limit(1);
-  return Boolean(row);
 }
 
 // POST /api/messages — send a message to a partner
