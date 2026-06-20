@@ -4,6 +4,8 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 import { requireAuth } from '../middleware/requireAuth';
+import { validateBody, validateParams } from '../middleware/validate';
+import { programApplyBody, programApplyParams } from '../middleware/safetySchemas';
 
 const router = express.Router();
 
@@ -82,7 +84,7 @@ router.get('/:id', (req, res) => {
 });
 
 // POST /api/programs/:id/applications — identity comes from the JWT, never the body
-router.post('/:id/applications', requireAuth, async (req, res) => {
+router.post('/:id/applications', requireAuth, validateParams(programApplyParams), validateBody(programApplyBody), async (req, res) => {
   try {
     const programId = parseInt(req.params.id, 10);
     if (Number.isNaN(programId)) {

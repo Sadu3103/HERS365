@@ -189,6 +189,15 @@ export const savedSchoolParams = z.object({
 // ─── Athlete profile PUT (athletes router) ──────────────────────────────────
 // Same shape as userProfilePutBody but lets a few extra fields through that
 // the athletes/:id endpoint allows: segment, skillTier.
+// ─── Program applications ────────────────────────────────────────────────────
+
+export const programApplyParams = z.object({ id: positiveIdParam });
+
+export const programApplyBody = z.object({
+  position: z.string().trim().min(1).max(32),
+  note: z.string().trim().max(2000).optional().nullable(),
+});
+
 export const athletePutBody = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   sport: optionalString(32),
