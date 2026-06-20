@@ -79,7 +79,8 @@ router.post('/register', registerLimiter, async (req, res) => {
       },
     });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error('[email-auth/register] 500:', err);
+    return res.status(500).json({ error: 'Authentication request failed, please try again' });
   }
 });
 
@@ -119,7 +120,8 @@ router.post('/login', async (req, res) => {
       },
     });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error('[email-auth/login] 500:', err);
+    return res.status(500).json({ error: 'Authentication request failed, please try again' });
   }
 });
 
@@ -140,7 +142,8 @@ router.post('/forgot-password', async (req, res) => {
     await sendPasswordResetEmail(email, token);
     return res.json({ message: 'If that email exists, a reset link was sent.' });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error('[email-auth/forgot-password] 500:', err);
+    return res.status(500).json({ error: 'Authentication request failed, please try again' });
   }
 });
 
@@ -160,7 +163,8 @@ router.post('/reset-password', async (req, res) => {
     resetTokens.delete(token);
     return res.json({ message: 'Password updated successfully' });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error('[email-auth/reset-password] 500:', err);
+    return res.status(500).json({ error: 'Authentication request failed, please try again' });
   }
 });
 
