@@ -86,19 +86,22 @@ function fmtHeight(inches: number | null): string {
   return `${ft}'${rem}"`;
 }
 
+type GameStatKey = keyof GameStat;
+
 function sumGameStats(stats: GameStat[]): GameStat {
-  const acc: Record<string, number> = {
+  const acc: GameStat = {
     passingAttempts: 0, passingCompletions: 0, passingYards: 0, passingTds: 0,
     interceptionsThrown: 0, rushingAttempts: 0, rushingYards: 0, rushingTds: 0,
     receptions: 0, receivingYards: 0, receivingTds: 0, flagPulls: 0,
     interceptionsCaught: 0, passBreakups: 0, defensiveTds: 0,
   };
+  const keys = Object.keys(acc) as GameStatKey[];
   for (const s of stats) {
-    for (const k of Object.keys(acc)) {
-      acc[k] += (s as any)[k] ?? 0;
+    for (const k of keys) {
+      acc[k] = (acc[k] ?? 0) + (s[k] ?? 0);
     }
   }
-  return acc as any;
+  return acc;
 }
 
 export const Profile = () => {
@@ -441,9 +444,15 @@ export const Profile = () => {
                 )}
               </div>
 
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <div
+                style={{ textAlign: 'right', flexShrink: 0, cursor: 'help' }}
+                title={score === '--'
+                  ? 'Your HERS Score appears once you log enough performance data.'
+                  : 'HERS Score (0–100) derived from your logged stats, combine numbers, and on-platform recruiting activity. Updated whenever you log new data.'}
+                aria-label={score === '--' ? 'HERS Score: not yet rated' : `HERS Score: ${score} out of 100`}
+              >
                 <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '3.5rem', color: '#ff5a2d', lineHeight: 1, textShadow: '0 0 30px rgba(255,90,45,0.5)' }}>{score}</div>
-                <div style={{ fontSize: '0.6rem', color: '#444', textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: 2 }}>Score</div>
+                <div style={{ fontSize: '0.6rem', color: '#444', textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: 2 }}>HERS Score</div>
               </div>
             </div>
 
