@@ -8,7 +8,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
-import { apiFetch } from '../lib/api';
+import { apiFetch, errorMessage } from '../lib/api';
 import { athleteAvatar } from '../lib/avatar';
 
 interface ApiProfile {
@@ -232,8 +232,8 @@ export const Profile = () => {
       setProfile(updated);
       setEditOpen(false);
       showNotification('success', 'Profile updated', 'Your changes have been saved.');
-    } catch (err: any) {
-      setEditError(err.message || 'Failed to save. Please try again.');
+    } catch (err) {
+      setEditError(errorMessage(err, 'Failed to save. Please try again.'));
     } finally {
       setEditSaving(false);
     }
@@ -301,8 +301,8 @@ export const Profile = () => {
       });
       setHighlights(prev => [hl, ...prev]);
       showNotification('success', 'Uploaded!', 'Your highlight has been added.');
-    } catch (err: any) {
-      showNotification('error', 'Upload failed', err.message || 'Please try again.');
+    } catch (err) {
+      showNotification('error', 'Upload failed', errorMessage(err, 'Please try again.'));
     } finally {
       setUploadingHighlight(false);
     }

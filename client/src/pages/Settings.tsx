@@ -16,7 +16,7 @@ import {
   Loader2,
   Upload
 } from 'lucide-react';
-import { apiFetch } from '../lib/api';
+import { apiFetch, errorMessage } from '../lib/api';
 import { athleteAvatar } from '../lib/avatar';
 
 // Click-to-upload profile photo. Presigns via /api/upload/presign, PUTs the
@@ -126,6 +126,9 @@ interface UserProfile {
   createdAt?: string;
   role?: string;
   profileImage?: string | null;
+  heightIn?: number | null;
+  weightLbs?: number | null;
+  phone?: string | null;
 }
 
 interface SettingSection {
@@ -220,13 +223,13 @@ export const Settings = () => {
         sport: data.sport || '',
         bio: data.bio || '',
         achievements: data.achievements || '',
-        heightIn: (data as any).heightIn ? String((data as any).heightIn) : '',
-        weightLbs: (data as any).weightLbs ? String((data as any).weightLbs) : '',
-        phone: (data as any).phone || '',
+        heightIn: data.heightIn ? String(data.heightIn) : '',
+        weightLbs: data.weightLbs ? String(data.weightLbs) : '',
+        phone: data.phone || '',
       });
       setPrivacySetting(data.privacySetting || 'public');
-    } catch (err: any) {
-      setProfileError(err.message || 'Failed to load profile');
+    } catch (err) {
+      setProfileError(errorMessage(err, 'Failed to load profile'));
     } finally {
       setProfileLoading(false);
     }
@@ -266,9 +269,9 @@ export const Settings = () => {
       setProfile(res.data);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 3000);
-    } catch (err: any) {
+    } catch (err) {
       setSaveStatus('error');
-      setSaveError(err.message || 'Failed to save');
+      setSaveError(errorMessage(err, 'Failed to save'));
     }
   };
 
