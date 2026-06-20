@@ -11,6 +11,8 @@ import { requireCoach } from './auth';
 import { requireVerifiedCoach } from './middleware/requireVerifiedCoach';
 import { generatePredictiveAnalytics, AthleteData } from './rankingAlgorithm';
 import { hasParentApprovedLink } from './api/messages';
+import { validateBody, validateParams } from './middleware/validate';
+import { coachMessageBody, coachMessageParams } from './middleware/safetySchemas';
 
 const router = express.Router();
 
@@ -397,7 +399,7 @@ router.patch('/players/:id/tier', async (req, res) => {
 /**
  * POST /coach/message/:playerId — Send a message to an athlete
  */
-router.post('/message/:playerId', async (req, res) => {
+router.post('/message/:playerId', validateParams(coachMessageParams), validateBody(coachMessageBody), async (req, res) => {
   try {
     const { message } = req.body;
     const coachId = req.user.userId;

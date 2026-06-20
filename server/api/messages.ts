@@ -4,6 +4,14 @@ import { db } from '../db';
 import * as schema from '../schema';
 import { requireAuth } from '../auth';
 import { requireVerifiedCoach } from '../middleware/requireVerifiedCoach';
+import { validateBody, validateParams } from '../middleware/validate';
+import {
+  sendMessageBody,
+  messageRespondBody,
+  idParam,
+  blockBody,
+  reportBody,
+} from '../middleware/safetySchemas';
 
 const router = express.Router();
 router.use(requireAuth);
@@ -152,7 +160,7 @@ async function eitherBlocked(aId: number, aRole: string, bId: number, bRole: str
 }
 
 // POST /api/messages — send a message to a partner
-router.post('/', async (req, res) => {
+router.post('/', validateBody(sendMessageBody), async (req, res) => {
   try {
     const { userId, role } = caller(req);
     const isCoach = role === 'coach';
@@ -310,10 +318,10 @@ router.get('/requests', async (req, res) => {
 });
 
 // POST /api/messages/requests/:id/respond — approve or reject a request
-router.post('/requests/:id/respond', async (req, res) => {
+router.post('/requests/:id/respond', validateParams(idParam), validateBody(messageRespondBody), async (req, res) => {
   try {
     const { userId } = caller(req);
-    const id = parseInt(req.params.id, 10);
+    const id = Number(req.params.id);
     const { action } = req.body ?? {};
     if (!['approve', 'reject'].includes(action)) {
       return res.status(400).json({ success: false, error: 'action must be approve or reject' });
@@ -345,7 +353,7 @@ router.post('/requests/:id/respond', async (req, res) => {
 // ── Safety: block / unblock / report ─────────────────────────────────────────
 
 // POST /api/messages/block — block a conversation partner (either party blocking stops messaging)
-router.post('/block', async (req, res) => {
+router.post('/block', validateBody(blockBody), async (req, res) => {
   try {
     const { userId, role } = caller(req);
     const partnerIdNum = Number(req.body?.partnerId);
@@ -369,7 +377,7 @@ router.post('/block', async (req, res) => {
 });
 
 // POST /api/messages/unblock
-router.post('/unblock', async (req, res) => {
+router.post('/unblock', validateBody(blockBody), async (req, res) => {
   try {
     const { userId, role } = caller(req);
     const partnerIdNum = Number(req.body?.partnerId);
@@ -403,7 +411,7 @@ router.get('/blocked', async (req, res) => {
 const REPORT_REASONS = ['inappropriate', 'harassment', 'spam', 'safety_concern', 'impersonation', 'other'];
 
 // POST /api/messages/report — report a partner; lands in the moderation queue
-router.post('/report', async (req, res) => {
+router.post('/report', validateBody(reportBody), async (req, res) => {
   try {
     const { userId, role } = caller(req);
     const { partnerId, reason, details } = req.body ?? {};
