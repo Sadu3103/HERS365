@@ -3,6 +3,8 @@ import { eq } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 import { requireAuth } from '../auth';
+import { validateBody } from '../middleware/validate';
+import { userProfilePutBody, userStatsPostBody } from '../middleware/safetySchemas';
 
 const router = express.Router();
 router.use(requireAuth);
@@ -41,7 +43,7 @@ router.get('/profile', async (req, res) => {
 });
 
 // PUT /api/users/profile — update own row (players only for now)
-router.put('/profile', async (req, res) => {
+router.put('/profile', validateBody(userProfilePutBody), async (req, res) => {
   try {
     const { userId, role } = caller(req);
     if (role !== 'athlete') {
@@ -85,7 +87,7 @@ router.get('/stats', async (req, res) => {
 const COMBINE_FIELDS = ['season', 'fortyDash', 'shuttle', 'vertical', 'broadJump', 'threeCone'] as const;
 
 // POST /api/users/stats — upsert the caller's combine stats row (athletes only)
-router.post('/stats', async (req, res) => {
+router.post('/stats', validateBody(userStatsPostBody), async (req, res) => {
   try {
     const { userId, role } = caller(req);
     if (role !== 'athlete') return res.status(403).json({ success: false, error: 'Athletes only' });
