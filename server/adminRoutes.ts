@@ -2,7 +2,7 @@
  * Admin Routes - Administrative functions for platform management
  */
 import express from 'express';
-import type { Request, Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { db } from './db';
 import * as schema from './schema';
 import { eq, desc, and, sql } from 'drizzle-orm';
@@ -15,7 +15,7 @@ const router = express.Router();
 // ----------------------
 
 // GET /admin/stats - Get platform-wide statistics
-router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
+router.get('/stats', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     // Total players
     const playerCount = await db.select({
@@ -80,7 +80,7 @@ router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
       verificationStats,
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -89,7 +89,7 @@ router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
 // ----------------------
 
 // GET /admin/users - List all users with filters
-router.get('/users', requireAdmin, async (req: Request, res: Response) => {
+router.get('/users', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { role, page = 1, limit = 20, search } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
@@ -134,12 +134,12 @@ router.get('/users', requireAdmin, async (req: Request, res: Response) => {
       },
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // PATCH /admin/users/:id/verify - Verify a player
-router.patch('/users/:id/verify', requireAdmin, async (req: Request, res: Response) => {
+router.patch('/users/:id/verify', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = parseInt(String(req.params.id));
     const { status } = req.body;
@@ -155,12 +155,12 @@ router.patch('/users/:id/verify', requireAdmin, async (req: Request, res: Respon
 
     res.json(updated[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // PATCH /admin/users/:id/subscription - Update user subscription
-router.patch('/users/:id/subscription', requireAdmin, async (req: Request, res: Response) => {
+router.patch('/users/:id/subscription', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = parseInt(String(req.params.id));
     const { tier } = req.body;
@@ -176,12 +176,12 @@ router.patch('/users/:id/subscription', requireAdmin, async (req: Request, res: 
 
     res.json(updated[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // DELETE /admin/users/:id - Delete a user
-router.delete('/users/:id', requireAdmin, async (req: Request, res: Response) => {
+router.delete('/users/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = parseInt(String(req.params.id));
     const { role } = req.query;
@@ -196,7 +196,7 @@ router.delete('/users/:id', requireAdmin, async (req: Request, res: Response) =>
 
     res.json({ success: true, message: 'User deleted' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -205,7 +205,7 @@ router.delete('/users/:id', requireAdmin, async (req: Request, res: Response) =>
 // ----------------------
 
 // GET /admin/reports - Get reported content
-router.get('/reports', requireAdmin, async (req: Request, res: Response) => {
+router.get('/reports', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { status, page = 1, limit = 20 } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
@@ -230,12 +230,12 @@ router.get('/reports', requireAdmin, async (req: Request, res: Response) => {
       },
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // PATCH /admin/posts/:id/moderate - Moderate a post
-router.patch('/posts/:id/moderate', requireAdmin, async (req: Request, res: Response) => {
+router.patch('/posts/:id/moderate', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const postId = parseInt(String(req.params.id));
     const { status } = req.body; // approved, flagged, pending
@@ -251,7 +251,7 @@ router.patch('/posts/:id/moderate', requireAdmin, async (req: Request, res: Resp
 
     res.json(updated[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -260,7 +260,7 @@ router.patch('/posts/:id/moderate', requireAdmin, async (req: Request, res: Resp
 // ----------------------
 
 // POST /admin/events - Create an event
-router.post('/events', requireAdmin, async (req: Request, res: Response) => {
+router.post('/events', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, date, location, registrationDeadline, participantCount } = req.body;
 
@@ -274,12 +274,12 @@ router.post('/events', requireAdmin, async (req: Request, res: Response) => {
 
     res.json(newEvent[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // PATCH /admin/events/:id - Update an event
-router.patch('/events/:id', requireAdmin, async (req: Request, res: Response) => {
+router.patch('/events/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const eventId = parseInt(String(req.params.id));
     const { name, date, location, registrationDeadline, participantCount } = req.body;
@@ -301,18 +301,18 @@ router.patch('/events/:id', requireAdmin, async (req: Request, res: Response) =>
 
     res.json(updated[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // DELETE /admin/events/:id - Delete an event
-router.delete('/events/:id', requireAdmin, async (req: Request, res: Response) => {
+router.delete('/events/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const eventId = parseInt(String(req.params.id));
     await db.delete(schema.events).where(eq(schema.events.id, eventId));
     res.json({ success: true, message: 'Event deleted' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -321,7 +321,7 @@ router.delete('/events/:id', requireAdmin, async (req: Request, res: Response) =
 // ----------------------
 
 // GET /admin/payments - Get all payments
-router.get('/payments', requireAdmin, async (req: Request, res: Response) => {
+router.get('/payments', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { status, page = 1, limit = 50 } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
@@ -351,7 +351,7 @@ router.get('/payments', requireAdmin, async (req: Request, res: Response) => {
 
     res.json(payments);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -360,17 +360,17 @@ router.get('/payments', requireAdmin, async (req: Request, res: Response) => {
 // ----------------------
 
 // GET /admin/badges - Get all badges
-router.get('/badges', requireAdmin, async (req: Request, res: Response) => {
+router.get('/badges', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const badges = await db.select().from(schema.badges);
     res.json(badges);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // POST /admin/badges - Create a badge
-router.post('/badges', requireAdmin, async (req: Request, res: Response) => {
+router.post('/badges', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, description, icon, category } = req.body;
 
@@ -383,7 +383,7 @@ router.post('/badges', requireAdmin, async (req: Request, res: Response) => {
 
     res.json(newBadge[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -392,17 +392,17 @@ router.post('/badges', requireAdmin, async (req: Request, res: Response) => {
 // ----------------------
 
 // GET /admin/nil-opportunities - Get all NIL opportunities
-router.get('/nil-opportunities', requireAdmin, async (req: Request, res: Response) => {
+router.get('/nil-opportunities', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const opportunities = await db.select().from(schema.nilOpportunities);
     res.json(opportunities);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // POST /admin/nil-opportunities - Create NIL opportunity
-router.post('/nil-opportunities', requireAdmin, async (req: Request, res: Response) => {
+router.post('/nil-opportunities', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { brandName, requirements, deliverables, estimatedEarnings } = req.body;
 
@@ -415,7 +415,7 @@ router.post('/nil-opportunities', requireAdmin, async (req: Request, res: Respon
 
     res.json(newOpportunity[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -424,17 +424,17 @@ router.post('/nil-opportunities', requireAdmin, async (req: Request, res: Respon
 // ----------------------
 
 // GET /admin/subscription-plans - Get all subscription plans
-router.get('/subscription-plans', requireAdmin, async (req: Request, res: Response) => {
+router.get('/subscription-plans', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const plans = await db.select().from(schema.subscriptionPlans);
     res.json(plans);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // POST /admin/subscription-plans - Create a subscription plan
-router.post('/subscription-plans', requireAdmin, async (req: Request, res: Response) => {
+router.post('/subscription-plans', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, price, tierLevel } = req.body;
 
@@ -446,12 +446,12 @@ router.post('/subscription-plans', requireAdmin, async (req: Request, res: Respo
 
     res.json(newPlan[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // PATCH /admin/subscription-plans/:id - Update a subscription plan
-router.patch('/subscription-plans/:id', requireAdmin, async (req: Request, res: Response) => {
+router.patch('/subscription-plans/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const planId = parseInt(String(req.params.id));
     const { name, price, tierLevel } = req.body;
@@ -471,18 +471,18 @@ router.patch('/subscription-plans/:id', requireAdmin, async (req: Request, res: 
 
     res.json(updated[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // DELETE /admin/subscription-plans/:id - Delete a subscription plan
-router.delete('/subscription-plans/:id', requireAdmin, async (req: Request, res: Response) => {
+router.delete('/subscription-plans/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const planId = parseInt(String(req.params.id));
     await db.delete(schema.subscriptionPlans).where(eq(schema.subscriptionPlans.id, planId));
     res.json({ success: true, message: 'Subscription plan deleted' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -491,7 +491,7 @@ router.delete('/subscription-plans/:id', requireAdmin, async (req: Request, res:
 // ----------------------
 
 // POST /admin/athletes/:id/verify - Verify an athlete profile
-router.post('/athletes/:id/verify', requireAdmin, async (req: Request, res: Response) => {
+router.post('/athletes/:id/verify', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const athleteId = parseInt(String(req.params.id));
     const { verified } = req.body;
@@ -511,7 +511,7 @@ router.post('/athletes/:id/verify', requireAdmin, async (req: Request, res: Resp
 
     res.json(updated[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -520,18 +520,18 @@ router.post('/athletes/:id/verify', requireAdmin, async (req: Request, res: Resp
 // ----------------------
 
 // GET /admin/coaches/verification - Get coaches pending verification
-router.get('/coaches/verification', requireAdmin, async (req: Request, res: Response) => {
+router.get('/coaches/verification', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const coaches = await db.select().from(schema.coaches)
       .where(eq(schema.coaches.verifiedStatus, false));
     res.json(coaches);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // PATCH /admin/coaches/:id/verify - Verify a coach
-router.patch('/coaches/:id/verify', requireAdmin, async (req: Request, res: Response) => {
+router.patch('/coaches/:id/verify', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const coachId = parseInt(String(req.params.id));
     const { verified } = req.body;
@@ -550,7 +550,7 @@ router.patch('/coaches/:id/verify', requireAdmin, async (req: Request, res: Resp
 
     res.json(updated[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -559,17 +559,17 @@ router.patch('/coaches/:id/verify', requireAdmin, async (req: Request, res: Resp
 // ----------------------
 
 // GET /admin/teams - Get all teams
-router.get('/teams', requireAdmin, async (req: Request, res: Response) => {
+router.get('/teams', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const teams = await db.select().from(schema.teams);
     res.json(teams);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // POST /admin/teams - Create a team
-router.post('/teams', requireAdmin, async (req: Request, res: Response) => {
+router.post('/teams', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, logo, state, city, conference, division, wins, losses, titles, rating,
            tuitionInState, tuitionOutState, hasApplication, hasQuestionnaire,
@@ -598,12 +598,12 @@ router.post('/teams', requireAdmin, async (req: Request, res: Response) => {
 
     res.json(newTeam[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // PATCH /admin/teams/:id - Update a team
-router.patch('/teams/:id', requireAdmin, async (req: Request, res: Response) => {
+router.patch('/teams/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const teamId = parseInt(String(req.params.id));
     const { name, logo, state, city, conference, division, wins, losses, titles, rating,
@@ -640,18 +640,18 @@ router.patch('/teams/:id', requireAdmin, async (req: Request, res: Response) => 
 
     res.json(updated[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // DELETE /admin/teams/:id - Delete a team
-router.delete('/teams/:id', requireAdmin, async (req: Request, res: Response) => {
+router.delete('/teams/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const teamId = parseInt(String(req.params.id));
     await db.delete(schema.teams).where(eq(schema.teams.id, teamId));
     res.json({ success: true, message: 'Team deleted' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 

@@ -17,6 +17,7 @@ import { usersRouter } from './api/users';
 import { programsRouter } from './api/programs';
 import { coachesRouter } from './api/coaches';
 import { parentRouter } from './api/parent';
+import errorHandler from './middleware/errorHandler';
 
 export function createApp() {
   const app = express();
@@ -47,6 +48,10 @@ export function createApp() {
   app.use('/api/upload', uploadRouter);
   app.use('/api/admin', adminRouter);
   app.use('/api', mainApiRouter);
+
+  // Final middleware: catches anything a route forwarded via next(err), logs
+  // it server-side with a request id, and returns a generic 500 to the client.
+  app.use(errorHandler);
 
   return app;
 }
