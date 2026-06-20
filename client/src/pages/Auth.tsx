@@ -496,7 +496,7 @@ export const Auth = () => {
                           cursor: 'pointer', transition: 'all .18s',
                         }}
                       >
-                        I'm an {r === 'athlete' ? 'Athlete' : 'a Parent'}
+                        {r === 'athlete' ? "I'm an Athlete" : "I'm a Parent"}
                       </button>
                     ))}
                   </div>
