@@ -148,3 +148,30 @@ export const uploadVideoPresignBody = z.object({
   contentType: z.enum(['video/mp4', 'video/webm', 'video/quicktime']),
   size: positiveBytes.max(500 * 1024 * 1024), // 500MB cap, required
 });
+
+// ─── Coach scouting-board mutations ─────────────────────────────────────────
+
+const tier = z.enum(['top-target', 'watching', 'offered']);
+const stringList = (max: number) => z.array(z.string().trim().min(1).max(64)).max(max);
+
+export const coachPlayerSaveBody = z.object({
+  tier: tier.optional(),
+});
+
+export const coachPlayerNotesBody = z.object({
+  notes: z.string().trim().max(2000).optional().default(''),
+});
+
+export const coachPlayerTierBody = z.object({
+  tier,
+});
+
+export const coachPlayerParams = z.object({ id: positiveIdParam });
+
+export const coachProfilePutBody = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  university: z.string().trim().max(200).optional(),
+  division: z.string().trim().max(32).optional(),
+  recruitingPositions: stringList(32).optional(),
+  recruitingStates: stringList(60).optional(),
+}).refine((b) => Object.keys(b).length > 0, { message: 'At least one updatable field is required' });
