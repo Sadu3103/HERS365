@@ -23,6 +23,7 @@ import {
 } from './middleware/safetySchemas';
 import { publicPlayerView } from './lib/playerPrivacy';
 import { moderateMessage } from './lib/moderation';
+import { eitherBlocked } from './lib/messageBlocks';
 
 const router = express.Router();
 
@@ -422,9 +423,14 @@ router.post('/message/:playerId', validateParams(coachMessageParams), validateBo
       return res.status(403).json({ success: false, error: 'Messaging requires a parent-approved contact request' });
     }
 
-    // Moderation gate sits between the parent-approval check and the DB
-    // write so unsafe text never reaches the messages table even when the
-    // contact link is open.
+    // Block gate runs after the parent-approval check (so a coach with no
+    // contact link still gets the more specific 403) and before moderation
+    // (so a blocked coach doesn't burn an OpenAI call on a message that
+    // would never land). Either party blocking stops messaging.
+    if (await eitherBlocked(coachId, 'coach', playerId, 'athlete')) {
+      return res.status(403).json({ success: false, error: 'This conversation is unavailable.' });
+    }
+
     const verdict = await moderateMessage(String(message));
     if (!verdict.allowed) {
       console.warn('[coach/message] rejected by moderation', { reason: verdict.reason, coachId, playerId });
