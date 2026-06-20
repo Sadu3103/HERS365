@@ -4,6 +4,7 @@ import { db } from './db';
 import * as schema from './schema';
 import { eq, desc, and, sql, like, or } from 'drizzle-orm';
 import { calculateRankingScore, getRankingTier, getTierColor } from './rankingAlgorithm';
+import { publicPlayerView } from './lib/playerPrivacy';
 
 const router = Router();
 
@@ -115,8 +116,10 @@ router.get('/players/:id', async (req, res) => {
     const ranking = rankings[0] || {};
     const score = ranking.overallScore || 0;
 
+    // Directive 1: spreading player[0] would leak phone/email/dob/zip out
+    // of a public ranking detail. Route through publicPlayerView.
     res.json({
-      ...player[0],
+      ...publicPlayerView(player[0]),
       rankings: {
         nationalRank: ranking.nationalRank,
         stateRank: ranking.stateRank,
