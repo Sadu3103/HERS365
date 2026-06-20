@@ -9,19 +9,16 @@ import { AuthenticatedRequest, requireAuth, requireAdmin } from './auth';
 
 const router = express.Router();
 
-function stripPlayer(p: any) {
-  if (!p) return p;
-  const { passwordHash, ...rest } = p;
-  return rest;
-}
+import { publicPlayerView, selfPlayerView } from './lib/playerPrivacy';
 
-// Public projection — contact info of a minor never leaves list/detail endpoints.
-// stripPlayer (own-profile) keeps email; this one doesn't.
-function publicPlayer(p: any) {
-  if (!p) return p;
-  const { passwordHash, email, zipCode, ...rest } = p;
-  return rest;
-}
+// Own-profile view (kept for clarity at call sites): only the password hash
+// is stripped; the caller is the player so they can see their own contact
+// info.
+const stripPlayer = selfPlayerView;
+
+// Public projection — contact info of a minor never leaves list/detail
+// endpoints. Strips email/phone/dob/zip/pendingParentEmail/passwordHash.
+const publicPlayer = publicPlayerView;
 
 // SUBSCRIPTION PLANS
 router.get('/subscription-plans', async (req: Request, res: Response, next: NextFunction) => {

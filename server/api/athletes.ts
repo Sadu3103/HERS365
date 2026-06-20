@@ -4,13 +4,11 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 import { requireAuth, optionalAuth } from '../auth';
+import { publicPlayerView } from '../lib/playerPrivacy';
 
-// Public projection of a player row. Email/zip are contact info for a
-// minor — never expose them on athlete endpoints.
-function publicAthlete(p: Record<string, unknown>) {
-  const { passwordHash, email, zipCode, ...safe } = p;
-  return safe;
-}
+// Cross-user view: strips email/phone/dob/zip/pendingParentEmail/passwordHash
+// per the directive 1 rule "minor PII never leaves cross-user endpoints."
+const publicAthlete = publicPlayerView;
 
 const router = express.Router();
 

@@ -21,6 +21,7 @@ import {
   coachPlayerParams,
   coachProfilePutBody,
 } from './middleware/safetySchemas';
+import { publicPlayerView } from './lib/playerPrivacy';
 
 const router = express.Router();
 
@@ -233,7 +234,10 @@ router.get('/players/:id', async (req, res) => {
     const [player] = await db.select().from(schema.players).where(eq(schema.players.id, id));
     if (!player) return res.status(404).json({ error: 'Player not found' });
 
-    const { passwordHash, ...safe } = player;
+    // Directive 1: coaches don't get a minor's phone/email/dob/address even
+    // on the "unlocked" detail page. The parent gate (parent-approved
+    // message link) is the only path to contact info.
+    const safe = publicPlayerView(player) as Record<string, unknown>;
 
     const combine = await db.select().from(schema.combineStats)
       .where(eq(schema.combineStats.playerId, id))
