@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch } from '../lib/api';
+import { apiFetch, errorMessage } from '../lib/api';
 
 const FLAME   = '#ff5a2d';
 const FLAME_S = '#ff8c66';
@@ -37,8 +37,8 @@ export function ForgotPassword() {
         body: JSON.stringify({ email }),
       });
       setSubmitted(true);
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong — please try again.');
+    } catch (err) {
+      setError(errorMessage(err, 'Something went wrong — please try again.'));
     } finally {
       setLoading(false);
     }

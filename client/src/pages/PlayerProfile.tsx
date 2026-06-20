@@ -24,7 +24,7 @@ interface Stat {
   touchdowns?: number;
   yards?: number;
   completionPct?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 
