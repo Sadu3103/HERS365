@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Lock, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { apiFetch } from '../lib/api';
+import { apiFetch, errorMessage } from '../lib/api';
 
 const FLAME   = '#ff5a2d';
 const FLAME_S = '#ff8c66';
@@ -54,8 +54,8 @@ export function ResetPassword() {
         body: JSON.stringify({ token, password }),
       });
       setDone(true);
-    } catch (err: any) {
-      setError(err.message || 'Reset failed — the link may have expired. Request a new one.');
+    } catch (err) {
+      setError(errorMessage(err, 'Reset failed — the link may have expired. Request a new one.'));
     } finally {
       setLoading(false);
     }

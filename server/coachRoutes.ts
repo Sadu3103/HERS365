@@ -11,6 +11,17 @@ import { requireCoach } from './auth';
 import { requireVerifiedCoach } from './middleware/requireVerifiedCoach';
 import { generatePredictiveAnalytics, AthleteData } from './rankingAlgorithm';
 import { hasParentApprovedLink } from './api/messages';
+import { validateBody, validateParams } from './middleware/validate';
+import {
+  coachMessageBody,
+  coachMessageParams,
+  coachPlayerSaveBody,
+  coachPlayerNotesBody,
+  coachPlayerTierBody,
+  coachPlayerParams,
+  coachProfilePutBody,
+} from './middleware/safetySchemas';
+import { publicPlayerView } from './lib/playerPrivacy';
 
 const router = express.Router();
 
@@ -223,7 +234,10 @@ router.get('/players/:id', async (req, res) => {
     const [player] = await db.select().from(schema.players).where(eq(schema.players.id, id));
     if (!player) return res.status(404).json({ error: 'Player not found' });
 
-    const { passwordHash, ...safe } = player;
+    // Directive 1: coaches don't get a minor's phone/email/dob/address even
+    // on the "unlocked" detail page. The parent gate (parent-approved
+    // message link) is the only path to contact info.
+    const safe = publicPlayerView(player) as Record<string, unknown>;
 
     const combine = await db.select().from(schema.combineStats)
       .where(eq(schema.combineStats.playerId, id))
@@ -273,7 +287,7 @@ router.get('/board', async (req, res) => {
 /**
  * POST /coach/players/:id/save — Add player to scouting board
  */
-router.post('/players/:id/save', async (req, res) => {
+router.post('/players/:id/save', validateParams(coachPlayerParams), validateBody(coachPlayerSaveBody), async (req, res) => {
   try {
     const coachId = req.user.userId;
     const playerId = parseInt(req.params.id);
@@ -323,7 +337,7 @@ router.post('/players/:id/save', async (req, res) => {
 /**
  * DELETE /coach/players/:id/save — Remove from scouting board
  */
-router.delete('/players/:id/save', async (req, res) => {
+router.delete('/players/:id/save', validateParams(coachPlayerParams), async (req, res) => {
   try {
     const coachId = req.user.userId;
     const playerId = parseInt(req.params.id);
@@ -344,7 +358,7 @@ router.delete('/players/:id/save', async (req, res) => {
 /**
  * PATCH /coach/players/:id/notes — Update notes for a player on scouting board
  */
-router.patch('/players/:id/notes', async (req, res) => {
+router.patch('/players/:id/notes', validateParams(coachPlayerParams), validateBody(coachPlayerNotesBody), async (req, res) => {
   try {
     const coachId = req.user.userId;
     const playerId = parseInt(req.params.id);
@@ -367,7 +381,7 @@ router.patch('/players/:id/notes', async (req, res) => {
 /**
  * PATCH /coach/players/:id/tier — Update tier for a player on scouting board
  */
-router.patch('/players/:id/tier', async (req, res) => {
+router.patch('/players/:id/tier', validateParams(coachPlayerParams), validateBody(coachPlayerTierBody), async (req, res) => {
   try {
     const coachId = req.user.userId;
     const playerId = parseInt(req.params.id);
@@ -397,7 +411,7 @@ router.patch('/players/:id/tier', async (req, res) => {
 /**
  * POST /coach/message/:playerId — Send a message to an athlete
  */
-router.post('/message/:playerId', async (req, res) => {
+router.post('/message/:playerId', validateParams(coachMessageParams), validateBody(coachMessageBody), async (req, res) => {
   try {
     const { message } = req.body;
     const coachId = req.user.userId;
@@ -647,7 +661,7 @@ router.get('/profile', async (req, res) => {
 /**
  * PUT /coach/profile — Update the authenticated coach's own profile
  */
-router.put('/profile', async (req, res) => {
+router.put('/profile', validateBody(coachProfilePutBody), async (req, res) => {
   try {
     const coachId = req.user?.id;
     if (!coachId) return res.status(401).json({ error: 'Unauthorized' });

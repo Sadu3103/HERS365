@@ -3,6 +3,13 @@ import { and, eq, desc, inArray } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 import { requireAuth } from '../auth';
+import { validateBody, validateParams } from '../middleware/validate';
+import {
+  parentRespondBody,
+  parentSettingsBody,
+  parentInviteBody,
+  idParam,
+} from '../middleware/safetySchemas';
 
 const router = express.Router();
 router.use(requireAuth);
@@ -123,13 +130,12 @@ router.get('/requests', async (req, res) => {
 });
 
 // POST /api/parent/requests/:id/respond — approve or reject; approve writes parentId
-router.post('/requests/:id/respond', async (req, res) => {
+router.post('/requests/:id/respond', validateParams(idParam), validateBody(parentRespondBody), async (req, res) => {
   try {
     const parentId = requireParent(req, res);
     if (parentId == null) return;
 
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) return res.status(400).json({ success: false, error: 'Invalid request id' });
+    const id = Number(req.params.id);
 
     const { action } = req.body ?? {};
     if (!['approve', 'reject'].includes(action)) {
@@ -237,7 +243,7 @@ router.get('/settings', async (req, res) => {
 
 // PUT /api/parent/settings — accepts an arbitrary preferences object and
 // merges it into the parent's persisted preferences. UI sends partial diffs.
-router.put('/settings', async (req, res) => {
+router.put('/settings', validateBody(parentSettingsBody), async (req, res) => {
   try {
     const parentId = requireParent(req, res);
     if (parentId == null) return;
@@ -265,7 +271,7 @@ router.put('/settings', async (req, res) => {
 // POST /api/parent/invite-athlete — parent sends an invite to an athlete email.
 // Idempotent: if the athlete already exists, creates a pending relation. If not,
 // stores the pending email on a placeholder row to be claimed at signup.
-router.post('/invite-athlete', async (req, res) => {
+router.post('/invite-athlete', validateBody(parentInviteBody), async (req, res) => {
   try {
     const parentId = requireParent(req, res);
     if (parentId == null) return;

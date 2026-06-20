@@ -6,6 +6,8 @@ import express from 'express';
 import { db } from './db';
 import * as schema from './schema';
 import { eq, desc, and, sql } from 'drizzle-orm';
+import { validateBody } from './middleware/validate';
+import { tokenEarnBody, tokenXpEarnBody, tokenRedeemBody } from './middleware/safetySchemas';
 
 const router = express.Router();
 
@@ -14,7 +16,7 @@ const router = express.Router();
 // ----------------------
 
 // GET /tokens/player/:playerId - Get player's token balance
-router.get('/player/:playerId', async (req, res) => {
+router.get('/player/:playerId', async (req, res, next) => {
   try {
     const playerId = parseInt(req.params.playerId);
     const player = await db.select()
@@ -33,7 +35,7 @@ router.get('/player/:playerId', async (req, res) => {
       totalPoints: (player[0].nilPoints || 0) + (player[0].xpPoints || 0),
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -42,7 +44,7 @@ router.get('/player/:playerId', async (req, res) => {
 // ----------------------
 
 // POST /tokens/earn - Award NIL points to a player
-router.post('/earn', async (req, res) => {
+router.post('/earn', validateBody(tokenEarnBody), async (req, res, next) => {
   try {
     const { playerId, points, activityType, description } = req.body;
 
@@ -75,7 +77,7 @@ router.post('/earn', async (req, res) => {
       pointsEarned: points,
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -84,7 +86,7 @@ router.post('/earn', async (req, res) => {
 // ----------------------
 
 // POST /tokens/xp/earn - Award XP points to a player
-router.post('/xp/earn', async (req, res) => {
+router.post('/xp/earn', validateBody(tokenXpEarnBody), async (req, res, next) => {
   try {
     const { playerId, points, activityType } = req.body;
 
@@ -121,7 +123,7 @@ router.post('/xp/earn', async (req, res) => {
       pointsEarned: points,
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -130,7 +132,7 @@ router.post('/xp/earn', async (req, res) => {
 // ----------------------
 
 // GET /tokens/history/:playerId - Get player's token earning history
-router.get('/history/:playerId', async (req, res) => {
+router.get('/history/:playerId', async (req, res, next) => {
   try {
     const playerId = parseInt(req.params.playerId);
     const { type } = req.query; // 'nil', 'xp', or undefined for all
@@ -155,7 +157,7 @@ router.get('/history/:playerId', async (req, res) => {
 
     res.json(trainingHistory);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -164,7 +166,7 @@ router.get('/history/:playerId', async (req, res) => {
 // ----------------------
 
 // POST /tokens/redeem - Redeem tokens for rewards
-router.post('/redeem', async (req, res) => {
+router.post('/redeem', validateBody(tokenRedeemBody), async (req, res, next) => {
   try {
     const { playerId, cost, rewardType, rewardId } = req.body;
 
@@ -215,7 +217,7 @@ router.post('/redeem', async (req, res) => {
       redeemed: { rewardType, rewardId, cost },
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -224,7 +226,7 @@ router.post('/redeem', async (req, res) => {
 // ----------------------
 
 // GET /tokens/leaderboard - Get top players by points
-router.get('/leaderboard', async (req, res) => {
+router.get('/leaderboard', async (req, res, next) => {
   try {
     const { type = 'nil', limit = 10 } = req.query;
 
@@ -250,7 +252,7 @@ router.get('/leaderboard', async (req, res) => {
 
     res.json(ranked);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 

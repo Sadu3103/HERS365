@@ -27,6 +27,18 @@ type Reel = {
   tag: string;
 };
 
+interface ReelApiRow {
+  id: number;
+  playerName?: string;
+  playerSchool?: string;
+  playerPosition?: string;
+  content?: string;
+  mediaUrl?: string | null;
+  likes?: number;
+  comments?: number;
+  category?: string;
+}
+
 const SEED: Reel[] = [
   { id: 1, playerName: 'Sarah Watkins', playerSchool: 'Westlake HS, TX', playerPos: 'QB', caption: 'Dropping dimes in the red zone 🏈 #FlagFootball #HERS365', videoUrl: null, thumbUrl: '', likes: 1240, comments: 84, isLiked: false, isSaved: false, tag: 'Highlight' },
   { id: 2, playerName: 'Maya Johnson', playerSchool: "St. Mary's Academy, FL", playerPos: 'WR', caption: 'Route running clinic — 4.71 speed after practice. Every rep counts.', videoUrl: null, thumbUrl: '', likes: 987, comments: 62, isLiked: true, isSaved: false, tag: 'Training' },
@@ -278,7 +290,7 @@ export const Reels = () => {
     const ctrl = new AbortController();
     fetch('/api/posts?mediaType=video', { signal: ctrl.signal })
       .then((r) => r.ok ? r.json() : null)
-      .then((data: any[] | null) => {
+      .then((data: ReelApiRow[] | null) => {
         if (!data || data.length === 0) return;
         setReels(data.map((p) => ({
           id: p.id,

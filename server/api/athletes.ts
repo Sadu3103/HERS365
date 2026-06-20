@@ -4,13 +4,17 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 import { requireAuth, optionalAuth } from '../auth';
+import { publicPlayerView } from '../lib/playerPrivacy';
+import { validateBody, validateParams } from '../middleware/validate';
+import {
+  savedSchoolBody,
+  savedSchoolParams,
+  athletePutBody,
+} from '../middleware/safetySchemas';
 
-// Public projection of a player row. Email/zip are contact info for a
-// minor — never expose them on athlete endpoints.
-function publicAthlete(p: Record<string, unknown>) {
-  const { passwordHash, email, zipCode, ...safe } = p;
-  return safe;
-}
+// Cross-user view: strips email/phone/dob/zip/pendingParentEmail/passwordHash
+// per the directive 1 rule "minor PII never leaves cross-user endpoints."
+const publicAthlete = publicPlayerView;
 
 const router = express.Router();
 
@@ -65,7 +69,7 @@ router.get('/me/saved-schools', requireAuth, async (req, res) => {
 });
 
 // POST /api/athletes/me/saved-schools
-router.post('/me/saved-schools', requireAuth, async (req, res) => {
+router.post('/me/saved-schools', requireAuth, validateBody(savedSchoolBody), async (req, res) => {
   try {
     const programId = parseInt(req.body?.schoolId, 10);
     if (Number.isNaN(programId)) {
@@ -97,7 +101,7 @@ router.post('/me/saved-schools', requireAuth, async (req, res) => {
 });
 
 // DELETE /api/athletes/me/saved-schools/:schoolId
-router.delete('/me/saved-schools/:schoolId', requireAuth, async (req, res) => {
+router.delete('/me/saved-schools/:schoolId', requireAuth, validateParams(savedSchoolParams), async (req, res) => {
   try {
     const programId = parseInt(req.params.schoolId as string, 10);
     if (Number.isNaN(programId)) {
@@ -163,7 +167,7 @@ router.get('/:id',optionalAuth, async (req, res) => {
 });
 
 // PUT /api/athletes/:id - Update own athlete profile (DB-backed, auth required)
-router.put('/:id', requireAuth, async (req, res) => {
+router.put('/:id', requireAuth, validateBody(athletePutBody), async (req, res) => {
   try {
     const id = parseInt(req.params.id as string, 10);
     if (Number.isNaN(id)) {

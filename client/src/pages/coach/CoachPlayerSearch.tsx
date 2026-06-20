@@ -381,9 +381,9 @@ export function CoachPlayerSearch() {
                 to={`/coach/player/${player.id}`}
                 className="block aspect-video bg-gray-900 relative overflow-hidden group"
               >
-                {(player as any).highlightThumbnailUrl || (player as any).profileImage ? (
+                {player.highlightThumbnailUrl || player.profileImage ? (
                   <img
-                    src={(player as any).highlightThumbnailUrl || (player as any).profileImage}
+                    src={player.highlightThumbnailUrl || player.profileImage || undefined}
                     alt={`${player.name} preview`}
                     className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
@@ -394,7 +394,7 @@ export function CoachPlayerSearch() {
                     </div>
                   </div>
                 )}
-                {(player as any).highlightThumbnailUrl && (
+                {player.highlightThumbnailUrl && (
                   <div className="absolute bottom-2 left-2 inline-flex items-center gap-1 bg-black/70 backdrop-blur px-2 py-1 rounded text-xs font-medium text-white">
                     ▶ Highlights
                   </div>

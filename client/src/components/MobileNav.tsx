@@ -100,7 +100,9 @@ export const MobileNav: React.FC<MobileNavProps> = ({
                 {title}
               </span>
               <button
+                type="button"
                 onClick={onClose}
+                aria-label="Close menu"
                 style={{
                   background: 'none',
                   border: 'none',
@@ -111,7 +113,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({
                   alignItems: 'center',
                 }}
               >
-                <X size={20} />
+                <X size={20} aria-hidden="true" />
               </button>
             </div>
 
