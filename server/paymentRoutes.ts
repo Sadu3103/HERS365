@@ -257,7 +257,7 @@ router.post('/create-checkout-session', async (req: Request, res: Response) => {
     res.json({ url: session.url, sessionId: session.id });
   } catch (err: any) {
     console.error('Stripe checkout error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Payment processing failed, please try again' });
   }
 });
 
@@ -287,7 +287,7 @@ router.get('/customer-portal/:playerId', async (req: Request, res: Response) => 
     res.json({ url: session.url });
   } catch (err: any) {
     console.error('Customer portal error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Payment processing failed, please try again' });
   }
 });
 
@@ -314,7 +314,8 @@ router.get('/payments', async (req: Request, res: Response) => {
         const payments = await query.orderBy(desc(schema.payments.createdAt));
         res.json(payments);
     } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        console.error('[payment] 500:', err);
+        res.status(500).json({ error: 'Payment processing failed, please try again' });
     }
 });
 
@@ -330,7 +331,8 @@ router.get('/payments/:id', async (req: Request, res: Response) => {
 
         res.json(payment[0]);
     } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        console.error('[payment] 500:', err);
+        res.status(500).json({ error: 'Payment processing failed, please try again' });
     }
 });
 
@@ -349,7 +351,8 @@ router.get('/payments/player/:playerId', async (req: Request, res: Response) => 
 
         res.json(payments);
     } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        console.error('[payment] 500:', err);
+        res.status(500).json({ error: 'Payment processing failed, please try again' });
     }
 });
 
@@ -393,7 +396,8 @@ router.post('/payments', async (req: Request, res: Response) => {
 
         res.json(newPayment[0]);
     } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        console.error('[payment] 500:', err);
+        res.status(500).json({ error: 'Payment processing failed, please try again' });
     }
 });
 
@@ -427,7 +431,8 @@ router.patch('/payments/:id', async (req: Request, res: Response) => {
 
         res.json(updatedPayment[0]);
     } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        console.error('[payment] 500:', err);
+        res.status(500).json({ error: 'Payment processing failed, please try again' });
     }
 });
 
@@ -453,7 +458,8 @@ router.post('/payments/:id/complete', async (req: Request, res: Response) => {
 
         res.json(updatedPayment[0]);
     } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        console.error('[payment] 500:', err);
+        res.status(500).json({ error: 'Payment processing failed, please try again' });
     }
 });
 
@@ -506,7 +512,7 @@ router.post('/payments/:id/refund', async (req: Request, res: Response) => {
         res.json(updatedPayment[0]);
     } catch (err: any) {
         console.error('Refund error:', err);
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: 'Payment processing failed, please try again' });
     }
 });
 
@@ -525,7 +531,8 @@ router.get('/payment-methods/player/:playerId', async (req: Request, res: Respon
 
         res.json(methods);
     } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        console.error('[payment] 500:', err);
+        res.status(500).json({ error: 'Payment processing failed, please try again' });
     }
 });
 
@@ -567,7 +574,8 @@ router.post('/payment-methods', async (req: Request, res: Response) => {
 
         res.json(newMethod[0]);
     } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        console.error('[payment] 500:', err);
+        res.status(500).json({ error: 'Payment processing failed, please try again' });
     }
 });
 
@@ -581,7 +589,8 @@ router.delete('/payment-methods/:id', async (req: Request, res: Response) => {
 
         res.json({ success: true, message: 'Payment method removed' });
     } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        console.error('[payment] 500:', err);
+        res.status(500).json({ error: 'Payment processing failed, please try again' });
     }
 });
 
@@ -612,7 +621,8 @@ router.get('/invoices', async (req: Request, res: Response) => {
         const invoices = await query.orderBy(desc(schema.invoices.createdAt));
         res.json(invoices);
     } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        console.error('[payment] 500:', err);
+        res.status(500).json({ error: 'Payment processing failed, please try again' });
     }
 });
 
@@ -649,7 +659,8 @@ router.post('/invoices', async (req: Request, res: Response) => {
 
         res.json(newInvoice[0]);
     } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        console.error('[payment] 500:', err);
+        res.status(500).json({ error: 'Payment processing failed, please try again' });
     }
 });
 
@@ -673,7 +684,8 @@ router.patch('/invoices/:id', async (req: Request, res: Response) => {
 
         res.json(updatedInvoice[0]);
     } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        console.error('[payment] 500:', err);
+        res.status(500).json({ error: 'Payment processing failed, please try again' });
     }
 });
 
@@ -748,7 +760,8 @@ router.get('/payments/summary', async (req: Request, res: Response) => {
             })),
         });
     } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        console.error('[payment] 500:', err);
+        res.status(500).json({ error: 'Payment processing failed, please try again' });
     }
 });
 
@@ -790,7 +803,8 @@ router.get('/payments/player/:playerId/summary', async (req: Request, res: Respo
             history,
         });
     } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        console.error('[payment] 500:', err);
+        res.status(500).json({ error: 'Payment processing failed, please try again' });
     }
 });
 
