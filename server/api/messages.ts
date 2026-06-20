@@ -14,6 +14,7 @@ import {
 } from '../middleware/safetySchemas';
 import { moderateMessage } from '../lib/moderation';
 import { eitherBlocked } from '../lib/messageBlocks';
+import { messageRateLimit } from '../middleware/messageRateLimit';
 
 const router = express.Router();
 router.use(requireAuth);
@@ -150,7 +151,7 @@ export async function hasParentApprovedLink(athleteId: number, coachId: number):
 }
 
 // POST /api/messages — send a message to a partner
-router.post('/', validateBody(sendMessageBody), async (req, res) => {
+router.post('/', messageRateLimit, validateBody(sendMessageBody), async (req, res) => {
   try {
     const { userId, role } = caller(req);
     const isCoach = role === 'coach';
