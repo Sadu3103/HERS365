@@ -131,3 +131,20 @@ export const userStatsPostBody = z.object({
   broadJump: optionalString(16),
   threeCone: optionalString(16),
 });
+
+// ─── Upload presign routes ──────────────────────────────────────────────────
+
+const filename = z.string().trim().min(1).max(255);
+const positiveBytes = z.coerce.number().int().positive();
+
+export const uploadImagePresignBody = z.object({
+  filename,
+  contentType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'image/gif']),
+  size: positiveBytes.max(5 * 1024 * 1024).optional(), // 5MB cap
+});
+
+export const uploadVideoPresignBody = z.object({
+  filename,
+  contentType: z.enum(['video/mp4', 'video/webm', 'video/quicktime']),
+  size: positiveBytes.max(500 * 1024 * 1024), // 500MB cap, required
+});
