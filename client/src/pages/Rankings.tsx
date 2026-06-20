@@ -19,6 +19,20 @@ type RankedPlayer = {
   verified: boolean;
 };
 
+interface RankingsRow {
+  id: number;
+  rank?: number;
+  name: string;
+  school?: string;
+  position?: string;
+  gpa?: string | null;
+  gradYear?: number | null;
+  rating?: number;
+  change?: number;
+  verified?: boolean;
+  verificationStatus?: string;
+}
+
 const positions = POSITION_FILTERS;
 
 function Avatar({ name, size = 36 }: { name: string; size?: number }) {
@@ -54,8 +68,8 @@ export const Rankings = () => {
   useEffect(() => {
     fetch('/api/rankings?limit=50')
       .then(r => r.ok ? r.json() : null)
-      .then(j => {
-        const rows: any[] = j?.data ?? [];
+      .then((j: { data?: RankingsRow[] } | null) => {
+        const rows: RankingsRow[] = j?.data ?? [];
         setPlayers(rows.map((p, i) => ({
           id: p.id,
           rank: p.rank ?? i + 1,

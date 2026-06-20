@@ -25,9 +25,31 @@ import { apiFetch } from '../../lib/api';
 
 type RosterStatus = 'watching' | 'contacted' | 'offered' | 'committed';
 
-interface RosterAthlete extends PlayerSearchResult {
+// Roster cards don't load game/combine numbers — those need their own join
+// from /api/players/:id/stats and aren't shown on the board.
+interface RosterAthlete extends Omit<PlayerSearchResult, 'stats' | 'combineStats'> {
+  stats?: PlayerSearchResult['stats'];
+  combineStats?: PlayerSearchResult['combineStats'];
   status: RosterStatus;
   notes: string;
+}
+
+interface PlayerApiRow {
+  id: number;
+  name?: string;
+  position?: string;
+  state?: string;
+  city?: string;
+  school?: string;
+  gradYear?: number;
+  height?: string;
+  weight?: number;
+  gpa?: number | string;
+  g5Rating?: number;
+  archetype?: string;
+  verificationStatus?: string;
+  collegeOffers?: unknown[];
+  nilPoints?: number;
 }
 
 const STATUSES: {
@@ -74,7 +96,7 @@ export function CoachRoster() {
         const rows = await Promise.all(
           entries.map(async (entry) => {
             try {
-              const player = await apiFetch<any>(`/api/players/${entry.athleteId}`);
+              const player = await apiFetch<PlayerApiRow>(`/api/players/${entry.athleteId}`);
               return player ? { entry, player } : null;
             } catch { return null; }
           })
@@ -82,7 +104,7 @@ export function CoachRoster() {
 
         setRoster(
           rows
-            .filter((r): r is { entry: typeof entries[0]; player: any } => r !== null)
+            .filter((r): r is { entry: typeof entries[0]; player: PlayerApiRow } => r !== null)
             .map(({ entry, player }) => ({
               id: player.id,
               name: player.name ?? '',
@@ -93,12 +115,10 @@ export function CoachRoster() {
               gradYear: player.gradYear ?? 0,
               height: player.height ?? '—',
               weight: player.weight ?? 0,
-              gpa: parseFloat(String(player.gpa)) || 0,
+              gpa: parseFloat(String(player.gpa ?? '')) || 0,
               breakoutScore: player.g5Rating ? player.g5Rating * 20 : 0,
               stars: player.g5Rating ?? 0,
               archetype: player.archetype ?? '',
-              stats: {} as any,
-              combineStats: {} as any,
               highlights: 0,
               verified: player.verificationStatus === 'verified',
               offers: Array.isArray(player.collegeOffers) ? player.collegeOffers.length : 0,
