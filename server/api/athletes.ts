@@ -56,7 +56,7 @@ router.get('/me/saved-schools', requireAuth, async (req, res) => {
     const rows = await db
       .select({ programId: schema.savedSchools.programId })
       .from(schema.savedSchools)
-      .where(eq(schema.savedSchools.athleteId, Number(req.user.id)));
+      .where(eq(schema.savedSchools.athleteId, Number(req.user?.userId)));
     res.json({ success: true, data: rows.map(r => r.programId) });
   } catch (error) {
     console.error('[athletes/saved-schools/list]', error);
@@ -71,7 +71,7 @@ router.post('/me/saved-schools', requireAuth, async (req, res) => {
     if (Number.isNaN(programId)) {
       return res.status(400).json({ success: false, error: 'schoolId is required' });
     }
-    const athleteId = Number(req.user.id);
+    const athleteId = Number(req.user?.userId);
 
     const existing = await db
       .select({ id: schema.savedSchools.id })
@@ -99,11 +99,11 @@ router.post('/me/saved-schools', requireAuth, async (req, res) => {
 // DELETE /api/athletes/me/saved-schools/:schoolId
 router.delete('/me/saved-schools/:schoolId', requireAuth, async (req, res) => {
   try {
-    const programId = parseInt(req.params.schoolId, 10);
+    const programId = parseInt(req.params.schoolId as string, 10);
     if (Number.isNaN(programId)) {
       return res.status(400).json({ success: false, error: 'Invalid school id' });
     }
-    const athleteId = Number(req.user.id);
+    const athleteId = Number(req.user?.userId);
 
     await db
       .delete(schema.savedSchools)
@@ -126,7 +126,7 @@ router.delete('/me/saved-schools/:schoolId', requireAuth, async (req, res) => {
 // GET /api/athletes/:id - Get specific athlete profile (DB-backed)
 router.get('/:id',optionalAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(req.params.id as string, 10);
     if (Number.isNaN(id)) {
       return res.status(400).json({ success: false, error: 'Invalid athlete id' });
     }
@@ -165,7 +165,7 @@ router.get('/:id',optionalAuth, async (req, res) => {
 // PUT /api/athletes/:id - Update own athlete profile (DB-backed, auth required)
 router.put('/:id', requireAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(req.params.id as string, 10);
     if (Number.isNaN(id)) {
       return res.status(400).json({ success: false, error: 'Invalid athlete id' });
     }
@@ -176,7 +176,7 @@ router.put('/:id', requireAuth, async (req, res) => {
     }
 
     // Whitelist + coerce numeric fields
-    const updates = {};
+    const updates: Record<string,any> = {};
     for (const field of UPDATABLE_FIELDS) {
       if (req.body[field] === undefined) continue;
       let value = req.body[field];

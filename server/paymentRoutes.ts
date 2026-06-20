@@ -264,7 +264,7 @@ router.post('/create-checkout-session', async (req: Request, res: Response) => {
 // GET /customer-portal - Create Stripe customer portal session
 router.get('/customer-portal/:playerId', async (req: Request, res: Response) => {
   try {
-    const playerId = parseInt(req.params.playerId);
+    const playerId = parseInt(req.params.playerId as string);
 
     // Find player's subscription
     const subs = await db.select().from(schema.playerSubscriptions)
@@ -321,7 +321,7 @@ router.get('/payments', async (req: Request, res: Response) => {
 // GET /payments/:id - Get a specific payment
 router.get('/payments/:id', async (req: Request, res: Response) => {
     try {
-        const paymentId = parseInt(req.params.id);
+        const paymentId = parseInt(req.params.id as string);
         const payment = await db.select().from(schema.payments).where(eq(schema.payments.id, paymentId));
 
         if (!payment[0]) {
@@ -337,7 +337,7 @@ router.get('/payments/:id', async (req: Request, res: Response) => {
 // GET /payments/player/:playerId - Get payments for a specific kid/player
 router.get('/payments/player/:playerId', async (req: Request, res: Response) => {
     try {
-        const playerId = parseInt(req.params.playerId);
+        const playerId = parseInt(req.params.playerId as string);
         const payments = await db.select({
             ...schema.payments,
             playerName: schema.players.name,
@@ -400,7 +400,7 @@ router.post('/payments', async (req: Request, res: Response) => {
 // PATCH /payments/:id - Update payment status
 router.patch('/payments/:id', async (req: Request, res: Response) => {
     try {
-        const paymentId = parseInt(req.params.id);
+        const paymentId = parseInt(req.params.id as string);
         const {
             status,
             paidAt,
@@ -434,7 +434,7 @@ router.patch('/payments/:id', async (req: Request, res: Response) => {
 // POST /payments/:id/complete - Mark payment as completed
 router.post('/payments/:id/complete', async (req: Request, res: Response) => {
     try {
-        const paymentId = parseInt(req.params.id);
+        const paymentId = parseInt(req.params.id as string);
         const { receiptUrl } = req.body;
 
         const updatedPayment = await db.update(schema.payments)
@@ -460,7 +460,7 @@ router.post('/payments/:id/complete', async (req: Request, res: Response) => {
 // POST /payments/:id/refund - Refund a payment
 router.post('/payments/:id/refund', async (req: Request, res: Response) => {
     try {
-        const paymentId = parseInt(req.params.id);
+        const paymentId = parseInt(req.params.id as string);
         const { reason, feedback } = req.body;
 
         // Get payment details
@@ -517,7 +517,7 @@ router.post('/payments/:id/refund', async (req: Request, res: Response) => {
 // GET /payment-methods/player/:playerId - Get payment methods for a player
 router.get('/payment-methods/player/:playerId', async (req: Request, res: Response) => {
     try {
-        const playerId = parseInt(req.params.playerId);
+        const playerId = parseInt(req.params.playerId as string);
         const methods = await db.select()
             .from(schema.paymentMethods)
             .where(eq(schema.paymentMethods.playerId, playerId))
@@ -574,7 +574,7 @@ router.post('/payment-methods', async (req: Request, res: Response) => {
 // DELETE /payment-methods/:id - Remove a payment method
 router.delete('/payment-methods/:id', async (req: Request, res: Response) => {
     try {
-        const methodId = parseInt(req.params.id);
+        const methodId = parseInt(req.params.id as string);
 
         await db.delete(schema.paymentMethods)
             .where(eq(schema.paymentMethods.id, methodId));
@@ -656,7 +656,7 @@ router.post('/invoices', async (req: Request, res: Response) => {
 // PATCH /invoices/:id - Update invoice (e.g., mark as paid)
 router.patch('/invoices/:id', async (req: Request, res: Response) => {
     try {
-        const invoiceId = parseInt(req.params.id);
+        const invoiceId = parseInt(req.params.id as string);
         const { status, paidAt } = req.body;
 
         const updatedInvoice = await db.update(schema.invoices)
@@ -755,7 +755,7 @@ router.get('/payments/summary', async (req: Request, res: Response) => {
 // GET /payments/player/:playerId/summary - Get payment summary for a specific kid
 router.get('/payments/player/:playerId/summary', async (req: Request, res: Response) => {
     try {
-        const playerId = parseInt(req.params.playerId);
+        const playerId = parseInt(req.params.playerId as string);
 
         // Total paid
         const paidResult = await db.select({

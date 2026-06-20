@@ -103,9 +103,7 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
   });
 }
 
-export interface AuthenticatedRequest extends Request {
-  user: TokenPayload;
-}
+
 
 export function requireCoach(req: Request, res: Response, next: NextFunction): void {
   requireAuth(req, res, () => {

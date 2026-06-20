@@ -56,7 +56,7 @@ router.get('/me/applications', requireAuth, async (req, res) => {
     const rows = await db
       .select()
       .from(schema.programApplications)
-      .where(eq(schema.programApplications.athleteId, Number(req.user.id)));
+      .where(eq(schema.programApplications.athleteId, Number(req.user?.userId)));
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('[programs/me/applications]', error);
@@ -84,7 +84,7 @@ router.get('/:id', (req, res) => {
 // POST /api/programs/:id/applications — identity comes from the JWT, never the body
 router.post('/:id/applications', requireAuth, async (req, res) => {
   try {
-    const programId = parseInt(req.params.id, 10);
+    const programId = parseInt(req.params.id as string, 10);
     if (Number.isNaN(programId)) {
       return res.status(400).json({ success: false, error: 'Invalid program id' });
     }
@@ -99,7 +99,7 @@ router.post('/:id/applications', requireAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Position is required' });
     }
 
-    const athleteId = Number(req.user.id);
+    const athleteId = Number(req.user?.userId);
 
     const existing = await db
       .select({ id: schema.programApplications.id })
