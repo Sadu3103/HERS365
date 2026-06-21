@@ -1,10 +1,9 @@
-// @ts-nocheck
 /**
  * Email/password authentication (bcrypt + JWT).
  * Mounted under /api/auth alongside the OAuth router.
  */
 import express from 'express';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
@@ -28,10 +27,18 @@ const registerLimiter = rateLimit({
   message: { error: 'Too many accounts created from this network — try again later' },
 });
 
-function signToken(player) {
+type TokenPlayer = {
+  id: number;
+  email: string;
+  subscriptionTier: string | null;
+};
+
+function signToken(player: TokenPlayer): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error('JWT_SECRET environment variable is not set');
   return jwt.sign(
     { id: player.id, email: player.email, subscriptionTier: player.subscriptionTier },
-    process.env.JWT_SECRET,
+    secret,
     { expiresIn: JWT_EXPIRES_IN }
   );
 }
