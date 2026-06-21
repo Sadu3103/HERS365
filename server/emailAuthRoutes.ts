@@ -4,18 +4,17 @@
  */
 import express from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { eq } from 'drizzle-orm';
 import { db } from './db';
 import * as schema from './schema';
 import { sendPasswordResetEmail } from './email';
+import * as auth from './auth';
 
 const router = express.Router();
 
 const BCRYPT_ROUNDS = 12;
-const JWT_EXPIRES_IN = '7d';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // [D-10] Cap account creation at 5 per IP per hour to block bulk fake signups.
@@ -27,20 +26,16 @@ const registerLimiter = rateLimit({
   message: { error: 'Too many accounts created from this network — try again later' },
 });
 
-type TokenPlayer = {
-  id: number;
-  email: string;
-  subscriptionTier: string | null;
-};
-
-function signToken(player: TokenPlayer): string {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) throw new Error('JWT_SECRET environment variable is not set');
-  return jwt.sign(
-    { id: player.id, email: player.email, subscriptionTier: player.subscriptionTier },
-    secret,
-    { expiresIn: JWT_EXPIRES_IN }
-  );
+// Issue the same JWT shape as the canonical auth router. Tokens minted here
+// previously omitted userId/role/name, which broke any downstream route that
+// branched on req.user.role or read req.user.userId.
+function signEmailAuthToken(player: { id: number; email: string; name: string | null }): string {
+  return auth.signToken({
+    userId: player.id,
+    email: player.email,
+    role: 'athlete',
+    name: player.name ?? '',
+  });
 }
 
 router.post('/register', registerLimiter, async (req, res) => {
@@ -74,7 +69,7 @@ router.post('/register', registerLimiter, async (req, res) => {
       .returning();
 
     const player = inserted[0];
-    const token = signToken(player);
+    const token = signEmailAuthToken(player);
 
     return res.status(201).json({
       token,
@@ -115,7 +110,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = signToken(player);
+    const token = signEmailAuthToken(player);
 
     return res.json({
       token,
