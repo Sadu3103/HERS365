@@ -110,13 +110,7 @@ describe('POST /api/notifications/mark-read/:id', () => {
     expect(persisted.read).toBe(true);
   });
 
-  // Documents a real, currently-present cross-tenant bug — see "Bugs revealed
-  // by tests" in the PR description. The endpoint updates by notification id
-  // only, with no ownership check, so any authenticated user can flip any
-  // other user's notification's read flag. Asserting the current (buggy)
-  // behavior so this test starts failing the moment the fix lands, which is
-  // exactly when the assertion should be flipped to expect 403/404.
-  it('TODO(security): cross-tenant mark-read currently succeeds (no ownership check)', async () => {
+  it('rejects a cross-tenant mark-read with 404 and leaves the row unchanged', async () => {
     const owner = await makeAthlete();
     const stranger = await makeAthlete();
     const n = await seedNotification(owner.id, { read: false });
@@ -124,10 +118,25 @@ describe('POST /api/notifications/mark-read/:id', () => {
     const res = await request(app)
       .post(`/api/notifications/mark-read/${n.id}`)
       .set('Authorization', `Bearer ${tokenFor(stranger, 'athlete')}`);
-    // Once the route is fixed to scope by playerId, this should become 403 or
-    // 404 and persisted.read should stay false.
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(404);
+
     const [persisted] = await db.select().from(schema.notifications).where(eq(schema.notifications.id, n.id));
-    expect(persisted.read).toBe(true);
+    expect(persisted.read).toBe(false);
+
+    // Owner still succeeds and flips the flag.
+    const ownerRes = await request(app)
+      .post(`/api/notifications/mark-read/${n.id}`)
+      .set('Authorization', `Bearer ${tokenFor(owner, 'athlete')}`);
+    expect(ownerRes.status).toBe(200);
+    const [afterOwner] = await db.select().from(schema.notifications).where(eq(schema.notifications.id, n.id));
+    expect(afterOwner.read).toBe(true);
+  });
+
+  it('returns 404 for a notification id that does not exist', async () => {
+    const athlete = await makeAthlete();
+    const res = await request(app)
+      .post('/api/notifications/mark-read/999999')
+      .set('Authorization', `Bearer ${tokenFor(athlete, 'athlete')}`);
+    expect(res.status).toBe(404);
   });
 });
