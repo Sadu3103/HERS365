@@ -1,37 +1,43 @@
-import express, { Request, Response, NextFunction } from 'express';
+
+import express, { Request, Response } from 'express';
 import { db } from './db';
 import * as schema from './schema';
 import * as ai from './ai';
 import * as mp from './maxpreps';
 import { eq, desc, sql } from 'drizzle-orm';
-import { AuthenticatedRequest, requireAuth, requireAdmin } from './auth';
+import { AuthenticatedRequest,requireAuth, requireAdmin } from './auth';
 
 const router = express.Router();
 
 
 
-import { publicPlayerView, selfPlayerView } from './lib/playerPrivacy';
 
-// Own-profile view (kept for clarity at call sites): only the password hash
-// is stripped; the caller is the player so they can see their own contact
-// info.
-const stripPlayer = selfPlayerView;
 
-// Public projection — contact info of a minor never leaves list/detail
-// endpoints. Strips email/phone/dob/zip/pendingParentEmail/passwordHash.
-const publicPlayer = publicPlayerView;
+function stripPlayer(p: any) {
+  if (!p) return p;
+  const { passwordHash, ...rest } = p;
+  return rest;
+}
+
+// Public projection — contact info of a minor never leaves list/detail endpoints.
+// stripPlayer (own-profile) keeps email; this one doesn't.
+function publicPlayer(p: any) {
+  if (!p) return p;
+  const { passwordHash, email, zipCode, ...rest } = p;
+  return rest;
+}
 
 // SUBSCRIPTION PLANS
-router.get('/subscription-plans', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/subscription-plans', async (req: Request, res: Response) => {
   try {
     const plans = await db.select().from(schema.subscriptionPlans).orderBy(schema.subscriptionPlans.price);
     res.json(plans);
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.post('/subscription-plans', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/subscription-plans', requireAdmin, async (req: Request, res: Response) => {
   try {
     const { name, price, tierLevel } = req.body;
     if (!name || price === undefined) {
@@ -40,11 +46,11 @@ router.post('/subscription-plans', requireAdmin, async (req: Request, res: Respo
     const newPlan = await db.insert(schema.subscriptionPlans).values({ name, price, tierLevel }).returning();
     res.json(newPlan[0]);
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/player-subscription/:playerId', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/player-subscription/:playerId', async (req: Request, res: Response) => {
   try {
     const pId = parseInt(req.params.playerId as string);
     if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
@@ -57,11 +63,11 @@ router.get('/player-subscription/:playerId', async (req: Request, res: Response,
       .where(eq(schema.subscriptionPlans.id, subscription[0].planId));
     res.json({ ...subscription[0], plan: plan[0] || null });
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.post('/player-subscription', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/player-subscription', requireAuth, async (req:AuthenticatedRequest, res:Response) => {
   try {
     const { playerId, planId, stripeSubscriptionId } = req.body;
     if (!playerId || !planId) {
@@ -89,21 +95,21 @@ router.post('/player-subscription', requireAuth, async (req: AuthenticatedReques
     }
     res.json(newSub[0]);
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
 // CURRENT USER PROFILE
-router.get('/profile', requireAuth, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.get('/profile', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const rows = await db.select().from(schema.players).where(eq(schema.players.id, req.user.userId)).limit(1);
     res.json(stripPlayer(rows[0]) || null);
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.put('/profile', requireAuth, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.put('/profile', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { name, bio, position, school, state, gradYear, heightIn, weightLbs, phone, profileImage } = req.body;
     const updates: Record<string, any> = {};
@@ -122,53 +128,53 @@ router.put('/profile', requireAuth, async (req: AuthenticatedRequest, res: Respo
     const updated = await db.update(schema.players).set(updates).where(eq(schema.players.id, req.user.userId)).returning();
     res.json(stripPlayer(updated[0]));
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/profile/stats', requireAuth, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.get('/profile/stats', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const gameStats = await db.select().from(schema.gameStats).where(eq(schema.gameStats.playerId, req.user.userId));
     const combineStats = await db.select().from(schema.combineStats).where(eq(schema.combineStats.playerId, req.user.userId)).limit(1);
     res.json({ game: gameStats, combine: combineStats[0] || null });
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
 // PLAYERS & TEAMS
-router.get('/players', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/players', async (req: Request, res: Response) => {
   try {
     const allPlayers = await db.select().from(schema.players);
     res.json(allPlayers.map(publicPlayer));
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/players/:id', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/players/:id', async (req: Request, res: Response) => {
   try {
     const pId = parseInt(req.params.id as string);
     if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
     const player = await db.select().from(schema.players).where(eq(schema.players.id, pId));
     res.json(publicPlayer(player[0]) || null);
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/players/:id/stats', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/players/:id/stats', async (req: Request, res: Response) => {
   try {
     const pId = parseInt(req.params.id as string);
     if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
     const stats = await db.select().from(schema.gameStats).where(eq(schema.gameStats.playerId, pId));
     res.json(stats);
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/players/:id/highlights', requireAuth, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.get('/players/:id/highlights', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const pId = parseInt(req.params.id as string);
     if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
@@ -183,11 +189,11 @@ router.get('/players/:id/highlights', requireAuth, async (req: AuthenticatedRequ
       .where(eq(schema.playerHighlights.playerId, pId)).limit(3);
     return res.json(free.map(h => ({ ...h, locked: false })));
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.post('/players/:id/highlights', requireAuth, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.post('/players/:id/highlights', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const pId = parseInt(req.params.id as string);
     if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
@@ -204,21 +210,21 @@ router.post('/players/:id/highlights', requireAuth, async (req: AuthenticatedReq
     }).returning();
     res.json(newHighlight[0]);
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/teams', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/teams', async (req: Request, res: Response) => {
   try {
     const allTeams = await db.select().from(schema.teams);
     res.json(allTeams);
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
 // SOCIAL FEED
-router.get('/posts', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/posts', async (req: Request, res: Response) => {
   try {
     const allPosts = await db
       .select({
@@ -243,11 +249,11 @@ router.get('/posts', async (req: Request, res: Response, next: NextFunction) => 
       .limit(50);
     res.json(allPosts);
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.post('/posts', requireAuth, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.post('/posts', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { content, mediaUrl, mediaType } = req.body;
     const newPost = await db.insert(schema.posts).values({
@@ -261,16 +267,16 @@ router.post('/posts', requireAuth, async (req: AuthenticatedRequest, res: Respon
       .where(eq(schema.players.id, req.user.userId));
     res.json(newPost[0]);
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/stories', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/stories', async (req: Request, res: Response) => {
   try {
     const allStories = await db.select().from(schema.stories);
     res.json(allStories);
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -315,7 +321,7 @@ router.post('/posts/:id/comments', requireAuth, async (req: AuthenticatedRequest
 
   const comment = await db.insert(schema.comments).values({
     postId,
-    userId,
+    playerId: userId,
     content
   }).returning();
 
@@ -328,7 +334,7 @@ router.post('/posts/:id/comments', requireAuth, async (req: AuthenticatedRequest
 });
 
 // AI BOTS & TRAINING
-router.get('/bot/:playerId', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/bot/:playerId', async (req: Request, res: Response) => {
   try {
     const pId = parseInt(req.params.playerId as string);
     if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
@@ -343,11 +349,11 @@ router.get('/bot/:playerId', async (req: Request, res: Response, next: NextFunct
     }
     res.json(bots[0]);
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.post('/bot/:botId/chat', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/bot/:botId/chat', async (req: Request, res: Response) => {
   try {
     const bId = parseInt(req.params.botId as string);
     if (isNaN(bId)) return res.status(400).json({ error: 'Invalid bot ID' });
@@ -355,41 +361,41 @@ router.post('/bot/:botId/chat', async (req: Request, res: Response, next: NextFu
     const reply = await ai.chatBot(bId, [{ role: 'user', content: message }], context);
     res.json({ reply });
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/nil/opportunities', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/nil/opportunities', async (req: Request, res: Response) => {
   try {
     const opps = await db.select().from(schema.nilOpportunities).limit(20);
     res.json(opps);
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.post('/nil/chat', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/nil/chat', async (req: Request, res: Response) => {
   try {
     const { message } = req.body;
     const reply = await ai.chatNIL([{ role: 'user', content: message }]);
     res.json({ reply });
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.post('/training-plans', requireAuth, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.post('/training-plans', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { position = 'QB', age = 16, skillLevel = 'Intermediate' } = req.body;
     const plan = await ai.generateTrainingPlan(position, age, skillLevel);
     res.json(plan);
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
 // MAXPREPS — GIRLS FLAG FOOTBALL
-router.get('/maxpreps/player', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/maxpreps/player', async (req: Request, res: Response) => {
   const { name, school, state } = req.query as Record<string, string>;
   if (!name) return res.status(400).json({ error: 'name is required' });
   try {
@@ -401,47 +407,47 @@ router.get('/maxpreps/player', async (req: Request, res: Response, next: NextFun
     }
     res.json({ source: 'maxpreps', query: { name, school, state }, count: filtered.length, players: filtered });
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/maxpreps/stats/:maxprepsId', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/maxpreps/stats/:maxprepsId', async (req: Request, res: Response) => {
   try {
     const stats = await mp.fetchPlayerStats(req.params.maxprepsId as string);
     if (!stats) return res.status(404).json({ error: 'Player not found on MaxPreps' });
     res.json({ source: 'maxpreps', stats });
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/maxpreps/leaders', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/maxpreps/leaders', async (req: Request, res: Response) => {
   const { category = 'receiving', state, season = '2025' } = req.query as Record<string, string>;
   try {
     const leaders = await mp.fetchFlagFootballLeaders(category as any, state, season);
     res.json({ source: 'maxpreps', category, state: state || 'national', season, leaders });
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/maxpreps/rankings', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/maxpreps/rankings', async (req: Request, res: Response) => {
   const { state = 'TX', season = '2025' } = req.query as Record<string, string>;
   try {
     const teams = await mp.fetchStateTeamRankings(state, season);
     res.json({ source: 'maxpreps', state, season, teams });
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/maxpreps/team/:schoolGID/roster', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/maxpreps/team/:schoolGID/roster', async (req: Request, res: Response) => {
   const { season = '2025' } = req.query as Record<string, string>;
   try {
     const roster = await mp.fetchTeamRoster(req.params.schoolGID as string, season);
     res.json({ source: 'maxpreps', season, players: roster });
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -449,7 +455,7 @@ router.get('/maxpreps/team/:schoolGID/roster', async (req: Request, res: Respons
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
 
 // GET /notifications - list for authenticated player
-router.get('/notifications', requireAuth, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.get('/notifications', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const playerId = req.user?.id;
     if (!playerId) return res.status(401).json({ error: 'Not authenticated' });
@@ -464,12 +470,12 @@ router.get('/notifications', requireAuth, async (req: AuthenticatedRequest, res:
     const unreadCount = rows.filter((n) => !n.read).length;
     res.json({ notifications: rows, unreadCount });
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
 // POST /notifications/mark-read - mark all as read
-router.post('/notifications/mark-read', requireAuth, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.post('/notifications/mark-read', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const playerId = req.user?.id;
     if (!playerId) return res.status(401).json({ error: 'Not authenticated' });
@@ -479,19 +485,19 @@ router.post('/notifications/mark-read', requireAuth, async (req: AuthenticatedRe
       .where(eq(schema.notifications.playerId, parseInt(String(playerId))));
     res.json({ ok: true });
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
 // POST /notifications/mark-read/:id - mark one as read
-router.post('/notifications/mark-read/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/notifications/mark-read/:id', requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
     await db.update(schema.notifications).set({ read: true }).where(eq(schema.notifications.id, id));
     res.json({ ok: true });
   } catch (err: any) {
-    next(err);
+    res.status(500).json({ error: err.message });
   }
 });
 

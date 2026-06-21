@@ -9,7 +9,7 @@ import * as schema from './schema';
 import { eq, ilike, and, desc, sql } from 'drizzle-orm';
 import { requireCoach } from './auth';
 import { requireVerifiedCoach } from './middleware/requireVerifiedCoach';
-import { generatePredictiveAnalytics, AthleteData } from './rankingAlgorithm';
+import { AthleteData } from './rankingAlgorithm';
 import { hasParentApprovedLink } from './api/messages';
 import { validateBody, validateParams } from './middleware/validate';
 import {
@@ -290,7 +290,7 @@ router.get('/board', async (req, res) => {
 router.post('/players/:id/save', validateParams(coachPlayerParams), validateBody(coachPlayerSaveBody), async (req, res) => {
   try {
     const coachId = req.user.userId;
-    const playerId = parseInt(req.params.id);
+    const playerId = parseInt(req.params.id as string);
     const { tier = 'watching' } = req.body; // tiers: 'top-target' | 'watching' | 'offered'
 
     // Check if already exists
@@ -340,7 +340,7 @@ router.post('/players/:id/save', validateParams(coachPlayerParams), validateBody
 router.delete('/players/:id/save', validateParams(coachPlayerParams), async (req, res) => {
   try {
     const coachId = req.user.userId;
-    const playerId = parseInt(req.params.id);
+    const playerId = parseInt(req.params.id as string);
 
     await db.delete(schema.coachProspects)
       .where(and(
@@ -361,7 +361,7 @@ router.delete('/players/:id/save', validateParams(coachPlayerParams), async (req
 router.patch('/players/:id/notes', validateParams(coachPlayerParams), validateBody(coachPlayerNotesBody), async (req, res) => {
   try {
     const coachId = req.user.userId;
-    const playerId = parseInt(req.params.id);
+    const playerId = parseInt(req.params.id as string);
     const { notes } = req.body;
 
     await db.update(schema.coachProspects)
@@ -384,7 +384,7 @@ router.patch('/players/:id/notes', validateParams(coachPlayerParams), validateBo
 router.patch('/players/:id/tier', validateParams(coachPlayerParams), validateBody(coachPlayerTierBody), async (req, res) => {
   try {
     const coachId = req.user.userId;
-    const playerId = parseInt(req.params.id);
+    const playerId = parseInt(req.params.id as string);
     const { tier } = req.body;
 
     const validTiers = ['top-target', 'watching', 'offered'];
@@ -415,7 +415,7 @@ router.post('/message/:playerId', validateParams(coachMessageParams), validateBo
   try {
     const { message } = req.body;
     const coachId = req.user.userId;
-    const playerId = parseInt(req.params.playerId);
+    const playerId = parseInt(req.params.playerId as string);
 
     if (!(await hasParentApprovedLink(playerId, coachId))) {
       return res.status(403).json({ success: false, error: 'Messaging requires a parent-approved contact request' });

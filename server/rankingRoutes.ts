@@ -11,76 +11,79 @@ const router = Router();
 // Get rankings with filters (state, national, position, graduation year)
 router.get('/players', async (req, res) => {
   try {
-    const { 
-      level = 'national', // 'national', 'state', 'local'
+    const {
+      level = 'national',
       state,
       position,
       graduationYear,
       limit = 100,
-      offset = 0
+      offset = 0,
     } = req.query;
 
-    let query = db.select({
-      id: schema.players.id,
-      name: schema.players.name,
-      position: schema.players.position,
-      state: schema.players.state,
-      graduationYear: schema.players.graduationYear,
-      school: schema.players.school,
-      profileImage: schema.players.profileImage,
-      g5Rating: schema.players.g5Rating,
-      archetype: schema.players.archetype,
-      // Rankings
-      nationalRank: schema.athleteRankings.nationalRank,
-      stateRank: schema.athleteRankings.stateRank,
-      positionRank: schema.athleteRankings.positionRank,
-      movement: schema.athleteRankings.movement,
-      // Scores
-      combineScore: schema.athleteRankings.combineScore,
-      maxPrepsScore: schema.athleteRankings.maxPrepsScore,
-      zybekScore: schema.athleteRankings.zybekScore,
-      overallScore: schema.athleteRankings.overallScore,
-      // Data sources
-      dataSources: schema.athleteRankings.dataSources,
-      lastUpdated: schema.athleteRankings.updatedAt,
-    })
-    .from(schema.players)
-    .leftJoin(schema.athleteRankings, eq(schema.players.id, schema.athleteRankings.playerId));
-
-    // Apply filters
     const filters = [];
-    
+
     if (state && level !== 'national') {
       filters.push(eq(schema.players.state, state as string));
     }
-    
+
     if (position) {
       filters.push(eq(schema.players.position, position as string));
     }
-    
+
     if (graduationYear) {
-      filters.push(eq(schema.players.graduationYear, parseInt(graduationYear as string)));
-    }
-    
-    if (filters.length > 0) {
-      query = query.where(and(...filters)) as any;
+      filters.push(
+        eq(schema.players.gradYear, parseInt(graduationYear as string))
+      );
     }
 
-    // Order by appropriate ranking
-    if (level === 'state' && state) {
-      query = query.orderBy(schema.athleteRankings.stateRank) as any;
-    } else if (level === 'local') {
-      query = query.orderBy(schema.athleteRankings.positionRank) as any;
-    } else {
-      query = query.orderBy(schema.athleteRankings.nationalRank) as any;
-    }
+    const baseQuery = db
+      .select({
+        id: schema.players.id,
+        name: schema.players.name,
+        position: schema.players.position,
+        state: schema.players.state,
+        graduationYear: schema.players.gradYear,
+        school: schema.players.school,
+        profileImage: schema.players.profileImage,
+        g5Rating: schema.players.g5Rating,
+        archetype: schema.players.archetype,
 
-    query = query.limit(parseInt(limit as string)).offset(parseInt(offset as string));
-    
-    const rankings = await query;
+        nationalRank: schema.athleteRankings.nationalRank,
+        stateRank: schema.athleteRankings.stateRank,
+        positionRank: schema.athleteRankings.positionRank,
+        movement: schema.athleteRankings.movement,
 
-    // Enrich with tier information
-    const enrichedRankings = rankings.map(player => {
+        combineScore: schema.athleteRankings.combineScore,
+        maxPrepsScore: schema.athleteRankings.maxPrepsScore,
+        zybekScore: schema.athleteRankings.zybekScore,
+        overallScore: schema.athleteRankings.overallScore,
+
+        dataSources: schema.athleteRankings.dataSources,
+        lastUpdated: schema.athleteRankings.updatedAt,
+      })
+      .from(schema.players)
+      .leftJoin(
+        schema.athleteRankings,
+        eq(schema.players.id, schema.athleteRankings.playerId)
+      );
+
+    const filteredQuery =
+      filters.length > 0
+        ? baseQuery.where(and(...filters))
+        : baseQuery;
+
+    const orderedQuery =
+      level === 'state' && state
+        ? filteredQuery.orderBy(schema.athleteRankings.stateRank)
+        : level === 'local'
+          ? filteredQuery.orderBy(schema.athleteRankings.positionRank)
+          : filteredQuery.orderBy(schema.athleteRankings.nationalRank);
+
+    const rankings = await orderedQuery
+      .limit(Number(limit))
+      .offset(Number(offset));
+
+    const enrichedRankings = rankings.map((player) => {
       const score = player.overallScore || 0;
       return {
         ...player,
@@ -284,12 +287,16 @@ router.post('/calculate/:playerId', async (req, res) => {
 // Get team rankings
 router.get('/teams', async (req, res) => {
   const { type = 'high_school' } = req.query;
+
   try {
-    let query = db.select().from(schema.teams);
-    if (type) {
-      query = query.where(eq(schema.teams.type, type as string));
-    }
-    const teams = await query.orderBy(desc(schema.teams.rating));
+    const base = db.select().from(schema.teams);
+
+    const filtered = type
+      ? base.where(eq(schema.teams.type, type as string))
+      : base;
+
+    const teams = await filtered.orderBy(desc(schema.teams.rating));
+
     res.json(teams);
   } catch (error) {
     console.error('Error fetching team rankings:', error);

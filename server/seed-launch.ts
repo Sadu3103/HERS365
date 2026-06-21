@@ -86,7 +86,7 @@ async function run() {
   // 2. Resolve player ids by email (stable handle for posts/stories)
   const all = await db.select({ id: schema.players.id, email: schema.players.email }).from(schema.players);
   const idByEmail = Object.fromEntries(all.map((r) => [r.email, r.id]));
-  const pid = (i) => idByEmail[ATHLETES[i].email];
+  const pid = (i: number) => idByEmail[ATHLETES[i].email];
 
   // 3. Fresh feed
   await db.delete(schema.posts);

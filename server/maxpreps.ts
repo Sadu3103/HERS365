@@ -80,19 +80,33 @@ export type MaxPrepsTeam = {
 // ─── Helper ──────────────────────────────────────────────────────────────────
 
 async function safeGet<T = any>(url: string): Promise<T | null> {
+  const controller = new AbortController();
+
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, 8000);
+
   try {
-    const response = await fetch(url, { headers: HEADERS, timeout: 8000 });
+    const response = await fetch(url, {
+      headers: HEADERS,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
     if (!response.ok) return null;
+
     const contentType = response.headers.get('content-type') || '';
+
     if (contentType.includes('application/json')) {
       return (await response.json()) as T;
     }
+
     return null;
   } catch {
     return null;
   }
 }
-
 // ─── MaxPreps Internal API Endpoints ─────────────────────────────────────────
 
 /**

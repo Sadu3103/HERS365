@@ -4,6 +4,10 @@ import { OAuth2Client } from 'google-auth-library';
 import type { Request, Response, NextFunction } from 'express';
 import { isTokenBlocklisted } from './redis';
 
+
+
+
+
 // [D-07] No fallback secret. A weak/known signing key lets anyone forge tokens
 // for any user or role. The required-env + min-length guard in index.ts blocks
 // startup if this is missing or too short, so by the time any request is signed
@@ -35,6 +39,12 @@ export interface TokenPayload {
   // the way in (attachUser) so both names always resolve to the same value.
   id?: number;
 }
+
+
+export type AuthenticatedRequest = Request;
+
+
+
 
 // Single boundary where a decoded token becomes req.user. Aliasing id->userId
 // here means every downstream route works whether it reads `id` or `userId`.

@@ -110,7 +110,7 @@ router.post('/xp/earn', validateBody(tokenXpEarnBody), async (req, res, next) =>
     const newXp = updated[0].xpPoints || 0;
     const newLevel = Math.floor(newXp / 1000) + 1;
     
-    if (newLevel > updated[0].level) {
+    if (updated[0].level !== null && newLevel > updated[0].level) {
       await db.update(schema.players)
         .set({ level: newLevel })
         .where(eq(schema.players.id, playerId));

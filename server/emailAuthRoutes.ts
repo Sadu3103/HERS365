@@ -28,13 +28,31 @@ const registerLimiter = rateLimit({
   message: { error: 'Too many accounts created from this network — try again later' },
 });
 
-function signToken(player) {
-  return jwt.sign(
-    { id: player.id, email: player.email, subscriptionTier: player.subscriptionTier },
-    process.env.JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN }
-  );
+type PlayerTokenPayload = {
+  id: number;
+  email: string;
+  subscriptionTier: string | null;
+};
+
+function getJwtSecret(): string {
+  // Check the environment variable first, fall back to a local string if it's empty
+  const secret = process.env.JWT_SECRET || 'hers365_local_dev_secret_key_123';
+  return secret;
 }
+
+const JWT_SECRET = getJwtSecret();
+
+function signToken(player: PlayerTokenPayload) {
+  return jwt.sign(
+    {
+        id: player.id,
+        email: player.email,
+        subscriptionTier: player.subscriptionTier,
+      },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+  }
 
 router.post('/register', registerLimiter, async (req, res) => {
   const { email, password, name } = req.body || {};
@@ -78,7 +96,7 @@ router.post('/register', registerLimiter, async (req, res) => {
         subscriptionTier: player.subscriptionTier,
       },
     });
-  } catch (err) {
+  } catch (err:any) {
     return res.status(500).json({ error: err.message });
   }
 });
@@ -118,7 +136,7 @@ router.post('/login', async (req, res) => {
         subscriptionTier: player.subscriptionTier,
       },
     });
-  } catch (err) {
+  } catch (err:any) {
     return res.status(500).json({ error: err.message });
   }
 });
@@ -139,7 +157,7 @@ router.post('/forgot-password', async (req, res) => {
     resetTokens.set(token, { playerId: rows[0].id, expiresAt: Date.now() + 60 * 60 * 1000 }); // 1h TTL
     await sendPasswordResetEmail(email, token);
     return res.json({ message: 'If that email exists, a reset link was sent.' });
-  } catch (err) {
+  } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
 });
@@ -159,7 +177,7 @@ router.post('/reset-password', async (req, res) => {
     await db.update(schema.players).set({ passwordHash }).where(eq(schema.players.id, entry.playerId));
     resetTokens.delete(token);
     return res.json({ message: 'Password updated successfully' });
-  } catch (err) {
+  } catch (err:any) {
     return res.status(500).json({ error: err.message });
   }
 });

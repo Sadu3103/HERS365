@@ -7,6 +7,8 @@ import Stripe from 'stripe';
 import { logger } from './logger';
 import { requireAuth } from './auth';
 import { sendEmail } from './email';
+import { getTableColumns } from 'drizzle-orm';
+import type { PgSelect } from 'drizzle-orm/pg-core';
 
 const router = express.Router();
 
@@ -16,12 +18,17 @@ if (!STRIPE_KEY) {
 }
 
 const stripe: Stripe | null = STRIPE_KEY
-  ? new Stripe(STRIPE_KEY, { apiVersion: '2024-12-18.acacia' })
+  ? new Stripe(STRIPE_KEY, { apiVersion: '2025-02-24.acacia' })
   : null;
 
 function requireStripe(req: Request, res: Response, next: express.NextFunction) {
   if (!stripe) return res.status(503).json({ error: 'Payment service is not configured' });
   next();
+}
+
+function getStripe(): Stripe {
+  if (!stripe) throw new Error('Stripe is not configured');
+  return stripe;
 }
 
 // ----------------------
@@ -48,7 +55,7 @@ router.post('/webhook', requireStripe, express.raw({ type: 'application/json' })
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    event = getStripe().webhooks.constructEvent(req.body, sig, endpointSecret);
   } catch (err: any) {
     console.error('Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -88,22 +95,22 @@ router.post('/webhook', requireStripe, express.raw({ type: 'application/json' })
             .where(eq(schema.players.id, playerId));
         }
 
-        // Record payment
-        await db.insert(schema.payments).values({
-          playerId,
-          amount: session.amount_total || 0,
-          currency: session.currency || 'usd',
-          status: 'completed',
-          paymentMethod: 'card',
-          paymentType: 'subscription',
-          description: `${plans[0]?.name || 'Subscription'} - Monthly`,
-          stripePaymentIntentId: session.payment_intent as string,
-          stripeCustomerId: session.customer as string,
-          paidAt: new Date(),
-        });
-      }
-      break;
-    }
+            // Record payment
+            await db.insert(schema.payments).values({
+            playerId,
+            amount: session.amount_total || 0,
+            currency: session.currency || 'usd',
+            status: 'completed',
+            paymentMethod: 'card',
+            paymentType: 'subscription',
+            description: `${plans[0]?.name || 'Subscription'} - Monthly`,
+            stripePaymentIntentId: session.payment_intent as string,
+            stripeCustomerId: session.customer as string,
+            paidAt: new Date(),
+            });
+        }
+        break;
+        }
 
     case 'customer.subscription.deleted': {
       const subscription = event.data.object as Stripe.Subscription;
@@ -240,11 +247,11 @@ router.post('/create-checkout-session', async (req: Request, res: Response) => {
         };
 
     // Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [lineItem],
       mode: 'subscription',
-      success_url: successUrl || `${process.env.ALLOWED_ORIGINS?.split(',')[0] || 'http://localhost:5173'}/thank-you?plan=${encodeURIComponent(plan.name)}&amount=${plan.price}&interval=month`,
+      success_url: successUrl || `${process.env.ALLOWED_ORIGINS?.split(',')[0] || 'http://localhost:5173'}/thank-you?plan=${encodeURIComponent(plan.name ?? '')}&amount=${plan.price}&interval=month`,
       cancel_url: cancelUrl || `${process.env.ALLOWED_ORIGINS?.split(',')[0] || 'http://localhost:5173'}/subscribe?subscription=cancelled`,
       metadata: {
         playerId: playerId.toString(),
@@ -275,11 +282,11 @@ router.get('/customer-portal/:playerId', async (req: Request, res: Response) => 
     }
 
     // Get Stripe subscription to find customer ID
-    const subscription = await stripe.subscriptions.retrieve(subs[0].stripeSubscriptionId);
+    const subscription = await getStripe().subscriptions.retrieve(subs[0].stripeSubscriptionId);
     const customerId = subscription.customer as string;
 
     // Create portal session
-    const session = await stripe.billingPortal.sessions.create({
+    const session = await getStripe().billingPortal.sessions.create({
       customer: customerId,
       return_url: `${process.env.ALLOWED_ORIGINS?.split(',')[0] || 'http://localhost:5173'}/settings`,
     });
@@ -298,20 +305,19 @@ router.get('/customer-portal/:playerId', async (req: Request, res: Response) => 
 // GET /payments - Get all payments (with optional filters)
 router.get('/payments', async (req: Request, res: Response) => {
     try {
-        const { playerId, status, paymentType, startDate, endDate } = req.query;
+        const { playerId, status, paymentType } = req.query;
 
-        let filters = [];
-        if (playerId) filters.push(eq(schema.payments.playerId, parseInt(playerId as string)));
-        if (status) filters.push(eq(schema.payments.status, status as string));
-        if (paymentType) filters.push(eq(schema.payments.paymentType, paymentType as string));
-
-        let query = db.select().from(schema.payments);
-
-        if (filters.length > 0) {
-            query = query.where(and(...filters));
-        }
-
-        const payments = await query.orderBy(desc(schema.payments.createdAt));
+        const payments = await db
+            .select()
+            .from(schema.payments)
+            .where(
+                and(
+                    playerId ? eq(schema.payments.playerId, parseInt(playerId as string)) : undefined,
+                    status ? eq(schema.payments.status, status as string) : undefined,
+                    paymentType ? eq(schema.payments.paymentType, paymentType as string) : undefined,
+                )
+            )
+            .orderBy(desc(schema.payments.createdAt));
         res.json(payments);
     } catch (err: any) {
         res.status(500).json({ error: err.message });
@@ -338,14 +344,21 @@ router.get('/payments/:id', async (req: Request, res: Response) => {
 router.get('/payments/player/:playerId', async (req: Request, res: Response) => {
     try {
         const playerId = parseInt(req.params.playerId as string);
-        const payments = await db.select({
-            ...schema.payments,
+        const payments = await db
+            .select({
+            id: schema.payments.id,
+            playerId: schema.payments.playerId,
+            amount: schema.payments.amount,
+            status: schema.payments.status,
+            createdAt: schema.payments.createdAt,
+            paidAt: schema.payments.paidAt,
+
             playerName: schema.players.name,
         })
-            .from(schema.payments)
-            .leftJoin(schema.players, eq(schema.payments.playerId, schema.players.id))
-            .where(eq(schema.payments.playerId, playerId))
-            .orderBy(desc(schema.payments.createdAt));
+        .from(schema.payments)
+        .leftJoin(schema.players, eq(schema.payments.playerId, schema.players.id))
+        .where(eq(schema.payments.playerId, playerId))
+        .orderBy(desc(schema.payments.createdAt));
 
         res.json(payments);
     } catch (err: any) {
@@ -472,7 +485,7 @@ router.post('/payments/:id/refund', async (req: Request, res: Response) => {
         // If payment was processed via Stripe, attempt to refund through Stripe
         if (payment[0].stripePaymentIntentId) {
             try {
-                await stripe.refunds.create({
+                await getStripe().refunds.create({
                     payment_intent: payment[0].stripePaymentIntentId,
                     reason: 'requested_by_customer',
                 });
@@ -599,11 +612,12 @@ router.get('/invoices', async (req: Request, res: Response) => {
         if (status) filters.push(eq(schema.invoices.status, status as string));
 
         let query = db.select({
-            ...schema.invoices,
+            ...getTableColumns(schema.invoices),
             playerName: schema.players.name,
         })
             .from(schema.invoices)
-            .leftJoin(schema.players, eq(schema.invoices.playerId, schema.players.id));
+            .leftJoin(schema.players,
+                eq(schema.invoices.playerId, schema.players.id));
 
         if (filters.length > 0) {
             query = query.where(and(...filters)) as any;
@@ -715,7 +729,7 @@ router.get('/payments/summary', async (req: Request, res: Response) => {
 
         // Recent payments
         const recentPayments = await db.select({
-            ...schema.payments,
+            ...getTableColumns(schema.payments),
             playerName: schema.players.name,
         })
             .from(schema.payments)
@@ -737,9 +751,11 @@ router.get('/payments/summary', async (req: Request, res: Response) => {
             totalRevenue: revenueResult[0]?.total || 0,
             pendingAmount: pendingResult[0]?.total || 0,
             statusCounts: statusCounts.reduce((acc, row) => {
-                acc[row.status] = row.count;
+                if (row.status) {
+                    acc[row.status] = row.count;
+                }
                 return acc;
-            }, {}),
+            }, {} as Record<string, number>),
             recentPayments,
             typeBreakdown: typeBreakdown.map(t => ({
                 type: t.paymentType || 'unknown',

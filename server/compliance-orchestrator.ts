@@ -19,6 +19,15 @@ import { logger } from './logger';
 
 // ─── COMPLIANCE ORCHESTRATOR ─────────────────────────────────────────────────
 
+type Framework = 'COPPA' | 'FERPA' | 'GDPR';
+
+interface ComplianceMetric {
+  framework: Framework;
+  status: 'critical' | 'warning' | 'ok';
+}
+
+
+
 export class ComplianceOrchestrator {
   private cosmosClient!: OptimizedCosmosClient;
   private serviceBusClient?: ServiceBusClient;
@@ -29,6 +38,7 @@ export class ComplianceOrchestrator {
   private deletionPipeline!: DataDeletionPipeline;
   private complianceMonitor!: ComplianceMonitor;
   private complianceAlerting!: ComplianceAlerting;
+  private metrics: ComplianceMetric[] = [];
 
   private app: express.Application;
   private eventReceivers: any[] = [];
@@ -477,7 +487,7 @@ export class ComplianceUtils {
   /**
    * Generate compliance report summary
    */
-  static generateComplianceSummary(metrics: any[]): any {
+  static generateComplianceSummary(metrics: ComplianceMetric[]): any {
     const summary = {
       overallCompliance: 'compliant',
       criticalIssues: 0,
@@ -486,7 +496,7 @@ export class ComplianceUtils {
         COPPA: { status: 'compliant', issues: 0 },
         FERPA: { status: 'compliant', issues: 0 },
         GDPR: { status: 'compliant', issues: 0 }
-      }
+      } as Record<Framework, { status: string; issues: number }>
     };
 
     for (const metric of metrics) {

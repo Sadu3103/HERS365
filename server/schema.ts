@@ -1,5 +1,6 @@
 import { pgTable, text, integer, serial, boolean, timestamp, jsonb, doublePrecision } from "drizzle-orm/pg-core";
 import { sql } from 'drizzle-orm';
+import { json } from 'drizzle-orm/pg-core';
 
 export const players = pgTable('players', {
   id: serial('id').primaryKey(),
@@ -270,16 +271,20 @@ export const adminUsers = pgTable('admin_users', {
 export const subscriptionPlans = pgTable('subscription_plans', {
   id: serial('id').primaryKey(),
   name: text('name'),
-  price: integer('price'), // in cents
+  price: integer('price').notNull(), // in cents
   tierLevel: text('tier_level'),
 });
 
 export const playerSubscriptions = pgTable('player_subscriptions', {
   id: serial('id').primaryKey(),
-  playerId: integer('player_id').references(() => players.id),
-  planId: integer('plan_id').references(() => subscriptionPlans.id),
+  playerId: integer('player_id').references(() => players.id).notNull(),
+  planId: integer('plan_id')
+  .references(() => subscriptionPlans.id)
+  .notNull(),
   status: text('status'),
   stripeSubscriptionId: text('stripe_subscription_id'),
+  updatedAt: timestamp('updated_at').default(sql`now()`)
+  
 });
 
 export const schedules = pgTable('schedules', {
@@ -362,7 +367,7 @@ export const coachFeedback = pgTable('coach_feedback', {
 export const events = pgTable('events', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
-  date: text('date').notNull(),
+  date: timestamp('date', { mode: 'date' }).notNull(),
   location: text('location').notNull(),
   registrationDeadline: text('registration_deadline'),
   participantCount: integer('participant_count').default(0),
@@ -399,7 +404,7 @@ export const brandPartnerships = pgTable('brand_partnerships', {
 // ----------------------
 export const payments = pgTable('payments', {
   id: serial('id').primaryKey(),
-  playerId: integer('player_id').references(() => players.id),
+  playerId: integer('player_id').references(() => players.id).notNull(),
   amount: integer('amount').notNull(), // in cents
   currency: text('currency').default('usd'),
   status: text('status').default('pending'), // pending, completed, failed, refunded
@@ -414,8 +419,8 @@ export const payments = pgTable('payments', {
   parentPhone: text('parent_phone'),
   notes: text('notes'),
   createdAt: timestamp('created_at').default(sql`now()`),
-  updatedAt: text('updated_at').default(sql`now()`),
-  paidAt: text('paid_at'),
+  updatedAt: timestamp('updated_at').default(sql`now()`),
+  paidAt: timestamp('paid_at'),
 });
 
 export const paymentMethods = pgTable('payment_methods', {
@@ -439,7 +444,7 @@ export const invoices = pgTable('invoices', {
   tax: integer('tax').default(0),
   total: integer('total').notNull(),
   status: text('status').default('draft'), // draft, sent, paid, void
-  dueDate: text('due_date'),
+  dueDate: timestamp('due_date'),
   paidAt: text('paid_at'),
   description: text('description'),
   lineItems: text('line_items'),
@@ -472,7 +477,7 @@ export const athleteRankings = pgTable('athlete_rankings', {
   zybekScore: doublePrecision('zybek_score'),
   usaTalentIdScore: doublePrecision('usa_talent_id_score'),
   // Data source tracking
-  dataSources: text('data_sources'),
+  dataSources: json('data_sources').$type<string[]>(),
   // Last update from each source
   maxPrepsLastUpdate: text('max_preps_last_update'),
   zybekLastUpdate: text('zybek_last_update'),
@@ -483,7 +488,7 @@ export const athleteRankings = pgTable('athlete_rankings', {
   zybekVerified: boolean('zybek_verified').default(false),
   usaTalentIdVerified: boolean('usa_talent_id_verified').default(false),
   combineVerified: boolean('combine_verified').default(false),
-  updatedAt: text('updated_at').default(sql`now()`),
+  updatedAt: timestamp('updated_at').default(sql`now()`),
 });
 
 export const coachProspects = pgTable('coach_prospects', {
