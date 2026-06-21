@@ -5,6 +5,7 @@ import { eq, desc, and, sql } from 'drizzle-orm';
 import { calculateRankingScore, getRankingTier, getTierColor } from './rankingAlgorithm';
 import { publicPlayerView } from './lib/playerPrivacy';
 import { parseIdParam } from './lib/parseIdParam';
+import { parseIntQuery, clampIntQuery } from './lib/queryParam';
 
 const router = Router();
 
@@ -24,14 +25,21 @@ function parseDataSources(raw: string | null): string[] {
 // Get rankings with filters (state, national, position, graduation year)
 router.get('/players', async (req, res) => {
   try {
-    const { 
+    const {
       level = 'national', // 'national', 'state', 'local'
       state,
       position,
       graduationYear,
-      limit = 100,
-      offset = 0
+      limit,
+      offset,
     } = req.query;
+
+    const graduationYearNum = graduationYear ? parseIntQuery(graduationYear) : null;
+    if (graduationYear && graduationYearNum === null) {
+      return res.status(400).json({ message: 'graduationYear must be an integer' });
+    }
+    const limitNum = clampIntQuery(limit, { default: 100, min: 1, max: 500 });
+    const offsetNum = clampIntQuery(offset, { default: 0, min: 0, max: 100000 });
 
     let query = db.select({
       id: schema.players.id,
@@ -72,8 +80,8 @@ router.get('/players', async (req, res) => {
       filters.push(eq(schema.players.position, String(position)));
     }
 
-    if (graduationYear) {
-      filters.push(eq(schema.players.gradYear, parseInt(String(graduationYear), 10)));
+    if (graduationYearNum !== null) {
+      filters.push(eq(schema.players.gradYear, graduationYearNum));
     }
 
     if (filters.length > 0) {
@@ -89,7 +97,7 @@ router.get('/players', async (req, res) => {
       query = query.orderBy(schema.athleteRankings.nationalRank);
     }
 
-    query = query.limit(parseInt(String(limit), 10)).offset(parseInt(String(offset), 10));
+    query = query.limit(limitNum).offset(offsetNum);
     
     const rankings = await query;
 

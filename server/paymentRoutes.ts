@@ -7,6 +7,7 @@ import { logger } from './logger';
 import { requireAuth } from './auth';
 import { sendEmail } from './email';
 import { parseIdParam } from './lib/parseIdParam';
+import { parseIntQuery } from './lib/queryParam';
 
 const router = express.Router();
 
@@ -321,7 +322,11 @@ router.get('/payments', async (req: Request, res: Response) => {
         const { playerId, status, paymentType } = req.query;
 
         const filters = [];
-        if (playerId) filters.push(eq(schema.payments.playerId, parseInt(String(playerId), 10)));
+        if (playerId) {
+            const n = parseIntQuery(playerId);
+            if (n === null) return res.status(400).json({ error: 'playerId must be an integer' });
+            filters.push(eq(schema.payments.playerId, n));
+        }
         if (status) filters.push(eq(schema.payments.status, String(status)));
         if (paymentType) filters.push(eq(schema.payments.paymentType, String(paymentType)));
 
@@ -648,7 +653,11 @@ router.get('/invoices', async (req: Request, res: Response) => {
         const { playerId, status } = req.query;
 
         const filters = [];
-        if (playerId) filters.push(eq(schema.invoices.playerId, parseInt(String(playerId), 10)));
+        if (playerId) {
+            const n = parseIntQuery(playerId);
+            if (n === null) return res.status(400).json({ error: 'playerId must be an integer' });
+            filters.push(eq(schema.invoices.playerId, n));
+        }
         if (status) filters.push(eq(schema.invoices.status, String(status)));
 
         let query = db.select({
