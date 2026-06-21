@@ -1,12 +1,12 @@
-// @ts-nocheck
 import express, { type Request, type Response } from 'express';
 import { db } from './db';
 import * as schema from './schema';
-import { eq, desc, and, sql, sum } from 'drizzle-orm';
+import { eq, desc, and, sql, sum, getTableColumns } from 'drizzle-orm';
 import Stripe from 'stripe';
 import { logger } from './logger';
 import { requireAuth } from './auth';
 import { sendEmail } from './email';
+import { parseIdParam } from './lib/parseIdParam';
 
 const router = express.Router();
 
@@ -16,12 +16,20 @@ if (!STRIPE_KEY) {
 }
 
 const stripe: Stripe | null = STRIPE_KEY
-  ? new Stripe(STRIPE_KEY, { apiVersion: '2024-12-18.acacia' })
+  ? new Stripe(STRIPE_KEY, { apiVersion: '2025-02-24.acacia' })
   : null;
 
 function requireStripe(req: Request, res: Response, next: express.NextFunction) {
   if (!stripe) return res.status(503).json({ error: 'Payment service is not configured' });
   next();
+}
+
+// requireStripe is mounted before every route that touches Stripe, so by the
+// time a handler runs `stripe` is non-null. Read it through here to satisfy
+// the type checker without sprinkling non-null assertions.
+function getStripe(): Stripe {
+  if (!stripe) throw new Error('Stripe is not configured');
+  return stripe;
 }
 
 // ----------------------
@@ -48,7 +56,7 @@ router.post('/webhook', requireStripe, express.raw({ type: 'application/json' })
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    event = getStripe().webhooks.constructEvent(req.body, sig, endpointSecret);
   } catch (err: any) {
     console.error('Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -72,11 +80,12 @@ router.post('/webhook', requireStripe, express.raw({ type: 'application/json' })
           status: 'active',
         }).onConflictDoUpdate({
           target: schema.playerSubscriptions.playerId,
+          // schema.playerSubscriptions has no updatedAt column; previous code
+          // tried to set one. See "Bugs found" in the PR.
           set: {
             planId,
             stripeSubscriptionId: session.subscription as string,
             status: 'active',
-            updatedAt: new Date()
           },
         });
 
@@ -99,7 +108,7 @@ router.post('/webhook', requireStripe, express.raw({ type: 'application/json' })
           description: `${plans[0]?.name || 'Subscription'} - Monthly`,
           stripePaymentIntentId: session.payment_intent as string,
           stripeCustomerId: session.customer as string,
-          paidAt: new Date(),
+          paidAt: new Date().toISOString(),
         });
       }
       break;
@@ -115,13 +124,16 @@ router.post('/webhook', requireStripe, express.raw({ type: 'application/json' })
 
       if (subs.length > 0) {
         await db.update(schema.playerSubscriptions)
-          .set({ status: 'cancelled', updatedAt: new Date() })
+          .set({ status: 'cancelled' })
           .where(eq(schema.playerSubscriptions.id, subs[0].id));
 
         // Downgrade player to free
-        await db.update(schema.players)
-          .set({ subscriptionTier: 'free' })
-          .where(eq(schema.players.id, subs[0].playerId));
+        const subPlayerId = subs[0].playerId;
+        if (subPlayerId != null) {
+          await db.update(schema.players)
+            .set({ subscriptionTier: 'free' })
+            .where(eq(schema.players.id, subPlayerId));
+        }
       }
       break;
     }
@@ -139,6 +151,7 @@ router.post('/webhook', requireStripe, express.raw({ type: 'application/json' })
 
       if (paymentRow.length > 0) {
         const playerId = paymentRow[0].playerId;
+        if (playerId == null) break;
         const playerRows = await db.select({ email: schema.players.email, name: schema.players.name })
           .from(schema.players)
           .where(eq(schema.players.id, playerId))
@@ -209,7 +222,8 @@ router.post('/create-checkout-session', async (req: Request, res: Response) => {
         status: 'active',
       }).onConflictDoUpdate({
         target: schema.playerSubscriptions.playerId,
-        set: { planId: plan.id, status: 'active', updatedAt: new Date() },
+        // schema.playerSubscriptions has no updatedAt column; see "Bugs found".
+        set: { planId: plan.id, status: 'active' },
       });
 
       await db.update(schema.players)
@@ -219,19 +233,22 @@ router.post('/create-checkout-session', async (req: Request, res: Response) => {
       return res.json({ url: successUrl || '/profile', free: true });
     }
 
+    const planName = plan.name ?? 'Subscription';
+    const planPrice = plan.price ?? 0;
+
     // Build line item — use a pre-configured Stripe price ID when available,
     // otherwise build inline price_data from the DB plan record.
     const priceId = process.env.STRIPE_PRO_PRICE_ID;
-    const lineItem = priceId
+    const lineItem: Stripe.Checkout.SessionCreateParams.LineItem = priceId
       ? { price: priceId, quantity: 1 }
       : {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: `H.E.R.S.365 - ${plan.name} Subscription`,
-              description: `${plan.name} tier access to H.E.R.S.365 platform`,
+              name: `H.E.R.S.365 - ${planName} Subscription`,
+              description: `${planName} tier access to H.E.R.S.365 platform`,
             },
-            unit_amount: plan.price,
+            unit_amount: planPrice,
             recurring: {
               interval: 'month' as const,
             },
@@ -240,17 +257,17 @@ router.post('/create-checkout-session', async (req: Request, res: Response) => {
         };
 
     // Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [lineItem],
       mode: 'subscription',
-      success_url: successUrl || `${process.env.ALLOWED_ORIGINS?.split(',')[0] || 'http://localhost:5173'}/thank-you?plan=${encodeURIComponent(plan.name)}&amount=${plan.price}&interval=month`,
+      success_url: successUrl || `${process.env.ALLOWED_ORIGINS?.split(',')[0] || 'http://localhost:5173'}/thank-you?plan=${encodeURIComponent(planName)}&amount=${planPrice}&interval=month`,
       cancel_url: cancelUrl || `${process.env.ALLOWED_ORIGINS?.split(',')[0] || 'http://localhost:5173'}/subscribe?subscription=cancelled`,
       metadata: {
         playerId: playerId.toString(),
         planId: planId.toString(),
-        planName: plan.name,
-        planPrice: plan.price.toString(),
+        planName,
+        planPrice: planPrice.toString(),
       },
     });
 
@@ -264,7 +281,10 @@ router.post('/create-checkout-session', async (req: Request, res: Response) => {
 // GET /customer-portal - Create Stripe customer portal session
 router.get('/customer-portal/:playerId', async (req: Request, res: Response) => {
   try {
-    const playerId = parseInt(req.params.playerId);
+    const playerId = parseIdParam(req.params.playerId);
+    if (playerId === null) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
 
     // Find player's subscription
     const subs = await db.select().from(schema.playerSubscriptions)
@@ -275,11 +295,11 @@ router.get('/customer-portal/:playerId', async (req: Request, res: Response) => 
     }
 
     // Get Stripe subscription to find customer ID
-    const subscription = await stripe.subscriptions.retrieve(subs[0].stripeSubscriptionId);
+    const subscription = await getStripe().subscriptions.retrieve(subs[0].stripeSubscriptionId);
     const customerId = subscription.customer as string;
 
     // Create portal session
-    const session = await stripe.billingPortal.sessions.create({
+    const session = await getStripe().billingPortal.sessions.create({
       customer: customerId,
       return_url: `${process.env.ALLOWED_ORIGINS?.split(',')[0] || 'http://localhost:5173'}/settings`,
     });
@@ -298,14 +318,14 @@ router.get('/customer-portal/:playerId', async (req: Request, res: Response) => 
 // GET /payments - Get all payments (with optional filters)
 router.get('/payments', async (req: Request, res: Response) => {
     try {
-        const { playerId, status, paymentType, startDate, endDate } = req.query;
+        const { playerId, status, paymentType } = req.query;
 
-        let filters = [];
-        if (playerId) filters.push(eq(schema.payments.playerId, parseInt(playerId as string)));
-        if (status) filters.push(eq(schema.payments.status, status as string));
-        if (paymentType) filters.push(eq(schema.payments.paymentType, paymentType as string));
+        const filters = [];
+        if (playerId) filters.push(eq(schema.payments.playerId, parseInt(String(playerId), 10)));
+        if (status) filters.push(eq(schema.payments.status, String(status)));
+        if (paymentType) filters.push(eq(schema.payments.paymentType, String(paymentType)));
 
-        let query = db.select().from(schema.payments);
+        let query = db.select().from(schema.payments).$dynamic();
 
         if (filters.length > 0) {
             query = query.where(and(...filters));
@@ -322,7 +342,10 @@ router.get('/payments', async (req: Request, res: Response) => {
 // GET /payments/:id - Get a specific payment
 router.get('/payments/:id', async (req: Request, res: Response) => {
     try {
-        const paymentId = parseInt(req.params.id);
+        const paymentId = parseIdParam(req.params.id);
+        if (paymentId === null) {
+            return res.status(400).json({ error: 'Invalid id' });
+        }
         const payment = await db.select().from(schema.payments).where(eq(schema.payments.id, paymentId));
 
         if (!payment[0]) {
@@ -339,9 +362,12 @@ router.get('/payments/:id', async (req: Request, res: Response) => {
 // GET /payments/player/:playerId - Get payments for a specific kid/player
 router.get('/payments/player/:playerId', async (req: Request, res: Response) => {
     try {
-        const playerId = parseInt(req.params.playerId);
+        const playerId = parseIdParam(req.params.playerId);
+        if (playerId === null) {
+            return res.status(400).json({ error: 'Invalid id' });
+        }
         const payments = await db.select({
-            ...schema.payments,
+            ...getTableColumns(schema.payments),
             playerName: schema.players.name,
         })
             .from(schema.payments)
@@ -404,7 +430,10 @@ router.post('/payments', async (req: Request, res: Response) => {
 // PATCH /payments/:id - Update payment status
 router.patch('/payments/:id', async (req: Request, res: Response) => {
     try {
-        const paymentId = parseInt(req.params.id);
+        const paymentId = parseIdParam(req.params.id);
+        if (paymentId === null) {
+            return res.status(400).json({ error: 'Invalid id' });
+        }
         const {
             status,
             paidAt,
@@ -416,11 +445,11 @@ router.patch('/payments/:id', async (req: Request, res: Response) => {
         const updatedPayment = await db.update(schema.payments)
             .set({
                 ...(status && { status }),
-                ...(paidAt && { paidAt: new Date(paidAt) }),
+                ...(paidAt && { paidAt: new Date(paidAt).toISOString() }),
                 ...(receiptUrl && { receiptUrl }),
                 ...(notes && { notes }),
                 ...(stripePaymentIntentId && { stripePaymentIntentId }),
-                updatedAt: new Date(),
+                updatedAt: new Date().toISOString(),
             })
             .where(eq(schema.payments.id, paymentId))
             .returning();
@@ -439,15 +468,19 @@ router.patch('/payments/:id', async (req: Request, res: Response) => {
 // POST /payments/:id/complete - Mark payment as completed
 router.post('/payments/:id/complete', async (req: Request, res: Response) => {
     try {
-        const paymentId = parseInt(req.params.id);
+        const paymentId = parseIdParam(req.params.id);
+        if (paymentId === null) {
+            return res.status(400).json({ error: 'Invalid id' });
+        }
         const { receiptUrl } = req.body;
 
+        const now = new Date().toISOString();
         const updatedPayment = await db.update(schema.payments)
             .set({
                 status: 'completed',
-                paidAt: new Date(),
+                paidAt: now,
                 ...(receiptUrl && { receiptUrl }),
-                updatedAt: new Date(),
+                updatedAt: now,
             })
             .where(eq(schema.payments.id, paymentId))
             .returning();
@@ -466,7 +499,10 @@ router.post('/payments/:id/complete', async (req: Request, res: Response) => {
 // POST /payments/:id/refund - Refund a payment
 router.post('/payments/:id/refund', async (req: Request, res: Response) => {
     try {
-        const paymentId = parseInt(req.params.id);
+        const paymentId = parseIdParam(req.params.id);
+        if (paymentId === null) {
+            return res.status(400).json({ error: 'Invalid id' });
+        }
         const { reason, feedback } = req.body;
 
         // Get payment details
@@ -478,7 +514,7 @@ router.post('/payments/:id/refund', async (req: Request, res: Response) => {
         // If payment was processed via Stripe, attempt to refund through Stripe
         if (payment[0].stripePaymentIntentId) {
             try {
-                await stripe.refunds.create({
+                await getStripe().refunds.create({
                     payment_intent: payment[0].stripePaymentIntentId,
                     reason: 'requested_by_customer',
                 });
@@ -492,21 +528,23 @@ router.post('/payments/:id/refund', async (req: Request, res: Response) => {
             .set({
                 status: 'refunded',
                 notes: reason ? `Refunded: ${reason}${feedback ? ` - ${feedback}` : ''}` : 'Refunded',
-                updatedAt: new Date(),
+                updatedAt: new Date().toISOString(),
             })
             .where(eq(schema.payments.id, paymentId))
             .returning();
 
         // Check if this was a subscription payment and update subscription status
-        if (payment[0].paymentType === 'subscription') {
+        const paymentPlayerId = payment[0].playerId;
+        if (payment[0].paymentType === 'subscription' && paymentPlayerId != null) {
             await db.update(schema.playerSubscriptions)
-                .set({ status: 'cancelled', updatedAt: new Date() })
-                .where(eq(schema.playerSubscriptions.playerId, payment[0].playerId));
+                // schema.playerSubscriptions has no updatedAt column; see "Bugs found".
+                .set({ status: 'cancelled' })
+                .where(eq(schema.playerSubscriptions.playerId, paymentPlayerId));
 
             // Downgrade player to free tier
             await db.update(schema.players)
                 .set({ subscriptionTier: 'free' })
-                .where(eq(schema.players.id, payment[0].playerId));
+                .where(eq(schema.players.id, paymentPlayerId));
         }
 
         res.json(updatedPayment[0]);
@@ -523,7 +561,10 @@ router.post('/payments/:id/refund', async (req: Request, res: Response) => {
 // GET /payment-methods/player/:playerId - Get payment methods for a player
 router.get('/payment-methods/player/:playerId', async (req: Request, res: Response) => {
     try {
-        const playerId = parseInt(req.params.playerId);
+        const playerId = parseIdParam(req.params.playerId);
+        if (playerId === null) {
+            return res.status(400).json({ error: 'Invalid id' });
+        }
         const methods = await db.select()
             .from(schema.paymentMethods)
             .where(eq(schema.paymentMethods.playerId, playerId))
@@ -582,7 +623,10 @@ router.post('/payment-methods', async (req: Request, res: Response) => {
 // DELETE /payment-methods/:id - Remove a payment method
 router.delete('/payment-methods/:id', async (req: Request, res: Response) => {
     try {
-        const methodId = parseInt(req.params.id);
+        const methodId = parseIdParam(req.params.id);
+        if (methodId === null) {
+            return res.status(400).json({ error: 'Invalid id' });
+        }
 
         await db.delete(schema.paymentMethods)
             .where(eq(schema.paymentMethods.id, methodId));
@@ -603,19 +647,20 @@ router.get('/invoices', async (req: Request, res: Response) => {
     try {
         const { playerId, status } = req.query;
 
-        let filters = [];
-        if (playerId) filters.push(eq(schema.invoices.playerId, parseInt(playerId as string)));
-        if (status) filters.push(eq(schema.invoices.status, status as string));
+        const filters = [];
+        if (playerId) filters.push(eq(schema.invoices.playerId, parseInt(String(playerId), 10)));
+        if (status) filters.push(eq(schema.invoices.status, String(status)));
 
         let query = db.select({
-            ...schema.invoices,
+            ...getTableColumns(schema.invoices),
             playerName: schema.players.name,
         })
             .from(schema.invoices)
-            .leftJoin(schema.players, eq(schema.invoices.playerId, schema.players.id));
+            .leftJoin(schema.players, eq(schema.invoices.playerId, schema.players.id))
+            .$dynamic();
 
         if (filters.length > 0) {
-            query = query.where(and(...filters)) as any;
+            query = query.where(and(...filters));
         }
 
         const invoices = await query.orderBy(desc(schema.invoices.createdAt));
@@ -653,7 +698,7 @@ router.post('/invoices', async (req: Request, res: Response) => {
             total,
             description,
             lineItems,
-            dueDate: dueDate ? new Date(dueDate) : null,
+            dueDate: dueDate ? new Date(dueDate).toISOString() : null,
             status: 'draft',
         }).returning();
 
@@ -667,13 +712,16 @@ router.post('/invoices', async (req: Request, res: Response) => {
 // PATCH /invoices/:id - Update invoice (e.g., mark as paid)
 router.patch('/invoices/:id', async (req: Request, res: Response) => {
     try {
-        const invoiceId = parseInt(req.params.id);
+        const invoiceId = parseIdParam(req.params.id);
+        if (invoiceId === null) {
+            return res.status(400).json({ error: 'Invalid id' });
+        }
         const { status, paidAt } = req.body;
 
         const updatedInvoice = await db.update(schema.invoices)
             .set({
                 ...(status && { status }),
-                ...(paidAt && { paidAt: new Date(paidAt) }),
+                ...(paidAt && { paidAt: new Date(paidAt).toISOString() }),
             })
             .where(eq(schema.invoices.id, invoiceId))
             .returning();
@@ -727,7 +775,7 @@ router.get('/payments/summary', async (req: Request, res: Response) => {
 
         // Recent payments
         const recentPayments = await db.select({
-            ...schema.payments,
+            ...getTableColumns(schema.payments),
             playerName: schema.players.name,
         })
             .from(schema.payments)
@@ -748,8 +796,8 @@ router.get('/payments/summary', async (req: Request, res: Response) => {
         res.json({
             totalRevenue: revenueResult[0]?.total || 0,
             pendingAmount: pendingResult[0]?.total || 0,
-            statusCounts: statusCounts.reduce((acc, row) => {
-                acc[row.status] = row.count;
+            statusCounts: statusCounts.reduce<Record<string, number>>((acc, row) => {
+                if (row.status != null) acc[row.status] = row.count;
                 return acc;
             }, {}),
             recentPayments,
@@ -768,7 +816,10 @@ router.get('/payments/summary', async (req: Request, res: Response) => {
 // GET /payments/player/:playerId/summary - Get payment summary for a specific kid
 router.get('/payments/player/:playerId/summary', async (req: Request, res: Response) => {
     try {
-        const playerId = parseInt(req.params.playerId);
+        const playerId = parseIdParam(req.params.playerId);
+        if (playerId === null) {
+            return res.status(400).json({ error: 'Invalid id' });
+        }
 
         // Total paid
         const paidResult = await db.select({
