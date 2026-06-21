@@ -3,7 +3,7 @@ import { db } from './db';
 import * as schema from './schema';
 import * as ai from './ai';
 import * as mp from './maxpreps';
-import { eq, desc, sql } from 'drizzle-orm';
+import { eq, desc, sql, and } from 'drizzle-orm';
 import { requireAuth, requireAdmin, type TokenPayload } from './auth';
 
 const router = express.Router();
@@ -443,7 +443,20 @@ router.post('/notifications/mark-read/:id', requireAuth, async (req: Request, re
   try {
     const id = parseIdParam(req.params.id);
     if (id === null) return res.status(400).json({ error: 'Invalid id' });
-    await db.update(schema.notifications).set({ read: true }).where(eq(schema.notifications.id, id));
+    const callerId = authUser(req)?.id;
+    if (!callerId) return res.status(401).json({ error: 'Not authenticated' });
+    // Scope the update by both id AND owner so a notification belonging to
+    // another user can never be flipped. Treat "not yours" and "doesn't
+    // exist" the same (404) so the endpoint doesn't reveal which it is.
+    const updated = await db
+      .update(schema.notifications)
+      .set({ read: true })
+      .where(and(
+        eq(schema.notifications.id, id),
+        eq(schema.notifications.playerId, Number(callerId)),
+      ))
+      .returning({ id: schema.notifications.id });
+    if (updated.length === 0) return res.status(404).json({ error: 'Notification not found' });
     res.json({ ok: true });
   } catch (err: any) {
     next(err);
