@@ -25,6 +25,7 @@ import { publicPlayerView } from './lib/playerPrivacy';
 import { moderateMessage } from './lib/moderation';
 import { eitherBlocked } from './lib/messageBlocks';
 import { messageRateLimit } from './middleware/messageRateLimit';
+import { parseIdParam } from './lib/parseIdParam';
 
 const router = express.Router();
 
@@ -231,8 +232,8 @@ router.get('/players/search', async (req, res) => {
  */
 router.get('/players/:id', async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) return res.status(400).json({ error: 'Invalid player ID' });
+    const id = parseIdParam(req.params.id);
+    if (id === null) return res.status(400).json({ error: 'Invalid id' });
 
     const [player] = await db.select().from(schema.players).where(eq(schema.players.id, id));
     if (!player) return res.status(404).json({ error: 'Player not found' });
@@ -293,7 +294,8 @@ router.get('/board', async (req, res) => {
 router.post('/players/:id/save', validateParams(coachPlayerParams), validateBody(coachPlayerSaveBody), async (req, res) => {
   try {
     const coachId = req.user.userId;
-    const playerId = parseInt(req.params.id);
+    const playerId = parseIdParam(req.params.id);
+    if (playerId === null) return res.status(400).json({ error: 'Invalid id' });
     const { tier = 'watching' } = req.body; // tiers: 'top-target' | 'watching' | 'offered'
 
     // Check if already exists
@@ -343,7 +345,8 @@ router.post('/players/:id/save', validateParams(coachPlayerParams), validateBody
 router.delete('/players/:id/save', validateParams(coachPlayerParams), async (req, res) => {
   try {
     const coachId = req.user.userId;
-    const playerId = parseInt(req.params.id);
+    const playerId = parseIdParam(req.params.id);
+    if (playerId === null) return res.status(400).json({ error: 'Invalid id' });
 
     await db.delete(schema.coachProspects)
       .where(and(
@@ -364,7 +367,8 @@ router.delete('/players/:id/save', validateParams(coachPlayerParams), async (req
 router.patch('/players/:id/notes', validateParams(coachPlayerParams), validateBody(coachPlayerNotesBody), async (req, res) => {
   try {
     const coachId = req.user.userId;
-    const playerId = parseInt(req.params.id);
+    const playerId = parseIdParam(req.params.id);
+    if (playerId === null) return res.status(400).json({ error: 'Invalid id' });
     const { notes } = req.body;
 
     await db.update(schema.coachProspects)
@@ -387,7 +391,8 @@ router.patch('/players/:id/notes', validateParams(coachPlayerParams), validateBo
 router.patch('/players/:id/tier', validateParams(coachPlayerParams), validateBody(coachPlayerTierBody), async (req, res) => {
   try {
     const coachId = req.user.userId;
-    const playerId = parseInt(req.params.id);
+    const playerId = parseIdParam(req.params.id);
+    if (playerId === null) return res.status(400).json({ error: 'Invalid id' });
     const { tier } = req.body;
 
     const validTiers = ['top-target', 'watching', 'offered'];
@@ -418,7 +423,8 @@ router.post('/message/:playerId', messageRateLimit, validateParams(coachMessageP
   try {
     const { message } = req.body;
     const coachId = req.user.userId;
-    const playerId = parseInt(req.params.playerId);
+    const playerId = parseIdParam(req.params.playerId);
+    if (playerId === null) return res.status(400).json({ success: false, error: 'Invalid id' });
 
     if (!(await hasParentApprovedLink(playerId, coachId))) {
       return res.status(403).json({ success: false, error: 'Messaging requires a parent-approved contact request' });

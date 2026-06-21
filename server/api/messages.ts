@@ -15,6 +15,7 @@ import {
 import { moderateMessage } from '../lib/moderation';
 import { eitherBlocked } from '../lib/messageBlocks';
 import { messageRateLimit } from '../middleware/messageRateLimit';
+import { parseIdParam } from '../lib/parseIdParam';
 
 const router = express.Router();
 router.use(requireAuth);
@@ -100,9 +101,9 @@ router.get('/conversations/:partnerId/messages', async (req, res) => {
   try {
     const { userId, role } = caller(req);
     const isCoach = role === 'coach';
-    const partnerId = parseInt(req.params.partnerId, 10);
-    if (Number.isNaN(partnerId)) {
-      return res.status(400).json({ success: false, error: 'Invalid partner id' });
+    const partnerId = parseIdParam(req.params.partnerId);
+    if (partnerId === null) {
+      return res.status(400).json({ success: false, error: 'Invalid id' });
     }
 
     const pairWhere = isCoach
@@ -272,9 +273,9 @@ router.get('/unread-count', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { userId, role } = caller(req);
-    const id = parseInt(req.params.id, 10);
-    if (Number.isNaN(id)) {
-      return res.status(400).json({ success: false, error: 'Invalid message id' });
+    const id = parseIdParam(req.params.id);
+    if (id === null) {
+      return res.status(400).json({ success: false, error: 'Invalid id' });
     }
     const [row] = await db.select().from(schema.messages).where(eq(schema.messages.id, id)).limit(1);
     if (!row) return res.status(404).json({ success: false, error: 'Not found' });
