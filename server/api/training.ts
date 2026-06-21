@@ -1,4 +1,5 @@
 import express from 'express';
+import { clampIntQuery, parseIntQuery } from '../lib/queryParam';
 
 const router = express.Router();
 
@@ -70,7 +71,8 @@ const mockSessions = [
 // GET /api/training/programs - Get all training programs
 router.get('/programs', (req, res) => {
   try {
-    const { category, level, limit = 20 } = req.query;
+    const { category, level, limit } = req.query;
+    const limitNum = clampIntQuery(limit, { default: 20, min: 1, max: 200 });
 
     let filteredPrograms = [...mockPrograms];
 
@@ -82,7 +84,7 @@ router.get('/programs', (req, res) => {
       filteredPrograms = filteredPrograms.filter(p => p.level === level);
     }
 
-    filteredPrograms = filteredPrograms.slice(0, Number(limit));
+    filteredPrograms = filteredPrograms.slice(0, limitNum);
 
     res.json({
       success: true,
@@ -124,19 +126,24 @@ router.get('/programs/:id', (req, res) => {
 // GET /api/training/sessions - Get training sessions
 router.get('/sessions', (req, res) => {
   try {
-    const { programId, completed, limit = 20 } = req.query;
+    const { programId, completed, limit } = req.query;
+    const limitNum = clampIntQuery(limit, { default: 20, min: 1, max: 200 });
 
     let filteredSessions = [...mockSessions];
 
     if (programId) {
-      filteredSessions = filteredSessions.filter(s => s.programId === parseInt(programId.toString()));
+      const n = parseIntQuery(programId);
+      if (n === null) {
+        return res.status(400).json({ success: false, error: 'programId must be an integer' });
+      }
+      filteredSessions = filteredSessions.filter(s => s.programId === n);
     }
 
     if (completed !== undefined) {
       filteredSessions = filteredSessions.filter(s => s.completed === (completed === 'true'));
     }
 
-    filteredSessions = filteredSessions.slice(0, Number(limit));
+    filteredSessions = filteredSessions.slice(0, limitNum);
 
     res.json({
       success: true,

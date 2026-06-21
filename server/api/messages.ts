@@ -16,6 +16,7 @@ import { moderateMessage } from '../lib/moderation';
 import { eitherBlocked } from '../lib/messageBlocks';
 import { messageRateLimit } from '../middleware/messageRateLimit';
 import { parseIdParam } from '../lib/parseIdParam';
+import { clampIntQuery } from '../lib/queryParam';
 
 const router = express.Router();
 router.use(requireAuth);
@@ -110,8 +111,8 @@ router.get('/conversations/:partnerId/messages', async (req, res) => {
       ? and(eq(schema.messages.coachId, userId), eq(schema.messages.athleteId, partnerId))
       : and(eq(schema.messages.athleteId, userId), eq(schema.messages.coachId, partnerId));
 
-    const limit = Number(req.query.limit ?? 50);
-    const offset = Number(req.query.offset ?? 0);
+    const limit = clampIntQuery(req.query.limit, { default: 50, min: 1, max: 200 });
+    const offset = clampIntQuery(req.query.offset, { default: 0, min: 0, max: 100000 });
 
     const rows = await db
       .select()

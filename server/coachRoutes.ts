@@ -24,6 +24,7 @@ import { moderateMessage } from './lib/moderation';
 import { eitherBlocked } from './lib/messageBlocks';
 import { messageRateLimit } from './middleware/messageRateLimit';
 import { parseIdParam } from './lib/parseIdParam';
+import { parseIntQuery, parseFloatQuery, clampIntQuery } from './lib/queryParam';
 
 const router = express.Router();
 
@@ -121,8 +122,51 @@ router.get('/players/search', async (req, res) => {
     const {
       q, position, state, gradYear, minBreakoutScore, maxBreakoutScore,
       minGpa, maxGpa, minHeight, maxHeight, minWeight, maxWeight,
-      verified, archetype, limit = '25', offset = '0'
-    } = req.query as Record<string, string>;
+      verified, archetype, limit, offset,
+    } = req.query as Record<string, string | undefined>;
+
+    // Reject explicitly-bad numeric filters before they reach the DB. Without
+    // this guard `parseInt('abc')` lands NaN in eq(integer, …) and Postgres
+    // returns "invalid input syntax for type integer: NaN" as a 500.
+    const gradYearNum = gradYear ? parseIntQuery(gradYear) : null;
+    if (gradYear && gradYearNum === null) {
+      return res.status(400).json({ error: 'gradYear must be an integer' });
+    }
+    const minBreakoutScoreNum = minBreakoutScore ? parseIntQuery(minBreakoutScore) : null;
+    if (minBreakoutScore && minBreakoutScoreNum === null) {
+      return res.status(400).json({ error: 'minBreakoutScore must be an integer' });
+    }
+    const maxBreakoutScoreNum = maxBreakoutScore ? parseIntQuery(maxBreakoutScore) : null;
+    if (maxBreakoutScore && maxBreakoutScoreNum === null) {
+      return res.status(400).json({ error: 'maxBreakoutScore must be an integer' });
+    }
+    const minGpaNum = minGpa ? parseFloatQuery(minGpa) : null;
+    if (minGpa && minGpaNum === null) {
+      return res.status(400).json({ error: 'minGpa must be a number' });
+    }
+    const maxGpaNum = maxGpa ? parseFloatQuery(maxGpa) : null;
+    if (maxGpa && maxGpaNum === null) {
+      return res.status(400).json({ error: 'maxGpa must be a number' });
+    }
+    const minHeightNum = minHeight ? parseIntQuery(minHeight) : null;
+    if (minHeight && minHeightNum === null) {
+      return res.status(400).json({ error: 'minHeight must be an integer' });
+    }
+    const maxHeightNum = maxHeight ? parseIntQuery(maxHeight) : null;
+    if (maxHeight && maxHeightNum === null) {
+      return res.status(400).json({ error: 'maxHeight must be an integer' });
+    }
+    const minWeightNum = minWeight ? parseIntQuery(minWeight) : null;
+    if (minWeight && minWeightNum === null) {
+      return res.status(400).json({ error: 'minWeight must be an integer' });
+    }
+    const maxWeightNum = maxWeight ? parseIntQuery(maxWeight) : null;
+    if (maxWeight && maxWeightNum === null) {
+      return res.status(400).json({ error: 'maxWeight must be an integer' });
+    }
+
+    const limitNum = clampIntQuery(limit, { default: 25, min: 1, max: 100 });
+    const offsetNum = clampIntQuery(offset, { default: 0, min: 0, max: 100000 });
 
     // Build where conditions
     const conditions = [];
@@ -139,8 +183,8 @@ router.get('/players/search', async (req, res) => {
       conditions.push(eq(schema.players.state, state));
     }
 
-    if (gradYear) {
-      conditions.push(eq(schema.players.gradYear, parseInt(gradYear)));
+    if (gradYearNum !== null) {
+      conditions.push(eq(schema.players.gradYear, gradYearNum));
     }
 
     if (archetype) {
@@ -190,11 +234,11 @@ router.get('/players/search', async (req, res) => {
     );
     if (position) results = results.filter(p => p.position === position);
     if (state) results = results.filter(p => p.state === state);
-    if (gradYear) results = results.filter(p => p.gradYear === parseInt(gradYear));
-    if (minBreakoutScore) results = results.filter(p => p.breakoutScore >= parseInt(minBreakoutScore));
-    if (maxBreakoutScore) results = results.filter(p => p.breakoutScore <= parseInt(maxBreakoutScore));
-    if (minGpa) results = results.filter(p => p.gpa >= parseFloat(minGpa));
-    if (maxGpa) results = results.filter(p => p.gpa <= parseFloat(maxGpa));
+    if (gradYearNum !== null) results = results.filter(p => p.gradYear === gradYearNum);
+    if (minBreakoutScoreNum !== null) results = results.filter(p => p.breakoutScore >= minBreakoutScoreNum);
+    if (maxBreakoutScoreNum !== null) results = results.filter(p => p.breakoutScore <= maxBreakoutScoreNum);
+    if (minGpaNum !== null) results = results.filter(p => p.gpa >= minGpaNum);
+    if (maxGpaNum !== null) results = results.filter(p => p.gpa <= maxGpaNum);
     if (archetype) results = results.filter(p => p.archetype === archetype);
     if (verified === 'true') results = results.filter(p => p.verified);
 
@@ -204,27 +248,25 @@ router.get('/players/search', async (req, res) => {
       return feet * 12 + (inches || 0);
     };
 
-    if (minHeight) {
-      const minInches = parseInt(minHeight);
-      results = results.filter(p => heightToInches(p.height) >= minInches);
+    if (minHeightNum !== null) {
+      results = results.filter(p => heightToInches(p.height) >= minHeightNum);
     }
-    if (maxHeight) {
-      const maxInches = parseInt(maxHeight);
-      results = results.filter(p => heightToInches(p.height) <= maxInches);
+    if (maxHeightNum !== null) {
+      results = results.filter(p => heightToInches(p.height) <= maxHeightNum);
     }
 
-    if (minWeight) results = results.filter(p => p.weight >= parseInt(minWeight));
-    if (maxWeight) results = results.filter(p => p.weight <= parseInt(maxWeight));
+    if (minWeightNum !== null) results = results.filter(p => p.weight >= minWeightNum);
+    if (maxWeightNum !== null) results = results.filter(p => p.weight <= maxWeightNum);
 
     // Sort by breakout score
     results.sort((a, b) => b.breakoutScore - a.breakoutScore);
 
-    const paginated = results.slice(parseInt(offset), parseInt(offset) + parseInt(limit));
+    const paginated = results.slice(offsetNum, offsetNum + limitNum);
 
     res.json({
       total: results.length,
-      limit: parseInt(limit),
-      offset: parseInt(offset),
+      limit: limitNum,
+      offset: offsetNum,
       players: paginated,
     });
   } catch (error) {

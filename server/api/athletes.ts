@@ -11,6 +11,7 @@ import {
   athletePutBody,
 } from '../middleware/safetySchemas';
 import { parseIdParam } from '../lib/parseIdParam';
+import { parseIntQuery, clampIntQuery } from '../lib/queryParam';
 
 // Cross-user view: strips email/phone/dob/zip/pendingParentEmail/passwordHash
 // per the directive 1 rule "minor PII never leaves cross-user endpoints."
@@ -37,21 +38,28 @@ const INT_FIELDS = new Set(['age', 'gradYear']);
 // GET /api/athletes — real DB list with optional filters
 router.get('/', async (req, res) => {
   try {
-    const { position, state, gradYear, limit = 20, offset = 0 } = req.query;
+    const { position, state, gradYear, limit, offset } = req.query;
     const conditions = [];
     if (position && position !== 'All') conditions.push(eq(schema.players.position, String(position)));
     if (state && state !== 'All') conditions.push(eq(schema.players.state, String(state)));
-    if (gradYear && gradYear !== 'All') conditions.push(eq(schema.players.gradYear, parseInt(String(gradYear), 10)));
+    if (gradYear && gradYear !== 'All') {
+      const n = parseIntQuery(gradYear);
+      if (n === null) return res.status(400).json({ success: false, error: 'gradYear must be an integer' });
+      conditions.push(eq(schema.players.gradYear, n));
+    }
+
+    const limitNum = clampIntQuery(limit, { default: 20, min: 1, max: 100 });
+    const offsetNum = clampIntQuery(offset, { default: 0, min: 0, max: 100000 });
 
     const rows = await db
       .select()
       .from(schema.players)
       .where(conditions.length ? and(...conditions) : undefined)
-      .limit(Number(limit))
-      .offset(Number(offset));
+      .limit(limitNum)
+      .offset(offsetNum);
 
     const data = rows.map(publicAthlete);
-    res.json({ success: true, data, pagination: { limit: Number(limit), offset: Number(offset) } });
+    res.json({ success: true, data, pagination: { limit: limitNum, offset: offsetNum } });
   } catch (err) {
     console.error('[athletes/list]', err);
     res.status(500).json({ success: false, error: 'Failed to fetch athletes' });

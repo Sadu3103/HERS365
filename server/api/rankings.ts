@@ -2,12 +2,14 @@ import express from 'express';
 import { asc, desc, eq, and, isNotNull } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
+import { clampIntQuery } from '../lib/queryParam';
 
 const router = express.Router();
 
 router.get('/', async (req, res) => {
   try {
-    const { position, limit = 50 } = req.query;
+    const { position, limit } = req.query;
+    const limitNum = clampIntQuery(limit, { default: 50, min: 1, max: 200 });
 
     const rows = await db
       .select({
@@ -29,7 +31,7 @@ router.get('/', async (req, res) => {
       // sort makes ties deterministic so the board does not reshuffle equal
       // scores between refreshes (which reads as arbitrary to athletes).
       .orderBy(desc(schema.players.g5Rating), desc(schema.players.xpPoints), asc(schema.players.name))
-      .limit(Number(limit));
+      .limit(limitNum);
 
     let data = rows.map((p, i) => ({
       id: p.id,
