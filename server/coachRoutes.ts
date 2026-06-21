@@ -1,15 +1,13 @@
-// @ts-nocheck
 /**
  * Coach Scouting Portal — API Routes
  * All routes require coach role JWT token
  */
-import express from 'express';
+import express, { type Request } from 'express';
 import { db } from './db';
 import * as schema from './schema';
 import { eq, ilike, and, desc, sql } from 'drizzle-orm';
-import { requireCoach } from './auth';
+import { requireCoach, type TokenPayload } from './auth';
 import { requireVerifiedCoach } from './middleware/requireVerifiedCoach';
-import { generatePredictiveAnalytics, AthleteData } from './rankingAlgorithm';
 import { hasParentApprovedLink } from './api/messages';
 import { validateBody, validateParams } from './middleware/validate';
 import {
@@ -34,6 +32,14 @@ const router = express.Router();
 // an admin clears them via /api/admin/coaches/verification.
 router.use(requireCoach);
 router.use(requireVerifiedCoach);
+
+// requireCoach + requireVerifiedCoach guarantee req.user is a coach payload
+// by the time any handler runs, but Express's Request type doesn't carry that
+// shape. Read it through here to get a typed userId without sprinkling casts.
+function coachUserId(req: Request): number {
+  const u = (req as Request & { user?: TokenPayload }).user;
+  return Number(u?.userId);
+}
 
 // ── Map a real DB player row → the scouting-card shape the coach UI expects ──
 // Identity, academics, and recruiting fields are real. The platform does not yet
@@ -274,7 +280,7 @@ router.get('/players/:id', async (req, res) => {
  */
 router.get('/board', async (req, res) => {
   try {
-    const coachId = req.user.userId;
+    const coachId = coachUserId(req);
 
     const board = await db.select()
       .from(schema.coachProspects)
@@ -293,7 +299,7 @@ router.get('/board', async (req, res) => {
  */
 router.post('/players/:id/save', validateParams(coachPlayerParams), validateBody(coachPlayerSaveBody), async (req, res) => {
   try {
-    const coachId = req.user.userId;
+    const coachId = coachUserId(req);
     const playerId = parseIdParam(req.params.id);
     if (playerId === null) return res.status(400).json({ error: 'Invalid id' });
     const { tier = 'watching' } = req.body; // tiers: 'top-target' | 'watching' | 'offered'
@@ -344,7 +350,7 @@ router.post('/players/:id/save', validateParams(coachPlayerParams), validateBody
  */
 router.delete('/players/:id/save', validateParams(coachPlayerParams), async (req, res) => {
   try {
-    const coachId = req.user.userId;
+    const coachId = coachUserId(req);
     const playerId = parseIdParam(req.params.id);
     if (playerId === null) return res.status(400).json({ error: 'Invalid id' });
 
@@ -366,7 +372,7 @@ router.delete('/players/:id/save', validateParams(coachPlayerParams), async (req
  */
 router.patch('/players/:id/notes', validateParams(coachPlayerParams), validateBody(coachPlayerNotesBody), async (req, res) => {
   try {
-    const coachId = req.user.userId;
+    const coachId = coachUserId(req);
     const playerId = parseIdParam(req.params.id);
     if (playerId === null) return res.status(400).json({ error: 'Invalid id' });
     const { notes } = req.body;
@@ -390,7 +396,7 @@ router.patch('/players/:id/notes', validateParams(coachPlayerParams), validateBo
  */
 router.patch('/players/:id/tier', validateParams(coachPlayerParams), validateBody(coachPlayerTierBody), async (req, res) => {
   try {
-    const coachId = req.user.userId;
+    const coachId = coachUserId(req);
     const playerId = parseIdParam(req.params.id);
     if (playerId === null) return res.status(400).json({ error: 'Invalid id' });
     const { tier } = req.body;
@@ -422,7 +428,7 @@ router.patch('/players/:id/tier', validateParams(coachPlayerParams), validateBod
 router.post('/message/:playerId', messageRateLimit, validateParams(coachMessageParams), validateBody(coachMessageBody), async (req, res) => {
   try {
     const { message } = req.body;
-    const coachId = req.user.userId;
+    const coachId = coachUserId(req);
     const playerId = parseIdParam(req.params.playerId);
     if (playerId === null) return res.status(400).json({ success: false, error: 'Invalid id' });
 
@@ -468,7 +474,7 @@ router.post('/message/:playerId', messageRateLimit, validateParams(coachMessageP
  */
 router.get('/messages', async (req, res) => {
   try {
-    const coachId = req.user.userId;
+    const coachId = coachUserId(req);
 
     const messages = await db.select({
       id: schema.messages.id,
@@ -503,7 +509,7 @@ router.get('/messages', async (req, res) => {
   */
 router.get('/analytics', async (req, res) => {
   try {
-    const coachId = req.user.userId;
+    const coachId = coachUserId(req);
 
     // Get board count
     const boardCount = await db.select({ count: sql<number>`count(*)` })
@@ -671,7 +677,7 @@ router.get('/player-clips', (req, res) => {
  */
 router.get('/profile', async (req, res) => {
   try {
-    const coachId = req.user?.id;
+    const coachId = coachUserId(req);
     if (!coachId) return res.status(401).json({ error: 'Unauthorized' });
 
     const rows = await db.select().from(schema.coaches).where(eq(schema.coaches.id, coachId)).limit(1);
@@ -689,7 +695,7 @@ router.get('/profile', async (req, res) => {
  */
 router.put('/profile', validateBody(coachProfilePutBody), async (req, res) => {
   try {
-    const coachId = req.user?.id;
+    const coachId = coachUserId(req);
     if (!coachId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { name, university, division, recruitingPositions, recruitingStates } = req.body || {};
