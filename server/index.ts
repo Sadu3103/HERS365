@@ -70,6 +70,9 @@ app.use(session({
   }
 }));
 
+import passport from 'passport';
+app.use(passport.initialize());
+
 // Initialize services
 const cosmosAPIService = new CosmosAPIService();
 const complianceOrchestrator = new ComplianceOrchestrator();

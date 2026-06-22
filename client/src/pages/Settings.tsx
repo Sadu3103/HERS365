@@ -14,10 +14,12 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
-  Upload
+  Upload,
+  LogOut
 } from 'lucide-react';
 import { apiFetch, errorMessage } from '../lib/api';
 import { athleteAvatar } from '../lib/avatar';
+import { useAuth } from '../context/AuthContext';
 
 // Click-to-upload profile photo. Presigns via /api/upload/presign, PUTs the
 // file to S3, then PATCHes the user profile with the resulting publicUrl.
@@ -160,6 +162,7 @@ function loadAppearancePrefs() {
 
 export const Settings = () => {
   const navigate = useNavigate();
+  const { user, logout, updateUser } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('profile');
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -192,6 +195,13 @@ export const Settings = () => {
 
   const [notifications, setNotifications] = useState(loadNotifPrefs());
   const [notifSaved, setNotifSaved] = useState(false);
+  const [notifSaving, setNotifSaving] = useState(false);
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordMsg, setPasswordMsg] = useState<string | null>(null);
+  const [passwordSaving, setPasswordSaving] = useState(false);
 
   const [appearance, setAppearance] = useState(loadAppearancePrefs());
   const [appearanceSaved, setAppearanceSaved] = useState(false);
@@ -237,6 +247,12 @@ export const Settings = () => {
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
+  useEffect(() => {
+    apiFetch<{ success: boolean; data: typeof notifications }>('/api/users/notification-preferences')
+      .then(res => { if (res.data) setNotifications(res.data); })
+      .catch(() => {});
+  }, []);
+
   const handleFormChange = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
     if (saveStatus === 'saved' || saveStatus === 'error') setSaveStatus('idle');
@@ -267,6 +283,7 @@ export const Settings = () => {
         body: JSON.stringify(payload),
       });
       setProfile(res.data);
+      if (user && res.data.name) updateUser({ name: res.data.name });
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (err) {
@@ -290,10 +307,40 @@ export const Settings = () => {
     }
   };
 
-  const handleSaveNotifications = () => {
-    localStorage.setItem('hers365_notif_prefs', JSON.stringify(notifications));
-    setNotifSaved(true);
-    setTimeout(() => setNotifSaved(false), 3000);
+  const handleSaveNotifications = async () => {
+    setNotifSaving(true);
+    try {
+      const res = await apiFetch<{ success: boolean; data: typeof notifications }>('/api/users/notification-preferences', {
+        method: 'PUT', body: JSON.stringify(notifications),
+      });
+      setNotifications(res.data);
+      localStorage.setItem('hers365_notif_prefs', JSON.stringify(res.data));
+      setNotifSaved(true);
+      setTimeout(() => setNotifSaved(false), 3000);
+    } catch {
+      // keep local toggles if save fails
+    } finally {
+      setNotifSaving(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordMsg(null);
+    if (newPassword.length < 8) { setPasswordMsg('Password must be at least 8 characters.'); return; }
+    if (newPassword !== confirmPassword) { setPasswordMsg('Passwords do not match.'); return; }
+    setPasswordSaving(true);
+    try {
+      await apiFetch('/api/auth/change-password', {
+        method: 'POST', body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
+      setPasswordMsg('Password updated.');
+    } catch (err) {
+      setPasswordMsg(err instanceof Error ? err.message : 'Could not update password.');
+    } finally {
+      setPasswordSaving(false);
+    }
   };
 
   const handleSaveAppearance = () => {
@@ -333,9 +380,7 @@ export const Settings = () => {
 
     return (
       <div className="space-y-8">
-        {/* Avatar */}
         <PhotoUploadCard profile={profile} setProfile={setProfile} />
-
 
         {/* Personal Information */}
         <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
@@ -545,8 +590,8 @@ export const Settings = () => {
       </div>
 
       <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
-        <h3 className="text-xl font-bold text-white mb-2 uppercase tracking-tight">Notification Preferences <span className="text-coral-500 text-xs ml-2 tracking-widest">· DEVICE ONLY</span></h3>
-        <p className="text-xs text-ink-faint mb-6">These toggles save to this browser. They do not sync across devices yet.</p>
+        <h3 className="text-xl font-bold text-white mb-2 uppercase tracking-tight">Notification Preferences</h3>
+        <p className="text-xs text-ink-faint mb-6">Saved to your account.</p>
 
         <div className="space-y-4">
           {[
@@ -602,10 +647,11 @@ export const Settings = () => {
       <div className="flex justify-end">
         <button
           onClick={handleSaveNotifications}
+          disabled={notifSaving}
           className={`flex items-center gap-2 px-8 py-4 rounded-xl font-bold uppercase tracking-widest transition-colors ${notifSaved ? 'bg-green-500 text-white' : 'bg-coral-500 hover:bg-coral-600 text-white'}`}
         >
-          {notifSaved ? <CheckCircle size={18} /> : <Save size={18} />}
-          {notifSaved ? 'Saved To This Device' : 'Save On This Device'}
+          {notifSaving ? <Loader2 size={18} className="animate-spin" /> : notifSaved ? <CheckCircle size={18} /> : <Save size={18} />}
+          {notifSaving ? 'Saving…' : notifSaved ? 'Saved!' : 'Save Preferences'}
         </button>
       </div>
     </div>
@@ -653,14 +699,18 @@ export const Settings = () => {
 
       <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
         <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Password</h3>
-        <p className="text-ink-muted mb-4 text-sm">To change your password, use our password reset flow.</p>
-        <button
-          onClick={() => navigate('/forgot-password')}
-          className="flex items-center gap-2 px-6 py-3 bg-surface-hover hover:bg-white/10 border border-white/10 text-white rounded-lg font-bold uppercase tracking-widest text-sm transition-colors"
-        >
-          <Lock size={16} />
-          Go to Password Reset
-        </button>
+        <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+          <input type="password" placeholder="Current password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white" />
+          <input type="password" placeholder="New password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={8} className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white" />
+          <input type="password" placeholder="Confirm new password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required minLength={8} className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white" />
+          {passwordMsg && <p className={`text-sm ${passwordMsg === 'Password updated.' ? 'text-green-400' : 'text-red-400'}`}>{passwordMsg}</p>}
+          <div className="flex gap-3 items-center">
+            <button type="submit" disabled={passwordSaving} className="px-6 py-3 bg-coral-500 hover:bg-coral-600 text-white rounded-lg font-bold uppercase tracking-widest text-sm">
+              {passwordSaving ? 'Saving…' : 'Update Password'}
+            </button>
+            <button type="button" onClick={() => navigate('/forgot-password')} className="text-sm text-ink-muted hover:text-coral-500">Forgot password?</button>
+          </div>
+        </form>
       </div>
 
       <div className="flex items-center justify-between">
@@ -830,6 +880,18 @@ export const Settings = () => {
               <Globe size={20} className="text-ink-muted" />
             </button>
           </div>
+        </div>
+
+        <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
+          <h3 className="text-xl font-bold text-white mb-4 uppercase tracking-tight">Session</h3>
+          <button
+            type="button"
+            onClick={() => { apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => {}); logout(); navigate('/auth'); }}
+            className="flex items-center gap-2 px-6 py-3 bg-surface-hover hover:bg-white/10 border border-white/10 text-white rounded-lg font-bold uppercase tracking-widest text-sm"
+          >
+            <LogOut size={16} />
+            Sign Out
+          </button>
         </div>
 
         <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">

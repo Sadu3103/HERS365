@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Mail, Lock, User, ArrowRight, Eye, EyeOff, ArrowUpRight } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, Eye, EyeOff, ArrowUpRight, Github } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -651,6 +651,14 @@ export const Auth = () => {
 
           {/* Social */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <button type="button" onClick={() => { window.location.href = '/api/auth/github'; }} disabled={loading} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
+              padding: '13px', background: FIELD, border: `1px solid ${LINE}`, borderRadius: 11,
+              color: TEXT, fontSize: '.8rem', fontWeight: 800, cursor: 'pointer',
+              letterSpacing: '.08em', textTransform: 'uppercase', fontFamily: DISP,
+            }}>
+              <Github size={18} /> Continue with GitHub
+            </button>
             {googleClientId ? (
               <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <GoogleLogin
