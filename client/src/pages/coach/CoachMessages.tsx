@@ -207,6 +207,10 @@ export function CoachMessages() {
   const [playerSearch, setPlayerSearch] = useState('');
   const [composeOpen, setComposeOpen] = useState(false);
   const [mobileView, setMobileView] = useState<'list' | 'thread'>('list');
+  // Typing indicator is not wired up to a backend signal yet; bind the flag so
+  // the render below doesn't throw a ReferenceError when an active thread is
+  // open. The <TypingDots /> branch stays in place for the future wire-up.
+  const isTyping = false;
 
   const convListRef = useRef<HTMLDivElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
