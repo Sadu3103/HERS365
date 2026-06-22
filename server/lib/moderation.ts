@@ -6,21 +6,36 @@ import { logger } from '../logger';
 // /api/coach/message/:playerId so a flagged payload can't reach the
 // messages table.
 //
-// Fail-mode policy:
-//   - prod + no API key       → fail-closed (block, log error). The platform
-//                               hosts minors; we don't ship messages without
-//                               a moderation pass once we're in prod.
-//   - non-prod + no API key   → fail-open (allow). Tests and local dev
-//                               aren't required to provision an OpenAI key.
-//   - API call throws         → fail-closed. Don't risk shipping unsafe
-//                               content because the moderation service is
-//                               having a bad day.
+// Fail-mode policy (POSITIVE non-prod assertion — same shape as the demo
+// login gate). The prod runtime in this repo does NOT reliably set
+// NODE_ENV='production', so an "if NODE_ENV === 'production'" check would
+// degrade to "allow-through" in prod when OPENAI_API_KEY is missing. That
+// is unacceptable on a platform that hosts minors. We fail-open ONLY when
+// the env is positively a dev or test env; anything else (including unset)
+// fails closed if the key is missing.
+//
+//   - any env + no API key, env NOT explicitly 'development'/'test'
+//                              → fail-closed. Prod / staging / unset / typo
+//                                env name cannot run unmoderated.
+//   - dev or test + no API key → fail-open (allow). Local dev and CI test
+//                                runs aren't required to provision a key.
+//   - any env + API key set    → call OpenAI moderation; flagged → block.
+//   - API call throws          → fail-closed regardless of env.
 
 export type ModerationResult =
   | { allowed: true }
   | { allowed: false; reason: string };
 
 const MODERATION_MODEL = 'omni-moderation-latest';
+const NON_PROD_ENVS = new Set<string>(['development', 'test']);
+
+// Exported for tests + audits. Returns true ONLY when the env is positively
+// a known non-prod environment; anything else (unset, '', 'production',
+// 'staging', arbitrary strings) returns false so the no-key path will block.
+export function isNonProdEnv(): boolean {
+  const envValue = process.env.APP_ENV ?? process.env.NODE_ENV;
+  return !!envValue && NON_PROD_ENVS.has(envValue);
+}
 
 let cachedClient: OpenAI | null = null;
 function getClient(): OpenAI | null {
@@ -38,12 +53,12 @@ export function _resetModerationClientForTests(): void {
 export async function moderateMessage(text: string): Promise<ModerationResult> {
   const oai = getClient();
   if (!oai) {
-    if (process.env.NODE_ENV === 'production') {
-      logger.error('[moderation] OPENAI_API_KEY missing in production — blocking');
+    if (!isNonProdEnv()) {
+      logger.error('[moderation] OPENAI_API_KEY missing and env is not explicitly dev/test — blocking');
       return { allowed: false, reason: 'moderation_unavailable' };
     }
-    // Dev / test: allow through. Tests that need to exercise the rejection
-    // path mock this function directly.
+    // Dev / test only: allow through. Tests that need to exercise the
+    // rejection path mock this function directly.
     return { allowed: true };
   }
 

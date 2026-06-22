@@ -127,6 +127,43 @@ describe('moderateMessage', () => {
     expect(createMock).not.toHaveBeenCalled();
   });
 
+  // CRITICAL: this is the prod-runtime case in this repo, where NODE_ENV
+  // is not reliably set. An "if NODE_ENV === 'production'" check would
+  // have fallen through to the dev fail-open branch here. The positive
+  // non-prod assertion must NOT.
+  it('(f) returns allowed:false reason:"moderation_unavailable" when env is UNSET and key is missing (fail closed, no NODE_ENV in prod runtime)', async () => {
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.NODE_ENV;
+    delete process.env.APP_ENV;
+
+    const res = await moderateMessage('anything');
+
+    expect(res).toEqual({ allowed: false, reason: 'moderation_unavailable' });
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it('(f) also fails closed when env is an unrecognized string and key is missing', async () => {
+    delete process.env.OPENAI_API_KEY;
+    process.env.NODE_ENV = 'staging';
+    delete process.env.APP_ENV;
+
+    const res = await moderateMessage('anything');
+
+    expect(res).toEqual({ allowed: false, reason: 'moderation_unavailable' });
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it('(g) APP_ENV=development overrides NODE_ENV=production for the fail-open path', async () => {
+    delete process.env.OPENAI_API_KEY;
+    process.env.APP_ENV = 'development';
+    process.env.NODE_ENV = 'production';
+
+    const res = await moderateMessage('anything');
+
+    expect(res).toEqual({ allowed: true });
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
   it('_resetModerationClientForTests() rebuilds the client after an env change', async () => {
     // First call: no key → fail-open (test env), no SDK construction.
     delete process.env.OPENAI_API_KEY;
