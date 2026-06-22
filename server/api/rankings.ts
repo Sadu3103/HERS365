@@ -3,6 +3,7 @@ import { asc, desc, eq, and, isNotNull } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 import { clampIntQuery } from '../lib/queryParam';
+import { parseIdParam } from '../lib/parseIdParam';
 
 const router = express.Router();
 
@@ -59,8 +60,8 @@ router.get('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) return res.status(400).json({ success: false, error: 'Invalid id' });
+    const id = parseIdParam(req.params.id);
+    if (id === null) return res.status(400).json({ success: false, error: 'Invalid id' });
 
     const [p] = await db
       .select()
