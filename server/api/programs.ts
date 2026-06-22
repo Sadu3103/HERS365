@@ -1,13 +1,17 @@
-
-import express from 'express';
+import express, { type Request } from 'express';
 import { and, eq } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
-import { requireAuth } from '../middleware/requireAuth';
+import { requireAuth, type TokenPayload } from '../auth';
 import { validateBody, validateParams } from '../middleware/validate';
 import { programApplyBody, programApplyParams } from '../middleware/safetySchemas';
+import { parseIdParam } from '../lib/parseIdParam';
 
 const router = express.Router();
+
+function authUser(req: Request): TokenPayload | undefined {
+  return (req as Request & { user?: TokenPayload }).user;
+}
 
 // Static program catalog — no programs table yet; user state (saves,
 // applications) is what persists to the DB.
@@ -58,7 +62,7 @@ router.get('/me/applications', requireAuth, async (req, res) => {
     const rows = await db
       .select()
       .from(schema.programApplications)
-      .where(eq(schema.programApplications.athleteId, Number(req.user?.userId)));
+      .where(eq(schema.programApplications.athleteId, Number(authUser(req)?.id)));
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('[programs/me/applications]', error);
@@ -69,9 +73,9 @@ router.get('/me/applications', requireAuth, async (req, res) => {
 // GET /api/programs/:id
 router.get('/:id', (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (Number.isNaN(id)) {
-      return res.status(400).json({ success: false, error: 'Invalid program id' });
+    const id = parseIdParam(req.params.id);
+    if (id === null) {
+      return res.status(400).json({ success: false, error: 'Invalid id' });
     }
     const program = programs.find(p => p.id === id);
     if (!program) {
@@ -86,9 +90,9 @@ router.get('/:id', (req, res) => {
 // POST /api/programs/:id/applications — identity comes from the JWT, never the body
 router.post('/:id/applications', requireAuth, validateParams(programApplyParams), validateBody(programApplyBody), async (req, res) => {
   try {
-    const programId = parseInt(req.params.id as string, 10);
-    if (Number.isNaN(programId)) {
-      return res.status(400).json({ success: false, error: 'Invalid program id' });
+    const programId = parseIdParam(req.params.id);
+    if (programId === null) {
+      return res.status(400).json({ success: false, error: 'Invalid id' });
     }
 
     const program = programs.find(p => p.id === programId);
@@ -101,7 +105,7 @@ router.post('/:id/applications', requireAuth, validateParams(programApplyParams)
       return res.status(400).json({ success: false, error: 'Position is required' });
     }
 
-    const athleteId = Number(req.user?.userId);
+    const athleteId = Number(authUser(req)?.id);
 
     const existing = await db
       .select({ id: schema.programApplications.id })

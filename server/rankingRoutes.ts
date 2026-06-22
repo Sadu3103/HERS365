@@ -1,63 +1,82 @@
-
 import { Router } from 'express';
 import { db } from './db';
 import * as schema from './schema';
-import { eq, desc, and, sql, like, or } from 'drizzle-orm';
+import { eq, desc, and, sql } from 'drizzle-orm';
 import { calculateRankingScore, getRankingTier, getTierColor } from './rankingAlgorithm';
 import { publicPlayerView } from './lib/playerPrivacy';
+import { parseIdParam } from './lib/parseIdParam';
+import { parseIntQuery, clampIntQuery } from './lib/queryParam';
 
 const router = Router();
+
+// dataSources is stored as a JSON-encoded string in a text column (see the
+// calculate route for the matching write). Parse safely on read so the client
+// always gets an array even if the column is null or a legacy non-JSON value.
+function parseDataSources(raw: string[] | null): string[] {
+  return raw ?? [];
+}
 
 // Get rankings with filters (state, national, position, graduation year)
 router.get('/players', async (req, res) => {
   try {
     const {
-      level = 'national',
+      level = 'national', // 'national', 'state', 'local'
       state,
       position,
       graduationYear,
-      limit = 100,
-      offset = 0,
+      limit,
+      offset,
     } = req.query;
 
+    const graduationYearNum = graduationYear ? parseIntQuery(graduationYear) : null;
+    if (graduationYear && graduationYearNum === null) {
+      return res.status(400).json({ message: 'graduationYear must be an integer' });
+    }
+
+    const limitNum = clampIntQuery(limit, { default: 100, min: 1, max: 500 });
+    const offsetNum = clampIntQuery(offset, { default: 0, min: 0, max: 100000 });
+
+    // Build filters
     const filters = [];
 
     if (state && level !== 'national') {
-      filters.push(eq(schema.players.state, state as string));
+      filters.push(eq(schema.players.state, String(state)));
     }
 
     if (position) {
-      filters.push(eq(schema.players.position, position as string));
+      filters.push(eq(schema.players.position, String(position)));
     }
 
-    if (graduationYear) {
-      filters.push(
-        eq(schema.players.gradYear, parseInt(graduationYear as string))
-      );
+    if (graduationYearNum !== null) {
+      filters.push(eq(schema.players.gradYear, graduationYearNum));
     }
 
-    const baseQuery = db
+    // Base query
+    let query = db
       .select({
         id: schema.players.id,
         name: schema.players.name,
         position: schema.players.position,
         state: schema.players.state,
-        graduationYear: schema.players.gradYear,
+        gradYear: schema.players.gradYear,
         school: schema.players.school,
         profileImage: schema.players.profileImage,
         g5Rating: schema.players.g5Rating,
         archetype: schema.players.archetype,
 
+        // Rankings
         nationalRank: schema.athleteRankings.nationalRank,
         stateRank: schema.athleteRankings.stateRank,
         positionRank: schema.athleteRankings.positionRank,
         movement: schema.athleteRankings.movement,
 
+        // Scores
         combineScore: schema.athleteRankings.combineScore,
         maxPrepsScore: schema.athleteRankings.maxPrepsScore,
         zybekScore: schema.athleteRankings.zybekScore,
         overallScore: schema.athleteRankings.overallScore,
 
+        // Meta
         dataSources: schema.athleteRankings.dataSources,
         lastUpdated: schema.athleteRankings.updatedAt,
       })
@@ -65,26 +84,33 @@ router.get('/players', async (req, res) => {
       .leftJoin(
         schema.athleteRankings,
         eq(schema.players.id, schema.athleteRankings.playerId)
-      );
+      )
+      .$dynamic();
 
-    const filteredQuery =
-      filters.length > 0
-        ? baseQuery.where(and(...filters))
-        : baseQuery;
+    // Apply filters
+    if (filters.length > 0) {
+      query = query.where(and(...filters));
+    }
 
-    const orderedQuery =
-      level === 'state' && state
-        ? filteredQuery.orderBy(schema.athleteRankings.stateRank)
-        : level === 'local'
-          ? filteredQuery.orderBy(schema.athleteRankings.positionRank)
-          : filteredQuery.orderBy(schema.athleteRankings.nationalRank);
+    // Ordering
+    if (level === 'state' && state) {
+      query = query.orderBy(schema.athleteRankings.stateRank);
+    } else if (level === 'local') {
+      query = query.orderBy(schema.athleteRankings.positionRank);
+    } else {
+      query = query.orderBy(schema.athleteRankings.nationalRank);
+    }
 
-    const rankings = await orderedQuery
-      .limit(Number(limit))
-      .offset(Number(offset));
+    // Pagination
+    query = query.limit(limitNum).offset(offsetNum);
 
+    // Execute
+    const rankings = await query;
+
+    // Enrich response
     const enrichedRankings = rankings.map((player) => {
       const score = player.overallScore || 0;
+
       return {
         ...player,
         tier: getRankingTier(score),
@@ -102,8 +128,11 @@ router.get('/players', async (req, res) => {
 // Get single player ranking details with all data sources
 router.get('/players/:id', async (req, res) => {
   try {
-    const playerId = parseInt(req.params.id);
-    
+    const playerId = parseIdParam(req.params.id);
+    if (playerId === null) {
+      return res.status(400).json({ message: 'Invalid id' });
+    }
+
     const player = await db.select()
       .from(schema.players)
       .where(eq(schema.players.id, playerId));
@@ -138,7 +167,7 @@ router.get('/players/:id', async (req, res) => {
       },
       tier: getRankingTier(score),
       tierColor: getTierColor(getRankingTier(score)),
-      dataSources: ranking.dataSources || [],
+      dataSources: parseDataSources(ranking.dataSources),
       lastUpdated: ranking.updatedAt,
     });
   } catch (error) {
@@ -232,8 +261,11 @@ router.get('/criteria', async (req, res) => {
 // Update player ranking (admin function)
 router.post('/calculate/:playerId', async (req, res) => {
   try {
-    const playerId = parseInt(req.params.playerId);
-    
+    const playerId = parseIdParam(req.params.playerId);
+    if (playerId === null) {
+      return res.status(400).json({ message: 'Invalid id' });
+    }
+
     // Fetch all athlete data from various sources
     // This would integrate with actual data sources in production
     const mockAthleteData = {
@@ -244,10 +276,16 @@ router.post('/calculate/:playerId', async (req, res) => {
       graduationYear: 2026,
       position: 'WR',
     };
-    
+
     // Calculate ranking scores
     const scores = calculateRankingScore(mockAthleteData);
-    
+
+    // schema.athleteRankings.dataSources is a text column but scores.dataSources
+    // is a string[]; serialize as JSON so the read path can parse it back.
+    // schema.athleteRankings.updatedAt is text, not timestamp.
+    const dataSourcesJson = JSON.stringify(scores.dataSources);
+    const updatedAt = new Date();
+
     // Update database
     await db.insert(schema.athleteRankings)
       .values({
@@ -258,7 +296,7 @@ router.post('/calculate/:playerId', async (req, res) => {
         zybekScore: scores.zybekScore,
         usaTalentIdScore: scores.usaTalentIdScore,
         dataSources: scores.dataSources,
-        updatedAt: new Date(),
+        updatedAt,
       })
       .onConflictDoUpdate({
         target: schema.athleteRankings.playerId,
@@ -269,7 +307,7 @@ router.post('/calculate/:playerId', async (req, res) => {
           zybekScore: scores.zybekScore,
           usaTalentIdScore: scores.usaTalentIdScore,
           dataSources: scores.dataSources,
-          updatedAt: new Date(),
+          updatedAt,
         },
       });
 
@@ -289,14 +327,11 @@ router.get('/teams', async (req, res) => {
   const { type = 'high_school' } = req.query;
 
   try {
-    const base = db.select().from(schema.teams);
-
-    const filtered = type
-      ? base.where(eq(schema.teams.type, type as string))
-      : base;
-
-    const teams = await filtered.orderBy(desc(schema.teams.rating));
-
+    let query = db.select().from(schema.teams).$dynamic();
+    if (type) {
+      query = query.where(eq(schema.teams.type, String(type)));
+    }
+    const teams = await query.orderBy(desc(schema.teams.rating));
     res.json(teams);
   } catch (error) {
     console.error('Error fetching team rankings:', error);

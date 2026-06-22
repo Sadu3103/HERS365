@@ -3,6 +3,8 @@ import { pool } from '../../db';
 const TABLES = [
   'messages',
   'message_requests',
+  'message_blocks',
+  'message_reports',
   'parent_child_relations',
   'parents',
   'coaches',

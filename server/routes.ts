@@ -1,14 +1,21 @@
-
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import { db } from './db';
 import * as schema from './schema';
 import * as ai from './ai';
 import * as mp from './maxpreps';
-import { eq, desc, sql } from 'drizzle-orm';
-import { AuthenticatedRequest,requireAuth, requireAdmin } from './auth';
+import { eq, desc, sql, and } from 'drizzle-orm';
+import { AuthenticatedRequest,requireAuth, requireAdmin, type TokenPayload } from './auth';
 
 const router = express.Router();
 
+import { publicPlayerView, selfPlayerView } from './lib/playerPrivacy';
+import { parseIdParam } from './lib/parseIdParam';
+
+// requireAuth attaches the token payload to req.user, but Express's Request
+// type doesn't know about it. Read it through here for typed access.
+function authUser(req: Request): TokenPayload | undefined {
+  return (req as Request & { user?: TokenPayload }).user;
+}
 
 
 
@@ -52,28 +59,31 @@ router.post('/subscription-plans', requireAdmin, async (req: Request, res: Respo
 
 router.get('/player-subscription/:playerId', async (req: Request, res: Response) => {
   try {
-    const pId = parseInt(req.params.playerId as string);
-    if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
+    const pId = parseIdParam(req.params.playerId);
+    if (pId === null) return res.status(400).json({ error: 'Invalid id' });
     const subscription = await db.select()
       .from(schema.playerSubscriptions)
       .where(eq(schema.playerSubscriptions.playerId, pId));
     if (subscription.length === 0) return res.json({ status: 'none', plan: null });
-    const plan = await db.select()
-      .from(schema.subscriptionPlans)
-      .where(eq(schema.subscriptionPlans.id, subscription[0].planId));
+    const subPlanId = subscription[0].planId;
+    const plan = subPlanId != null
+      ? await db.select()
+          .from(schema.subscriptionPlans)
+          .where(eq(schema.subscriptionPlans.id, subPlanId))
+      : [];
     res.json({ ...subscription[0], plan: plan[0] || null });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.post('/player-subscription', requireAuth, async (req:AuthenticatedRequest, res:Response) => {
+router.post('/player-subscription', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { playerId, planId, stripeSubscriptionId } = req.body;
     if (!playerId || !planId) {
       return res.status(400).json({ error: 'PlayerId and planId are required' });
     }
-    if (req.user.userId !== playerId) return res.status(403).json({ error: 'Forbidden' });
+    if (authUser(req)!.userId !== playerId) return res.status(403).json({ error: 'Forbidden' });
     const existing = await db.select()
       .from(schema.playerSubscriptions)
       .where(eq(schema.playerSubscriptions.playerId, playerId));
@@ -100,16 +110,16 @@ router.post('/player-subscription', requireAuth, async (req:AuthenticatedRequest
 });
 
 // CURRENT USER PROFILE
-router.get('/profile', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/profile', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const rows = await db.select().from(schema.players).where(eq(schema.players.id, req.user.userId)).limit(1);
+    const rows = await db.select().from(schema.players).where(eq(schema.players.id, authUser(req)!.userId)).limit(1);
     res.json(stripPlayer(rows[0]) || null);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.put('/profile', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.put('/profile', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, bio, position, school, state, gradYear, heightIn, weightLbs, phone, profileImage } = req.body;
     const updates: Record<string, any> = {};
@@ -125,17 +135,17 @@ router.put('/profile', requireAuth, async (req: AuthenticatedRequest, res: Respo
     // Custom profile photo URL. Client uploads to /api/upload/presign first,
     // then sends the resulting publicUrl here.
     if (profileImage !== undefined) updates.profileImage = profileImage || null;
-    const updated = await db.update(schema.players).set(updates).where(eq(schema.players.id, req.user.userId)).returning();
+    const updated = await db.update(schema.players).set(updates).where(eq(schema.players.id, authUser(req)!.userId)).returning();
     res.json(stripPlayer(updated[0]));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/profile/stats', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/profile/stats', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const gameStats = await db.select().from(schema.gameStats).where(eq(schema.gameStats.playerId, req.user.userId));
-    const combineStats = await db.select().from(schema.combineStats).where(eq(schema.combineStats.playerId, req.user.userId)).limit(1);
+    const gameStats = await db.select().from(schema.gameStats).where(eq(schema.gameStats.playerId, authUser(req)!.userId));
+    const combineStats = await db.select().from(schema.combineStats).where(eq(schema.combineStats.playerId, authUser(req)!.userId)).limit(1);
     res.json({ game: gameStats, combine: combineStats[0] || null });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -154,8 +164,8 @@ router.get('/players', async (req: Request, res: Response) => {
 
 router.get('/players/:id', async (req: Request, res: Response) => {
   try {
-    const pId = parseInt(req.params.id as string);
-    if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
+    const pId = parseIdParam(req.params.id);
+    if (pId === null) return res.status(400).json({ error: 'Invalid id' });
     const player = await db.select().from(schema.players).where(eq(schema.players.id, pId));
     res.json(publicPlayer(player[0]) || null);
   } catch (err: any) {
@@ -165,8 +175,8 @@ router.get('/players/:id', async (req: Request, res: Response) => {
 
 router.get('/players/:id/stats', async (req: Request, res: Response) => {
   try {
-    const pId = parseInt(req.params.id as string);
-    if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
+    const pId = parseIdParam(req.params.id);
+    if (pId === null) return res.status(400).json({ error: 'Invalid id' });
     const stats = await db.select().from(schema.gameStats).where(eq(schema.gameStats.playerId, pId));
     res.json(stats);
   } catch (err: any) {
@@ -174,10 +184,10 @@ router.get('/players/:id/stats', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/players/:id/highlights', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/players/:id/highlights', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const pId = parseInt(req.params.id as string);
-    if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
+    const pId = parseIdParam(req.params.id);
+    if (pId === null) return res.status(400).json({ error: 'Invalid id' });
     const [player] = await db.select({ subscriptionTier: schema.players.subscriptionTier })
       .from(schema.players).where(eq(schema.players.id, pId)).limit(1);
     const isPaid = !!player?.subscriptionTier && player.subscriptionTier !== 'free';
@@ -193,11 +203,11 @@ router.get('/players/:id/highlights', requireAuth, async (req: AuthenticatedRequ
   }
 });
 
-router.post('/players/:id/highlights', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/players/:id/highlights', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const pId = parseInt(req.params.id as string);
-    if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
-    if (req.user.userId !== pId) return res.status(403).json({ error: 'Forbidden' });
+    const pId = parseIdParam(req.params.id);
+    if (pId === null) return res.status(400).json({ error: 'Invalid id' });
+    if (authUser(req)!.userId !== pId) return res.status(403).json({ error: 'Forbidden' });
     const { videoUrl, thumbnailUrl, category, season, annotations, clipSettings } = req.body;
     const newHighlight = await db.insert(schema.playerHighlights).values({
       playerId: pId,
@@ -253,18 +263,18 @@ router.get('/posts', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/posts', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/posts', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { content, mediaUrl, mediaType } = req.body;
     const newPost = await db.insert(schema.posts).values({
-      playerId: req.user.userId,
+      playerId: authUser(req)!.userId,
       content,
       mediaUrl,
       mediaType
     }).returning();
     await db.update(schema.players)
       .set({ nilPoints: sql`nil_points + 10` })
-      .where(eq(schema.players.id, req.user.userId));
+      .where(eq(schema.players.id, authUser(req)!.userId));
     res.json(newPost[0]);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -336,8 +346,8 @@ router.post('/posts/:id/comments', requireAuth, async (req: AuthenticatedRequest
 // AI BOTS & TRAINING
 router.get('/bot/:playerId', async (req: Request, res: Response) => {
   try {
-    const pId = parseInt(req.params.playerId as string);
-    if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
+    const pId = parseIdParam(req.params.playerId);
+    if (pId === null) return res.status(400).json({ error: 'Invalid id' });
     let bots = await db.select().from(schema.aiBots).where(eq(schema.aiBots.playerId, pId));
     if (bots.length === 0) {
       const generated = await ai.generateBotName();
@@ -355,8 +365,8 @@ router.get('/bot/:playerId', async (req: Request, res: Response) => {
 
 router.post('/bot/:botId/chat', async (req: Request, res: Response) => {
   try {
-    const bId = parseInt(req.params.botId as string);
-    if (isNaN(bId)) return res.status(400).json({ error: 'Invalid bot ID' });
+    const bId = parseIdParam(req.params.botId);
+    if (bId === null) return res.status(400).json({ error: 'Invalid id' });
     const { message, context } = req.body;
     const reply = await ai.chatBot(bId, [{ role: 'user', content: message }], context);
     res.json({ reply });
@@ -384,7 +394,7 @@ router.post('/nil/chat', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/training-plans', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/training-plans', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { position = 'QB', age = 16, skillLevel = 'Intermediate' } = req.body;
     const plan = await ai.generateTrainingPlan(position, age, skillLevel);
@@ -413,7 +423,7 @@ router.get('/maxpreps/player', async (req: Request, res: Response) => {
 
 router.get('/maxpreps/stats/:maxprepsId', async (req: Request, res: Response) => {
   try {
-    const stats = await mp.fetchPlayerStats(req.params.maxprepsId as string);
+    const stats = await mp.fetchPlayerStats(String(req.params.maxprepsId));
     if (!stats) return res.status(404).json({ error: 'Player not found on MaxPreps' });
     res.json({ source: 'maxpreps', stats });
   } catch (err: any) {
@@ -444,7 +454,7 @@ router.get('/maxpreps/rankings', async (req: Request, res: Response) => {
 router.get('/maxpreps/team/:schoolGID/roster', async (req: Request, res: Response) => {
   const { season = '2025' } = req.query as Record<string, string>;
   try {
-    const roster = await mp.fetchTeamRoster(req.params.schoolGID as string, season);
+    const roster = await mp.fetchTeamRoster(String(req.params.schoolGID), season);
     res.json({ source: 'maxpreps', season, players: roster });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -455,9 +465,9 @@ router.get('/maxpreps/team/:schoolGID/roster', async (req: Request, res: Respons
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
 
 // GET /notifications - list for authenticated player
-router.get('/notifications', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/notifications', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const playerId = req.user?.id;
+    const playerId = authUser(req)?.id;
     if (!playerId) return res.status(401).json({ error: 'Not authenticated' });
     const isNaN_guard = isNaN(parseInt(String(playerId)));
     if (isNaN_guard) return res.status(400).json({ error: 'Invalid player ID' });
@@ -475,9 +485,9 @@ router.get('/notifications', requireAuth, async (req: AuthenticatedRequest, res:
 });
 
 // POST /notifications/mark-read - mark all as read
-router.post('/notifications/mark-read', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/notifications/mark-read', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const playerId = req.user?.id;
+    const playerId = authUser(req)?.id;
     if (!playerId) return res.status(401).json({ error: 'Not authenticated' });
     await db
       .update(schema.notifications)
@@ -490,11 +500,24 @@ router.post('/notifications/mark-read', requireAuth, async (req: AuthenticatedRe
 });
 
 // POST /notifications/mark-read/:id - mark one as read
-router.post('/notifications/mark-read/:id', requireAuth, async (req, res) => {
+router.post('/notifications/mark-read/:id', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const id = parseInt(req.params.id as string);
-    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
-    await db.update(schema.notifications).set({ read: true }).where(eq(schema.notifications.id, id));
+    const id = parseIdParam(req.params.id);
+    if (id === null) return res.status(400).json({ error: 'Invalid id' });
+    const callerId = authUser(req)?.id;
+    if (!callerId) return res.status(401).json({ error: 'Not authenticated' });
+    // Scope the update by both id AND owner so a notification belonging to
+    // another user can never be flipped. Treat "not yours" and "doesn't
+    // exist" the same (404) so the endpoint doesn't reveal which it is.
+    const updated = await db
+      .update(schema.notifications)
+      .set({ read: true })
+      .where(and(
+        eq(schema.notifications.id, id),
+        eq(schema.notifications.playerId, Number(callerId)),
+      ))
+      .returning({ id: schema.notifications.id });
+    if (updated.length === 0) return res.status(404).json({ error: 'Notification not found' });
     res.json({ ok: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

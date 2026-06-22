@@ -266,7 +266,7 @@ import { coachesRouter } from './api/coaches';
 // The webhook route in paymentRouter uses express.raw() internally
 app.use('/api/payments', paymentRouter);
 
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 
 app.use('/api/rankings', rankingsRouter);
 app.use('/api/athletes', athletesRouter);

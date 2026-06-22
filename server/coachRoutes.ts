@@ -1,15 +1,13 @@
-
 /**
  * Coach Scouting Portal — API Routes
  * All routes require coach role JWT token
  */
-import express from 'express';
+import express, { type Request } from 'express';
 import { db } from './db';
 import * as schema from './schema';
 import { eq, ilike, and, desc, sql } from 'drizzle-orm';
-import { requireCoach } from './auth';
+import { requireCoach, type TokenPayload } from './auth';
 import { requireVerifiedCoach } from './middleware/requireVerifiedCoach';
-import { AthleteData } from './rankingAlgorithm';
 import { hasParentApprovedLink } from './api/messages';
 import { validateBody, validateParams } from './middleware/validate';
 import {
@@ -22,6 +20,11 @@ import {
   coachProfilePutBody,
 } from './middleware/safetySchemas';
 import { publicPlayerView } from './lib/playerPrivacy';
+import { moderateMessage } from './lib/moderation';
+import { eitherBlocked } from './lib/messageBlocks';
+import { messageRateLimit } from './middleware/messageRateLimit';
+import { parseIdParam } from './lib/parseIdParam';
+import { parseIntQuery, parseFloatQuery, clampIntQuery } from './lib/queryParam';
 
 const router = express.Router();
 
@@ -30,6 +33,14 @@ const router = express.Router();
 // an admin clears them via /api/admin/coaches/verification.
 router.use(requireCoach);
 router.use(requireVerifiedCoach);
+
+// requireCoach + requireVerifiedCoach guarantee req.user is a coach payload
+// by the time any handler runs, but Express's Request type doesn't carry that
+// shape. Read it through here to get a typed userId without sprinkling casts.
+function coachUserId(req: Request): number {
+  const u = (req as Request & { user?: TokenPayload }).user;
+  return Number(u?.userId);
+}
 
 // ── Map a real DB player row → the scouting-card shape the coach UI expects ──
 // Identity, academics, and recruiting fields are real. The platform does not yet
@@ -111,8 +122,51 @@ router.get('/players/search', async (req, res) => {
     const {
       q, position, state, gradYear, minBreakoutScore, maxBreakoutScore,
       minGpa, maxGpa, minHeight, maxHeight, minWeight, maxWeight,
-      verified, archetype, limit = '25', offset = '0'
-    } = req.query as Record<string, string>;
+      verified, archetype, limit, offset,
+    } = req.query as Record<string, string | undefined>;
+
+    // Reject explicitly-bad numeric filters before they reach the DB. Without
+    // this guard `parseInt('abc')` lands NaN in eq(integer, …) and Postgres
+    // returns "invalid input syntax for type integer: NaN" as a 500.
+    const gradYearNum = gradYear ? parseIntQuery(gradYear) : null;
+    if (gradYear && gradYearNum === null) {
+      return res.status(400).json({ error: 'gradYear must be an integer' });
+    }
+    const minBreakoutScoreNum = minBreakoutScore ? parseIntQuery(minBreakoutScore) : null;
+    if (minBreakoutScore && minBreakoutScoreNum === null) {
+      return res.status(400).json({ error: 'minBreakoutScore must be an integer' });
+    }
+    const maxBreakoutScoreNum = maxBreakoutScore ? parseIntQuery(maxBreakoutScore) : null;
+    if (maxBreakoutScore && maxBreakoutScoreNum === null) {
+      return res.status(400).json({ error: 'maxBreakoutScore must be an integer' });
+    }
+    const minGpaNum = minGpa ? parseFloatQuery(minGpa) : null;
+    if (minGpa && minGpaNum === null) {
+      return res.status(400).json({ error: 'minGpa must be a number' });
+    }
+    const maxGpaNum = maxGpa ? parseFloatQuery(maxGpa) : null;
+    if (maxGpa && maxGpaNum === null) {
+      return res.status(400).json({ error: 'maxGpa must be a number' });
+    }
+    const minHeightNum = minHeight ? parseIntQuery(minHeight) : null;
+    if (minHeight && minHeightNum === null) {
+      return res.status(400).json({ error: 'minHeight must be an integer' });
+    }
+    const maxHeightNum = maxHeight ? parseIntQuery(maxHeight) : null;
+    if (maxHeight && maxHeightNum === null) {
+      return res.status(400).json({ error: 'maxHeight must be an integer' });
+    }
+    const minWeightNum = minWeight ? parseIntQuery(minWeight) : null;
+    if (minWeight && minWeightNum === null) {
+      return res.status(400).json({ error: 'minWeight must be an integer' });
+    }
+    const maxWeightNum = maxWeight ? parseIntQuery(maxWeight) : null;
+    if (maxWeight && maxWeightNum === null) {
+      return res.status(400).json({ error: 'maxWeight must be an integer' });
+    }
+
+    const limitNum = clampIntQuery(limit, { default: 25, min: 1, max: 100 });
+    const offsetNum = clampIntQuery(offset, { default: 0, min: 0, max: 100000 });
 
     // Build where conditions
     const conditions = [];
@@ -129,8 +183,8 @@ router.get('/players/search', async (req, res) => {
       conditions.push(eq(schema.players.state, state));
     }
 
-    if (gradYear) {
-      conditions.push(eq(schema.players.gradYear, parseInt(gradYear)));
+    if (gradYearNum !== null) {
+      conditions.push(eq(schema.players.gradYear, gradYearNum));
     }
 
     if (archetype) {
@@ -180,11 +234,11 @@ router.get('/players/search', async (req, res) => {
     );
     if (position) results = results.filter(p => p.position === position);
     if (state) results = results.filter(p => p.state === state);
-    if (gradYear) results = results.filter(p => p.gradYear === parseInt(gradYear));
-    if (minBreakoutScore) results = results.filter(p => p.breakoutScore >= parseInt(minBreakoutScore));
-    if (maxBreakoutScore) results = results.filter(p => p.breakoutScore <= parseInt(maxBreakoutScore));
-    if (minGpa) results = results.filter(p => p.gpa >= parseFloat(minGpa));
-    if (maxGpa) results = results.filter(p => p.gpa <= parseFloat(maxGpa));
+    if (gradYearNum !== null) results = results.filter(p => p.gradYear === gradYearNum);
+    if (minBreakoutScoreNum !== null) results = results.filter(p => p.breakoutScore >= minBreakoutScoreNum);
+    if (maxBreakoutScoreNum !== null) results = results.filter(p => p.breakoutScore <= maxBreakoutScoreNum);
+    if (minGpaNum !== null) results = results.filter(p => p.gpa >= minGpaNum);
+    if (maxGpaNum !== null) results = results.filter(p => p.gpa <= maxGpaNum);
     if (archetype) results = results.filter(p => p.archetype === archetype);
     if (verified === 'true') results = results.filter(p => p.verified);
 
@@ -194,27 +248,25 @@ router.get('/players/search', async (req, res) => {
       return feet * 12 + (inches || 0);
     };
 
-    if (minHeight) {
-      const minInches = parseInt(minHeight);
-      results = results.filter(p => heightToInches(p.height) >= minInches);
+    if (minHeightNum !== null) {
+      results = results.filter(p => heightToInches(p.height) >= minHeightNum);
     }
-    if (maxHeight) {
-      const maxInches = parseInt(maxHeight);
-      results = results.filter(p => heightToInches(p.height) <= maxInches);
+    if (maxHeightNum !== null) {
+      results = results.filter(p => heightToInches(p.height) <= maxHeightNum);
     }
 
-    if (minWeight) results = results.filter(p => p.weight >= parseInt(minWeight));
-    if (maxWeight) results = results.filter(p => p.weight <= parseInt(maxWeight));
+    if (minWeightNum !== null) results = results.filter(p => p.weight >= minWeightNum);
+    if (maxWeightNum !== null) results = results.filter(p => p.weight <= maxWeightNum);
 
     // Sort by breakout score
     results.sort((a, b) => b.breakoutScore - a.breakoutScore);
 
-    const paginated = results.slice(parseInt(offset), parseInt(offset) + parseInt(limit));
+    const paginated = results.slice(offsetNum, offsetNum + limitNum);
 
     res.json({
       total: results.length,
-      limit: parseInt(limit),
-      offset: parseInt(offset),
+      limit: limitNum,
+      offset: offsetNum,
       players: paginated,
     });
   } catch (error) {
@@ -228,8 +280,8 @@ router.get('/players/search', async (req, res) => {
  */
 router.get('/players/:id', async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) return res.status(400).json({ error: 'Invalid player ID' });
+    const id = parseIdParam(req.params.id);
+    if (id === null) return res.status(400).json({ error: 'Invalid id' });
 
     const [player] = await db.select().from(schema.players).where(eq(schema.players.id, id));
     if (!player) return res.status(404).json({ error: 'Player not found' });
@@ -270,7 +322,7 @@ router.get('/players/:id', async (req, res) => {
  */
 router.get('/board', async (req, res) => {
   try {
-    const coachId = req.user.userId;
+    const coachId = coachUserId(req);
 
     const board = await db.select()
       .from(schema.coachProspects)
@@ -289,8 +341,9 @@ router.get('/board', async (req, res) => {
  */
 router.post('/players/:id/save', validateParams(coachPlayerParams), validateBody(coachPlayerSaveBody), async (req, res) => {
   try {
-    const coachId = req.user.userId;
-    const playerId = parseInt(req.params.id as string);
+    const coachId = coachUserId(req);
+    const playerId = parseIdParam(req.params.id);
+    if (playerId === null) return res.status(400).json({ error: 'Invalid id' });
     const { tier = 'watching' } = req.body; // tiers: 'top-target' | 'watching' | 'offered'
 
     // Check if already exists
@@ -339,8 +392,9 @@ router.post('/players/:id/save', validateParams(coachPlayerParams), validateBody
  */
 router.delete('/players/:id/save', validateParams(coachPlayerParams), async (req, res) => {
   try {
-    const coachId = req.user.userId;
-    const playerId = parseInt(req.params.id as string);
+    const coachId = coachUserId(req);
+    const playerId = parseIdParam(req.params.id);
+    if (playerId === null) return res.status(400).json({ error: 'Invalid id' });
 
     await db.delete(schema.coachProspects)
       .where(and(
@@ -360,8 +414,9 @@ router.delete('/players/:id/save', validateParams(coachPlayerParams), async (req
  */
 router.patch('/players/:id/notes', validateParams(coachPlayerParams), validateBody(coachPlayerNotesBody), async (req, res) => {
   try {
-    const coachId = req.user.userId;
-    const playerId = parseInt(req.params.id as string);
+    const coachId = coachUserId(req);
+    const playerId = parseIdParam(req.params.id);
+    if (playerId === null) return res.status(400).json({ error: 'Invalid id' });
     const { notes } = req.body;
 
     await db.update(schema.coachProspects)
@@ -383,8 +438,9 @@ router.patch('/players/:id/notes', validateParams(coachPlayerParams), validateBo
  */
 router.patch('/players/:id/tier', validateParams(coachPlayerParams), validateBody(coachPlayerTierBody), async (req, res) => {
   try {
-    const coachId = req.user.userId;
-    const playerId = parseInt(req.params.id as string);
+    const coachId = coachUserId(req);
+    const playerId = parseIdParam(req.params.id);
+    if (playerId === null) return res.status(400).json({ error: 'Invalid id' });
     const { tier } = req.body;
 
     const validTiers = ['top-target', 'watching', 'offered'];
@@ -411,14 +467,32 @@ router.patch('/players/:id/tier', validateParams(coachPlayerParams), validateBod
 /**
  * POST /coach/message/:playerId — Send a message to an athlete
  */
-router.post('/message/:playerId', validateParams(coachMessageParams), validateBody(coachMessageBody), async (req, res) => {
+router.post('/message/:playerId', messageRateLimit, validateParams(coachMessageParams), validateBody(coachMessageBody), async (req, res) => {
   try {
     const { message } = req.body;
-    const coachId = req.user.userId;
-    const playerId = parseInt(req.params.playerId as string);
+    const coachId = coachUserId(req);
+    const playerId = parseIdParam(req.params.playerId);
+    if (playerId === null) return res.status(400).json({ success: false, error: 'Invalid id' });
 
     if (!(await hasParentApprovedLink(playerId, coachId))) {
       return res.status(403).json({ success: false, error: 'Messaging requires a parent-approved contact request' });
+    }
+
+    // Block gate runs after the parent-approval check (so a coach with no
+    // contact link still gets the more specific 403) and before moderation
+    // (so a blocked coach doesn't burn an OpenAI call on a message that
+    // would never land). Either party blocking stops messaging.
+    if (await eitherBlocked(coachId, 'coach', playerId, 'athlete')) {
+      return res.status(403).json({ success: false, error: 'This conversation is unavailable.' });
+    }
+
+    const verdict = await moderateMessage(String(message));
+    if (!verdict.allowed) {
+      console.warn('[coach/message] rejected by moderation', { reason: verdict.reason, coachId, playerId });
+      return res.status(422).json({
+        success: false,
+        error: "Your message couldn't be sent. Please revise and try again.",
+      });
     }
 
     const newMessage = await db.insert(schema.messages).values({
@@ -442,7 +516,7 @@ router.post('/message/:playerId', validateParams(coachMessageParams), validateBo
  */
 router.get('/messages', async (req, res) => {
   try {
-    const coachId = req.user.userId;
+    const coachId = coachUserId(req);
 
     const messages = await db.select({
       id: schema.messages.id,
@@ -477,7 +551,7 @@ router.get('/messages', async (req, res) => {
   */
 router.get('/analytics', async (req, res) => {
   try {
-    const coachId = req.user.userId;
+    const coachId = coachUserId(req);
 
     // Get board count
     const boardCount = await db.select({ count: sql<number>`count(*)` })
@@ -645,7 +719,7 @@ router.get('/player-clips', (req, res) => {
  */
 router.get('/profile', async (req, res) => {
   try {
-    const coachId = req.user?.id;
+    const coachId = coachUserId(req);
     if (!coachId) return res.status(401).json({ error: 'Unauthorized' });
 
     const rows = await db.select().from(schema.coaches).where(eq(schema.coaches.id, coachId)).limit(1);
@@ -663,7 +737,7 @@ router.get('/profile', async (req, res) => {
  */
 router.put('/profile', validateBody(coachProfilePutBody), async (req, res) => {
   try {
-    const coachId = req.user?.id;
+    const coachId = coachUserId(req);
     if (!coachId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { name, university, division, recruitingPositions, recruitingStates } = req.body || {};

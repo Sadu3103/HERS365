@@ -8,6 +8,7 @@ import * as schema from './schema';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { requireAdmin } from './auth';
 import { withoutPasswordHash } from './lib/playerPrivacy';
+import { clampIntQuery } from './lib/queryParam';
 
 const router = express.Router();
 
@@ -92,8 +93,10 @@ router.get('/stats', requireAdmin, async (req: Request, res: Response, next: Nex
 // GET /admin/users - List all users with filters
 router.get('/users', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { role, page = 1, limit = 20, search } = req.query;
-    const offset = (Number(page) - 1) * Number(limit);
+    const { role, page, limit, search } = req.query;
+    const pageNum = clampIntQuery(page, { default: 1, min: 1, max: 100000 });
+    const limitNum = clampIntQuery(limit, { default: 20, min: 1, max: 200 });
+    const offset = (pageNum - 1) * limitNum;
 
     let users: any[] = [];
     let total = 0;
@@ -102,17 +105,17 @@ router.get('/users', requireAdmin, async (req: Request, res: Response, next: Nex
     // client. They have no operational use in a dashboard and the row was
     // already loaded with .select() so the hash is in memory.
     if (role === 'player') {
-      const rows = await db.select().from(schema.players).limit(Number(limit)).offset(offset);
+      const rows = await db.select().from(schema.players).limit(limitNum).offset(offset);
       users = rows.map(withoutPasswordHash);
       const count = await db.select({ count: sql<number>`count(*)::int` }).from(schema.players);
       total = count[0]?.count || 0;
     } else if (role === 'coach') {
-      const rows = await db.select().from(schema.coaches).limit(Number(limit)).offset(offset);
+      const rows = await db.select().from(schema.coaches).limit(limitNum).offset(offset);
       users = rows.map(withoutPasswordHash);
       const count = await db.select({ count: sql<number>`count(*)::int` }).from(schema.coaches);
       total = count[0]?.count || 0;
     } else if (role === 'parent') {
-      const rows = await db.select().from(schema.parents).limit(Number(limit)).offset(offset);
+      const rows = await db.select().from(schema.parents).limit(limitNum).offset(offset);
       users = rows.map(withoutPasswordHash);
       const count = await db.select({ count: sql<number>`count(*)::int` }).from(schema.parents);
       total = count[0]?.count || 0;
@@ -124,8 +127,8 @@ router.get('/users', requireAdmin, async (req: Request, res: Response, next: Nex
         name: schema.players.name,
         role: sql`'player'`,
         createdAt: schema.players.createdAt,
-      }).from(schema.players).limit(Number(limit)).offset(offset);
-      
+      }).from(schema.players).limit(limitNum).offset(offset);
+
       users = players;
       const count = await db.select({ count: sql<number>`count(*)::int` }).from(schema.players);
       total = count[0]?.count || 0;
@@ -134,10 +137,10 @@ router.get('/users', requireAdmin, async (req: Request, res: Response, next: Nex
     res.json({
       users,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
+        page: pageNum,
+        limit: limitNum,
         total,
-        pages: Math.ceil(total / Number(limit)),
+        pages: Math.ceil(total / limitNum),
       },
     });
   } catch (err: any) {
@@ -214,14 +217,16 @@ router.delete('/users/:id', requireAdmin, async (req: Request, res: Response, ne
 // GET /admin/reports - Get reported content
 router.get('/reports', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { status, page = 1, limit = 20 } = req.query;
-    const offset = (Number(page) - 1) * Number(limit);
+    const { status, page, limit } = req.query;
+    const pageNum = clampIntQuery(page, { default: 1, min: 1, max: 100000 });
+    const limitNum = clampIntQuery(limit, { default: 20, min: 1, max: 200 });
+    const offset = (pageNum - 1) * limitNum;
 
     // Get flagged posts for moderation
     const posts = await db.select()
       .from(schema.posts)
       .where(eq(schema.posts.moderationStatus, 'flagged'))
-      .limit(Number(limit))
+      .limit(limitNum)
       .offset(offset);
 
     const count = await db.select({ count: sql<number>`count(*)::int` })
@@ -231,8 +236,8 @@ router.get('/reports', requireAdmin, async (req: Request, res: Response, next: N
     res.json({
       reports: posts,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
+        page: pageNum,
+        limit: limitNum,
         total: count[0]?.count || 0,
       },
     });
@@ -330,8 +335,10 @@ router.delete('/events/:id', requireAdmin, async (req: Request, res: Response, n
 // GET /admin/payments - Get all payments
 router.get('/payments', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { status, page = 1, limit = 50 } = req.query;
-    const offset = (Number(page) - 1) * Number(limit);
+    const { status, page, limit } = req.query;
+    const pageNum = clampIntQuery(page, { default: 1, min: 1, max: 100000 });
+    const limitNum = clampIntQuery(limit, { default: 50, min: 1, max: 200 });
+    const offset = (pageNum - 1) * limitNum;
 
     const baseQuery = db.select({
       id: schema.payments.id,
@@ -353,7 +360,7 @@ router.get('/payments', requireAdmin, async (req: Request, res: Response, next: 
       : baseQuery
     )
       .orderBy(desc(schema.payments.createdAt))
-      .limit(Number(limit))
+      .limit(limitNum)
       .offset(offset);
 
     res.json(payments);

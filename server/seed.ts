@@ -147,6 +147,7 @@ async function seed() {
       ];
 
       for (const msg of thread) {
+        // exempt from moderateMessage: static dev seed content, not user input
         await db.insert(schema.messages).values({
           coachId: demoCoach.id,
           athleteId: maya.id,

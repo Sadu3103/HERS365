@@ -12,6 +12,11 @@ import {
   blockBody,
   reportBody,
 } from '../middleware/safetySchemas';
+import { moderateMessage } from '../lib/moderation';
+import { eitherBlocked } from '../lib/messageBlocks';
+import { messageRateLimit } from '../middleware/messageRateLimit';
+import { parseIdParam } from '../lib/parseIdParam';
+import { clampIntQuery } from '../lib/queryParam';
 
 const router = express.Router();
 router.use(requireAuth);
@@ -97,17 +102,17 @@ router.get('/conversations/:partnerId/messages', async (req, res) => {
   try {
     const { userId, role } = caller(req);
     const isCoach = role === 'coach';
-    const partnerId = parseInt(req.params.partnerId, 10);
-    if (Number.isNaN(partnerId)) {
-      return res.status(400).json({ success: false, error: 'Invalid partner id' });
+    const partnerId = parseIdParam(req.params.partnerId);
+    if (partnerId === null) {
+      return res.status(400).json({ success: false, error: 'Invalid id' });
     }
 
     const pairWhere = isCoach
       ? and(eq(schema.messages.coachId, userId), eq(schema.messages.athleteId, partnerId))
       : and(eq(schema.messages.athleteId, userId), eq(schema.messages.coachId, partnerId));
 
-    const limit = Number(req.query.limit ?? 50);
-    const offset = Number(req.query.offset ?? 0);
+    const limit = clampIntQuery(req.query.limit, { default: 50, min: 1, max: 200 });
+    const offset = clampIntQuery(req.query.offset, { default: 0, min: 0, max: 100000 });
 
     const rows = await db
       .select()
@@ -147,20 +152,8 @@ export async function hasParentApprovedLink(athleteId: number, coachId: number):
   return Boolean(link);
 }
 
-// Safety: true if either party has blocked the other.
-async function eitherBlocked(aId: number, aRole: string, bId: number, bRole: string): Promise<boolean> {
-  const [row] = await db.select({ id: schema.messageBlocks.id })
-    .from(schema.messageBlocks)
-    .where(or(
-      and(eq(schema.messageBlocks.blockerId, aId), eq(schema.messageBlocks.blockerRole, aRole), eq(schema.messageBlocks.blockedId, bId), eq(schema.messageBlocks.blockedRole, bRole)),
-      and(eq(schema.messageBlocks.blockerId, bId), eq(schema.messageBlocks.blockerRole, bRole), eq(schema.messageBlocks.blockedId, aId), eq(schema.messageBlocks.blockedRole, aRole)),
-    ))
-    .limit(1);
-  return Boolean(row);
-}
-
 // POST /api/messages — send a message to a partner
-router.post('/', validateBody(sendMessageBody), async (req, res) => {
+router.post('/', messageRateLimit, validateBody(sendMessageBody), async (req, res) => {
   try {
     const { userId, role } = caller(req);
     const isCoach = role === 'coach';
@@ -195,6 +188,18 @@ router.post('/', validateBody(sendMessageBody), async (req, res) => {
     const partnerRole = isCoach ? 'athlete' : 'coach';
     if (await eitherBlocked(userId, role, partnerIdNum, partnerRole)) {
       return res.status(403).json({ success: false, error: 'This conversation is unavailable.' });
+    }
+
+    // Content moderation runs after all the relational gates so we don't pay
+    // for an OpenAI call when the message would be rejected anyway. Generic
+    // 422 message keeps the rejected category out of the response.
+    const verdict = await moderateMessage(String(content));
+    if (!verdict.allowed) {
+      console.warn('[messages/send] rejected by moderation', { reason: verdict.reason, userId, partnerIdNum });
+      return res.status(422).json({
+        success: false,
+        error: "Your message couldn't be sent. Please revise and try again.",
+      });
     }
 
     const [row] = await db
@@ -269,9 +274,9 @@ router.get('/unread-count', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { userId, role } = caller(req);
-    const id = parseInt(req.params.id, 10);
-    if (Number.isNaN(id)) {
-      return res.status(400).json({ success: false, error: 'Invalid message id' });
+    const id = parseIdParam(req.params.id);
+    if (id === null) {
+      return res.status(400).json({ success: false, error: 'Invalid id' });
     }
     const [row] = await db.select().from(schema.messages).where(eq(schema.messages.id, id)).limit(1);
     if (!row) return res.status(404).json({ success: false, error: 'Not found' });
