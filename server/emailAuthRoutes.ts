@@ -26,6 +26,35 @@ const registerLimiter = rateLimit({
   message: { error: 'Too many accounts created from this network — try again later' },
 });
 
+// Mirror the loginLimiter config used in authRoutes.ts so the email/password
+// login surface gets the same brute-force protection as the OAuth-aware
+// router. `max` is read as a function on every request so tests can lower
+// the cap via env without remounting the route.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: () => {
+    const raw = Number(process.env.LOGIN_RATE_LIMIT_MAX);
+    return Number.isFinite(raw) && raw > 0 ? raw : 20;
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts — try again in 15 minutes' },
+});
+
+// Stricter cap on /forgot-password + /reset-password to make reset-token
+// brute-forcing and reset-email spam unviable. Same env-driven `max` so the
+// throttle test can run with a low budget without slowing the suite.
+const passwordResetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: () => {
+    const raw = Number(process.env.PASSWORD_RESET_RATE_LIMIT_MAX);
+    return Number.isFinite(raw) && raw > 0 ? raw : 5;
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many password reset requests — try again later' },
+});
+
 // Issue the same JWT shape as the canonical auth router. Tokens minted here
 // previously omitted userId/role/name, which broke any downstream route that
 // branched on req.user.role or read req.user.userId.
@@ -86,7 +115,7 @@ router.post('/register', registerLimiter, async (req, res) => {
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body || {};
 
   if (!email || !password) {
@@ -130,7 +159,7 @@ router.post('/login', async (req, res) => {
 // In-memory reset token store — swap for DB table in production
 const resetTokens = new Map<string, { playerId: number; expiresAt: number }>();
 
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', passwordResetLimiter, async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'email is required' });
 
@@ -149,7 +178,7 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', passwordResetLimiter, async (req, res) => {
   const { token, password } = req.body || {};
   if (!token || !password) return res.status(400).json({ error: 'token and password are required' });
   if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
@@ -169,5 +198,14 @@ router.post('/reset-password', async (req, res) => {
     return res.status(500).json({ error: 'Authentication request failed, please try again' });
   }
 });
+
+// Test-only export: lets the throttle test reset the limiter state between
+// cases (the in-memory store would otherwise persist counters across tests in
+// the same file). Mirrors the _resetMessageRateLimitForTests pattern used by
+// server/middleware/messageRateLimit.ts.
+export const _emailAuthLimitersForTests = {
+  login: loginLimiter,
+  passwordReset: passwordResetLimiter,
+};
 
 export default router;
