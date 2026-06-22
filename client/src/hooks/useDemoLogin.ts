@@ -12,14 +12,16 @@ const DEMO_CREDS: Record<DemoRole, { email: string; password: string }> = {
   coach:  { email: 'coach@hers365.com', password: 'hers365coach' },
 };
 
-// Pure gate: fail-closed if either signal is missing. Both must be true
-// before we render the demo button on the client.
-//   1. NODE_ENV / MODE is not 'production'
+// Pure gate, fail-closed, POSITIVE non-prod assertion (mirrors server).
+// Returning the button on the absence of 'production' is unsafe — a build
+// with MODE unset would render it. Require an explicit 'development' MODE
+// AND the opt-in flag.
+//   1. MODE === 'development' (Vite sets this for `vite dev`)
 //   2. VITE_ENABLE_DEMO_LOGIN === 'true' (explicit opt-in, not just truthy)
 export function shouldShowDemoLogin(env: ImportMetaEnv | Record<string, unknown>): boolean {
-  const mode = (env as Record<string, unknown>).MODE ?? (env as Record<string, unknown>).NODE_ENV;
+  const mode = (env as Record<string, unknown>).MODE;
   const flag = (env as Record<string, unknown>).VITE_ENABLE_DEMO_LOGIN;
-  if (!mode || mode === 'production') return false;
+  if (mode !== 'development') return false;
   if (flag !== 'true') return false;
   return true;
 }

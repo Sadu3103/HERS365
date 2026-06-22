@@ -8,7 +8,7 @@
     "dev": "tsx watch index.ts",
     "dev:legacy": "tsx watch index.ts",
     "dev:microservices": "tsx watch index.ts",
-    "dev:core": "tsx watch core-server.ts",
+    "dev:core": "APP_ENV=development tsx watch core-server.ts",
     "start": "tsx core-server.ts",
     "start:enterprise": "node dist/index.js",
     "start:microservices": "node dist/index.js",

@@ -26,18 +26,27 @@ const registerLimiter = rateLimit({
   message: { error: 'Too many accounts created from this network — try again later' },
 });
 
-// ─── Demo-login gate (defense-in-depth) ──────────────────────────────────────
+// ─── Demo-login gate (defense-in-depth, positive non-prod assertion) ─────────
 // Two hardcoded seeded accounts are the ONLY ones the client-side "Instant
-// Login" button can target. Even so, this server-side gate fails closed if
-// either signal is missing:
-//   1. NODE_ENV !== 'production'
-//   2. process.env.DEMO_ENABLED === 'true'
-// A leaked client build with the demo button visible cannot reach a prod
-// demo path because production environments will never satisfy (1) or (2).
+// Login" button can target. The server-side gate uses a POSITIVE non-prod
+// assertion rather than the absence of 'production': the prod runtime in
+// this repo does not reliably set NODE_ENV, so a missing/unset env must
+// fail closed, NOT default to "non-prod = ok".
+//
+// To enable demo login, BOTH must hold:
+//   1. (APP_ENV ?? NODE_ENV) is exactly 'development' or 'test'.
+//      Anything else (including undefined, '', 'production', 'staging',
+//      arbitrary strings) returns false.
+//   2. process.env.DEMO_ENABLED === 'true'.
+//
+// Both must be deliberately set, so prod cannot satisfy the gate even if
+// DEMO_ENABLED is misconfigured/leaked.
 const DEMO_LOGIN_ALLOWLIST = new Set<string>([
   'maya@hers365.com',
   'coach@hers365.com',
 ]);
+
+const ALLOWED_DEMO_ENVS = new Set<string>(['development', 'test']);
 
 export function isDemoEmail(email: string | undefined | null): boolean {
   if (!email) return false;
@@ -45,7 +54,8 @@ export function isDemoEmail(email: string | undefined | null): boolean {
 }
 
 export function isDemoLoginEnabled(): boolean {
-  if (process.env.NODE_ENV === 'production') return false;
+  const envValue = process.env.APP_ENV ?? process.env.NODE_ENV;
+  if (!envValue || !ALLOWED_DEMO_ENVS.has(envValue)) return false;
   if (process.env.DEMO_ENABLED !== 'true') return false;
   return true;
 }
