@@ -26,6 +26,40 @@ const registerLimiter = rateLimit({
   message: { error: 'Too many accounts created from this network — try again later' },
 });
 
+// ─── Demo-login gate (defense-in-depth) ──────────────────────────────────────
+// Two hardcoded seeded accounts are the ONLY ones the client-side "Instant
+// Login" button can target. Even so, this server-side gate fails closed if
+// either signal is missing:
+//   1. NODE_ENV !== 'production'
+//   2. process.env.DEMO_ENABLED === 'true'
+// A leaked client build with the demo button visible cannot reach a prod
+// demo path because production environments will never satisfy (1) or (2).
+const DEMO_LOGIN_ALLOWLIST = new Set<string>([
+  'maya@hers365.com',
+  'coach@hers365.com',
+]);
+
+export function isDemoEmail(email: string | undefined | null): boolean {
+  if (!email) return false;
+  return DEMO_LOGIN_ALLOWLIST.has(email.toLowerCase().trim());
+}
+
+export function isDemoLoginEnabled(): boolean {
+  if (process.env.NODE_ENV === 'production') return false;
+  if (process.env.DEMO_ENABLED !== 'true') return false;
+  return true;
+}
+
+// Returns true and writes a 403 if the request targets a demo account
+// while the demo path is locked down. Returns false otherwise (caller
+// continues with the normal credential check).
+function rejectIfDemoLocked(email: string, res: express.Response): boolean {
+  if (!isDemoEmail(email)) return false;
+  if (isDemoLoginEnabled()) return false;
+  res.status(403).json({ error: 'Demo login is disabled in this environment' });
+  return true;
+}
+
 // ─── DB helpers ──────────────────────────────────────────────────────────────
 
 type FoundUser = {
@@ -162,6 +196,8 @@ router.post('/login', loginLimiter, async (req, res) => {
     return res.status(400).json({ error: 'email and password are required' });
   }
 
+  if (rejectIfDemoLocked(email as string, res)) return;
+
   const user = await findUserByEmail((email as string).toLowerCase(), (role as auth.UserRole) || 'athlete');
   if (!user || !user.passwordHash) {
     return res.status(401).json({ error: 'Invalid credentials' });
@@ -183,6 +219,7 @@ router.post('/coach/login', loginLimiter, async (req, res) => {
   if (!email || !password) {
     return res.status(400).json({ error: 'email and password are required' });
   }
+  if (rejectIfDemoLocked(email as string, res)) return;
   const user = await findUserByEmail((email as string).toLowerCase(), 'coach');
   if (!user || !user.passwordHash) {
     return res.status(401).json({ error: 'Invalid credentials' });

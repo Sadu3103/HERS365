@@ -6,6 +6,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/api';
 import { athleteAvatar } from '../lib/avatar';
+import { DemoLoginButton } from '../components/DemoLoginButton';
 
 const FLAME   = '#ff5a2d';
 const FLAME_S = '#ff8c66';
@@ -617,6 +618,10 @@ export const Auth = () => {
                 : <>{isLogin ? 'Enter the Grid' : 'Claim Your Spot'}<ArrowRight size={16} /></>
               }
             </button>
+
+            {isLogin && (
+              <DemoLoginButton role="player" onLoadingChange={setLoading} onError={msg => setError(msg ?? '')} />
+            )}
           </form>
 
           {/* Consent / age block (signup only — also covers OAuth signup) */}
