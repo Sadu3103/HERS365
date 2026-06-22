@@ -326,7 +326,9 @@ router.delete('/posts/:id/like', requireAuth, async (req: AuthenticatedRequest, 
 
 router.post('/posts/:id/comments', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const postId = parseInt(req.params.id as string);
-  const userId = req.user.userId;
+  const user = authUser(req);
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  const userId = user.userId;
   const { content } = req.body;
 
   const comment = await db.insert(schema.comments).values({
