@@ -1,5 +1,5 @@
 import express from 'express';
-import { eq } from 'drizzle-orm';
+import { and, eq, gt } from 'drizzle-orm';
 import rateLimit from 'express-rate-limit';
 import { db } from './db';
 import * as schema from './schema';
@@ -287,36 +287,68 @@ router.post('/google', loginLimiter, async (req, res) => {
 // ─── POST /api/auth/refresh ───────────────────────────────────────────────────
 
 // [D-05] Exchange a valid refresh-token cookie for a new short-lived access
-// token. Rotates the refresh token (revokes the old, issues a new one) so a
-// stolen refresh token is single-use.
+// token. Rotation is single-use and reuse-detecting:
+//   • The rotation is one atomic UPDATE (active → revoked … RETURNING), so two
+//     concurrent requests with the same token can't both succeed.
+//   • If a token that was *already revoked* is replayed, that's a theft signal —
+//     we revoke every active session for that user.
 router.post('/refresh', async (req, res) => {
   const raw = readRefreshCookie(req);
   if (!raw) return res.status(401).json({ error: 'No refresh token' });
 
-  try {
-    const [row] = await db
-      .select()
-      .from(schema.refreshTokens)
-      .where(eq(schema.refreshTokens.tokenHash, auth.hashRefreshToken(raw)))
-      .limit(1);
+  const tokenHash = auth.hashRefreshToken(raw);
 
-    if (!row || row.isRevoked || new Date(row.expiresAt) <= new Date()) {
+  try {
+    const now = new Date();
+
+    // Atomic claim: flip active → revoked in a single statement. Only one
+    // caller can win, which closes the previous select-then-update race.
+    const [claimed] = await db
+      .update(schema.refreshTokens)
+      .set({ isRevoked: true, revokedAt: now, revokedReason: 'rotated', lastUsedAt: now })
+      .where(and(
+        eq(schema.refreshTokens.tokenHash, tokenHash),
+        eq(schema.refreshTokens.isRevoked, false),
+        gt(schema.refreshTokens.expiresAt, now),
+      ))
+      .returning();
+
+    if (!claimed) {
+      // Couldn't claim: token is unknown, expired, or already revoked.
+      // Reuse/theft detection — a replayed *revoked* token means it likely
+      // leaked, so revoke every active session for that user as a precaution.
+      const [existing] = await db
+        .select()
+        .from(schema.refreshTokens)
+        .where(eq(schema.refreshTokens.tokenHash, tokenHash))
+        .limit(1);
+
+      if (existing && existing.isRevoked) {
+        await db
+          .update(schema.refreshTokens)
+          .set({ isRevoked: true, revokedAt: new Date(), revokedReason: 'reuse_detected' })
+          .where(and(
+            eq(schema.refreshTokens.userId, existing.userId),
+            eq(schema.refreshTokens.userType, existing.userType),
+            eq(schema.refreshTokens.isRevoked, false),
+          ));
+        console.warn('[auth/refresh] refresh-token reuse detected — revoked all sessions', {
+          userId: existing.userId,
+          userType: existing.userType,
+        });
+      }
+
       res.clearCookie(REFRESH_COOKIE, { path: REFRESH_COOKIE_PATH });
       return res.status(401).json({ error: 'Invalid or expired refresh token' });
     }
 
-    const user = await findUserById(row.userId, row.userType as auth.UserRole);
+    const user = await findUserById(claimed.userId, claimed.userType as auth.UserRole);
     if (!user) {
+      res.clearCookie(REFRESH_COOKIE, { path: REFRESH_COOKIE_PATH });
       return res.status(401).json({ error: 'Account no longer exists' });
     }
 
-    // Rotate: revoke the used token, issue a fresh one.
-    await db
-      .update(schema.refreshTokens)
-      .set({ isRevoked: true, revokedAt: new Date(), revokedReason: 'rotated', lastUsedAt: new Date() })
-      .where(eq(schema.refreshTokens.id, row.id));
     await issueRefreshCookie(res, req, user.id, user.role);
-
     const token = auth.signToken({ userId: user.id, email: user.email, role: user.role, name: user.name });
     res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
   } catch (err) {

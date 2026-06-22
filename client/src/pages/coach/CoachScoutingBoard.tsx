@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fetchWithRefresh } from '../../lib/api';
 import { Link } from 'react-router-dom';
 import { Heart, Eye, Trash2, Star, Users, MapPin, GraduationCap, Award } from 'lucide-react';
 import type { ScoutingBoardItem, PlayerSearchResult } from '../../types';
@@ -28,7 +29,7 @@ export function CoachScoutingBoard() {
     setLoadError(false);
     try {
       const token = localStorage.getItem('coachToken');
-      const response = await fetch('/api/coach/board', {
+      const response = await fetchWithRefresh('/api/coach/board', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -41,7 +42,7 @@ export function CoachScoutingBoard() {
         // Fetch player details for each board item
         const playerPromises = data.board.map(async (item: ScoutingBoardItem) => {
           try {
-            const playerResponse = await fetch(`/api/coach/players/${item.playerId}`, {
+            const playerResponse = await fetchWithRefresh(`/api/coach/players/${item.playerId}`, {
               headers: {
                 'Authorization': `Bearer ${token}`,
               },
@@ -99,7 +100,7 @@ export function CoachScoutingBoard() {
   const removeFromBoard = async (playerId: number) => {
     try {
       const token = localStorage.getItem('coachToken');
-      await fetch(`/api/coach/players/${playerId}/save`, {
+      await fetchWithRefresh(`/api/coach/players/${playerId}/save`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -115,7 +116,7 @@ export function CoachScoutingBoard() {
   const updateTier = async (playerId: number, newTier: string) => {
     try {
       const token = localStorage.getItem('coachToken');
-      const response = await fetch(`/api/coach/players/${playerId}/tier`, {
+      const response = await fetchWithRefresh(`/api/coach/players/${playerId}/tier`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -137,7 +138,7 @@ export function CoachScoutingBoard() {
   const updateNotes = async (playerId: number, notes: string) => {
     try {
       const token = localStorage.getItem('coachToken');
-      await fetch(`/api/coach/players/${playerId}/notes`, {
+      await fetchWithRefresh(`/api/coach/players/${playerId}/notes`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,

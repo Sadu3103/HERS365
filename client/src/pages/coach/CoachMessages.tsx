@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { fetchWithRefresh } from '../../lib/api';
 import { gsap } from 'gsap';
 import * as THREE from 'three';
 
@@ -39,13 +40,13 @@ type PlayerResult = {
 // ── Coach auth fetch ──────────────────────────────────────────────────────────
 
 async function coachFetch<T = unknown>(path: string, opts: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('coachToken');
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(opts.headers as Record<string, string>),
   };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(path, { ...opts, headers });
+  // [D-05] fetchWithRefresh injects the coachToken and silently refreshes once
+  // on a 401, so coach pages survive the 15-minute access-token expiry.
+  const res = await fetchWithRefresh(path, { ...opts, headers }, { tokenKey: 'coachToken' });
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) throw new Error(data?.error || `Request failed (${res.status})`);

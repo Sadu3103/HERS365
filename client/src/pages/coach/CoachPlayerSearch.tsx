@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fetchWithRefresh } from '../../lib/api';
 import { Link } from 'react-router-dom';
 import { Search, Filter, Eye, Star, MapPin, GraduationCap, Award, Users, Heart } from 'lucide-react';
 import type { PlayerSearchResult } from '../../types';
@@ -61,7 +62,7 @@ export function CoachPlayerSearch() {
       queryParams.set('limit', '50');
 
       const token = localStorage.getItem('coachToken');
-      const response = await fetch(`/api/coach/players/search?${queryParams}`, {
+      const response = await fetchWithRefresh(`/api/coach/players/search?${queryParams}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -85,7 +86,7 @@ export function CoachPlayerSearch() {
 
     try {
       if (isSaved) {
-        await fetch(`/api/coach/players/${playerId}/save`, {
+        await fetchWithRefresh(`/api/coach/players/${playerId}/save`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -97,7 +98,7 @@ export function CoachPlayerSearch() {
           return newSet;
         });
       } else {
-        await fetch(`/api/coach/players/${playerId}/save`, {
+        await fetchWithRefresh(`/api/coach/players/${playerId}/save`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,

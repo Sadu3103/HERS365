@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fetchWithRefresh } from '../../lib/api';
 import { Link } from 'react-router-dom';
 import {
   Users,
@@ -29,7 +30,7 @@ export function CoachDashboard() {
   const fetchAnalytics = async () => {
     try {
       const token = localStorage.getItem('coachToken');
-      const response = await fetch('/api/coach/analytics', {
+      const response = await fetchWithRefresh('/api/coach/analytics', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -48,7 +49,7 @@ export function CoachDashboard() {
     setLoadError(false);
     try {
       const token = localStorage.getItem('coachToken');
-      const response = await fetch('/api/coach/player-clips', {
+      const response = await fetchWithRefresh('/api/coach/player-clips', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

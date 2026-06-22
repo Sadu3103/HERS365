@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, Zap, Star, Shield, ArrowRight, Flame } from 'lucide-react';
+import { fetchWithRefresh } from '../lib/api';
 
 const FLAME = '#ff5a2d';
 const INK = '#0a0a0a';
@@ -97,16 +98,12 @@ export const Subscription = () => {
     const raw = localStorage.getItem('user');
     if (!raw) { navigate('/auth?redirect=/subscribe'); return; }
     const user = JSON.parse(raw);
-    const token = localStorage.getItem('token');
     setCheckingOut(plan.id);
     setError('');
     try {
-      const res = await fetch('/api/payments/create-checkout-session', {
+      const res = await fetchWithRefresh('/api/payments/create-checkout-session', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           planId: plan.id,
           playerId: user.id,

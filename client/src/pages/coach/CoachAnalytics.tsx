@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fetchWithRefresh } from '../../lib/api';
 import { Link } from 'react-router-dom';
 import {
   TrendingUp,
@@ -27,7 +28,7 @@ export function CoachAnalytics() {
     setLoadError(false);
     try {
       const token = localStorage.getItem('coachToken');
-      const response = await fetch('/api/coach/analytics', {
+      const response = await fetchWithRefresh('/api/coach/analytics', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

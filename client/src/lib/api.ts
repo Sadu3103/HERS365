@@ -16,6 +16,9 @@ async function refreshAccessToken(): Promise<boolean> {
         const data = await res.json().catch(() => null);
         if (data?.token) {
           localStorage.setItem('token', data.token);
+          // The coach portal stores its access token under a separate key —
+          // keep it in sync so coach pages pick up the refreshed token too.
+          if (localStorage.getItem('coachToken')) localStorage.setItem('coachToken', data.token);
           if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
           return true;
         }
@@ -35,6 +38,47 @@ function buildHeaders(opts: RequestInit): Record<string, string> {
   };
   if (token) headers.Authorization = `Bearer ${token}`;
   return headers;
+}
+
+// [D-05] Drop-in replacement for fetch() that injects the current Bearer token
+// and transparently refreshes the access token once on a 401 before retrying.
+// Returns the raw Response so components keep their own res.ok / res.json()
+// handling — unlike apiFetch which parses + throws. Use this when migrating an
+// existing `fetch(...)` call so it gets silent refresh with minimal churn.
+export async function fetchWithRefresh(
+  path: string,
+  init: RequestInit = {},
+  opts: { tokenKey?: string } = {},
+): Promise<Response> {
+  // Coach pages keep their access token under 'coachToken'; everything else
+  // uses 'token'. Default by path (/api/coach/* → coachToken) so callers don't
+  // have to pass it; refresh syncs both keys regardless.
+  const tokenKey = opts.tokenKey ?? (path.startsWith('/api/coach') ? 'coachToken' : 'token');
+  const isAuthCall =
+    path.startsWith('/api/auth/refresh') ||
+    path.startsWith('/api/auth/login') ||
+    path.startsWith('/api/auth/register');
+
+  // Re-reads the *current* token each call, so the post-refresh retry uses the
+  // new token rather than the stale one captured by the caller.
+  const withAuth = (): RequestInit => {
+    const token = localStorage.getItem(tokenKey);
+    const headers = new Headers(init.headers);
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    return { ...init, headers, credentials: init.credentials ?? 'include' };
+  };
+
+  let res = await fetch(path, withAuth());
+  if (res.status === 401 && !isAuthCall) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      res = await fetch(path, withAuth());
+    } else {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
+  }
+  return res;
 }
 
 // Wraps fetch: injects the Bearer token, sends/parses JSON, throws on non-2xx.

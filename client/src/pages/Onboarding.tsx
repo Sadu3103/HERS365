@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Target, GraduationCap, Trophy, ChevronRight, ChevronLeft, Check, Star, Zap, MapPin, BookOpen } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { FLAG_POSITIONS } from '../lib/positions';
+import { fetchWithRefresh } from '../lib/api';
 
 const FLAME   = '#ff5a2d';
 const FLAME_S = '#ff8c66';
@@ -249,9 +250,9 @@ export function Onboarding() {
     }
     setSaving(true);
     try {
-      const res  = await fetch(`/api/athletes/${user.id}`, {
+      const res  = await fetchWithRefresh(`/api/athletes/${user.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
       const data = await res.json();

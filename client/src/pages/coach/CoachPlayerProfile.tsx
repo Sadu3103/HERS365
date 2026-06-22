@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fetchWithRefresh } from '../../lib/api';
 import { useParams, Link } from 'react-router-dom';
 import { Eye, Heart, MessageSquare, Award, Star, Users, MapPin, GraduationCap, Ruler, Weight, Target } from 'lucide-react';
 import type { PlayerProfile } from '../../types';
@@ -21,7 +22,7 @@ export function CoachPlayerProfile() {
   const fetchPlayerProfile = async (playerId: number) => {
     try {
       const token = localStorage.getItem('coachToken');
-      const response = await fetch(`/api/coach/players/${playerId}`, {
+      const response = await fetchWithRefresh(`/api/coach/players/${playerId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -44,7 +45,7 @@ export function CoachPlayerProfile() {
     try {
       const token = localStorage.getItem('coachToken');
       if (isSaved) {
-        await fetch(`/api/coach/players/${player.id}/save`, {
+        await fetchWithRefresh(`/api/coach/players/${player.id}/save`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -52,7 +53,7 @@ export function CoachPlayerProfile() {
         });
         setIsSaved(false);
       } else {
-        await fetch(`/api/coach/players/${player.id}/save`, {
+        await fetchWithRefresh(`/api/coach/players/${player.id}/save`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -74,7 +75,7 @@ export function CoachPlayerProfile() {
 
     try {
       const token = localStorage.getItem('coachToken');
-      await fetch(`/api/coach/message/${player.id}`, {
+      await fetchWithRefresh(`/api/coach/message/${player.id}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

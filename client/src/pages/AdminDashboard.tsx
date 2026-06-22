@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Shield, Activity, AlertTriangle, BarChart2 } from 'lucide-react';
+import { fetchWithRefresh } from '../lib/api';
 
 const FLAME = '#ff5a2d';
 const LINE = 'rgba(255,255,255,0.07)';
@@ -14,8 +15,7 @@ export const AdminDashboard = () => {
   const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    fetch('/api/admin/stats', { headers: { Authorization: `Bearer ${token}` } })
+    fetchWithRefresh('/api/admin/stats')
       .then((r) => r.json())
       .then((d) => setStats(d))
       .catch(() => setStats({ totalPlayers: 0, totalCoaches: 0, totalParents: 0, activeToday: 0 }));
