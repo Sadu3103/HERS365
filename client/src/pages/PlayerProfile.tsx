@@ -61,7 +61,10 @@ export const PlayerProfile = () => {
 
       try {
         const sRes = await fetch(`/api/athletes/${playerId}/stats`);
-        if (sRes.ok) setStats(await sRes.json());
+        if (sRes.ok) {
+          const body = await sRes.json();
+          setStats(Array.isArray(body) ? body : []);
+        }
       } catch { /* stats optional */ }
 
       setLoading(false);

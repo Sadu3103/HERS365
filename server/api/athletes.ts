@@ -86,8 +86,8 @@ router.get('/me/saved-schools', requireAuth, async (req, res) => {
 // POST /api/athletes/me/saved-schools
 router.post('/me/saved-schools', requireAuth, validateBody(savedSchoolBody), async (req, res) => {
   try {
-    const programId = parseInt(req.body?.schoolId, 10);
-    if (Number.isNaN(programId)) {
+    const programId = parseIdParam(req.body?.schoolId);
+    if (programId === null) {
       return res.status(400).json({ success: false, error: 'schoolId is required' });
     }
     const athleteId = Number(authUser(req)?.id);
@@ -170,6 +170,19 @@ router.get('/:id',optionalAuth, async (req, res) => {
     const isPrivate = athlete.privacySetting === 'private';
 
     if (isPrivate && !isOwner && !isCoach) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden',
+      });
+    }
+
+    // Parent-controlled coach discoverability. When the linked parent flips
+    // profileVisibility=false the athlete's preferences.coachDiscoverable is
+    // set to false (see server/api/parent.ts PUT /settings). Unset or true
+    // keeps the existing behavior. Coaches are blocked; the owner and the
+    // linked parent are not (this branch only runs for the coach role).
+    const prefs = (athlete.preferences ?? {}) as Record<string, unknown>;
+    if (isCoach && prefs.coachDiscoverable === false) {
       return res.status(403).json({
         success: false,
         error: 'Forbidden',

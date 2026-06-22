@@ -69,7 +69,7 @@ export function CoachPlayerSearch() {
 
       if (response.ok) {
         const data = await response.json();
-        setPlayers(data.players || []);
+        setPlayers(Array.isArray(data?.players) ? data.players : []);
       }
     } catch {
       setLoadError(true);
@@ -449,7 +449,7 @@ export function CoachPlayerSearch() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-400">NIL Points</span>
-                    <span className="text-lg font-semibold text-yellow-400">{player.nilPoints.toLocaleString()}</span>
+                    <span className="text-lg font-semibold text-yellow-400">{(player.nilPoints ?? 0).toLocaleString()}</span>
                   </div>
                 </div>
 

@@ -6,6 +6,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/api';
 import { athleteAvatar } from '../lib/avatar';
+import { DemoLoginButton } from '../components/DemoLoginButton';
 
 const FLAME   = '#ff5a2d';
 const FLAME_S = '#ff8c66';
@@ -197,17 +198,17 @@ export const Auth = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
         setError(
-          data.error || data.message ||
+          data?.error || data?.message ||
           (isLogin
             ? "We couldn't sign you in — check your email and password."
             : "We couldn't create your account — please try again.")
         );
         return;
       }
-      if (data.token && data.user) login(data.token, data.user);
+      if (data?.token && data?.user) login(data.token, data.user);
       navigate(isLogin
         ? '/feed'
         : role === 'parent' ? '/parent/dashboard' : '/onboarding'
@@ -617,6 +618,10 @@ export const Auth = () => {
                 : <>{isLogin ? 'Enter the Grid' : 'Claim Your Spot'}<ArrowRight size={16} /></>
               }
             </button>
+
+            {isLogin && (
+              <DemoLoginButton role="player" onLoadingChange={setLoading} onError={msg => setError(msg ?? '')} />
+            )}
           </form>
 
           {/* Consent / age block (signup only — also covers OAuth signup) */}

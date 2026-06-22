@@ -36,7 +36,37 @@ router.get('/players', async (req, res) => {
     const limitNum = clampIntQuery(limit, { default: 100, min: 1, max: 500 });
     const offsetNum = clampIntQuery(offset, { default: 0, min: 0, max: 100000 });
 
-    // Build filters
+    let query = db.select({
+      id: schema.players.id,
+      name: schema.players.name,
+      position: schema.players.position,
+      state: schema.players.state,
+      gradYear: schema.players.gradYear,
+      school: schema.players.school,
+      profileImage: schema.players.profileImage,
+      g5Rating: schema.players.g5Rating,
+      archetype: schema.players.archetype,
+      // Rankings
+      nationalRank: schema.athleteRankings.nationalRank,
+      stateRank: schema.athleteRankings.stateRank,
+      positionRank: schema.athleteRankings.positionRank,
+      movement: schema.athleteRankings.movement,
+      // Scores
+      combineScore: schema.athleteRankings.combineScore,
+      maxPrepsScore: schema.athleteRankings.maxPrepsScore,
+      zybekScore: schema.athleteRankings.zybekScore,
+      overallScore: schema.athleteRankings.overallScore,
+      // Data sources
+      dataSources: schema.athleteRankings.dataSources,
+      lastUpdated: schema.athleteRankings.updatedAt,
+      // Read prefs so we can post-filter rankingVisible (see below).
+      preferences: schema.players.preferences,
+    })
+    .from(schema.players)
+    .leftJoin(schema.athleteRankings, eq(schema.players.id, schema.athleteRankings.playerId))
+    .$dynamic();
+
+    // Apply filters
     const filters = [];
 
     if (state && level !== 'national') {
@@ -103,9 +133,16 @@ router.get('/players', async (req, res) => {
 
     // Pagination
     query = query.limit(limitNum).offset(offsetNum);
+    
+    const rankingsRaw = await query;
 
-    // Execute
-    const rankings = await query;
+    // Parent-controlled ranking visibility: drop athletes whose parent has
+    // flipped rankingVisibility=false (mirrors server/coachRoutes.ts player
+    // search). Unset or true stays in results.
+    const rankings = rankingsRaw.filter((p) => {
+      const prefs = (p.preferences ?? {}) as Record<string, unknown>;
+      return prefs.rankingVisible !== false;
+    });
 
     // Enrich response
     const enrichedRankings = rankings.map((player) => {

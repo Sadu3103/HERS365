@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from './db';
 import * as schema from './schema';
 import { eq, and } from 'drizzle-orm';
+import { parseIdParam } from './lib/parseIdParam';
 
 const router = Router();
 
@@ -18,15 +19,18 @@ router.get('/', async (req, res) => {
 
 // Get saved scholarships for a player
 router.get('/saved/:playerId', async (req, res) => {
-  const { playerId } = req.params;
+  const playerId = parseIdParam(req.params.playerId);
+  if (playerId === null) {
+    return res.status(400).json({ message: 'Invalid id' });
+  }
   try {
     const saved = await db
       .select({
         scholarshipId: schema.savedScholarships.scholarshipId,
       })
       .from(schema.savedScholarships)
-      .where(eq(schema.savedScholarships.playerId, parseInt(playerId)));
-    
+      .where(eq(schema.savedScholarships.playerId, playerId));
+
     res.json(saved.map(s => s.scholarshipId));
   } catch (error) {
     console.error('Error fetching saved scholarships:', error);
@@ -36,7 +40,11 @@ router.get('/saved/:playerId', async (req, res) => {
 
 // Save a scholarship
 router.post('/save', async (req, res) => {
-  const { playerId, scholarshipId } = req.body;
+  const playerId = parseIdParam(req.body?.playerId);
+  const scholarshipId = parseIdParam(req.body?.scholarshipId);
+  if (playerId === null || scholarshipId === null) {
+    return res.status(400).json({ message: 'playerId and scholarshipId must be positive integers' });
+  }
   try {
     // Check if already saved
     const existing = await db
@@ -67,7 +75,11 @@ router.post('/save', async (req, res) => {
 
 // Unsave a scholarship
 router.delete('/save', async (req, res) => {
-  const { playerId, scholarshipId } = req.body;
+  const playerId = parseIdParam(req.body?.playerId);
+  const scholarshipId = parseIdParam(req.body?.scholarshipId);
+  if (playerId === null || scholarshipId === null) {
+    return res.status(400).json({ message: 'playerId and scholarshipId must be positive integers' });
+  }
   try {
     await db
       .delete(schema.savedScholarships)

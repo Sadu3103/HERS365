@@ -47,6 +47,15 @@ describe('messaging access', () => {
     expect(res.status).toBe(400);
   });
 
+  it('responding with a non-numeric request id is a 400, not a 500', async () => {
+    const coach = await makeCoach();
+    const res = await request(app)
+      .post('/api/messages/requests/not-a-number/respond')
+      .set('Authorization', `Bearer ${tokenFor(coach, 'coach')}`)
+      .send({ action: 'approve' });
+    expect(res.status).toBe(400);
+  });
+
   it("cannot respond to another user's message request", async () => {
     const coach = await makeCoach();
     const otherCoach = await makeCoach();

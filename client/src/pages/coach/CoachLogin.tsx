@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Lock, ChevronRight, Zap } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
+import { DemoLoginButton } from '../../components/DemoLoginButton';
+import { shouldShowDemoLogin } from '../../hooks/useDemoLogin';
 
 export const CoachLogin = () => {
   const [email, setEmail] = useState('');
@@ -9,6 +11,7 @@ export const CoachLogin = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const demoEnabled = shouldShowDemoLogin(import.meta.env as unknown as Record<string, unknown>);
 
   const doLogin = async (loginEmail: string, loginPassword: string) => {
     setError('');
@@ -38,8 +41,6 @@ export const CoachLogin = () => {
     e.preventDefault();
     doLogin(email, password);
   };
-
-  const enterDemo = () => doLogin('coach@hers365.com', 'hers365coach');
 
   return (
     <div className="min-h-screen bg-surface flex items-center justify-center p-6">
@@ -98,21 +99,16 @@ export const CoachLogin = () => {
           </button>
         </form>
 
-        <div className="flex items-center gap-3 my-6">
-          <div className="flex-1 h-px bg-white/10" />
-          <span className="text-[10px] uppercase tracking-[0.2em] text-ink-faint">For the demo</span>
-          <div className="flex-1 h-px bg-white/10" />
-        </div>
-
-        <button
-          type="button"
-          onClick={enterDemo}
-          disabled={loading}
-          className="w-full py-4 bg-white/5 hover:bg-white/10 border border-coral-500/40 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-2xl font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2"
-        >
-          <Zap size={18} className="text-coral-500 fill-current" />
-          Enter Demo Coach Portal
-        </button>
+        {demoEnabled && (
+          <>
+            <div className="flex items-center gap-3 my-6">
+              <div className="flex-1 h-px bg-white/10" />
+              <span className="text-[10px] uppercase tracking-[0.2em] text-ink-faint">For the demo</span>
+              <div className="flex-1 h-px bg-white/10" />
+            </div>
+            <DemoLoginButton role="coach" onLoadingChange={setLoading} onError={msg => setError(msg ?? '')} />
+          </>
+        )}
 
         <p className="text-center mt-8 text-sm text-ink-muted">
           Need an account?{' '}

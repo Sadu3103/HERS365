@@ -3,6 +3,7 @@ import { asc, desc, eq, and, isNotNull } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 import { clampIntQuery } from '../lib/queryParam';
+import { parseIdParam } from '../lib/parseIdParam';
 
 const router = express.Router();
 
@@ -11,7 +12,7 @@ router.get('/', async (req, res) => {
     const { position, limit } = req.query;
     const limitNum = clampIntQuery(limit, { default: 50, min: 1, max: 200 });
 
-    const rows = await db
+    const rowsRaw = await db
       .select({
         id: schema.players.id,
         name: schema.players.name,
@@ -22,6 +23,7 @@ router.get('/', async (req, res) => {
         g5Rating: schema.players.g5Rating,
         xpPoints: schema.players.xpPoints,
         verificationStatus: schema.players.verificationStatus,
+        preferences: schema.players.preferences,
       })
       .from(schema.players)
       // Only rated athletes appear on the board. This also keeps unrated test
@@ -32,6 +34,15 @@ router.get('/', async (req, res) => {
       // scores between refreshes (which reads as arbitrary to athletes).
       .orderBy(desc(schema.players.g5Rating), desc(schema.players.xpPoints), asc(schema.players.name))
       .limit(limitNum);
+
+    // Parent-controlled ranking visibility: drop athletes whose parent has
+    // flipped rankingVisibility=false (mirrors the coach-search filter in
+    // server/coachRoutes.ts). Unset or true stays in results. Filter before
+    // rank assignment so ranks stay consecutive 1..N over visible athletes.
+    const rows = rowsRaw.filter((p) => {
+      const prefs = (p.preferences ?? {}) as Record<string, unknown>;
+      return prefs.rankingVisible !== false;
+    });
 
     let data = rows.map((p, i) => ({
       id: p.id,
@@ -59,8 +70,8 @@ router.get('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) return res.status(400).json({ success: false, error: 'Invalid id' });
+    const id = parseIdParam(req.params.id);
+    if (id === null) return res.status(400).json({ success: false, error: 'Invalid id' });
 
     const [p] = await db
       .select()
