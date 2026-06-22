@@ -289,6 +289,29 @@ router.put('/settings', validateBody(parentSettingsBody), async (req, res) => {
       }
     }
 
+    // Parent-controlled ranking visibility: same shape as the
+    // coachDiscoverable propagation above, but for the public rankings
+    // surface. Propagates rankingVisibility → preferences.rankingVisible on
+    // every linked child, merging so coachDiscoverable (and other keys)
+    // survive. Default-preserving: only writes when the flag is present.
+    if (typeof patch.rankingVisibility === 'boolean') {
+      const childIds = await getChildIds(parentId);
+      if (childIds.length > 0) {
+        const childRows = await db
+          .select({ id: schema.players.id, preferences: schema.players.preferences })
+          .from(schema.players)
+          .where(inArray(schema.players.id, childIds));
+        for (const child of childRows) {
+          const childPrefs = (child.preferences as Record<string, unknown> | null) ?? {};
+          const nextPrefs = { ...childPrefs, rankingVisible: patch.rankingVisibility };
+          await db
+            .update(schema.players)
+            .set({ preferences: nextPrefs })
+            .where(eq(schema.players.id, child.id));
+        }
+      }
+    }
+
     res.json({ success: true, data: merged });
   } catch (err) {
     console.error('[parent/settings PUT]', err);
