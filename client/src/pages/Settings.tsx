@@ -197,9 +197,6 @@ export const Settings = () => {
   const [notifSaved, setNotifSaved] = useState(false);
   const [notifSaving, setNotifSaving] = useState(false);
 
-  const [photoUploading, setPhotoUploading] = useState(false);
-  const photoInputRef = React.useRef<HTMLInputElement>(null);
-
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -324,25 +321,6 @@ export const Settings = () => {
       // keep local toggles if save fails
     } finally {
       setNotifSaving(false);
-    }
-  };
-
-  const handlePhotoPick = async (file: File) => {
-    if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) return;
-    setPhotoUploading(true);
-    try {
-      const presign = await apiFetch<{ uploadUrl: string; publicUrl: string }>('/api/upload/presign', {
-        method: 'POST',
-        body: JSON.stringify({ filename: file.name, contentType: file.type, size: file.size }),
-      });
-      const put = await fetch(presign.uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
-      if (!put.ok) throw new Error('Upload failed');
-      const res = await apiFetch<{ success: boolean; data: UserProfile }>('/api/users/profile', {
-        method: 'PUT', body: JSON.stringify({ profileImage: presign.publicUrl }),
-      });
-      if (res.data) setProfile(res.data);
-    } finally {
-      setPhotoUploading(false);
     }
   };
 
