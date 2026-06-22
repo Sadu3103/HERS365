@@ -148,6 +148,15 @@ describe('PATCH /api/admin/coaches/:id/verify', () => {
     expect(res.status).toBe(404);
     expect(res.body.error).toMatch(/not found/i);
   });
+
+  it('returns 400 (not 500) for a non-numeric id', async () => {
+    const res = await request(app)
+      .patch('/api/admin/coaches/not-a-number/verify')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ verified: true });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invalid/i);
+  });
 });
 
 describe('PATCH /api/admin/users/:id/verify', () => {
@@ -191,4 +200,49 @@ describe('PATCH /api/admin/users/:id/verify', () => {
     expect(res.status).toBe(404);
     expect(res.body.error).toMatch(/not found/i);
   });
+
+  it('returns 400 (not 500) for a non-numeric id', async () => {
+    const res = await request(app)
+      .patch('/api/admin/users/abc/verify')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ status: 'verified' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invalid/i);
+  });
+
+  it('returns 400 (not 500) for a negative id (parseIdParam rejects non-positive)', async () => {
+    const res = await request(app)
+      .patch('/api/admin/users/-1/verify')
+      .set('Authorization', `Bearer ${adminToken()}`)
+      .send({ status: 'verified' });
+    expect(res.status).toBe(400);
+  });
+});
+
+// Coverage for the remaining adminRoutes parseIdParam guards. We don't need
+// happy-path tests for every endpoint here (that's batch7 territory); these
+// just confirm the 400 (not 500) contract for non-numeric ids on the rest of
+// the verify / mutation surface that was hardened in this batch.
+describe('adminRoutes numeric-id hardening (400, not 500, on non-numeric ids)', () => {
+  const cases: Array<{ method: 'patch' | 'delete' | 'post'; path: string }> = [
+    { method: 'patch', path: '/api/admin/users/abc/subscription' },
+    { method: 'delete', path: '/api/admin/users/abc' },
+    { method: 'patch', path: '/api/admin/posts/abc/moderate' },
+    { method: 'patch', path: '/api/admin/events/abc' },
+    { method: 'delete', path: '/api/admin/events/abc' },
+    { method: 'patch', path: '/api/admin/subscription-plans/abc' },
+    { method: 'delete', path: '/api/admin/subscription-plans/abc' },
+    { method: 'post', path: '/api/admin/athletes/abc/verify' },
+    { method: 'patch', path: '/api/admin/teams/abc' },
+    { method: 'delete', path: '/api/admin/teams/abc' },
+  ];
+
+  for (const { method, path } of cases) {
+    it(`${method.toUpperCase()} ${path} → 400`, async () => {
+      const res = await (request(app) as any)[method](path)
+        .set('Authorization', `Bearer ${adminToken()}`)
+        .send({ verified: true, status: 'verified', tier: 'pro' });
+      expect(res.status).toBe(400);
+    });
+  }
 });
