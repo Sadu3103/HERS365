@@ -176,6 +176,19 @@ router.get('/:id',optionalAuth, async (req, res) => {
       });
     }
 
+    // Parent-controlled coach discoverability. When the linked parent flips
+    // profileVisibility=false the athlete's preferences.coachDiscoverable is
+    // set to false (see server/api/parent.ts PUT /settings). Unset or true
+    // keeps the existing behavior. Coaches are blocked; the owner and the
+    // linked parent are not (this branch only runs for the coach role).
+    const prefs = (athlete.preferences ?? {}) as Record<string, unknown>;
+    if (isCoach && prefs.coachDiscoverable === false) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden',
+      });
+    }
+
     res.json({ success: true, data: publicAthlete(athlete) });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to fetch athlete profile' });

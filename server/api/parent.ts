@@ -265,6 +265,30 @@ router.put('/settings', validateBody(parentSettingsBody), async (req, res) => {
       .update(schema.parents)
       .set({ preferences: merged })
       .where(eq(schema.parents.id, parentId));
+
+    // Parent-controlled coach discoverability: when the parent toggles
+    // profileVisibility, propagate it to every linked child by writing
+    // preferences.coachDiscoverable on the players row (merged, so other
+    // pref keys survive). Default-preserving: an unset flag means
+    // discoverable, so this only writes when profileVisibility is present.
+    if (typeof patch.profileVisibility === 'boolean') {
+      const childIds = await getChildIds(parentId);
+      if (childIds.length > 0) {
+        const childRows = await db
+          .select({ id: schema.players.id, preferences: schema.players.preferences })
+          .from(schema.players)
+          .where(inArray(schema.players.id, childIds));
+        for (const child of childRows) {
+          const childPrefs = (child.preferences as Record<string, unknown> | null) ?? {};
+          const nextPrefs = { ...childPrefs, coachDiscoverable: patch.profileVisibility };
+          await db
+            .update(schema.players)
+            .set({ preferences: nextPrefs })
+            .where(eq(schema.players.id, child.id));
+        }
+      }
+    }
+
     res.json({ success: true, data: merged });
   } catch (err) {
     console.error('[parent/settings PUT]', err);
