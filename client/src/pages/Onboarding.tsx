@@ -254,9 +254,9 @@ export function Onboarding() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(form),
       });
-      const data = await res.json();
-      if (!res.ok || data.success === false) {
-        showNotification('error', 'Could not save', data.error || 'Something went wrong.');
+      const data = await res.json().catch(() => null);
+      if (!res.ok || data?.success === false) {
+        showNotification('error', 'Could not save', data?.error || 'Something went wrong.');
         setSaving(false);
         return;
       }
