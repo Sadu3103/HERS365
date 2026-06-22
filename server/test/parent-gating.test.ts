@@ -246,3 +246,14 @@ describe('safeguarding: under-18 athlete + no verified parent', () => {
     expect(rows.length).toBe(2);
   });
 });
+
+describe('POST /api/parent/requests/:id/respond numeric-id hardening', () => {
+  it('returns 400 (not 500) for a non-numeric request id', async () => {
+    const parent = await makeParent();
+    const res = await request(app)
+      .post('/api/parent/requests/not-a-number/respond')
+      .set('Authorization', `Bearer ${tokenFor(parent, 'parent')}`)
+      .send({ action: 'approve' });
+    expect(res.status).toBe(400);
+  });
+});
