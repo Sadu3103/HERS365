@@ -4,42 +4,78 @@
 import 'dotenv/config';
 import { createApp } from './app';
 
-// [D-02] Fail fast on missing required env vars
-const REQUIRED_ENV_VARS = ['DATABASE_URL', 'JWT_SECRET', 'SESSION_SECRET'];
-
-// [D-09] Payments can be disabled in dev (PAYMENTS_ENABLED=false) so the
-// platform runs without Stripe. When enabled (the default), all three Stripe
-// keys are required at startup — otherwise the server boots fine and only
-// fails when a user actually tries to pay.
-const PAYMENTS_ENABLED = process.env.PAYMENTS_ENABLED !== 'false';
-if (PAYMENTS_ENABLED) {
-  REQUIRED_ENV_VARS.push('STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRO_PRICE_ID');
-}
-
-if (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'development') {
-  const missing = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
-  if (missing.length > 0) {
-    console.error(`Missing required environment variables: ${missing.join(', ')}`);
-    process.exit(1);
-  }
-}
-
-// [D-07] Guard against weak JWT signing secrets. Runs in every environment —
-// a short/known secret used in dev tends to leak into prod, and a forgeable
-// token is forgeable everywhere. Require at least 32 characters.
-if (process.env.NODE_ENV !== 'test') {
-  const secret = process.env.JWT_SECRET;
-  if (!secret || secret.length < 32) {
-    console.error(
-      `JWT_SECRET must be set and at least 32 characters (got ${secret ? `${secret.length} chars` : 'unset'}). ` +
-      `Generate one with:  openssl rand -base64 48`
+// [D-12] Defense in depth for Instant Login (demo accounts).
+// The runtime gate in server/authRoutes.ts (rejectIfDemoLocked / isDemoLoginEnabled)
+// already refuses demo logins unless APP_ENV/NODE_ENV is dev|test AND DEMO_ENABLED=true.
+// That runtime check stays. This is a STARTUP HARD-REFUSAL: if a prod build
+// somehow has DEMO_ENABLED=true set, refuse to boot at all. One env var slip
+// on a minors platform cannot be allowed to serve a single request.
+//
+// Exported as a pure function so it is unit-testable without exiting the test process.
+export function assertDemoNotEnabledInProduction(
+  env: NodeJS.ProcessEnv = process.env,
+): void {
+  if (env.NODE_ENV === 'production' && env.DEMO_ENABLED === 'true') {
+    throw new Error(
+      'SECURITY: refusing to boot — DEMO_ENABLED=true is set with NODE_ENV=production. ' +
+      'Instant Login (seeded demo accounts) must never be reachable in production. ' +
+      'Unset DEMO_ENABLED in the production environment and redeploy.',
     );
-    process.exit(1);
   }
 }
 
-const port = process.env.PORT || process.env.COSMOS_API_PORT || 4000;
+function main() {
+  // [D-12] Startup hard-refusal — see assertDemoNotEnabledInProduction above.
+  try {
+    assertDemoNotEnabledInProduction();
+  } catch (err) {
+    console.error((err as Error).message);
+    process.exit(1);
+  }
 
-createApp().listen(port, () => {
-  console.log(`HERS365 core API listening on port ${port}`);
-});
+  // [D-02] Fail fast on missing required env vars
+  const REQUIRED_ENV_VARS = ['DATABASE_URL', 'JWT_SECRET', 'SESSION_SECRET'];
+
+  // [D-09] Payments can be disabled in dev (PAYMENTS_ENABLED=false) so the
+  // platform runs without Stripe. When enabled (the default), all three Stripe
+  // keys are required at startup — otherwise the server boots fine and only
+  // fails when a user actually tries to pay.
+  const PAYMENTS_ENABLED = process.env.PAYMENTS_ENABLED !== 'false';
+  if (PAYMENTS_ENABLED) {
+    REQUIRED_ENV_VARS.push('STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRO_PRICE_ID');
+  }
+
+  if (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'development') {
+    const missing = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
+    if (missing.length > 0) {
+      console.error(`Missing required environment variables: ${missing.join(', ')}`);
+      process.exit(1);
+    }
+  }
+
+  // [D-07] Guard against weak JWT signing secrets. Runs in every environment —
+  // a short/known secret used in dev tends to leak into prod, and a forgeable
+  // token is forgeable everywhere. Require at least 32 characters.
+  if (process.env.NODE_ENV !== 'test') {
+    const secret = process.env.JWT_SECRET;
+    if (!secret || secret.length < 32) {
+      console.error(
+        `JWT_SECRET must be set and at least 32 characters (got ${secret ? `${secret.length} chars` : 'unset'}). ` +
+        `Generate one with:  openssl rand -base64 48`
+      );
+      process.exit(1);
+    }
+  }
+
+  const port = process.env.PORT || process.env.COSMOS_API_PORT || 4000;
+
+  createApp().listen(port, () => {
+    console.log(`HERS365 core API listening on port ${port}`);
+  });
+}
+
+// Only run the boot sequence when this file is the entrypoint, so unit tests
+// can import assertDemoNotEnabledInProduction without spinning up the server.
+if (process.env.NODE_ENV !== 'test') {
+  main();
+}
