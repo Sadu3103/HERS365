@@ -530,9 +530,23 @@ export const Settings = () => {
 
   const renderNotificationsTab = () => (
     <div className="space-y-6">
+      {/* Honesty banner: notification preferences are not yet wired to the
+          server, only to this browser's localStorage. Without this banner
+          the "Save / Saved!" button below implies cross-device persistence
+          it doesn't deliver. Privacy preferences (separate tab) DO persist. */}
+      <div role="status" aria-live="polite" className="rounded-2xl border border-coral-500/30 bg-coral-500/[0.06] p-4 flex items-start gap-3">
+        <AlertCircle size={18} className="text-coral-500 shrink-0 mt-0.5" />
+        <div className="text-sm text-ink-muted leading-relaxed">
+          <span className="font-bold text-white">Coming soon: cross-device sync.</span>{' '}
+          Notification preferences here save to this browser only — they won't follow
+          you to another device or carry across logouts. Privacy &amp; Security settings
+          (separate tab) do save to your account.
+        </div>
+      </div>
+
       <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
-        <h3 className="text-xl font-bold text-white mb-2 uppercase tracking-tight">Notification Preferences</h3>
-        <p className="text-xs text-ink-faint mb-6">Saved to this device only.</p>
+        <h3 className="text-xl font-bold text-white mb-2 uppercase tracking-tight">Notification Preferences <span className="text-coral-500 text-xs ml-2 tracking-widest">· DEVICE ONLY</span></h3>
+        <p className="text-xs text-ink-faint mb-6">These toggles save to this browser. They do not sync across devices yet.</p>
 
         <div className="space-y-4">
           {[
@@ -591,7 +605,7 @@ export const Settings = () => {
           className={`flex items-center gap-2 px-8 py-4 rounded-xl font-bold uppercase tracking-widest transition-colors ${notifSaved ? 'bg-green-500 text-white' : 'bg-coral-500 hover:bg-coral-600 text-white'}`}
         >
           {notifSaved ? <CheckCircle size={18} /> : <Save size={18} />}
-          {notifSaved ? 'Saved!' : 'Save Preferences'}
+          {notifSaved ? 'Saved To This Device' : 'Save On This Device'}
         </button>
       </div>
     </div>

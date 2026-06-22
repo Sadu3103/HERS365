@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Shield, Eye, MessageSquare, Bell, UserCheck, Lock, ChevronRight, CheckCircle, AlertCircle } from 'lucide-react';
+import { Shield, Eye, MessageSquare, Bell, UserCheck, Lock, ChevronRight, AlertCircle } from 'lucide-react';
 
 const FLAME = '#ff5a2d';
 const INK = '#0a0a0a';
@@ -10,7 +9,6 @@ const LINE = 'rgba(255,255,255,0.07)';
 const MUTED = '#8a8a86';
 const MUTED_2 = '#5a5a56';
 const DISP = "'Barlow Condensed', sans-serif";
-const GREEN = '#4ade80';
 
 const css = `
   *,*::before,*::after{box-sizing:border-box}
@@ -35,35 +33,41 @@ const FEATURES = [
   { icon: Shield, title: 'Safe Messaging Gateway', desc: 'All coach-athlete messages are read-only for coaches until you grant full access.' },
 ];
 
+// Read-only preview toggle. The controls on this page are not yet wired to
+// the persistence layer (see the Preview banner below). Rendering interactive
+// toggles here would mislead parents into thinking their preferences are
+// being saved server-side — they are not. The working parent controls live
+// in ParentDashboard, which persists via /api/parent/settings.
 interface ToggleProps {
   on: boolean;
-  onChange: () => void;
   label: string;
 }
-const Toggle = ({ on, onChange, label }: ToggleProps) => (
-  <button
+const Toggle = ({ on, label }: ToggleProps) => (
+  <span
     className="toggle-track"
-    style={{ background: on ? FLAME : 'rgba(255,255,255,.12)' }}
-    onClick={onChange}
-    aria-label={label}
-    aria-pressed={on}
+    role="img"
+    aria-label={`${label}: preview only, not saved`}
+    aria-disabled="true"
+    style={{
+      background: on ? 'rgba(255,90,45,.35)' : 'rgba(255,255,255,.08)',
+      cursor: 'not-allowed', opacity: 0.55, display: 'inline-block',
+    }}
   >
     <span className="toggle-thumb" style={{ transform: on ? 'translateX(20px)' : 'translateX(0px)' }} />
-  </button>
+  </span>
 );
 
 export const ParentHub = () => {
-  const [settings, setSettings] = useState({
+  // Display-only defaults. Preserved so the existing screenshots/marketing
+  // tour stay coherent, but no setter is exposed — the toggles are visual.
+  const settings = {
     profilePublic: true,
     coachSearch: true,
     directContact: false,
     emailAlerts: true,
     smsAlerts: false,
     filmPublic: true,
-  });
-
-  const toggle = (key: keyof typeof settings) =>
-    setSettings(prev => ({ ...prev, [key]: !prev[key] }));
+  } as const;
 
   const reveal = {
     initial: { opacity: 0, y: 20 },
@@ -112,18 +116,38 @@ export const ParentHub = () => {
           {/* Status bar */}
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 10, marginTop: 24,
-            background: 'rgba(74,222,128,.08)', border: '1px solid rgba(74,222,128,.22)',
+            background: 'rgba(255,90,45,.08)', border: '1px solid rgba(255,90,45,.24)',
             borderRadius: 9999, padding: '8px 16px',
           }}>
-            <CheckCircle size={14} color={GREEN} />
-            <span style={{ fontFamily: DISP, fontWeight: 700, letterSpacing: '.1em', fontSize: '.78rem', textTransform: 'uppercase', color: GREEN }}>
-              Parental Controls Active
+            <AlertCircle size={14} color={FLAME} />
+            <span style={{ fontFamily: DISP, fontWeight: 700, letterSpacing: '.1em', fontSize: '.78rem', textTransform: 'uppercase', color: FLAME }}>
+              Preview · Coming Soon
             </span>
           </div>
         </div>
       </div>
 
       <div style={{ maxWidth: 960, margin: '0 auto', padding: '36px 28px 60px' }}>
+        {/* Honesty banner: these toggles are visual previews. Until they are
+            wired to the persistence layer, parents would otherwise click and
+            assume their preferences are saved server-side — they are not. */}
+        <div role="status" aria-live="polite" style={{
+          background: 'rgba(255,90,45,.06)', border: '1px solid rgba(255,90,45,.28)',
+          borderRadius: 14, padding: '16px 20px', marginBottom: 28,
+          display: 'flex', gap: 14, alignItems: 'flex-start',
+        }}>
+          <AlertCircle size={20} color={FLAME} style={{ flexShrink: 0, marginTop: 2 }} />
+          <div>
+            <div style={{ fontFamily: DISP, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', fontSize: '.84rem', color: '#f4f4f2', marginBottom: 4 }}>
+              These controls aren't live yet
+            </div>
+            <p style={{ margin: 0, fontSize: '.86rem', color: MUTED, lineHeight: 1.55 }}>
+              This page is a preview of the parental control surface and toggles here are not saved. Your working parental controls (approve messages, link children, manage alerts) live in the{' '}
+              <Link to="/parent" style={{ color: FLAME, fontWeight: 700, textDecoration: 'underline' }}>Parent Dashboard</Link>.
+            </p>
+          </div>
+        </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, marginBottom: 40 }}>
           {/* Privacy Settings Card */}
           <motion.div {...reveal} className="hub-card" style={{
@@ -145,7 +169,7 @@ export const ParentHub = () => {
                   <div style={{ fontWeight: 600, fontSize: '.88rem' }}>{label}</div>
                   <div style={{ color: MUTED_2, fontSize: '.75rem', marginTop: 2 }}>{sub}</div>
                 </div>
-                <Toggle on={settings[key]} onChange={() => toggle(key)} label={label} />
+                <Toggle on={settings[key]} label={label} />
               </div>
             ))}
           </motion.div>
@@ -168,7 +192,7 @@ export const ParentHub = () => {
                   <div style={{ fontWeight: 600, fontSize: '.88rem' }}>{label}</div>
                   <div style={{ color: MUTED_2, fontSize: '.75rem', marginTop: 2 }}>{sub}</div>
                 </div>
-                <Toggle on={settings[key]} onChange={() => toggle(key)} label={label} />
+                <Toggle on={settings[key]} label={label} />
               </div>
             ))}
 
