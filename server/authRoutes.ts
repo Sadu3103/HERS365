@@ -1,10 +1,14 @@
 import express from 'express';
+import passport from 'passport';
 import { eq } from 'drizzle-orm';
 import rateLimit from 'express-rate-limit';
 import { db } from './db';
 import * as schema from './schema';
 import * as auth from './auth';
 import { blocklistToken } from './redis';
+import { configurePassport, isGitHubOAuthConfigured } from './passport';
+
+configurePassport();
 
 const router = express.Router();
 
@@ -355,6 +359,61 @@ router.post('/logout', auth.requireAuth, async (req, res) => {
   }
   res.clearCookie('refreshToken', { httpOnly: true, sameSite: 'lax' });
   res.json({ success: true });
+});
+
+router.post('/change-password', auth.requireAuth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body ?? {};
+  const user = (req as any).user as auth.TokenPayload;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'currentPassword and newPassword are required' });
+  }
+  if (String(newPassword).length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  }
+
+  const found = await findUserByEmail(user.email, user.role);
+  if (!found?.passwordHash) {
+    return res.status(400).json({ error: 'Password change is not available for this account' });
+  }
+  if (!(await auth.comparePassword(String(currentPassword), found.passwordHash))) {
+    return res.status(401).json({ error: 'Current password is incorrect' });
+  }
+
+  try {
+    const passwordHash = await auth.hashPassword(String(newPassword));
+    const userId = user.userId ?? user.id!;
+    const table = user.role === 'coach' ? schema.coaches : user.role === 'parent' ? schema.parents : schema.players;
+    await db.update(table).set({ passwordHash }).where(eq(table.id, userId));
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[auth/change-password]', err);
+    res.status(500).json({ error: 'Failed to update password' });
+  }
+});
+
+router.get('/github', (req, res, next) => {
+  if (!isGitHubOAuthConfigured()) {
+    return res.status(503).json({ error: 'GitHub OAuth not configured' });
+  }
+  passport.authenticate('github', { session: false, scope: ['user:email'] })(req, res, next);
+});
+
+router.get('/github/callback', (req, res, next) => {
+  if (!isGitHubOAuthConfigured()) {
+    return res.status(503).json({ error: 'GitHub OAuth not configured' });
+  }
+  const frontend = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+  passport.authenticate('github', { session: false, failureRedirect: `${frontend}/auth?error=github` })(req, res, next);
+}, (req, res) => {
+  const user = (req as any).user as { userId: number; email: string; name: string; role: auth.UserRole };
+  const token = auth.signToken({ userId: user.userId, email: user.email, name: user.name, role: user.role });
+  const frontend = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+  const data = encodeURIComponent(JSON.stringify({
+    token,
+    user: { id: user.userId, email: user.email, name: user.name, role: user.role },
+  }));
+  res.redirect(`${frontend}/auth/callback?data=${data}`);
 });
 
 export default router;

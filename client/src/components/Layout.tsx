@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutGrid, Trophy, User, Dumbbell, Search,
-  Settings, MessageSquare, Plus
+  Settings, MessageSquare, Plus, LogOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
@@ -45,7 +45,13 @@ export const Layout = () => {
   const navigate  = useNavigate();
   const [mode, setMode] = useState<'athlete' | 'coach'>('athlete');
 
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+
+  const handleSignOut = () => {
+    apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    logout();
+    navigate('/auth');
+  };
 
   const { data: profile } = useQuery({
     queryKey: ['profile'],
@@ -176,6 +182,23 @@ export const Layout = () => {
               SETTINGS
             </Link>
           </motion.div>
+
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={handleSignOut}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 12px', borderRadius: 9,
+              background: 'transparent', border: 'none',
+              color: '#777', cursor: 'pointer', width: '100%',
+              fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.04em',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#ff5a2d'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#777'; }}
+          >
+            <LogOut size={17} />
+            SIGN OUT
+          </motion.button>
 
           <motion.button
             whileTap={{ scale: 0.97 }}
