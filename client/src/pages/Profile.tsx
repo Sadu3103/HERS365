@@ -262,7 +262,10 @@ export const Profile = () => {
     setStatsLoading(true);
     if (isOwnProfile) {
       apiFetch<{ game: GameStat[]; combine: CombineStat | null }>('/api/profile/stats')
-        .then(d => { setGameStats(d.game ?? []); setCombineStats(d.combine ?? null); })
+        .then(d => {
+          setGameStats(Array.isArray(d?.game) ? d.game : []);
+          setCombineStats(d?.combine ?? null);
+        })
         .catch(() => {})
         .finally(() => setStatsLoading(false));
     } else {

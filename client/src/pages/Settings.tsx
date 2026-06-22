@@ -209,25 +209,25 @@ export const Settings = () => {
     setProfileError(null);
     try {
       const res = await apiFetch<{ success: boolean; data: UserProfile }>('/api/users/profile');
-      const data = res.data;
+      const data = res?.data ?? ({} as UserProfile);
       setProfile(data);
       setForm({
-        name: data.name || '',
-        position: data.position || '',
-        school: data.school || '',
-        state: data.state || '',
-        city: data.city || '',
-        zipCode: data.zipCode || '',
-        gradYear: data.gradYear ? String(data.gradYear) : '',
-        gpa: data.gpa || '',
-        sport: data.sport || '',
-        bio: data.bio || '',
-        achievements: data.achievements || '',
-        heightIn: data.heightIn ? String(data.heightIn) : '',
-        weightLbs: data.weightLbs ? String(data.weightLbs) : '',
-        phone: data.phone || '',
+        name: data?.name || '',
+        position: data?.position || '',
+        school: data?.school || '',
+        state: data?.state || '',
+        city: data?.city || '',
+        zipCode: data?.zipCode || '',
+        gradYear: data?.gradYear ? String(data.gradYear) : '',
+        gpa: data?.gpa || '',
+        sport: data?.sport || '',
+        bio: data?.bio || '',
+        achievements: data?.achievements || '',
+        heightIn: data?.heightIn ? String(data.heightIn) : '',
+        weightLbs: data?.weightLbs ? String(data.weightLbs) : '',
+        phone: data?.phone || '',
       });
-      setPrivacySetting(data.privacySetting || 'public');
+      setPrivacySetting(data?.privacySetting || 'public');
     } catch (err) {
       setProfileError(errorMessage(err, 'Failed to load profile'));
     } finally {

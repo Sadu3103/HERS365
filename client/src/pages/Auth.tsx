@@ -198,17 +198,17 @@ export const Auth = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
         setError(
-          data.error || data.message ||
+          data?.error || data?.message ||
           (isLogin
             ? "We couldn't sign you in — check your email and password."
             : "We couldn't create your account — please try again.")
         );
         return;
       }
-      if (data.token && data.user) login(data.token, data.user);
+      if (data?.token && data?.user) login(data.token, data.user);
       navigate(isLogin
         ? '/feed'
         : role === 'parent' ? '/parent/dashboard' : '/onboarding'
