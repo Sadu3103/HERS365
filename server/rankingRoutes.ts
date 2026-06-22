@@ -64,6 +64,8 @@ router.get('/players', async (req, res) => {
       // Data sources
       dataSources: schema.athleteRankings.dataSources,
       lastUpdated: schema.athleteRankings.updatedAt,
+      // Read prefs so we can post-filter rankingVisible (see below).
+      preferences: schema.players.preferences,
     })
     .from(schema.players)
     .leftJoin(schema.athleteRankings, eq(schema.players.id, schema.athleteRankings.playerId))
@@ -99,7 +101,15 @@ router.get('/players', async (req, res) => {
 
     query = query.limit(limitNum).offset(offsetNum);
     
-    const rankings = await query;
+    const rankingsRaw = await query;
+
+    // Parent-controlled ranking visibility: drop athletes whose parent has
+    // flipped rankingVisibility=false (mirrors server/coachRoutes.ts player
+    // search). Unset or true stays in results.
+    const rankings = rankingsRaw.filter((p) => {
+      const prefs = (p.preferences ?? {}) as Record<string, unknown>;
+      return prefs.rankingVisible !== false;
+    });
 
     // Enrich with tier information
     const enrichedRankings = rankings.map(player => {

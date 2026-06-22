@@ -38,7 +38,6 @@ import { LeagueFinder } from './pages/LeagueFinder';
 import { SquadFinder } from './pages/SquadFinder';
 import { TeamFinder } from './pages/TeamFinder';
 import { ScholarshipTracker } from './pages/ScholarshipTracker';
-import { ParentHub } from './pages/ParentHub';
 import { ParentDashboard } from './pages/ParentDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { AdminLogin } from './pages/AdminLogin';
@@ -184,7 +183,7 @@ function App() {
               <Route path="/squads" element={<SquadFinder />} />
               <Route path="/teams/find" element={<TeamFinder />} />
               <Route path="/scholarships" element={<ScholarshipTracker />} />
-              <Route path="/parent" element={<ParentHub />} />
+              <Route path="/parent" element={<ParentDashboard />} />
               <Route path="/parent/dashboard" element={<ParentDashboard />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/login" element={<AdminLogin />} />

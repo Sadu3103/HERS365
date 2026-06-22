@@ -113,10 +113,14 @@ export const ParentDashboard = () => {
         fetch('/api/parent/requests'),
         fetch('/api/parent/activity'),
       ]);
-      const [cData, rData, aData] = await Promise.all([cRes.json(), rRes.json(), aRes.json()]);
-      if (cData.success) setChildren(cData.data);
-      if (rData.success) setRequests(rData.data);
-      if (aData.success) setActivity(aData.data);
+      const [cData, rData, aData] = await Promise.all([
+        cRes.json().catch(() => null),
+        rRes.json().catch(() => null),
+        aRes.json().catch(() => null),
+      ]);
+      if (cData?.success) setChildren(Array.isArray(cData.data) ? cData.data : []);
+      if (rData?.success) setRequests(Array.isArray(rData.data) ? rData.data : []);
+      if (aData?.success) setActivity(Array.isArray(aData.data) ? aData.data : []);
     } catch (err) {
       console.error('[ParentDashboard] fetch error', err);
     } finally {
@@ -134,8 +138,8 @@ export const ParentDashboard = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const data = await res.json().catch(() => null);
+      if (data?.success) {
         const req = requests.find((r) => r.id === id);
         if (req) {
           setRecentActions((prev) => [...prev, { id, from: req.from, action: action === 'approve' ? 'approved' : 'rejected' }]);
@@ -262,7 +266,7 @@ export const ParentDashboard = () => {
                       </div>
                       <div style={{ fontSize: '0.65rem', color: MUTED_2, flexShrink: 0 }}>{formatTs(m.createdAt)}</div>
                     </div>
-                    <div style={{ fontSize: '0.82rem', color: '#c0c0bc', lineHeight: 1.5, marginBottom: 4, fontStyle: 'italic' }}>"{m.preview.slice(0, 100)}{m.preview.length > 100 ? '…' : ''}"</div>
+                    <div style={{ fontSize: '0.82rem', color: '#c0c0bc', lineHeight: 1.5, marginBottom: 4, fontStyle: 'italic' }}>"{(m.preview ?? '').slice(0, 100)}{(m.preview ?? '').length > 100 ? '…' : ''}"</div>
                     <div style={{ fontSize: '0.7rem', color: MUTED_2, marginBottom: 14 }}>To: {m.child}</div>
                     <div style={{ display: 'flex', gap: 10 }}>
                       <motion.button
