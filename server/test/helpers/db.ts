@@ -13,6 +13,7 @@ const TABLES = [
   'scholarships',
   'faqs',
   'combine_stats',
+  'athlete_rankings',
   'payments',
   'parents',
   'coaches',
