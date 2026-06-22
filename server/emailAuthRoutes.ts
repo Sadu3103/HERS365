@@ -11,7 +11,7 @@ import { db } from './db';
 import * as schema from './schema';
 import { sendPasswordResetEmail } from './email';
 import * as auth from './auth';
-import jwt from 'jsonwebtoken';
+
 
 const router = express.Router();
 
@@ -53,18 +53,6 @@ function getJwtSecret(): string {
 
 const JWT_SECRET = getJwtSecret();
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? '7d';
-
-function signToken(player: PlayerTokenPayload) {
-  return jwt.sign(
-    {
-        id: player.id,
-        email: player.email,
-        subscriptionTier: player.subscriptionTier,
-      },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
-  }
 
 router.post('/register', registerLimiter, async (req, res) => {
   const { email, password, name } = req.body || {};

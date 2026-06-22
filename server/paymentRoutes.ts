@@ -109,7 +109,7 @@ router.post('/webhook', requireStripe, express.raw({ type: 'application/json' })
           description: `${plans[0]?.name || 'Subscription'} - Monthly`,
           stripePaymentIntentId: session.payment_intent as string,
           stripeCustomerId: session.customer as string,
-          paidAt: new Date().toISOString(),
+          paidAt: new Date(),
         });
       }
       break;
@@ -450,11 +450,11 @@ router.patch('/payments/:id', async (req: Request, res: Response) => {
         const updatedPayment = await db.update(schema.payments)
             .set({
                 ...(status && { status }),
-                ...(paidAt && { paidAt: new Date(paidAt).toISOString() }),
+                ...(paidAt && { paidAt: new Date(paidAt) }),
                 ...(receiptUrl && { receiptUrl }),
                 ...(notes && { notes }),
                 ...(stripePaymentIntentId && { stripePaymentIntentId }),
-                updatedAt: new Date().toISOString(),
+                updatedAt: new Date(),
             })
             .where(eq(schema.payments.id, paymentId))
             .returning();
@@ -479,7 +479,7 @@ router.post('/payments/:id/complete', async (req: Request, res: Response) => {
         }
         const { receiptUrl } = req.body;
 
-        const now = new Date().toISOString();
+        const now = new Date();
         const updatedPayment = await db.update(schema.payments)
             .set({
                 status: 'completed',
@@ -533,7 +533,7 @@ router.post('/payments/:id/refund', async (req: Request, res: Response) => {
             .set({
                 status: 'refunded',
                 notes: reason ? `Refunded: ${reason}${feedback ? ` - ${feedback}` : ''}` : 'Refunded',
-                updatedAt: new Date().toISOString(),
+                updatedAt: new Date(),
             })
             .where(eq(schema.payments.id, paymentId))
             .returning();
@@ -707,7 +707,7 @@ router.post('/invoices', async (req: Request, res: Response) => {
             total,
             description,
             lineItems,
-            dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+            dueDate: dueDate ? new Date(dueDate) : undefined,
             status: 'draft',
         }).returning();
 
