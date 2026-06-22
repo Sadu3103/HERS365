@@ -5,6 +5,7 @@ import { createApp } from '../app';
 import { db } from '../db';
 import * as schema from '../schema';
 import { sendPasswordResetEmail } from '../email';
+import { _emailAuthLimitersForTests } from '../emailAuthRoutes';
 import { resetDb } from './helpers/db';
 import { makeAthlete } from './helpers/fixtures';
 
@@ -27,9 +28,20 @@ vi.mock('../email', () => ({
 }));
 
 const app = createApp();
+
+// supertest goes over loopback; reset every known representation of it so
+// the password-reset / login limiters introduced in emailAuthRoutes don't
+// bleed counters across these behavioral tests. Throttle behavior is
+// asserted separately in emailAuthRateLimit.test.ts.
+const LOOPBACK_KEYS = ['::ffff:127.0.0.1', '127.0.0.1', '::1'];
+
 beforeEach(async () => {
   await resetDb();
   vi.mocked(sendPasswordResetEmail).mockClear();
+  for (const key of LOOPBACK_KEYS) {
+    _emailAuthLimitersForTests.login.resetKey(key);
+    _emailAuthLimitersForTests.passwordReset.resetKey(key);
+  }
 });
 
 describe('POST /api/auth/email/register — error paths', () => {
