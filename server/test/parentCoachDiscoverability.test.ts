@@ -254,3 +254,52 @@ describe('GET /api/athletes/:id honors coachDiscoverable for coach viewers', () 
     expect((await request(app).get(`/api/athletes/${child.id}`).set(coachAuth(coach))).status).toBe(200);
   });
 });
+
+describe('GET /api/coach/players/:id honors coachDiscoverable', () => {
+  it('returns 403 when the linked parent has hidden the athlete', async () => {
+    const parent = await makeParent();
+    const child = await makeAthlete({ name: 'Hidden Heather' });
+    await linkParentChild(parent.id, child.id);
+
+    await request(app)
+      .put('/api/parent/settings')
+      .set(parentAuth(parent))
+      .send({ profileVisibility: false });
+
+    const coach = await makeCoach();
+    const res = await request(app)
+      .get(`/api/coach/players/${child.id}`)
+      .set(coachAuth(coach));
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/forbidden/i);
+  });
+
+  it('athletes with no flag set are visible to coaches (default-preserving)', async () => {
+    const a = await makeAthlete({ name: 'Default Daphne' });
+    const coach = await makeCoach();
+    const res = await request(app)
+      .get(`/api/coach/players/${a.id}`)
+      .set(coachAuth(coach));
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(a.id);
+  });
+
+  it('toggling profileVisibility back to true restores the coach detail view', async () => {
+    const parent = await makeParent();
+    const child = await makeAthlete();
+    await linkParentChild(parent.id, child.id);
+    const coach = await makeCoach();
+
+    await request(app)
+      .put('/api/parent/settings')
+      .set(parentAuth(parent))
+      .send({ profileVisibility: false });
+    expect((await request(app).get(`/api/coach/players/${child.id}`).set(coachAuth(coach))).status).toBe(403);
+
+    await request(app)
+      .put('/api/parent/settings')
+      .set(parentAuth(parent))
+      .send({ profileVisibility: true });
+    expect((await request(app).get(`/api/coach/players/${child.id}`).set(coachAuth(coach))).status).toBe(200);
+  });
+});
