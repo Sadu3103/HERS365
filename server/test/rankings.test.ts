@@ -41,3 +41,21 @@ describe('GET /api/rankings', () => {
     expect(names).toEqual(['QB One']);
   });
 });
+
+describe('GET /api/rankings/:id numeric-id hardening', () => {
+  it('returns 400 (not 500) for a non-numeric id', async () => {
+    const res = await request(app).get('/api/rankings/not-a-number');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invalid/i);
+  });
+
+  it('returns 400 for a negative id (parseIdParam rejects non-positive)', async () => {
+    const res = await request(app).get('/api/rankings/-1');
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 404 (not 500) for a well-formed id with no player', async () => {
+    const res = await request(app).get('/api/rankings/999999');
+    expect(res.status).toBe(404);
+  });
+});

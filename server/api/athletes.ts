@@ -86,8 +86,8 @@ router.get('/me/saved-schools', requireAuth, async (req, res) => {
 // POST /api/athletes/me/saved-schools
 router.post('/me/saved-schools', requireAuth, validateBody(savedSchoolBody), async (req, res) => {
   try {
-    const programId = parseInt(req.body?.schoolId, 10);
-    if (Number.isNaN(programId)) {
+    const programId = parseIdParam(req.body?.schoolId);
+    if (programId === null) {
       return res.status(400).json({ success: false, error: 'schoolId is required' });
     }
     const athleteId = Number(authUser(req)?.id);

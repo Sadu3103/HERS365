@@ -72,14 +72,10 @@ describe('GET /api/scholarships/saved/:playerId', () => {
   });
 
   // Known gap pinned by this test: the handler does `parseInt(playerId)` with
-  // no validation, so a non-numeric :playerId currently flows NaN into the
-  // query and returns 500. The desired contract is 400 (per the D-series id
-  // validation pattern in queryParamValidation.test.ts) — leaving as a
-  // regression pin so the day this route adopts parseIdParam, this test
-  // catches the intent.
-  it('currently returns 500 on a non-numeric :playerId (regression pin)', async () => {
+  it('returns 400 (not 500) on a non-numeric :playerId', async () => {
     const res = await request(app).get('/api/scholarships/saved/not-a-number');
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/invalid/i);
   });
 });
 
@@ -102,6 +98,20 @@ describe('POST /api/scholarships/save', () => {
         eq(schema.savedScholarships.scholarshipId, s.id),
       ));
     expect(rows).toHaveLength(1);
+  });
+
+  it('returns 400 (not 500) for a non-numeric playerId in the body', async () => {
+    const res = await request(app)
+      .post('/api/scholarships/save')
+      .send({ playerId: 'not-a-number', scholarshipId: 1 });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 (not 500) for a missing scholarshipId', async () => {
+    const res = await request(app)
+      .post('/api/scholarships/save')
+      .send({ playerId: 1 });
+    expect(res.status).toBe(400);
   });
 
   it('returns 400 when the same scholarship is saved twice', async () => {
@@ -146,6 +156,13 @@ describe('DELETE /api/scholarships/save', () => {
         eq(schema.savedScholarships.scholarshipId, s.id),
       ));
     expect(rows).toEqual([]);
+  });
+
+  it('returns 400 (not 500) for a non-numeric playerId in the body', async () => {
+    const res = await request(app)
+      .delete('/api/scholarships/save')
+      .send({ playerId: 'abc', scholarshipId: 1 });
+    expect(res.status).toBe(400);
   });
 
   it('is a no-op (still 200) when no matching row exists', async () => {
