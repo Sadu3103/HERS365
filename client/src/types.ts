@@ -198,6 +198,8 @@ export interface PlayerSearchResult {
   committed: boolean;
   nilPoints: number;
   avatarUrl?: string;
+  profileImage?: string | null;
+  highlightThumbnailUrl?: string | null;
 }
 
 export interface PlayerProfile {

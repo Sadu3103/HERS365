@@ -1,30 +1,52 @@
-// @ts-nocheck
 import { Router } from 'express';
 import { db } from './db';
 import * as schema from './schema';
-import { eq, desc, and, sql, like, or } from 'drizzle-orm';
+import { eq, desc, and, sql } from 'drizzle-orm';
 import { calculateRankingScore, getRankingTier, getTierColor } from './rankingAlgorithm';
+import { publicPlayerView } from './lib/playerPrivacy';
+import { parseIdParam } from './lib/parseIdParam';
+import { parseIntQuery, clampIntQuery } from './lib/queryParam';
 
 const router = Router();
+
+// dataSources is stored as a JSON-encoded string in a text column (see the
+// calculate route for the matching write). Parse safely on read so the client
+// always gets an array even if the column is null or a legacy non-JSON value.
+function parseDataSources(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
+}
 
 // Get rankings with filters (state, national, position, graduation year)
 router.get('/players', async (req, res) => {
   try {
-    const { 
+    const {
       level = 'national', // 'national', 'state', 'local'
       state,
       position,
       graduationYear,
-      limit = 100,
-      offset = 0
+      limit,
+      offset,
     } = req.query;
+
+    const graduationYearNum = graduationYear ? parseIntQuery(graduationYear) : null;
+    if (graduationYear && graduationYearNum === null) {
+      return res.status(400).json({ message: 'graduationYear must be an integer' });
+    }
+    const limitNum = clampIntQuery(limit, { default: 100, min: 1, max: 500 });
+    const offsetNum = clampIntQuery(offset, { default: 0, min: 0, max: 100000 });
 
     let query = db.select({
       id: schema.players.id,
       name: schema.players.name,
       position: schema.players.position,
       state: schema.players.state,
-      graduationYear: schema.players.graduationYear,
+      gradYear: schema.players.gradYear,
       school: schema.players.school,
       profileImage: schema.players.profileImage,
       g5Rating: schema.players.g5Rating,
@@ -44,37 +66,38 @@ router.get('/players', async (req, res) => {
       lastUpdated: schema.athleteRankings.updatedAt,
     })
     .from(schema.players)
-    .leftJoin(schema.athleteRankings, eq(schema.players.id, schema.athleteRankings.playerId));
+    .leftJoin(schema.athleteRankings, eq(schema.players.id, schema.athleteRankings.playerId))
+    .$dynamic();
 
     // Apply filters
     const filters = [];
-    
+
     if (state && level !== 'national') {
-      filters.push(eq(schema.players.state, state as string));
+      filters.push(eq(schema.players.state, String(state)));
     }
-    
+
     if (position) {
-      filters.push(eq(schema.players.position, position as string));
+      filters.push(eq(schema.players.position, String(position)));
     }
-    
-    if (graduationYear) {
-      filters.push(eq(schema.players.graduationYear, parseInt(graduationYear as string)));
+
+    if (graduationYearNum !== null) {
+      filters.push(eq(schema.players.gradYear, graduationYearNum));
     }
-    
+
     if (filters.length > 0) {
-      query = query.where(and(...filters)) as any;
+      query = query.where(and(...filters));
     }
 
     // Order by appropriate ranking
     if (level === 'state' && state) {
-      query = query.orderBy(schema.athleteRankings.stateRank) as any;
+      query = query.orderBy(schema.athleteRankings.stateRank);
     } else if (level === 'local') {
-      query = query.orderBy(schema.athleteRankings.positionRank) as any;
+      query = query.orderBy(schema.athleteRankings.positionRank);
     } else {
-      query = query.orderBy(schema.athleteRankings.nationalRank) as any;
+      query = query.orderBy(schema.athleteRankings.nationalRank);
     }
 
-    query = query.limit(parseInt(limit as string)).offset(parseInt(offset as string));
+    query = query.limit(limitNum).offset(offsetNum);
     
     const rankings = await query;
 
@@ -98,8 +121,11 @@ router.get('/players', async (req, res) => {
 // Get single player ranking details with all data sources
 router.get('/players/:id', async (req, res) => {
   try {
-    const playerId = parseInt(req.params.id);
-    
+    const playerId = parseIdParam(req.params.id);
+    if (playerId === null) {
+      return res.status(400).json({ message: 'Invalid id' });
+    }
+
     const player = await db.select()
       .from(schema.players)
       .where(eq(schema.players.id, playerId));
@@ -115,8 +141,10 @@ router.get('/players/:id', async (req, res) => {
     const ranking = rankings[0] || {};
     const score = ranking.overallScore || 0;
 
+    // Directive 1: spreading player[0] would leak phone/email/dob/zip out
+    // of a public ranking detail. Route through publicPlayerView.
     res.json({
-      ...player[0],
+      ...publicPlayerView(player[0]),
       rankings: {
         nationalRank: ranking.nationalRank,
         stateRank: ranking.stateRank,
@@ -132,7 +160,7 @@ router.get('/players/:id', async (req, res) => {
       },
       tier: getRankingTier(score),
       tierColor: getTierColor(getRankingTier(score)),
-      dataSources: ranking.dataSources || [],
+      dataSources: parseDataSources(ranking.dataSources),
       lastUpdated: ranking.updatedAt,
     });
   } catch (error) {
@@ -226,8 +254,11 @@ router.get('/criteria', async (req, res) => {
 // Update player ranking (admin function)
 router.post('/calculate/:playerId', async (req, res) => {
   try {
-    const playerId = parseInt(req.params.playerId);
-    
+    const playerId = parseIdParam(req.params.playerId);
+    if (playerId === null) {
+      return res.status(400).json({ message: 'Invalid id' });
+    }
+
     // Fetch all athlete data from various sources
     // This would integrate with actual data sources in production
     const mockAthleteData = {
@@ -238,10 +269,16 @@ router.post('/calculate/:playerId', async (req, res) => {
       graduationYear: 2026,
       position: 'WR',
     };
-    
+
     // Calculate ranking scores
     const scores = calculateRankingScore(mockAthleteData);
-    
+
+    // schema.athleteRankings.dataSources is a text column but scores.dataSources
+    // is a string[]; serialize as JSON so the read path can parse it back.
+    // schema.athleteRankings.updatedAt is text, not timestamp.
+    const dataSourcesJson = JSON.stringify(scores.dataSources);
+    const updatedAt = new Date().toISOString();
+
     // Update database
     await db.insert(schema.athleteRankings)
       .values({
@@ -251,8 +288,8 @@ router.post('/calculate/:playerId', async (req, res) => {
         maxPrepsScore: scores.maxPrepsScore,
         zybekScore: scores.zybekScore,
         usaTalentIdScore: scores.usaTalentIdScore,
-        dataSources: scores.dataSources,
-        updatedAt: new Date(),
+        dataSources: dataSourcesJson,
+        updatedAt,
       })
       .onConflictDoUpdate({
         target: schema.athleteRankings.playerId,
@@ -262,8 +299,8 @@ router.post('/calculate/:playerId', async (req, res) => {
           maxPrepsScore: scores.maxPrepsScore,
           zybekScore: scores.zybekScore,
           usaTalentIdScore: scores.usaTalentIdScore,
-          dataSources: scores.dataSources,
-          updatedAt: new Date(),
+          dataSources: dataSourcesJson,
+          updatedAt,
         },
       });
 
@@ -282,9 +319,9 @@ router.post('/calculate/:playerId', async (req, res) => {
 router.get('/teams', async (req, res) => {
   const { type = 'high_school' } = req.query;
   try {
-    let query = db.select().from(schema.teams);
+    let query = db.select().from(schema.teams).$dynamic();
     if (type) {
-      query = query.where(eq(schema.teams.type, type as string));
+      query = query.where(eq(schema.teams.type, String(type)));
     }
     const teams = await query.orderBy(desc(schema.teams.rating));
     res.json(teams);

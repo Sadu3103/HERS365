@@ -73,11 +73,13 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                   <p className="text-xs text-ink-muted font-medium leading-relaxed">{n.message}</p>
                 </div>
 
-                <button 
+                <button
+                  type="button"
                   onClick={() => removeNotification(n.id)}
+                  aria-label="Dismiss notification"
                   className="p-1 text-ink-muted hover:text-white transition-colors"
                 >
-                  <X size={16} />
+                  <X size={16} aria-hidden="true" />
                 </button>
 
                 {/* Progress bar */}

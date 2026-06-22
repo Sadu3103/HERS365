@@ -4,6 +4,10 @@ import { db } from './db';
 import * as schema from './schema';
 import { eq } from 'drizzle-orm';
 
+if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PROD_SEED !== 'true') {
+  throw new Error('seed.ts is for local/staging only. Set ALLOW_PROD_SEED=true to override.');
+}
+
 async function seed() {
   console.log('🌱 Seeding database...');
 
@@ -143,6 +147,7 @@ async function seed() {
       ];
 
       for (const msg of thread) {
+        // exempt from moderateMessage: static dev seed content, not user input
         await db.insert(schema.messages).values({
           coachId: demoCoach.id,
           athleteId: maya.id,

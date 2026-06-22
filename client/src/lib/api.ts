@@ -2,6 +2,13 @@ export interface ApiError extends Error {
   status: number;
 }
 
+// Catch blocks see `unknown` under strict TS. This narrows safely so screens
+// can avoid `err: any` while still showing the server's user-facing message.
+export function errorMessage(err: unknown, fallback = 'Something went wrong'): string {
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+}
+
 // [D-05] Single-flight refresh: when an access token expires, the first 401
 // triggers one call to /api/auth/refresh (which reads the httpOnly refresh
 // cookie). Concurrent callers await the same in-flight refresh instead of

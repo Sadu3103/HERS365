@@ -1,4 +1,5 @@
 import express from 'express';
+import { parseIdParam } from '../lib/parseIdParam';
 
 const router = express.Router();
 
@@ -75,14 +76,29 @@ const mockCoaches: Record<number, any> = {
   },
 };
 
+// Public DTO: whitelist of fields safe to return to unauthenticated callers.
+// Email and any other contact info must come from an authenticated endpoint
+// after a connection request has been accepted.
+function toPublicCoach(c: any) {
+  if (!c) return c;
+  const { email, ...publicFields } = c;
+  return publicFields;
+}
+
 // GET /api/coaches/:id
 router.get('/:id', (req, res) => {
   try {
-    const coach = mockCoaches[parseInt(req.params.id)];
+    const id = parseIdParam(req.params.id);
+    if (id === null) {
+      return res.status(400).json({ success: false, error: 'Invalid id' });
+    }
+    const coach = mockCoaches[id];
     if (!coach) {
       return res.status(404).json({ success: false, error: 'Coach not found' });
     }
-    res.json({ success: true, data: coach });
+    // Authenticated callers can be served the full record by a future RBAC
+    // middleware; for now this endpoint is public and must not leak PII.
+    res.json({ success: true, data: toPublicCoach(coach) });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to fetch coach profile' });
   }

@@ -49,7 +49,7 @@ export const Layout = () => {
 
   const { data: profile } = useQuery({
     queryKey: ['profile'],
-    queryFn: () => apiFetch<{ success: boolean; data: any }>('/api/users/profile'),
+    queryFn: () => apiFetch<{ success: boolean; data: { position?: string; gradYear?: number; g5Rating?: number } }>('/api/users/profile'),
     enabled: !!user,
   });
 

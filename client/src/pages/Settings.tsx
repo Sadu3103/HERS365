@@ -13,10 +13,97 @@ import {
   Download,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  Upload
 } from 'lucide-react';
-import { apiFetch } from '../lib/api';
+import { apiFetch, errorMessage } from '../lib/api';
 import { athleteAvatar } from '../lib/avatar';
+
+// Click-to-upload profile photo. Presigns via /api/upload/presign, PUTs the
+// file to S3, then PATCHes the user profile with the resulting publicUrl.
+function PhotoUploadCard({
+  profile,
+  setProfile,
+}: {
+  profile: UserProfile | null;
+  setProfile: (p: UserProfile) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const onPick = async (file: File) => {
+    setError(null);
+    if (!file.type.startsWith('image/')) { setError('Please pick an image.'); return; }
+    if (file.size > 5 * 1024 * 1024) { setError('Photo must be under 5MB.'); return; }
+    setUploading(true);
+    try {
+      const presign = await apiFetch<{ uploadUrl: string; publicUrl: string }>('/api/upload/presign', {
+        method: 'POST',
+        body: JSON.stringify({ filename: file.name, contentType: file.type, size: file.size }),
+      });
+      const putRes = await fetch(presign.uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+      if (!putRes.ok) throw new Error('Upload failed.');
+      const res = await apiFetch<{ success: boolean; data: UserProfile }>('/api/users/profile', {
+        method: 'PUT',
+        body: JSON.stringify({ profileImage: presign.publicUrl }),
+      });
+      if (res.data) setProfile(res.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const currentSrc = profile?.profileImage || athleteAvatar(profile?.name || '');
+
+  return (
+    <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
+      <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Profile Picture</h3>
+      <div className="flex items-center gap-6">
+        <div className="relative w-24 h-24 rounded-2xl bg-gradient-to-br from-coral-500 to-green-500 p-1">
+          <div className="w-full h-full rounded-[14px] bg-surface-card overflow-hidden">
+            <img
+              src={currentSrc}
+              alt="Profile"
+              className="w-full h-full object-cover"
+              style={{ opacity: uploading ? 0.5 : 1, transition: 'opacity .2s' }}
+            />
+          </div>
+        </div>
+        <div className="flex-1">
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onPick(f);
+              e.target.value = '';
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            className="inline-flex items-center gap-2 bg-coral-500 hover:bg-coral-600 disabled:opacity-60 text-white px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wider transition"
+          >
+            {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+            {uploading ? 'Uploading…' : profile?.profileImage ? 'Change Photo' : 'Upload Photo'}
+          </button>
+          <p className="text-xs text-ink-muted mt-2">JPEG, PNG, WebP, or GIF. 5MB max.</p>
+          {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface UserProfile {
   id: number;
@@ -38,6 +125,10 @@ interface UserProfile {
   verificationStatus?: string;
   createdAt?: string;
   role?: string;
+  profileImage?: string | null;
+  heightIn?: number | null;
+  weightLbs?: number | null;
+  phone?: string | null;
 }
 
 interface SettingSection {
@@ -132,13 +223,13 @@ export const Settings = () => {
         sport: data.sport || '',
         bio: data.bio || '',
         achievements: data.achievements || '',
-        heightIn: (data as any).heightIn ? String((data as any).heightIn) : '',
-        weightLbs: (data as any).weightLbs ? String((data as any).weightLbs) : '',
-        phone: (data as any).phone || '',
+        heightIn: data.heightIn ? String(data.heightIn) : '',
+        weightLbs: data.weightLbs ? String(data.weightLbs) : '',
+        phone: data.phone || '',
       });
       setPrivacySetting(data.privacySetting || 'public');
-    } catch (err: any) {
-      setProfileError(err.message || 'Failed to load profile');
+    } catch (err) {
+      setProfileError(errorMessage(err, 'Failed to load profile'));
     } finally {
       setProfileLoading(false);
     }
@@ -178,9 +269,9 @@ export const Settings = () => {
       setProfile(res.data);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 3000);
-    } catch (err: any) {
+    } catch (err) {
       setSaveStatus('error');
-      setSaveError(err.message || 'Failed to save');
+      setSaveError(errorMessage(err, 'Failed to save'));
     }
   };
 
@@ -243,19 +334,8 @@ export const Settings = () => {
     return (
       <div className="space-y-8">
         {/* Avatar */}
-        <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
-          <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Profile Picture</h3>
-          <div className="flex items-center gap-6">
-            <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-coral-500 to-green-500 p-1">
-              <div className="w-full h-full rounded-[14px] bg-surface-card overflow-hidden">
-                <img src={athleteAvatar(profile?.name || '')} alt="Profile" className="w-full h-full object-cover" />
-              </div>
-            </div>
-            <div>
-              <p className="text-sm text-ink-muted">Profile picture is generated from your name. Custom photo upload coming soon.</p>
-            </div>
-          </div>
-        </div>
+        <PhotoUploadCard profile={profile} setProfile={setProfile} />
+
 
         {/* Personal Information */}
         <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">

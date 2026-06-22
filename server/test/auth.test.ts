@@ -59,6 +59,7 @@ describe('register / login round trip', () => {
       password: 'Str0ng-pass!',
       name: 'New Athlete',
       role: 'athlete',
+      dob: '2008-04-12',
     });
     expect([200, 201]).toContain(reg.status);
     expect(JSON.stringify(reg.body)).not.toContain('passwordHash');
@@ -86,7 +87,7 @@ describe('register / login round trip', () => {
 
   it('rejects login with a wrong password', async () => {
     await request(app).post('/api/auth/register').send({
-      email: 'a2@test.local', password: 'Right-pass-1', name: 'A2', role: 'athlete',
+      email: 'a2@test.local', password: 'Right-pass-1', name: 'A2', role: 'athlete', dob: '2008-04-12',
     });
     const res = await request(app).post('/api/auth/login').send({
       email: 'a2@test.local', password: 'Wrong-pass-1',

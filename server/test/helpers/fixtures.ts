@@ -22,10 +22,13 @@ export async function makeAthlete(overrides: Partial<typeof schema.players.$infe
 }
 
 export async function makeCoach(overrides: Partial<typeof schema.coaches.$inferInsert> = {}) {
+  // Default to a verified coach — the unverified state is its own workflow and
+  // is exercised by dedicated tests via { verifiedStatus: false }.
   const [row] = await db.insert(schema.coaches).values({
     email: email('coach'),
     passwordHash: PW_HASH,
     name: 'Test Coach',
+    verifiedStatus: true,
     ...overrides,
   }).returning();
   return row;

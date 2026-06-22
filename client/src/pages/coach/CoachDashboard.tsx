@@ -20,6 +20,9 @@ export function CoachDashboard() {
   const [clips, setClips] = useState<PlayerClip[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  // Set true if any coach endpoint returns 403 with code COACH_PENDING_VERIFICATION.
+  // Replaces the "all zeros" cold render with an explicit status message.
+  const [pendingVerification, setPendingVerification] = useState(false);
   const { showNotification } = useNotifications();
 
   useEffect(() => {
@@ -36,6 +39,11 @@ export function CoachDashboard() {
         },
       });
 
+      if (response.status === 403) {
+        const body = await response.json().catch(() => ({}));
+        if (body?.code === 'COACH_PENDING_VERIFICATION') setPendingVerification(true);
+        return;
+      }
       if (response.ok) {
         const data = await response.json();
         setAnalytics(data);
@@ -55,6 +63,12 @@ export function CoachDashboard() {
         },
       });
 
+      if (response.status === 403) {
+        const body = await response.json().catch(() => ({}));
+        if (body?.code === 'COACH_PENDING_VERIFICATION') setPendingVerification(true);
+        setLoading(false);
+        return;
+      }
       if (response.ok) {
         const data = await response.json();
         setClips(data.clips || []);
@@ -109,6 +123,24 @@ export function CoachDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {pendingVerification && (
+          <div className="mb-6 bg-amber-900/30 border border-amber-700/60 rounded-lg p-5">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-300 text-lg flex-shrink-0">
+                ⏳
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-amber-200">Your account is pending verification</h3>
+                <p className="text-sm text-amber-200/80 mt-1 leading-relaxed">
+                  To keep athletes safe we manually review every coach account. Until an admin approves you, search, messaging,
+                  and scouting board actions are locked. We'll email you when you're cleared. Most accounts are reviewed within
+                  one business day.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Analytics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">

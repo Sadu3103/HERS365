@@ -140,12 +140,22 @@ function AmbientField({ reduced, faint = false }: { reduced: boolean; faint?: bo
   );
 }
 
+type SignupRole = 'athlete' | 'parent';
+
 export const Auth = () => {
   const [searchParams] = useSearchParams();
   const [isLogin,  setIsLogin]  = useState(searchParams.get('tab') !== 'signup');
   const [name,     setName]     = useState('');
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
+  // New signup-only fields. DOB is required for athletes so the backend can
+  // enforce COPPA and parent-gate rules. Parent email is optional and kicks
+  // off a parent-link invite if provided.
+  const [role,        setRole]        = useState<SignupRole>(
+    (searchParams.get('role') as SignupRole | null) === 'parent' ? 'parent' : 'athlete',
+  );
+  const [dob,         setDob]         = useState('');
+  const [parentEmail, setParentEmail] = useState('');
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState('');
   const navigate  = useNavigate();
@@ -155,11 +165,33 @@ export const Auth = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Client-side guard: athlete signups need a DOB, and the user must be 13+.
+    // Server enforces the same; this just avoids a round trip.
+    if (!isLogin && role === 'athlete') {
+      if (!dob) {
+        setError('Date of birth is required.');
+        return;
+      }
+      const ageYears = (Date.now() - new Date(dob).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+      if (Number.isNaN(ageYears) || ageYears < 13) {
+        setError('Athletes must be at least 13. A parent can set up a managed account.');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
       const body: Record<string, string> = { email, password };
       if (!isLogin && name) body.name = name;
+      if (!isLogin) {
+        body.role = role;
+        if (role === 'athlete') {
+          body.dob = dob;
+          if (parentEmail.trim()) body.parentEmail = parentEmail.trim();
+        }
+      }
       const res  = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -176,7 +208,10 @@ export const Auth = () => {
         return;
       }
       if (data.token && data.user) login(data.token, data.user);
-      navigate(isLogin ? '/feed' : '/onboarding');
+      navigate(isLogin
+        ? '/feed'
+        : role === 'parent' ? '/parent/dashboard' : '/onboarding'
+      );
     } catch {
       setError('Network error — please try again');
     } finally {
@@ -442,6 +477,29 @@ export const Auth = () => {
                   transition={{ duration: 0.25, ease: EASE }}
                   style={{ overflow: 'hidden' }}
                 >
+                  {/* Role selector — athlete vs parent. Coaches sign up at /coach/signup. */}
+                  <div role="tablist" aria-label="Account type" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 18 }}>
+                    {(['athlete', 'parent'] as const).map((r) => (
+                      <button
+                        key={r}
+                        type="button"
+                        role="tab"
+                        aria-selected={role === r}
+                        onClick={() => setRole(r)}
+                        style={{
+                          padding: '12px 10px', borderRadius: 11,
+                          border: `1.5px solid ${role === r ? FLAME : LINE}`,
+                          background: role === r ? 'rgba(255,90,45,0.12)' : FIELD,
+                          color: role === r ? TEXT : MUTED,
+                          fontFamily: DISP, fontWeight: 800, fontSize: '.78rem',
+                          letterSpacing: '.16em', textTransform: 'uppercase',
+                          cursor: 'pointer', transition: 'all .18s',
+                        }}
+                      >
+                        {r === 'athlete' ? "I'm an Athlete" : "I'm a Parent"}
+                      </button>
+                    ))}
+                  </div>
                   <Field id="auth-name" label="Full Name" icon={User} value={name} onChange={setName} autoComplete="name" />
                 </motion.div>
               )}
@@ -449,6 +507,53 @@ export const Auth = () => {
 
             <Field id="auth-email" label="Email Address" type="email" icon={Mail} value={email} onChange={setEmail} required autoComplete="email" invalid={!!error} describedBy={error ? 'auth-error' : undefined} />
             <Field id="auth-password" label="Password" type="password" icon={Lock} value={password} onChange={setPassword} required autoComplete={isLogin ? 'current-password' : 'new-password'} invalid={!!error} describedBy={error ? 'auth-error' : undefined} />
+
+            <AnimatePresence initial={false}>
+              {!isLogin && role === 'athlete' && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.25, ease: EASE }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  <div style={{ marginBottom: 16 }}>
+                    <label htmlFor="auth-dob" style={{ display: 'block', fontFamily: DISP, fontWeight: 700, fontSize: '.7rem', letterSpacing: '.16em', textTransform: 'uppercase', color: MUTED, marginBottom: 9 }}>
+                      Date of Birth
+                    </label>
+                    <input
+                      id="auth-dob"
+                      type="date"
+                      value={dob}
+                      onChange={e => setDob(e.target.value)}
+                      required
+                      max={new Date().toISOString().slice(0, 10)}
+                      style={{
+                        width: '100%', background: FIELD, border: `1px solid ${LINE}`,
+                        borderRadius: 12, padding: '14px 16px', fontSize: '1rem',
+                        color: TEXT, fontFamily: BODY, outline: 'none',
+                        colorScheme: 'dark',
+                      }}
+                    />
+                    <p style={{ color: MUTED_2, fontSize: '.68rem', margin: '6px 4px 0', fontFamily: BODY }}>
+                      We use this to apply the right safety settings for under-18 athletes.
+                    </p>
+                  </div>
+                  <Field
+                    id="auth-parent-email"
+                    label="Parent / Guardian Email (optional)"
+                    type="email"
+                    icon={Mail}
+                    value={parentEmail}
+                    onChange={setParentEmail}
+                    autoComplete="email"
+                  />
+                  <p style={{ color: MUTED_2, fontSize: '.68rem', margin: '-8px 4px 16px', fontFamily: BODY }}>
+                    We'll send them a link to oversee coach contact and approve messages.
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {!isLogin && (
               <p style={{ color: MUTED, fontSize: '.72rem', margin: '-8px 0 16px', fontFamily: BODY, lineHeight: 1.4 }}>

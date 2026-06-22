@@ -1,17 +1,18 @@
-// @ts-nocheck
-import express from 'express';
+import express, { type Request, type Response, type NextFunction } from 'express';
 import { db } from './db';
 import * as schema from './schema';
 import { eq, desc } from 'drizzle-orm';
-import { requireAuth } from './auth';
+import { requireAuth, type TokenPayload } from './auth';
 
 const router = express.Router();
 
 // Admin authentication middleware - check if user is admin
-function requireAdmin(req: any, res: any, next: any) {
+function requireAdmin(req: Request, res: Response, next: NextFunction): void {
     requireAuth(req, res, () => {
-        if (req.user?.role !== 'admin') {
-            return res.status(403).json({ error: 'Admin access required' });
+        const user = (req as Request & { user?: TokenPayload }).user;
+        if (user?.role !== 'admin') {
+            res.status(403).json({ error: 'Admin access required' });
+            return;
         }
         next();
     });

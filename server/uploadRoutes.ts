@@ -1,67 +1,11 @@
-// @ts-nocheck
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import { getSignedUploadUrl } from './cloud-storage';
 import { requireAuth } from './auth';
+import { validateBody } from './middleware/validate';
+import { uploadImagePresignBody, uploadVideoPresignBody } from './middleware/safetySchemas';
 
 const router = express.Router();
 router.use(requireAuth);
-
-// Images
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-
-// photos up to 5MB
-const MAX_SIZE = 5 * 1024 * 1024; // 5MB
-
-/**
- * POST /api/upload/presign
- * Body: { filename: string, contentType: string, size: number }
- * Returns: { uploadUrl: string, key: string, publicUrl: string }
- *
- * Client should PUT the file directly to uploadUrl, then save publicUrl to their profile.
- */
-router.post('/presign', async (req, res) => {
-  const { filename, contentType, size } = req.body || {};
-
-  if (!filename || !contentType) {
-    return res.status(400).json({ error: 'filename and contentType are required' });
-  }
-  if (!ALLOWED_TYPES.includes(contentType)) {
-    return res.status(400).json({ error: 'Only JPEG, PNG, WebP, and GIF are allowed' });
-  }
-  if (size && size > MAX_SIZE) {
-    return res.status(400).json({ error: 'File must be under 5MB' });
-  }
-
-  try {
-    const ext = filename.split('.').pop()?.toLowerCase() || 'jpg';
-    const key = `profile-photos/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const uploadUrl = await getSignedUploadUrl(key, contentType, 300); // 5-min TTL
-
-    const bucket = process.env.S3_BUCKET || 'hers365-media';
-    const cloudfrontUrl = process.env.CLOUDFRONT_URL;
-    const publicUrl = cloudfrontUrl
-      ? `${cloudfrontUrl}/${key}`
-      : `https://${bucket}.s3.amazonaws.com/${key}`;
-
-    return res.json({ uploadUrl, key, publicUrl });
-  } catch (err) {
-    return res.status(500).json({ error: 'Failed to generate upload URL' });
-  }
-});
-
-/**
- * POST /api/upload/video/presign
- * Body: { filename: string, contentType: string, size: number }
- * Returns: { uploadUrl: string, key: string, publicUrl: string }
- *
- * Client should PUT the file directly to uploadUrl, then save to highlight/video.
- */
-
-// videos
-const ALLOWED_TYPES_VIDEO = ['video/mp4', 'video/webm', 'video/quicktime'];
-
-// VIDEOS up to 500MB
-const MAX_SIZE_VIDEO = 500 * 1024 * 1024; // 500MB
 
 const VIDEO_EXTENSION_BY_TYPE: Record<string, string> = {
   'video/mp4': 'mp4',
@@ -69,46 +13,47 @@ const VIDEO_EXTENSION_BY_TYPE: Record<string, string> = {
   'video/quicktime': 'mov',
 };
 
-router.post('/video/presign', async (req, res) => {
-  const { filename, contentType, size } = req.body || {};
+function publicUrlFor(key: string): string {
+  const bucket = process.env.S3_BUCKET || 'hers365-media';
+  const cloudfrontUrl = process.env.CLOUDFRONT_URL;
+  return cloudfrontUrl ? `${cloudfrontUrl}/${key}` : `https://${bucket}.s3.amazonaws.com/${key}`;
+}
 
-  if (!filename || !contentType) {
-    return res.status(400).json({ error: 'filename and contentType are required' });
-  }
-
-  if (!ALLOWED_TYPES_VIDEO.includes(contentType)) {
-    return res.status(400).json({ error: 'Only mp4, WebM, and quicktime are allowed' });
-  }
-
-  if (typeof size !== 'number' || Number.isNaN(size)) {
-    return res.status(400).json({ error: 'size is required and must be a number' });
-  }
-
-  if (size <= 0) {
-    return res.status(400).json({ error: 'size must be greater than 0' });
-  }
-  
-  if (size > MAX_SIZE_VIDEO) {
-    return res.status(400).json({ error: 'Video file must be under 500MB' });
-  }
-
+/**
+ * POST /api/upload/presign
+ * Body: { filename, contentType, size? }
+ * Returns: { uploadUrl, key, publicUrl }
+ *
+ * Client PUTs the file directly to uploadUrl, then saves publicUrl on their row.
+ */
+router.post('/presign', validateBody(uploadImagePresignBody), async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const { filename, contentType } = req.body as { filename: string; contentType: string };
+    // Strip path separators defensively even though the key is anchored to a
+    // server-generated prefix — keeps the extension parse from picking up a
+    // surprise from a crafted filename.
+    const safeExt = (filename.split('.').pop() ?? 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 5) || 'jpg';
+    const key = `profile-photos/${Date.now()}-${Math.random().toString(36).slice(2)}.${safeExt}`;
+    const uploadUrl = await getSignedUploadUrl(key, contentType, 300); // 5-min TTL
+    res.json({ uploadUrl, key, publicUrl: publicUrlFor(key) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/video/presign', validateBody(uploadVideoPresignBody), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { contentType } = req.body as { contentType: string };
     const ext = VIDEO_EXTENSION_BY_TYPE[contentType];
     if (!ext) {
+      // Zod's enum on contentType should have caught this; defence in depth.
       return res.status(400).json({ error: 'Unsupported video type' });
     }
-
     const key = `videos/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     const uploadUrl = await getSignedUploadUrl(key, contentType, 300); // 5-min TTL
-    const bucket = process.env.S3_BUCKET || 'hers365-media';
-    const cloudfrontUrl = process.env.CLOUDFRONT_URL;
-    const publicUrl = cloudfrontUrl
-      ? `${cloudfrontUrl}/${key}`
-      : `https://${bucket}.s3.amazonaws.com/${key}`;
-
-    return res.json({ uploadUrl, key, publicUrl });
+    res.json({ uploadUrl, key, publicUrl: publicUrlFor(key) });
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to generate upload URL' });
+    next(err);
   }
 });
 

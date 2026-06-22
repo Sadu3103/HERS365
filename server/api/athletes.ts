@@ -1,18 +1,30 @@
-// @ts-nocheck
-import express from 'express';
+import express, { type Request } from 'express';
 import { and, eq } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
-import { requireAuth, optionalAuth } from '../auth';
+import { requireAuth, optionalAuth, type TokenPayload } from '../auth';
+import { publicPlayerView } from '../lib/playerPrivacy';
+import { validateBody, validateParams } from '../middleware/validate';
+import {
+  savedSchoolBody,
+  savedSchoolParams,
+  athletePutBody,
+} from '../middleware/safetySchemas';
+import { parseIdParam } from '../lib/parseIdParam';
+import { parseIntQuery, clampIntQuery } from '../lib/queryParam';
 
-// Public projection of a player row. Email/zip are contact info for a
-// minor — never expose them on athlete endpoints.
-function publicAthlete(p: Record<string, unknown>) {
-  const { passwordHash, email, zipCode, ...safe } = p;
-  return safe;
-}
+// Cross-user view: strips email/phone/dob/zip/pendingParentEmail/passwordHash
+// per the directive 1 rule "minor PII never leaves cross-user endpoints."
+const publicAthlete = publicPlayerView;
 
 const router = express.Router();
+
+// Express's Request type doesn't know about the user attached by requireAuth/
+// optionalAuth. Reading through this helper keeps a single typed boundary
+// instead of sprinkling `as any` at every call site.
+function authUser(req: Request): TokenPayload | undefined {
+  return (req as Request & { user?: TokenPayload }).user;
+}
 
 // Fields a user is allowed to set on their own profile via PUT.
 // Excludes id, email, passwordHash, subscriptionTier, verificationStatus.
@@ -26,21 +38,28 @@ const INT_FIELDS = new Set(['age', 'gradYear']);
 // GET /api/athletes — real DB list with optional filters
 router.get('/', async (req, res) => {
   try {
-    const { position, state, gradYear, limit = 20, offset = 0 } = req.query;
+    const { position, state, gradYear, limit, offset } = req.query;
     const conditions = [];
     if (position && position !== 'All') conditions.push(eq(schema.players.position, String(position)));
     if (state && state !== 'All') conditions.push(eq(schema.players.state, String(state)));
-    if (gradYear && gradYear !== 'All') conditions.push(eq(schema.players.gradYear, parseInt(String(gradYear), 10)));
+    if (gradYear && gradYear !== 'All') {
+      const n = parseIntQuery(gradYear);
+      if (n === null) return res.status(400).json({ success: false, error: 'gradYear must be an integer' });
+      conditions.push(eq(schema.players.gradYear, n));
+    }
+
+    const limitNum = clampIntQuery(limit, { default: 20, min: 1, max: 100 });
+    const offsetNum = clampIntQuery(offset, { default: 0, min: 0, max: 100000 });
 
     const rows = await db
       .select()
       .from(schema.players)
       .where(conditions.length ? and(...conditions) : undefined)
-      .limit(Number(limit))
-      .offset(Number(offset));
+      .limit(limitNum)
+      .offset(offsetNum);
 
     const data = rows.map(publicAthlete);
-    res.json({ success: true, data, pagination: { limit: Number(limit), offset: Number(offset) } });
+    res.json({ success: true, data, pagination: { limit: limitNum, offset: offsetNum } });
   } catch (err) {
     console.error('[athletes/list]', err);
     res.status(500).json({ success: false, error: 'Failed to fetch athletes' });
@@ -56,7 +75,7 @@ router.get('/me/saved-schools', requireAuth, async (req, res) => {
     const rows = await db
       .select({ programId: schema.savedSchools.programId })
       .from(schema.savedSchools)
-      .where(eq(schema.savedSchools.athleteId, Number(req.user.id)));
+      .where(eq(schema.savedSchools.athleteId, Number(authUser(req)?.id)));
     res.json({ success: true, data: rows.map(r => r.programId) });
   } catch (error) {
     console.error('[athletes/saved-schools/list]', error);
@@ -65,13 +84,13 @@ router.get('/me/saved-schools', requireAuth, async (req, res) => {
 });
 
 // POST /api/athletes/me/saved-schools
-router.post('/me/saved-schools', requireAuth, async (req, res) => {
+router.post('/me/saved-schools', requireAuth, validateBody(savedSchoolBody), async (req, res) => {
   try {
     const programId = parseInt(req.body?.schoolId, 10);
     if (Number.isNaN(programId)) {
       return res.status(400).json({ success: false, error: 'schoolId is required' });
     }
-    const athleteId = Number(req.user.id);
+    const athleteId = Number(authUser(req)?.id);
 
     const existing = await db
       .select({ id: schema.savedSchools.id })
@@ -97,13 +116,13 @@ router.post('/me/saved-schools', requireAuth, async (req, res) => {
 });
 
 // DELETE /api/athletes/me/saved-schools/:schoolId
-router.delete('/me/saved-schools/:schoolId', requireAuth, async (req, res) => {
+router.delete('/me/saved-schools/:schoolId', requireAuth, validateParams(savedSchoolParams), async (req, res) => {
   try {
-    const programId = parseInt(req.params.schoolId, 10);
-    if (Number.isNaN(programId)) {
-      return res.status(400).json({ success: false, error: 'Invalid school id' });
+    const programId = parseIdParam(req.params.schoolId);
+    if (programId === null) {
+      return res.status(400).json({ success: false, error: 'Invalid id' });
     }
-    const athleteId = Number(req.user.id);
+    const athleteId = Number(authUser(req)?.id);
 
     await db
       .delete(schema.savedSchools)
@@ -126,9 +145,9 @@ router.delete('/me/saved-schools/:schoolId', requireAuth, async (req, res) => {
 // GET /api/athletes/:id - Get specific athlete profile (DB-backed)
 router.get('/:id',optionalAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (Number.isNaN(id)) {
-      return res.status(400).json({ success: false, error: 'Invalid athlete id' });
+    const id = parseIdParam(req.params.id);
+    if (id === null) {
+      return res.status(400).json({ success: false, error: 'Invalid id' });
     }
 
     const rows = await db
@@ -143,8 +162,9 @@ router.get('/:id',optionalAuth, async (req, res) => {
     }
 
     //Privacy Check
-    const isOwner = req.user?.userId ? Number(req.user.userId) === id : false;
-    const isCoach = req.user?.role === 'coach';
+    const u = authUser(req);
+    const isOwner = u?.userId ? Number(u.userId) === id : false;
+    const isCoach = u?.role === 'coach';
 
     // Privacy enforcement
     const isPrivate = athlete.privacySetting === 'private';
@@ -163,25 +183,25 @@ router.get('/:id',optionalAuth, async (req, res) => {
 });
 
 // PUT /api/athletes/:id - Update own athlete profile (DB-backed, auth required)
-router.put('/:id', requireAuth, async (req, res) => {
+router.put('/:id', requireAuth, validateBody(athletePutBody), async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (Number.isNaN(id)) {
-      return res.status(400).json({ success: false, error: 'Invalid athlete id' });
+    const id = parseIdParam(req.params.id);
+    if (id === null) {
+      return res.status(400).json({ success: false, error: 'Invalid id' });
     }
 
     // A user may only update their own profile
-    if (Number(req.user?.id) !== id) {
+    if (Number(authUser(req)?.id) !== id) {
       return res.status(403).json({ success: false, error: 'You can only edit your own profile' });
     }
 
     // Whitelist + coerce numeric fields
-    const updates = {};
+    const updates: Record<string, unknown> = {};
     for (const field of UPDATABLE_FIELDS) {
       if (req.body[field] === undefined) continue;
       let value = req.body[field];
       if (INT_FIELDS.has(field) && value !== null && value !== '') {
-        const n = parseInt(value, 10);
+        const n = parseInt(String(value), 10);
         value = Number.isNaN(n) ? null : n;
       }
       updates[field] = value;

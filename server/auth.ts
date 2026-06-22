@@ -5,7 +5,11 @@ import { OAuth2Client } from 'google-auth-library';
 import type { Request, Response, NextFunction } from 'express';
 import { isTokenBlocklisted } from './redis';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
+// [D-07] No fallback secret. A weak/known signing key lets anyone forge tokens
+// for any user or role. The required-env + min-length guard in index.ts blocks
+// startup if this is missing or too short, so by the time any request is signed
+// JWT_SECRET is guaranteed present and strong.
+const JWT_SECRET = process.env.JWT_SECRET as string;
 // [D-05] Access tokens are now short-lived; clients silently renew them with a
 // long-lived refresh token (see /api/auth/refresh). Default 15 minutes.
 const JWT_EXPIRES = (process.env.JWT_EXPIRES || '15m') as string;
