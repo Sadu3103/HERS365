@@ -12,6 +12,7 @@ const TABLES = [
   'events',
   'scholarships',
   'faqs',
+  'combine_stats',
   'parents',
   'coaches',
   'players',
