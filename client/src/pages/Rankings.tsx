@@ -35,6 +35,8 @@ interface RankingsRow {
 
 const positions = POSITION_FILTERS;
 
+const PER_PAGE = 25;
+
 function Avatar({ name, size = 36 }: { name: string; size?: number }) {
   return (
     <img src={athleteAvatar(name)}
@@ -55,6 +57,9 @@ export const Rankings = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [pos, setPos] = useState('All');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const isMobile = useIsMobile();
 
   // On phones the six-column table is wider than the screen, which clips the
@@ -66,34 +71,46 @@ export const Rankings = () => {
     : ['RK', 'ATHLETE', 'POS', 'YEAR', 'GPA', 'SCORE'];
 
   useEffect(() => {
-    fetch('/api/rankings?limit=50')
-      .then(r => r.ok ? r.json() : null)
-      .then((j: { data?: RankingsRow[] } | null) => {
-        const rows: RankingsRow[] = j?.data ?? [];
-        setPlayers(rows.map((p, i) => ({
-          id: p.id,
-          rank: p.rank ?? i + 1,
-          name: p.name,
-          school: p.school ?? '',
-          position: p.position ?? '–',
-          gpa: p.gpa ?? null,
-          gradYear: p.gradYear ?? null,
-          rating: p.rating ?? 0,
-          change: p.change ?? 0,
-          verified: p.verified ?? p.verificationStatus === 'verified',
-        })));
-      })
-      .catch(() => setPlayers([]))
-      .finally(() => setLoading(false));
-  }, []);
+    // Debounce so typing in the search box doesn't fire a request per keystroke.
+    // Position and page changes settle on the next tick since they aren't typed.
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams({ page: String(page), limit: String(PER_PAGE) });
+      if (pos !== 'All') params.set('position', pos);
+      if (search) params.set('search', search);
 
-  const filtered = players.filter(p => {
-    const q = search.toLowerCase();
-    return (!q || p.name.toLowerCase().includes(q) || p.school.toLowerCase().includes(q))
-      && (pos === 'All' || p.position === pos);
-  });
+      fetch(`/api/rankings?${params.toString()}`)
+        .then(r => r.ok ? r.json() : null)
+        .then((j: { data?: RankingsRow[]; total?: number; totalPages?: number } | null) => {
+          const rows: RankingsRow[] = j?.data ?? [];
+          setPlayers(rows.map((p, i) => ({
+            id: p.id,
+            rank: p.rank ?? i + 1,
+            name: p.name,
+            school: p.school ?? '',
+            position: p.position ?? '–',
+            gpa: p.gpa ?? null,
+            gradYear: p.gradYear ?? null,
+            rating: p.rating ?? 0,
+            change: p.change ?? 0,
+            verified: p.verified ?? p.verificationStatus === 'verified',
+          })));
+          setTotal(j?.total ?? 0);
+          setTotalPages(j?.totalPages ?? 1);
+        })
+        .catch(() => {
+          setPlayers([]);
+          setTotal(0);
+          setTotalPages(1);
+        })
+        .finally(() => setLoading(false));
+    }, 300);
 
-  const top3 = filtered.slice(0, 3);
+    return () => clearTimeout(timer);
+  }, [search, pos, page]);
+
+  // The server returns the rows already searched, position-filtered, and paged,
+  // so the podium just takes the top of the current (page 1, unfiltered) board.
+  const top3 = players.slice(0, 3);
 
   if (loading) {
     return (
@@ -117,7 +134,7 @@ export const Rankings = () => {
       {/* Podium — top 3. Desktop only: at phone widths three cards are too narrow
           for names, and the table directly below already lists the top 3 with full
           names and scores, so the podium would just be a cramped duplicate. */}
-      {search === '' && pos === 'All' && top3.length >= 3 && !isMobile && (
+      {search === '' && pos === 'All' && page === 1 && top3.length >= 3 && !isMobile && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 28 }}>
           {top3.map((p, i) => (
             <motion.div key={p.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
@@ -163,16 +180,17 @@ export const Rankings = () => {
         </div>
       )}
 
-      {/* Filters */}
+      {/* Filters. Reset to page 1 on any filter change: a shrunk result set would
+          otherwise leave a user stranded on a now-empty high page number. */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
         <div style={{ position: 'relative' }}>
           <Search size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#444', pointerEvents: 'none' }} />
-          <input type="text" placeholder="Search athletes or schools..." value={search} onChange={e => setSearch(e.target.value)}
+          <input type="text" placeholder="Search athletes or schools..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
             style={{ width: '100%', background: '#111', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px 9px 32px', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
         </div>
         <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' as 'auto' }}>
           {positions.map(p => (
-            <button key={p} onClick={() => setPos(p)} style={{
+            <button key={p} onClick={() => { setPos(p); setPage(1); }} style={{
               background: pos === p ? '#ff5a2d' : '#111',
               border: '1px solid',
               borderColor: pos === p ? '#ff5a2d' : 'rgba(255,255,255,0.08)',
@@ -197,7 +215,7 @@ export const Rankings = () => {
           ))}
         </div>
 
-        {filtered.map((p, i) => (
+        {players.map((p, i) => (
           <motion.div key={p.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
             onClick={() => navigate(`/profile/${p.id}`)}
             style={{
@@ -250,14 +268,44 @@ export const Rankings = () => {
           </motion.div>
         ))}
 
-        {filtered.length === 0 && (
+        {players.length === 0 && (
           <div style={{ padding: '48px', textAlign: 'center', color: '#444' }}>
             <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '1.2rem', fontWeight: 700 }}>
-              {players.length === 0 ? 'No athletes on the board yet.' : 'No athletes found'}
+              {search === '' && pos === 'All' ? 'No athletes on the board yet.' : 'No athletes found'}
             </div>
           </div>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 16 }}>
+          <button
+            disabled={page <= 1}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            style={{
+              background: '#111', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 7,
+              padding: '8px 14px', color: page <= 1 ? '#333' : '#ccc',
+              fontSize: '0.75rem', fontWeight: 700,
+              cursor: page <= 1 ? 'not-allowed' : 'pointer',
+            }}
+          >Previous</button>
+
+          <span style={{ fontSize: '0.75rem', color: '#666' }}>
+            Page {page} of {totalPages} · {total} athletes
+          </span>
+
+          <button
+            disabled={page >= totalPages}
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            style={{
+              background: '#111', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 7,
+              padding: '8px 14px', color: page >= totalPages ? '#333' : '#ccc',
+              fontSize: '0.75rem', fontWeight: 700,
+              cursor: page >= totalPages ? 'not-allowed' : 'pointer',
+            }}
+          >Next</button>
+        </div>
+      )}
     </div>
   );
 };

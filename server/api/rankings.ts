@@ -9,8 +9,9 @@ const router = express.Router();
 
 router.get('/', async (req, res) => {
   try {
-    const { position, limit } = req.query;
-    const limitNum = clampIntQuery(limit, { default: 50, min: 1, max: 200 });
+    const { position, search } = req.query;
+    const page = clampIntQuery(req.query.page, { default: 1, min: 1, max: 10000 });
+    const limitNum = clampIntQuery(req.query.limit, { default: 25, min: 1, max: 100 });
 
     const rowsRaw = await db
       .select({
@@ -33,7 +34,11 @@ router.get('/', async (req, res) => {
       // sort makes ties deterministic so the board does not reshuffle equal
       // scores between refreshes (which reads as arbitrary to athletes).
       .orderBy(desc(schema.players.g5Rating), desc(schema.players.xpPoints), asc(schema.players.name))
-      .limit(limitNum);
+      // Pull the whole rated board (capped) rather than one page: a row's rank is
+      // its global board position and rankingVisible lives in a JSON pref, so both
+      // have to be computed over the full ordered set before we can search, filter
+      // by position, and slice out the requested page.
+      .limit(2000);
 
     // Parent-controlled ranking visibility: drop athletes whose parent has
     // flipped rankingVisibility=false (mirrors the coach-search filter in
@@ -44,7 +49,10 @@ router.get('/', async (req, res) => {
       return prefs.rankingVisible !== false;
     });
 
-    let data = rows.map((p, i) => ({
+    // Assign each athlete their global board rank before any search/position
+    // filter, so a filtered or searched row still shows its true rank (e.g. #47),
+    // not its position within the filtered subset.
+    let ranked = rows.map((p, i) => ({
       id: p.id,
       rank: i + 1,
       name: p.name,
@@ -58,10 +66,21 @@ router.get('/', async (req, res) => {
     }));
 
     if (position && position !== 'All') {
-      data = data.filter(r => r.position === position);
+      ranked = ranked.filter(r => r.position === position);
     }
 
-    res.json({ success: true, data, total: data.length });
+    const q = typeof search === 'string' ? search.trim().toLowerCase() : '';
+    if (q) {
+      ranked = ranked.filter(r =>
+        r.name.toLowerCase().includes(q) || r.school.toLowerCase().includes(q));
+    }
+
+    const total = ranked.length;
+    const totalPages = Math.max(1, Math.ceil(total / limitNum));
+    const offset = (page - 1) * limitNum;
+    const data = ranked.slice(offset, offset + limitNum);
+
+    res.json({ success: true, data, total, totalPages, page });
   } catch (error) {
     console.error('[rankings]', error);
     res.status(500).json({ success: false, error: 'Failed to fetch rankings' });
