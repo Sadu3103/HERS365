@@ -81,41 +81,6 @@ router.get('/players', async (req, res) => {
       filters.push(eq(schema.players.gradYear, graduationYearNum));
     }
 
-    // Base query
-    let query = db
-      .select({
-        id: schema.players.id,
-        name: schema.players.name,
-        position: schema.players.position,
-        state: schema.players.state,
-        gradYear: schema.players.gradYear,
-        school: schema.players.school,
-        profileImage: schema.players.profileImage,
-        g5Rating: schema.players.g5Rating,
-        archetype: schema.players.archetype,
-
-        // Rankings
-        nationalRank: schema.athleteRankings.nationalRank,
-        stateRank: schema.athleteRankings.stateRank,
-        positionRank: schema.athleteRankings.positionRank,
-        movement: schema.athleteRankings.movement,
-
-        // Scores
-        combineScore: schema.athleteRankings.combineScore,
-        maxPrepsScore: schema.athleteRankings.maxPrepsScore,
-        zybekScore: schema.athleteRankings.zybekScore,
-        overallScore: schema.athleteRankings.overallScore,
-
-        // Meta
-        dataSources: schema.athleteRankings.dataSources,
-        lastUpdated: schema.athleteRankings.updatedAt,
-      })
-      .from(schema.players)
-      .leftJoin(
-        schema.athleteRankings,
-        eq(schema.players.id, schema.athleteRankings.playerId)
-      )
-      .$dynamic();
 
     // Apply filters
     if (filters.length > 0) {
