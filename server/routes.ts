@@ -145,10 +145,16 @@ router.get('/profile/stats', requireAuth, async (req: Request, res: Response, ne
 });
 
 // PLAYERS & TEAMS
-router.get('/players', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/players', optionalAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const allPlayers = await db.select().from(schema.players);
-    res.json(allPlayers.map(publicPlayer));
+    // Coach discoverability: a coach listing athletes must not see those a
+    // parent hid (mirrors the /api/coach/players/search filter). Non-coach
+    // callers still get the full public directory.
+    const visible = authUser(req)?.role === 'coach'
+      ? allPlayers.filter(p => ((p.preferences ?? {}) as Record<string, unknown>).coachDiscoverable !== false)
+      : allPlayers;
+    res.json(visible.map(publicPlayer));
   } catch (err: any) {
     next(err);
   }

@@ -306,4 +306,20 @@ describe('routes.ts /api/players endpoints honor coachDiscoverable', () => {
     expect((await request(app).get(`/api/players/${child.id}`).set(athleteAuth(child))).status).toBe(200);
     expect((await request(app).get(`/api/players/${child.id}/highlights`).set(athleteAuth(child))).status).toBe(200);
   });
+
+  it('filters hidden athletes out of GET /api/players for a coach but not the public', async () => {
+    const child = await hiddenChild();
+    const open = await makeAthlete({ name: 'Open Ophelia' });
+    const coach = await makeCoach();
+
+    const coachList = await request(app).get('/api/players').set(coachAuth(coach));
+    const coachIds = coachList.body.map((p: { id: number }) => p.id);
+    expect(coachIds).not.toContain(child.id);
+    expect(coachIds).toContain(open.id);
+
+    // The unauthenticated public directory still includes the athlete.
+    const publicList = await request(app).get('/api/players');
+    const publicIds = publicList.body.map((p: { id: number }) => p.id);
+    expect(publicIds).toContain(child.id);
+  });
 });
