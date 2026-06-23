@@ -41,13 +41,13 @@ export const CoachSignup = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password, school, sport, division }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data.error || data.message || 'Unable to create account');
+        setError(data?.error || data?.message || 'Unable to create account');
         return;
       }
-      if (data.token) localStorage.setItem('coachToken', data.token);
-      if (data.user) localStorage.setItem('coachUser', JSON.stringify(data.user));
+      if (data?.token) localStorage.setItem('coachToken', data.token);
+      if (data?.user) localStorage.setItem('coachUser', JSON.stringify(data.user));
       navigate('/coach');
     } catch {
       setError('Network error — please try again');

@@ -107,7 +107,7 @@ function sumGameStats(stats: GameStat[]): GameStat {
 export const Profile = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { showNotification } = useNotifications();
   const [activeTab, setActiveTab] = useState('Overview');
   const [profile, setProfile] = useState<ApiProfile | null>(null);
@@ -233,6 +233,7 @@ export const Profile = () => {
         }),
       });
       setProfile(updated);
+      if (user && updated.name) updateUser({ name: updated.name });
       setEditOpen(false);
       showNotification('success', 'Profile updated', 'Your changes have been saved.');
     } catch (err) {
@@ -262,7 +263,10 @@ export const Profile = () => {
     setStatsLoading(true);
     if (isOwnProfile) {
       apiFetch<{ game: GameStat[]; combine: CombineStat | null }>('/api/profile/stats')
-        .then(d => { setGameStats(d.game ?? []); setCombineStats(d.combine ?? null); })
+        .then(d => {
+          setGameStats(Array.isArray(d?.game) ? d.game : []);
+          setCombineStats(d?.combine ?? null);
+        })
         .catch(() => {})
         .finally(() => setStatsLoading(false));
     } else {

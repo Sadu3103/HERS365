@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Mail, Lock, User, ArrowRight, Eye, EyeOff, ArrowUpRight } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, Eye, EyeOff, ArrowUpRight, Github } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/api';
 import { athleteAvatar } from '../lib/avatar';
+import { DemoLoginButton } from '../components/DemoLoginButton';
 
 const FLAME   = '#ff5a2d';
 const FLAME_S = '#ff8c66';
@@ -197,17 +198,17 @@ export const Auth = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
         setError(
-          data.error || data.message ||
+          data?.error || data?.message ||
           (isLogin
             ? "We couldn't sign you in — check your email and password."
             : "We couldn't create your account — please try again.")
         );
         return;
       }
-      if (data.token && data.user) login(data.token, data.user);
+      if (data?.token && data?.user) login(data.token, data.user);
       navigate(isLogin
         ? '/feed'
         : role === 'parent' ? '/parent/dashboard' : '/onboarding'
@@ -617,6 +618,10 @@ export const Auth = () => {
                 : <>{isLogin ? 'Enter the Grid' : 'Claim Your Spot'}<ArrowRight size={16} /></>
               }
             </button>
+
+            {isLogin && (
+              <DemoLoginButton role="player" onLoadingChange={setLoading} onError={msg => setError(msg ?? '')} />
+            )}
           </form>
 
           {/* Consent / age block (signup only — also covers OAuth signup) */}
@@ -646,6 +651,14 @@ export const Auth = () => {
 
           {/* Social */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <button type="button" onClick={() => { window.location.href = '/api/auth/github'; }} disabled={loading} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
+              padding: '13px', background: FIELD, border: `1px solid ${LINE}`, borderRadius: 11,
+              color: TEXT, fontSize: '.8rem', fontWeight: 800, cursor: 'pointer',
+              letterSpacing: '.08em', textTransform: 'uppercase', fontFamily: DISP,
+            }}>
+              <Github size={18} /> Continue with GitHub
+            </button>
             {googleClientId ? (
               <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <GoogleLogin

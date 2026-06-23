@@ -71,7 +71,7 @@ export function CoachDashboard() {
       }
       if (response.ok) {
         const data = await response.json();
-        setClips(data.clips || []);
+        setClips(Array.isArray(data?.clips) ? data.clips : []);
       }
     } catch {
       setLoadError(true);
@@ -261,7 +261,7 @@ export function CoachDashboard() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-white font-medium">{clip.views.toLocaleString()}</p>
+                    <p className="text-white font-medium">{(clip.views ?? 0).toLocaleString()}</p>
                     <p className="text-gray-400 text-xs">views</p>
                   </div>
                 </div>
@@ -322,11 +322,11 @@ export function CoachDashboard() {
                       <div className="flex items-center gap-4">
                         <span className="flex items-center gap-1">
                           <Eye className="w-4 h-4" />
-                          {clip.views.toLocaleString()}
+                          {(clip.views ?? 0).toLocaleString()}
                         </span>
                         <span className="flex items-center gap-1">
                           <Heart className="w-4 h-4" />
-                          {clip.likes.toLocaleString()}
+                          {(clip.likes ?? 0).toLocaleString()}
                         </span>
                       </div>
                       <span className="text-xs">{clip.breakoutScore} BR</span>

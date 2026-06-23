@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Target, GraduationCap, Trophy, ChevronRight, ChevronLeft, Check, Star, Zap, MapPin, BookOpen } from 'lucide-react';
+import { Target, GraduationCap, Trophy, ChevronRight, ChevronLeft, Check, Star, Zap, MapPin, BookOpen, Upload } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { FLAG_POSITIONS } from '../lib/positions';
 import { fetchWithRefresh } from '../lib/api';
@@ -220,7 +220,10 @@ export function Onboarding() {
   const [form,   setForm]   = useState({
     sport: 'Flag Football', position: '', school: '',
     gradYear: '', state: '', gpa: '', achievements: '',
+    photoUploaded: false, profileImageUrl: '',
   });
+  const photoRef = useRef<HTMLInputElement>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
 
   useEffect(() => {
     try {
@@ -229,7 +232,29 @@ export function Onboarding() {
     } catch { /* noop */ }
   }, []);
 
-  const set = (key: string, value: string) => setForm(f => ({ ...f, [key]: value }));
+  const set = (key: string, value: string | boolean) => setForm(f => ({ ...f, [key]: value }));
+
+  const uploadPhoto = async (file: File) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    setPhotoBusy(true);
+    try {
+      const presignRes = await fetch('/api/upload/presign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ filename: file.name, contentType: file.type, size: file.size }),
+      });
+      const presign = await presignRes.json();
+      if (!presignRes.ok) throw new Error(presign.error || 'Upload failed');
+      const putRes = await fetch(presign.uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+      if (!putRes.ok) throw new Error('Upload failed');
+      setForm(f => ({ ...f, photoUploaded: true, profileImageUrl: presign.publicUrl }));
+    } catch (err) {
+      showNotification('error', 'Photo upload failed', err instanceof Error ? err.message : 'Try again');
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
 
   const canAdvance =
     (step === 1 && !!form.sport && !!form.position) ||
@@ -250,14 +275,21 @@ export function Onboarding() {
     }
     setSaving(true);
     try {
+      const body: Record<string, string> = { ...form } as any;
+      delete (body as any).photoUploaded;
+      if (form.profileImageUrl) body.profileImage = form.profileImageUrl;
+      delete (body as any).profileImageUrl;
+
+      // [D-05] fetchWithRefresh injects the Bearer token and silently refreshes
+      // on a 401, so no manual Authorization header is needed.
       const res  = await fetchWithRefresh(`/api/athletes/${user.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(body),
       });
-      const data = await res.json();
-      if (!res.ok || data.success === false) {
-        showNotification('error', 'Could not save', data.error || 'Something went wrong.');
+      const data = await res.json().catch(() => null);
+      if (!res.ok || data?.success === false) {
+        showNotification('error', 'Could not save', data?.error || 'Something went wrong.');
         setSaving(false);
         return;
       }
@@ -409,6 +441,19 @@ export function Onboarding() {
               {/* ── STEP 3 ── */}
               {step === 3 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+                  <div>
+                    <label style={labelCls}>Profile photo <span style={{ color: MUTED_2, textTransform: 'none', letterSpacing: 0 }}>(optional)</span></label>
+                    <input ref={photoRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); e.target.value = ''; }} />
+                    <button type="button" disabled={photoBusy} onClick={() => photoRef.current?.click()} style={{
+                      width: '100%', padding: '24px', borderRadius: 13, cursor: 'pointer',
+                      border: `2px dashed ${form.photoUploaded ? FLAME : LINE}`,
+                      background: form.photoUploaded ? 'rgba(255,90,45,0.08)' : INK_3,
+                      color: form.photoUploaded ? FLAME_S : MUTED, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    }}>
+                      <Upload size={18} />
+                      {photoBusy ? 'Uploading…' : form.photoUploaded ? 'Photo added' : 'Upload photo'}
+                    </button>
+                  </div>
                   <StyledInput label="GPA (optional)" value={form.gpa} onChange={v => set('gpa', v)} placeholder="e.g. 3.8" />
                   <div>
                     <label style={labelCls}>Achievements <span style={{ color: MUTED_2, textTransform: 'none', letterSpacing: 0 }}>(optional)</span></label>

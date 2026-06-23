@@ -1383,7 +1383,7 @@ export const Feed = () => {
                   fontSize: '.6rem',
                   color: FLAME_SOFT,
                 }}>
-                  {initials(a.name)}
+                  {initials(a.name ?? '')}
                 </span>
               </span>
               <span style={{ minWidth: 0, flex: 1 }}>
@@ -1398,7 +1398,7 @@ export const Feed = () => {
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                 }}>
-                  {a.name}
+                  {a.name ?? '—'}
                 </span>
                 {(a.position || a.school) && (
                   <span style={{

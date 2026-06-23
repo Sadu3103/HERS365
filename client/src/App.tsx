@@ -9,6 +9,7 @@ import { Training } from './pages/Training';
 import { Recruiting } from './pages/Recruiting';
 import { Teams } from './pages/Teams';
 import { Auth } from './pages/Auth';
+import { AuthCallback } from './pages/AuthCallback';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { ResetPassword } from './pages/ResetPassword';
 import { Subscription } from './pages/Subscription';
@@ -38,7 +39,6 @@ import { LeagueFinder } from './pages/LeagueFinder';
 import { SquadFinder } from './pages/SquadFinder';
 import { TeamFinder } from './pages/TeamFinder';
 import { ScholarshipTracker } from './pages/ScholarshipTracker';
-import { ParentHub } from './pages/ParentHub';
 import { ParentDashboard } from './pages/ParentDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { AdminLogin } from './pages/AdminLogin';
@@ -184,7 +184,7 @@ function App() {
               <Route path="/squads" element={<SquadFinder />} />
               <Route path="/teams/find" element={<TeamFinder />} />
               <Route path="/scholarships" element={<ScholarshipTracker />} />
-              <Route path="/parent" element={<ParentHub />} />
+              <Route path="/parent" element={<ParentDashboard />} />
               <Route path="/parent/dashboard" element={<ParentDashboard />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/login" element={<AdminLogin />} />
@@ -197,6 +197,7 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/landing" element={<LandingPage />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
 

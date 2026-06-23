@@ -196,8 +196,17 @@ router.get('/players/search', async (req, res) => {
     }
 
     // Real data: query the platform roster, map each athlete to the scouting shape.
-    const rows = await db.select().from(schema.players)
+    const rowsRaw = await db.select().from(schema.players)
       .where(conditions.length ? and(...conditions) : undefined);
+
+    // Parent-controlled coach discoverability: when an athlete's parent has
+    // flipped profileVisibility=false the players.preferences JSON carries
+    // coachDiscoverable=false; hide those rows from the coach search. Unset
+    // or true keeps the existing behavior (default-preserving).
+    const rows = rowsRaw.filter((p) => {
+      const prefs = (p.preferences ?? {}) as Record<string, unknown>;
+      return prefs.coachDiscoverable !== false;
+    });
 
     // Enrich with each athlete's most recent highlight thumbnail so the coach
     // search cards aren't faceless. Single batched query, not an N+1.

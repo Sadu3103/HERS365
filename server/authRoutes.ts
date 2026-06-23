@@ -1,10 +1,14 @@
 import express from 'express';
+import passport from 'passport';
 import { and, eq, gt } from 'drizzle-orm';
 import rateLimit from 'express-rate-limit';
 import { db } from './db';
 import * as schema from './schema';
 import * as auth from './auth';
 import { blocklistToken } from './redis';
+import { configurePassport, isGitHubOAuthConfigured } from './passport';
+
+configurePassport();
 
 const router = express.Router();
 
@@ -25,6 +29,50 @@ const registerLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many accounts created from this network — try again later' },
 });
+
+// ─── Demo-login gate (defense-in-depth, positive non-prod assertion) ─────────
+// Two hardcoded seeded accounts are the ONLY ones the client-side "Instant
+// Login" button can target. The server-side gate uses a POSITIVE non-prod
+// assertion rather than the absence of 'production': the prod runtime in
+// this repo does not reliably set NODE_ENV, so a missing/unset env must
+// fail closed, NOT default to "non-prod = ok".
+//
+// To enable demo login, BOTH must hold:
+//   1. (APP_ENV ?? NODE_ENV) is exactly 'development' or 'test'.
+//      Anything else (including undefined, '', 'production', 'staging',
+//      arbitrary strings) returns false.
+//   2. process.env.DEMO_ENABLED === 'true'.
+//
+// Both must be deliberately set, so prod cannot satisfy the gate even if
+// DEMO_ENABLED is misconfigured/leaked.
+const DEMO_LOGIN_ALLOWLIST = new Set<string>([
+  'maya@hers365.com',
+  'coach@hers365.com',
+]);
+
+const ALLOWED_DEMO_ENVS = new Set<string>(['development', 'test']);
+
+export function isDemoEmail(email: string | undefined | null): boolean {
+  if (!email) return false;
+  return DEMO_LOGIN_ALLOWLIST.has(email.toLowerCase().trim());
+}
+
+export function isDemoLoginEnabled(): boolean {
+  const envValue = process.env.APP_ENV ?? process.env.NODE_ENV;
+  if (!envValue || !ALLOWED_DEMO_ENVS.has(envValue)) return false;
+  if (process.env.DEMO_ENABLED !== 'true') return false;
+  return true;
+}
+
+// Returns true and writes a 403 if the request targets a demo account
+// while the demo path is locked down. Returns false otherwise (caller
+// continues with the normal credential check).
+function rejectIfDemoLocked(email: string, res: express.Response): boolean {
+  if (!isDemoEmail(email)) return false;
+  if (isDemoLoginEnabled()) return false;
+  res.status(403).json({ error: 'Demo login is disabled in this environment' });
+  return true;
+}
 
 // ─── DB helpers ──────────────────────────────────────────────────────────────
 
@@ -215,6 +263,8 @@ router.post('/login', loginLimiter, async (req, res) => {
     return res.status(400).json({ error: 'email and password are required' });
   }
 
+  if (rejectIfDemoLocked(email as string, res)) return;
+
   const user = await findUserByEmail((email as string).toLowerCase(), (role as auth.UserRole) || 'athlete');
   if (!user || !user.passwordHash) {
     return res.status(401).json({ error: 'Invalid credentials' });
@@ -237,6 +287,7 @@ router.post('/coach/login', loginLimiter, async (req, res) => {
   if (!email || !password) {
     return res.status(400).json({ error: 'email and password are required' });
   }
+  if (rejectIfDemoLocked(email as string, res)) return;
   const user = await findUserByEmail((email as string).toLowerCase(), 'coach');
   if (!user || !user.passwordHash) {
     return res.status(401).json({ error: 'Invalid credentials' });
@@ -451,6 +502,61 @@ router.post('/logout', auth.requireAuth, async (req, res) => {
 
   res.clearCookie(REFRESH_COOKIE, { path: REFRESH_COOKIE_PATH });
   res.json({ success: true });
+});
+
+router.post('/change-password', auth.requireAuth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body ?? {};
+  const user = (req as any).user as auth.TokenPayload;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'currentPassword and newPassword are required' });
+  }
+  if (String(newPassword).length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  }
+
+  const found = await findUserByEmail(user.email, user.role);
+  if (!found?.passwordHash) {
+    return res.status(400).json({ error: 'Password change is not available for this account' });
+  }
+  if (!(await auth.comparePassword(String(currentPassword), found.passwordHash))) {
+    return res.status(401).json({ error: 'Current password is incorrect' });
+  }
+
+  try {
+    const passwordHash = await auth.hashPassword(String(newPassword));
+    const userId = user.userId ?? user.id!;
+    const table = user.role === 'coach' ? schema.coaches : user.role === 'parent' ? schema.parents : schema.players;
+    await db.update(table).set({ passwordHash }).where(eq(table.id, userId));
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[auth/change-password]', err);
+    res.status(500).json({ error: 'Failed to update password' });
+  }
+});
+
+router.get('/github', (req, res, next) => {
+  if (!isGitHubOAuthConfigured()) {
+    return res.status(503).json({ error: 'GitHub OAuth not configured' });
+  }
+  passport.authenticate('github', { session: false, scope: ['user:email'] })(req, res, next);
+});
+
+router.get('/github/callback', (req, res, next) => {
+  if (!isGitHubOAuthConfigured()) {
+    return res.status(503).json({ error: 'GitHub OAuth not configured' });
+  }
+  const frontend = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+  passport.authenticate('github', { session: false, failureRedirect: `${frontend}/auth?error=github` })(req, res, next);
+}, (req, res) => {
+  const user = (req as any).user as { userId: number; email: string; name: string; role: auth.UserRole };
+  const token = auth.signToken({ userId: user.userId, email: user.email, name: user.name, role: user.role });
+  const frontend = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+  const data = encodeURIComponent(JSON.stringify({
+    token,
+    user: { id: user.userId, email: user.email, name: user.name, role: user.role },
+  }));
+  res.redirect(`${frontend}/auth/callback?data=${data}`);
 });
 
 export default router;

@@ -326,7 +326,10 @@ router.get('/requests', async (req, res) => {
 router.post('/requests/:id/respond', validateParams(idParam), validateBody(messageRespondBody), async (req, res) => {
   try {
     const { userId } = caller(req);
-    const id = Number(req.params.id);
+    const id = parseIdParam(req.params.id);
+    if (id === null) {
+      return res.status(400).json({ success: false, error: 'Invalid id' });
+    }
     const { action } = req.body ?? {};
     if (!['approve', 'reject'].includes(action)) {
       return res.status(400).json({ success: false, error: 'action must be approve or reject' });
