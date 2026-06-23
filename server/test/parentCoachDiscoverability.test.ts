@@ -254,3 +254,56 @@ describe('GET /api/athletes/:id honors coachDiscoverable for coach viewers', () 
     expect((await request(app).get(`/api/athletes/${child.id}`).set(coachAuth(coach))).status).toBe(200);
   });
 });
+
+// The coachDiscoverable gate must not be bypassable through the sibling
+// /api/players routes in routes.ts. A coach blocked on /api/athletes/:id and
+// /api/coach/players/:id could otherwise pull the same hidden minor's profile,
+// stats, and highlight videos here.
+describe('routes.ts /api/players endpoints honor coachDiscoverable', () => {
+  async function hiddenChild() {
+    const parent = await makeParent();
+    const child = await makeAthlete({ name: 'Hidden Hana' });
+    await linkParentChild(parent.id, child.id);
+    await request(app)
+      .put('/api/parent/settings')
+      .set(parentAuth(parent))
+      .send({ profileVisibility: false });
+    return child;
+  }
+
+  it('blocks a coach on GET /api/players/:id for a hidden athlete', async () => {
+    const child = await hiddenChild();
+    const coach = await makeCoach();
+    expect((await request(app).get(`/api/players/${child.id}`).set(coachAuth(coach))).status).toBe(403);
+  });
+
+  it('blocks a coach on GET /api/players/:id/stats for a hidden athlete', async () => {
+    const child = await hiddenChild();
+    const coach = await makeCoach();
+    expect((await request(app).get(`/api/players/${child.id}/stats`).set(coachAuth(coach))).status).toBe(403);
+  });
+
+  it('blocks a coach on GET /api/players/:id/highlights for a hidden athlete', async () => {
+    const child = await hiddenChild();
+    const coach = await makeCoach();
+    expect((await request(app).get(`/api/players/${child.id}/highlights`).set(coachAuth(coach))).status).toBe(403);
+  });
+
+  it('still serves a discoverable athlete to a coach on all three routes', async () => {
+    const a = await makeAthlete({ name: 'Open Olivia' });
+    const coach = await makeCoach();
+    expect((await request(app).get(`/api/players/${a.id}`).set(coachAuth(coach))).status).toBe(200);
+    expect((await request(app).get(`/api/players/${a.id}/stats`).set(coachAuth(coach))).status).toBe(200);
+    expect((await request(app).get(`/api/players/${a.id}/highlights`).set(coachAuth(coach))).status).toBe(200);
+  });
+
+  it('does not block anonymous or owner access to a coach hidden athlete', async () => {
+    const child = await hiddenChild();
+    // coachDiscoverable is coach scoped: the public profile still resolves.
+    expect((await request(app).get(`/api/players/${child.id}`)).status).toBe(200);
+    expect((await request(app).get(`/api/players/${child.id}/stats`)).status).toBe(200);
+    // The owner athlete is not a coach, so their own views are untouched.
+    expect((await request(app).get(`/api/players/${child.id}`).set(athleteAuth(child))).status).toBe(200);
+    expect((await request(app).get(`/api/players/${child.id}/highlights`).set(athleteAuth(child))).status).toBe(200);
+  });
+});
