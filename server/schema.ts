@@ -1,4 +1,4 @@
-import { pgTable, text, integer, serial, boolean, timestamp, jsonb, doublePrecision } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, serial, boolean, timestamp, jsonb, doublePrecision, unique } from "drizzle-orm/pg-core";
 import { sql } from 'drizzle-orm';
 
 export const players = pgTable('players', {
@@ -335,6 +335,31 @@ export const trainingPlans = pgTable('training_plans', {
   weeklySchedule: text('weekly_schedule'),
   goals: text('goals'),
 });
+
+// [F-37] Personal training sessions an athlete logs for themselves.
+export const athleteSessions = pgTable('athlete_sessions', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').notNull().references(() => players.id),
+  programId: integer('program_id'),               // optional link to a training program
+  activity: text('activity').notNull(),           // e.g. "Speed & agility", "QB footwork"
+  durationMinutes: integer('duration_minutes').notNull(),
+  intensity: text('intensity'),                   // 'low' | 'moderate' | 'high'
+  notes: text('notes'),
+  sessionDate: timestamp('session_date').notNull().default(sql`now()`),
+  createdAt: timestamp('created_at').default(sql`now()`),
+});
+
+// [F-37] An athlete's completion percentage for a training program (0-100).
+// One row per (player, program) — PATCHing progress upserts this.
+export const athleteProgramProgress = pgTable('athlete_program_progress', {
+  id: serial('id').primaryKey(),
+  playerId: integer('player_id').notNull().references(() => players.id),
+  programId: integer('program_id').notNull(),
+  percentComplete: integer('percent_complete').notNull().default(0),
+  updatedAt: timestamp('updated_at').notNull().default(sql`now()`),
+}, (t) => ({
+  playerProgramUnq: unique('athlete_program_progress_player_program_unq').on(t.playerId, t.programId),
+}));
 
 export const drills = pgTable('drills', {
   id: serial('id').primaryKey(),

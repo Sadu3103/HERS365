@@ -1,7 +1,13 @@
 import express from 'express';
+import { eq, desc } from 'drizzle-orm';
 import { clampIntQuery, parseIntQuery } from '../lib/queryParam';
+import { requireAuth } from '../auth';
+import { db } from '../db';
+import * as schema from '../schema';
 
 const router = express.Router();
+
+const VALID_INTENSITY = ['low', 'moderate', 'high'];
 
 // Mock data for training programs and sessions
 const mockPrograms = [
@@ -154,6 +160,113 @@ router.get('/sessions', (req, res) => {
       success: false,
       error: 'Failed to fetch training sessions'
     });
+  }
+});
+
+// [F-37] POST /api/training/sessions — athlete logs a completed personal session.
+// Real DB write to athlete_sessions, scoped to req.user.userId.
+router.post('/sessions', requireAuth, async (req, res) => {
+  const user = (req as any).user;
+  if (user?.role !== 'athlete') {
+    return res.status(403).json({ success: false, error: 'Only athletes can log training sessions' });
+  }
+
+  const { activity, durationMinutes, intensity, notes, sessionDate, programId } = req.body ?? {};
+
+  if (typeof activity !== 'string' || !activity.trim()) {
+    return res.status(400).json({ success: false, error: 'activity is required' });
+  }
+  const duration = Number(durationMinutes);
+  if (!Number.isInteger(duration) || duration <= 0 || duration > 1440) {
+    return res.status(400).json({ success: false, error: 'durationMinutes must be a positive integer up to 1440' });
+  }
+  if (intensity !== undefined && intensity !== null && !VALID_INTENSITY.includes(intensity)) {
+    return res.status(400).json({ success: false, error: "intensity must be 'low', 'moderate', or 'high'" });
+  }
+  let programIdVal: number | null = null;
+  if (programId !== undefined && programId !== null && programId !== '') {
+    programIdVal = parseIntQuery(programId);
+    if (programIdVal === null) {
+      return res.status(400).json({ success: false, error: 'programId must be an integer' });
+    }
+  }
+  let when = new Date();
+  if (sessionDate !== undefined) {
+    when = new Date(sessionDate);
+    if (Number.isNaN(when.getTime())) {
+      return res.status(400).json({ success: false, error: 'sessionDate is not a valid date' });
+    }
+  }
+
+  try {
+    const [row] = await db.insert(schema.athleteSessions).values({
+      playerId: user.userId ?? user.id,
+      programId: programIdVal,
+      activity: activity.trim().slice(0, 200),
+      durationMinutes: duration,
+      intensity: intensity ?? null,
+      notes: notes ? String(notes).slice(0, 2000) : null,
+      sessionDate: when,
+    }).returning();
+
+    res.status(201).json({ success: true, data: row });
+  } catch (error) {
+    console.error('[training/sessions POST]', error);
+    res.status(500).json({ success: false, error: 'Failed to log training session' });
+  }
+});
+
+// [F-37] GET /api/training/sessions/me — the authed athlete's logged sessions.
+router.get('/sessions/me', requireAuth, async (req, res) => {
+  const user = (req as any).user;
+  if (user?.role !== 'athlete') {
+    return res.status(403).json({ success: false, error: 'Only athletes have a training log' });
+  }
+  const limitNum = clampIntQuery(req.query.limit, { default: 50, min: 1, max: 200 });
+  try {
+    const rows = await db
+      .select()
+      .from(schema.athleteSessions)
+      .where(eq(schema.athleteSessions.playerId, user.userId ?? user.id))
+      .orderBy(desc(schema.athleteSessions.sessionDate))
+      .limit(limitNum);
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error('[training/sessions/me GET]', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch training log' });
+  }
+});
+
+// [F-37] PATCH /api/training/programs/:id/progress — athlete updates their
+// completion percentage for a program. Upserts athlete_program_progress.
+router.patch('/programs/:id/progress', requireAuth, async (req, res) => {
+  const user = (req as any).user;
+  if (user?.role !== 'athlete') {
+    return res.status(403).json({ success: false, error: 'Only athletes can track program progress' });
+  }
+  const programId = parseIntQuery(req.params.id);
+  if (programId === null) {
+    return res.status(400).json({ success: false, error: 'program id must be an integer' });
+  }
+  const percent = Number(req.body?.percentComplete);
+  if (!Number.isInteger(percent) || percent < 0 || percent > 100) {
+    return res.status(400).json({ success: false, error: 'percentComplete must be an integer from 0 to 100' });
+  }
+
+  const playerId = user.userId ?? user.id;
+  try {
+    const [row] = await db
+      .insert(schema.athleteProgramProgress)
+      .values({ playerId, programId, percentComplete: percent })
+      .onConflictDoUpdate({
+        target: [schema.athleteProgramProgress.playerId, schema.athleteProgramProgress.programId],
+        set: { percentComplete: percent, updatedAt: new Date() },
+      })
+      .returning();
+    res.json({ success: true, data: row });
+  } catch (error) {
+    console.error('[training/programs/:id/progress PATCH]', error);
+    res.status(500).json({ success: false, error: 'Failed to update program progress' });
   }
 });
 

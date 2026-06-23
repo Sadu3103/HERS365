@@ -66,6 +66,41 @@ export const Training = () => {
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState(false);
 
+  // [F-37] "Log Session" — athlete records a completed training session.
+  const [logOpen, setLogOpen] = useState(false);
+  const [logValues, setLogValues] = useState({ activity: '', durationMinutes: '', intensity: '', notes: '' });
+  const [logSaving, setLogSaving] = useState(false);
+  const [logError, setLogError] = useState<string | null>(null);
+  const [logSuccess, setLogSuccess] = useState(false);
+
+  const submitLog = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLogError(null);
+    const duration = Number(logValues.durationMinutes);
+    if (!logValues.activity.trim()) { setLogError('Activity is required.'); return; }
+    if (!Number.isInteger(duration) || duration <= 0 || duration > 1440) {
+      setLogError('Duration must be a whole number of minutes (1–1440).'); return;
+    }
+    setLogSaving(true);
+    try {
+      const body: Record<string, unknown> = {
+        activity: logValues.activity.trim(),
+        durationMinutes: duration,
+      };
+      if (logValues.intensity) body.intensity = logValues.intensity;
+      if (logValues.notes.trim()) body.notes = logValues.notes.trim();
+      await apiFetch('/api/training/sessions', { method: 'POST', body: JSON.stringify(body) });
+      setLogSuccess(true);
+      setLogOpen(false);
+      setLogValues({ activity: '', durationMinutes: '', intensity: '', notes: '' });
+      setTimeout(() => setLogSuccess(false), 3000);
+    } catch (err) {
+      setLogError(errorMessage(err, 'Failed to log session. Try again.'));
+    } finally {
+      setLogSaving(false);
+    }
+  };
+
   const fetchStats = useCallback(async () => {
     setStatsLoading(true);
     setStatsError(null);
@@ -123,12 +158,109 @@ export const Training = () => {
     <div style={{ padding: '24px', maxWidth: 1100, margin: '0 auto' }}>
 
       {/* Header */}
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '2rem', textTransform: 'uppercase', color: '#fff', marginBottom: 4 }}>
-          Training Academy
-        </h1>
-        <p style={{ color: '#555', fontSize: '0.85rem' }}>Track your combine results and explore training resources</p>
+      <div style={{ marginBottom: 28, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <h1 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '2rem', textTransform: 'uppercase', color: '#fff', marginBottom: 4 }}>
+            Training Academy
+          </h1>
+          <p style={{ color: '#555', fontSize: '0.85rem' }}>Track your combine results and explore training resources</p>
+        </div>
+        {/* [F-37] Log Session CTA */}
+        <button
+          onClick={() => { setLogOpen(true); setLogError(null); }}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: '#ff5a2d', border: 'none', borderRadius: 9999,
+            color: '#fff', fontSize: '0.8rem', fontWeight: 800, letterSpacing: '0.06em',
+            padding: '11px 20px', cursor: 'pointer', boxShadow: '0 10px 28px rgba(255,90,45,0.35)',
+            flexShrink: 0,
+          }}
+        >
+          <Flame size={15} /> LOG SESSION
+        </button>
       </div>
+
+      {logSuccess && (
+        <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', color: '#4ade80', fontSize: '0.82rem', fontWeight: 600 }}>
+          ✓ Session logged.
+        </div>
+      )}
+
+      {/* [F-37] Log Session modal */}
+      {logOpen && (
+        <div
+          onClick={() => !logSaving && setLogOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}
+        >
+          <form
+            onClick={e => e.stopPropagation()}
+            onSubmit={submitLog}
+            className="k-card"
+            style={{ width: '100%', maxWidth: 440, padding: '24px', display: 'flex', flexDirection: 'column', gap: 14 }}
+          >
+            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.4rem', textTransform: 'uppercase', color: '#fff' }}>Log a Training Session</div>
+
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.12em', color: '#888', textTransform: 'uppercase' }}>Activity *</span>
+              <input
+                value={logValues.activity}
+                onChange={e => setLogValues(v => ({ ...v, activity: e.target.value }))}
+                placeholder="e.g. Speed & agility"
+                style={{ background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', color: '#fff', fontSize: '0.88rem', outline: 'none' }}
+              />
+            </label>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.12em', color: '#888', textTransform: 'uppercase' }}>Duration (min) *</span>
+                <input
+                  type="number" min={1} max={1440} inputMode="numeric"
+                  value={logValues.durationMinutes}
+                  onChange={e => setLogValues(v => ({ ...v, durationMinutes: e.target.value }))}
+                  placeholder="45"
+                  style={{ background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', color: '#fff', fontSize: '0.88rem', outline: 'none' }}
+                />
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.12em', color: '#888', textTransform: 'uppercase' }}>Intensity</span>
+                <select
+                  value={logValues.intensity}
+                  onChange={e => setLogValues(v => ({ ...v, intensity: e.target.value }))}
+                  style={{ background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', color: '#fff', fontSize: '0.88rem', outline: 'none' }}
+                >
+                  <option value="">—</option>
+                  <option value="low">Low</option>
+                  <option value="moderate">Moderate</option>
+                  <option value="high">High</option>
+                </select>
+              </label>
+            </div>
+
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.12em', color: '#888', textTransform: 'uppercase' }}>Notes</span>
+              <textarea
+                value={logValues.notes}
+                onChange={e => setLogValues(v => ({ ...v, notes: e.target.value }))}
+                rows={3} placeholder="How did it go?"
+                style={{ background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', color: '#fff', fontSize: '0.88rem', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+              />
+            </label>
+
+            {logError && <div style={{ color: '#ff5a2d', fontSize: '0.8rem' }}>{logError}</div>}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+              <button type="button" onClick={() => setLogOpen(false)} disabled={logSaving}
+                style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#aaa', fontSize: '0.78rem', fontWeight: 700, padding: '9px 16px', cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button type="submit" disabled={logSaving}
+                style={{ background: '#ff5a2d', border: 'none', borderRadius: 8, color: '#fff', fontSize: '0.78rem', fontWeight: 800, letterSpacing: '0.06em', padding: '9px 18px', cursor: logSaving ? 'wait' : 'pointer', opacity: logSaving ? 0.7 : 1 }}>
+                {logSaving ? 'Saving…' : 'Log Session'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Today's drill count — real, based on actual checked drills */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 28, maxWidth: 480 }}>
