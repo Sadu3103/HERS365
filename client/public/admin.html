@@ -148,6 +148,7 @@ const CONFIG = {
   site: 'https://hers365.vercel.app',                       // the live web app
   api:  'https://hers365-api-production.up.railway.app',    // the live API on Railway
   healthPath: '/health',                                    // the API liveness route
+  apiProxy: '/health-api',                                  // same origin proxy to the API health (see client/vercel.json), avoids CORS
   github: { owner: 'Sadu3103', repo: 'HERS365' },           // for the live CI check
   // For the parts a browser cannot test, set 'ok' or 'fail' once a teammate verifies.
   // Leave 'unknown' and they show as Unverified.
@@ -345,23 +346,28 @@ function fetchT(url, opts, ms){
 }
 
 async function checkApi(){
-  const url = CONFIG.api + CONFIG.healthPath;
-  try{
-    const r = await fetchT(url, { mode:'cors' });
-    if(r.ok){
-      corsOK = true;
+  // The Railway API does not send CORS headers, so a browser cannot read it directly.
+  // Prefer the same origin proxy (/health-api via vercel.json), which is also the exact
+  // path the real app uses to reach the API. Fall back to the direct URL for local preview.
+  const onWeb = location.protocol === 'http:' || location.protocol === 'https:';
+  const tries = [];
+  if(onWeb && CONFIG.apiProxy) tries.push({ url: location.origin + CONFIG.apiProxy, proxied: true });
+  tries.push({ url: CONFIG.api + CONFIG.healthPath, proxied: false });
+
+  for(const t of tries){
+    try{
+      const r = await fetchT(t.url, { mode:'cors' });
+      if(!r.ok){ if(t.proxied) continue; return ['fail', 'The API answered <b>'+r.status+'</b> at <code>'+CONFIG.healthPath+'</code>.']; }
+      corsOK = corsOK || t.proxied;
       let s = 'ok';
       try{ const j = await r.json(); s = j.status || 'ok'; }catch(_){}
-      if(s === 'ok' || s === 'healthy') return ['ok', 'The API answered 200 at <code>'+CONFIG.healthPath+'</code> and reported <b>'+s+'</b>.'];
+      const via = t.proxied ? ' (via the same proxy the app uses)' : '';
+      if(s === 'ok' || s === 'healthy') return ['ok', 'The API answered 200 at <code>'+CONFIG.healthPath+'</code> and reported <b>'+s+'</b>'+via+'.'];
       if(s === 'degraded') return ['warn', 'The API is up but reported <b>degraded</b>.'];
       return ['fail', 'The API reported <b>'+s+'</b>.'];
-    }
-    return ['fail', 'The API answered <b>'+r.status+'</b> at <code>'+CONFIG.healthPath+'</code>.'];
-  }catch(e){
-    try{ await fetchT(url, { mode:'no-cors' });
-      return ['ok', 'The API responded. The browser hides the detail cross origin, but the Railway service is up.'];
-    }catch(e2){ return ['fail', 'No response from <code>'+CONFIG.api+'</code>. The Railway service is down or the address in CONFIG is wrong.']; }
+    }catch(e){ /* try next candidate */ }
   }
+  return ['fail', 'No reachable response from the API. The Railway service may be down, or the <code>/health-api</code> rewrite in <code>client/vercel.json</code> is missing.'];
 }
 async function checkSite(){
   try{ await fetchT(CONFIG.site, { mode:'no-cors' }); return ['ok', 'The web app at <code>'+CONFIG.site+'</code> responded.']; }
