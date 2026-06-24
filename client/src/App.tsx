@@ -63,10 +63,26 @@ import { NotificationProvider } from './context/NotificationContext';
 import { AuthProvider } from './context/AuthContext';
 const queryClient = new QueryClient();
 
-// Scroll to top on every route change
+// Scroll to top on route change, or to the hash target when one is present.
+// A cold load of e.g. /#how used to land at the top because the section had
+// not rendered yet when the browser tried to jump; retry briefly so deep
+// links into the landing page (The Grid, Features) scroll into view.
 function ScrollToTop() {
-  const { pathname } = useLocation();
-  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }); }, [pathname]);
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    if (hash) {
+      const id = hash.slice(1);
+      let tries = 0;
+      const jump = () => {
+        const el = document.getElementById(id);
+        if (el) { el.scrollIntoView({ behavior: 'smooth' }); return; }
+        if (tries++ < 10) requestAnimationFrame(jump);
+      };
+      requestAnimationFrame(jump);
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  }, [pathname, hash]);
   return null;
 }
 
