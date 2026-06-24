@@ -69,6 +69,63 @@ export const Layout = () => {
   const unreadMessages = unread?.data?.totalUnread ?? 0;
   const p = profile?.data ?? {};
 
+  // Logged-out visitors land here on public pages (rankings, about, privacy,
+  // the 404 catch-all, etc.). Render marketing chrome, not the athlete app
+  // shell — a signed-out user should never see "SIGN OUT" or a profile card.
+  if (!user) {
+    const pubLink: React.CSSProperties = {
+      color: '#8a8a86', fontWeight: 600, fontSize: '0.84rem',
+      textDecoration: 'none', letterSpacing: '0.01em',
+    };
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#0a0a0a', color: '#fff' }}>
+        <header style={{
+          height: 56, display: 'flex', alignItems: 'center', padding: '0 20px',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          background: 'rgba(10,10,10,0.84)',
+          backdropFilter: 'blur(20px) saturate(1.5)',
+          WebkitBackdropFilter: 'blur(20px) saturate(1.5)',
+          position: 'sticky', top: 0, zIndex: 30, gap: 14,
+        }}>
+          <Link to="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
+            <span style={{
+              fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 900,
+              fontSize: '1.35rem', letterSpacing: '0.04em',
+              textTransform: 'uppercase', color: '#fff',
+            }}>
+              HERS<span style={{ color: '#ff5a2d' }}>365</span>
+            </span>
+          </Link>
+
+          <nav className="hidden md:flex" style={{ marginLeft: 28, gap: 26, alignItems: 'center' }}>
+            <Link to="/rankings" style={pubLink}>Rankings</Link>
+            <Link to="/coach/login" style={pubLink}>For Coaches</Link>
+            <Link to="/about" style={pubLink}>About</Link>
+          </nav>
+
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+            <Link to="/auth?tab=login" style={pubLink}>Sign In</Link>
+            <Link
+              to="/auth?tab=signup"
+              className="k-btn k-btn-primary"
+              style={{ padding: '8px 18px', borderRadius: 9999, fontSize: '0.8rem', textDecoration: 'none' }}
+            >
+              Get Recruited
+            </Link>
+          </div>
+        </header>
+
+        <main style={{ flex: 1 }}>
+          <AnimatePresence mode="wait">
+            <motion.div key={location.pathname} {...pageTransition}>
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#0a0a0a', color: '#fff', overflow: 'hidden' }}>
 
