@@ -239,13 +239,15 @@ export function Onboarding() {
     if (!token) return;
     setPhotoBusy(true);
     try {
-      const presignRes = await fetch('/api/upload/presign', {
+      // [D-05] Authed call → fetchWithRefresh (injects token + silent refresh).
+      const presignRes = await fetchWithRefresh('/api/upload/presign', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename: file.name, contentType: file.type, size: file.size }),
       });
       const presign = await presignRes.json();
       if (!presignRes.ok) throw new Error(presign.error || 'Upload failed');
+      // Direct S3 PUT to a presigned URL — NOT our API, no token, stays raw fetch.
       const putRes = await fetch(presign.uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
       if (!putRes.ok) throw new Error('Upload failed');
       setForm(f => ({ ...f, photoUploaded: true, profileImageUrl: presign.publicUrl }));
