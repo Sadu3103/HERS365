@@ -74,7 +74,7 @@ export function CoachPlayerProfile() {
 
     try {
       const token = localStorage.getItem('coachToken');
-      await fetch(`/api/coach/message/${player.id}`, {
+      await fetch(`/api/coach/contact/${player.id}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -83,9 +83,9 @@ export function CoachPlayerProfile() {
         body: JSON.stringify({ message }),
       });
 
-      showNotification('success', 'Message Sent', 'Your message has been delivered to the player.');
+      showNotification('success', 'Request Sent', 'Your contact request has been sent. A parent must approve before messaging begins.');
     } catch {
-      showNotification('error', 'Send Failed', 'Could not send message. Please try again.');
+      showNotification('error', 'Send Failed', 'Could not send contact request. Please try again.');
     }
   };
 

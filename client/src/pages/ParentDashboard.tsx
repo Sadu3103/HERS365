@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Users, MessageSquare, Activity, Bell, CheckCircle2, XCircle, ChevronRight, Lock } from 'lucide-react';
+import { apiFetch } from '../lib/api';
 
 const FLAME = '#ff5a2d';
 const LINE = 'rgba(255,255,255,0.07)';
@@ -50,8 +51,7 @@ const SettingsPanel = () => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch('/api/parent/settings');
-        const json = await res.json();
+        const json = await apiFetch('/api/parent/settings').catch(() => null);
         if (cancelled || !json?.success) return;
         const merged = { ...prefs, ...(json.data as Partial<Record<SettingKey, boolean>>) };
         setPrefs(merged);
@@ -65,12 +65,10 @@ const SettingsPanel = () => {
     const next = !prefs[key];
     setPrefs((p) => ({ ...p, [key]: next }));
     try {
-      const res = await fetch('/api/parent/settings', {
+      await apiFetch('/api/parent/settings', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [key]: next }),
       });
-      if (!res.ok) throw new Error('save failed');
     } catch {
       setPrefs((p) => ({ ...p, [key]: !next })); // revert
     }
@@ -108,15 +106,10 @@ export const ParentDashboard = () => {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [cRes, rRes, aRes] = await Promise.all([
-        fetch('/api/parent/children'),
-        fetch('/api/parent/requests'),
-        fetch('/api/parent/activity'),
-      ]);
       const [cData, rData, aData] = await Promise.all([
-        cRes.json().catch(() => null),
-        rRes.json().catch(() => null),
-        aRes.json().catch(() => null),
+        apiFetch('/api/parent/children').catch(() => null),
+        apiFetch('/api/parent/requests').catch(() => null),
+        apiFetch('/api/parent/activity').catch(() => null),
       ]);
       if (cData?.success) setChildren(Array.isArray(cData.data) ? cData.data : []);
       if (rData?.success) setRequests(Array.isArray(rData.data) ? rData.data : []);
@@ -133,12 +126,10 @@ export const ParentDashboard = () => {
   const respond = async (id: number, action: 'approve' | 'reject') => {
     setActing(id);
     try {
-      const res = await fetch(`/api/parent/requests/${id}/respond`, {
+      const data = await apiFetch(`/api/parent/requests/${id}/respond`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
-      });
-      const data = await res.json().catch(() => null);
+      }).catch(() => null);
       if (data?.success) {
         const req = requests.find((r) => r.id === id);
         if (req) {

@@ -13,6 +13,8 @@ import { validateBody, validateParams } from './middleware/validate';
 import {
   coachMessageBody,
   coachMessageParams,
+  coachContactBody,
+  coachContactParams,
   coachPlayerSaveBody,
   coachPlayerNotesBody,
   coachPlayerTierBody,
@@ -483,6 +485,61 @@ router.patch('/players/:id/tier', validateParams(coachPlayerParams), validateBod
 });
 
 // ─── Messaging ────────────────────────────────────────────────────────────────
+
+/**
+ * POST /coach/contact/:athleteId — Initiate a contact request to an athlete.
+ * Creates a pending message_request visible to the athlete's linked parents.
+ * Idempotent: re-submitting while a pending request already exists is a no-op
+ * that still returns 201 (safe to retry from the UI without spamming the parent).
+ */
+router.post('/contact/:athleteId', messageRateLimit, validateParams(coachContactParams), validateBody(coachContactBody), async (req, res) => {
+  try {
+    const coachId = coachUserId(req);
+    const athleteId = parseIdParam(req.params.athleteId);
+    if (athleteId === null) return res.status(400).json({ success: false, error: 'Invalid athlete id' });
+
+    const [athlete] = await db
+      .select({ id: schema.players.id, preferences: schema.players.preferences })
+      .from(schema.players)
+      .where(eq(schema.players.id, athleteId))
+      .limit(1);
+    if (!athlete) return res.status(404).json({ success: false, error: 'Athlete not found' });
+
+    const prefs = (athlete.preferences ?? {}) as Record<string, unknown>;
+    if (prefs.coachDiscoverable === false) {
+      return res.status(403).json({ success: false, error: 'Forbidden' });
+    }
+
+    const existing = await db
+      .select({ id: schema.messageRequests.id })
+      .from(schema.messageRequests)
+      .where(and(
+        eq(schema.messageRequests.athleteId, athleteId),
+        eq(schema.messageRequests.receiverId, coachId),
+        eq(schema.messageRequests.status, 'pending'),
+      ))
+      .limit(1);
+    if (existing.length > 0) {
+      return res.status(201).json({ success: true, data: { id: existing[0].id, status: 'pending' } });
+    }
+
+    const { message } = req.body;
+    const verdict = await moderateMessage(String(message));
+    if (!verdict.allowed) {
+      return res.status(422).json({ success: false, error: "Your message couldn't be sent. Please revise and try again." });
+    }
+
+    const [row] = await db
+      .insert(schema.messageRequests)
+      .values({ athleteId, receiverId: coachId, content: message, status: 'pending' })
+      .returning();
+
+    res.status(201).json({ success: true, data: { id: row.id, status: 'pending' } });
+  } catch (error) {
+    console.error('[coach/contact] failed:', error);
+    res.status(500).json({ success: false, error: 'Failed to send contact request' });
+  }
+});
 
 /**
  * POST /coach/message/:playerId — Send a message to an athlete
