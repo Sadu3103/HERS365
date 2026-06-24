@@ -8,6 +8,7 @@ import { db } from './db';
 import * as schema from './schema';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { requireAdmin } from './auth';
+import { fetchAndExtract, getAIClient } from './lib/scraper';
 
 const router = express.Router();
 
@@ -641,6 +642,251 @@ router.delete('/teams/:id', requireAdmin, async (req: Request, res: Response) =>
     const teamId = parseInt(req.params.id);
     await db.delete(schema.teams).where(eq(schema.teams.id, teamId));
     res.json({ success: true, message: 'Team deleted' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// RECRUITING — Programs, AI refresh, stories, applications, scholarships
+// ──────────────────────────────────────────────────────────────────────────────
+
+// GET /api/admin/programs — all programs with programDetails joined
+router.get('/programs', requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const rows = await db
+      .select({
+        id: schema.teams.id,
+        name: schema.teams.name,
+        division: schema.teams.division,
+        conference: schema.teams.conference,
+        city: schema.teams.city,
+        state: schema.teams.state,
+        websiteUrl: schema.programDetails.websiteUrl,
+        hasScholarships: schema.programDetails.hasScholarships,
+        lastScrapedAt: schema.programDetails.lastScrapedAt,
+        staffCount: sql<number>`(select count(*)::int from program_staff where team_id = teams.id)`,
+      })
+      .from(schema.teams)
+      .leftJoin(schema.programDetails, eq(schema.programDetails.teamId, schema.teams.id))
+      .where(eq(schema.teams.type, 'college'));
+
+    res.json({ success: true, data: rows });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/programs/:teamId/refresh — AI re-scrape in expanded mode
+router.post('/programs/:teamId/refresh', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const teamId = parseInt(req.params.teamId);
+    if (isNaN(teamId)) return res.status(400).json({ error: 'Invalid teamId' });
+
+    if (!getAIClient()) return res.status(503).json({ error: 'No AI backend configured' });
+
+    const teamRows = await db.select({ id: schema.teams.id, name: schema.teams.name })
+      .from(schema.teams).where(eq(schema.teams.id, teamId)).limit(1);
+    if (teamRows.length === 0) return res.status(404).json({ error: 'Team not found' });
+
+    const detailRows = await db.select({ websiteUrl: schema.programDetails.websiteUrl })
+      .from(schema.programDetails).where(eq(schema.programDetails.teamId, teamId)).limit(1);
+    if (!detailRows[0]?.websiteUrl) return res.status(404).json({ error: 'No website URL for this team' });
+
+    const result = await fetchAndExtract(
+      { id: teamId, name: teamRows[0].name, website: detailRows[0].websiteUrl },
+      { expanded: true }
+    );
+
+    await db.update(schema.programDetails)
+      .set({ lastScrapedAt: new Date(), scrapedDataRaw: result as any, updatedAt: new Date() })
+      .where(eq(schema.programDetails.teamId, teamId));
+
+    await db.delete(schema.programStaff).where(eq(schema.programStaff.teamId, teamId));
+    if (result.staff.length > 0) {
+      await db.insert(schema.programStaff).values(
+        result.staff.map((m: any) => ({
+          teamId, name: m.name, title: m.title, email: m.email, phone: m.phone,
+          scrapedAt: new Date(), scrapedFrom: detailRows[0].websiteUrl,
+        }))
+      );
+    }
+
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/programs/refresh-all — background re-scrape of all programs
+router.post('/programs/refresh-all', requireAdmin, async (_req: Request, res: Response) => {
+  if (!getAIClient()) return res.status(503).json({ error: 'No AI backend configured' });
+
+  const allSchools = await db
+    .select({ id: schema.teams.id, name: schema.teams.name, websiteUrl: schema.programDetails.websiteUrl })
+    .from(schema.teams)
+    .leftJoin(schema.programDetails, eq(schema.programDetails.teamId, schema.teams.id))
+    .where(eq(schema.teams.type, 'college'));
+
+  res.json({ success: true, message: `Refreshing ${allSchools.length} programs in background` });
+
+  for (const s of allSchools) {
+    if (!s.websiteUrl) continue;
+    try {
+      const result = await fetchAndExtract({ id: s.id, name: s.name, website: s.websiteUrl }, { expanded: true });
+      await db.update(schema.programDetails)
+        .set({ lastScrapedAt: new Date(), scrapedDataRaw: result as any, updatedAt: new Date() })
+        .where(eq(schema.programDetails.teamId, s.id));
+      if (result.staff.length > 0) {
+        await db.delete(schema.programStaff).where(eq(schema.programStaff.teamId, s.id));
+        await db.insert(schema.programStaff).values(
+          result.staff.map((m: any) => ({ teamId: s.id, name: m.name, title: m.title, email: m.email, phone: m.phone, scrapedAt: new Date(), scrapedFrom: s.websiteUrl }))
+        );
+      }
+    } catch { /* continue on failure */ }
+    await new Promise(r => setTimeout(r, 600));
+  }
+});
+
+// GET /api/admin/ai-status — check if Ollama or OpenAI is configured
+router.get('/ai-status', requireAdmin, async (_req: Request, res: Response) => {
+  const ai = getAIClient();
+  if (!ai) return res.json({ available: false, model: null, backend: null });
+
+  if (ai.isOllama) {
+    try {
+      const resp = await fetch(`${process.env.OLLAMA_BASE_URL}/api/tags`).catch(() => null);
+      return res.json({ available: !!resp?.ok, model: ai.model, backend: 'ollama' });
+    } catch {
+      return res.json({ available: false, model: ai.model, backend: 'ollama' });
+    }
+  }
+
+  res.json({ available: true, model: ai.model, backend: 'openai' });
+});
+
+// ── Stories (commitment stories moderation) ────────────────────────────────────
+
+router.get('/stories/pending', requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const rows = await db.select().from(schema.commitmentStories)
+      .where(eq(schema.commitmentStories.approved, false))
+      .orderBy(desc(schema.commitmentStories.createdAt));
+    res.json({ success: true, data: rows });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.patch('/stories/:id/approve', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const updated = await db.update(schema.commitmentStories)
+      .set({ approved: true }).where(eq(schema.commitmentStories.id, id)).returning();
+    if (!updated[0]) return res.status(404).json({ error: 'Story not found' });
+    res.json({ success: true, data: updated[0] });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/stories/:id', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    await db.delete(schema.commitmentStories).where(eq(schema.commitmentStories.id, id));
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Application status management ──────────────────────────────────────────────
+
+router.patch('/applications/:id/status', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { status } = req.body;
+    const valid = ['pending', 'reviewed', 'accepted', 'rejected'];
+    if (!valid.includes(status)) return res.status(400).json({ error: `status must be one of: ${valid.join(', ')}` });
+
+    const updated = await db.update(schema.programApplications)
+      .set({ status }).where(eq(schema.programApplications.id, id)).returning();
+    if (!updated[0]) return res.status(404).json({ error: 'Application not found' });
+
+    // Notify the athlete
+    const athleteId = updated[0].athleteId;
+    if (athleteId) {
+      const teamRows = await db.select({ name: schema.teams.name })
+        .from(schema.teams).where(eq(schema.teams.id, updated[0].programId!)).limit(1);
+      const schoolName = teamRows[0]?.name || 'a program';
+      await db.insert(schema.notifications).values({
+        playerId: athleteId,
+        type: 'coach_interest',
+        actorName: `${schoolName} — application ${status}`,
+      }).catch(() => {});
+    }
+
+    res.json({ success: true, data: updated[0] });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Scholarship CRUD ───────────────────────────────────────────────────────────
+
+router.get('/scholarships', requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const rows = await db.select().from(schema.scholarships).orderBy(desc(schema.scholarships.createdAt));
+    res.json({ success: true, data: rows });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/scholarships', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { name, amount, deadline, requirements, category, eligibleStates } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: 'name is required' });
+    if (!amount || isNaN(Number(amount))) return res.status(400).json({ error: 'amount must be a number' });
+    if (!deadline?.trim()) return res.status(400).json({ error: 'deadline is required' });
+
+    const inserted = await db.insert(schema.scholarships).values({
+      name: name.trim(), amount: parseInt(amount), deadline: deadline.trim(),
+      requirements: requirements?.trim() || null, category: category?.trim() || null,
+      eligibleStates: eligibleStates?.trim() || null,
+    }).returning();
+    res.json({ success: true, data: inserted[0] });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.patch('/scholarships/:id', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { name, amount, deadline, requirements, category, eligibleStates } = req.body;
+    const updates: Record<string, any> = {};
+    if (name !== undefined) updates.name = name.trim();
+    if (amount !== undefined) updates.amount = parseInt(amount);
+    if (deadline !== undefined) updates.deadline = deadline.trim();
+    if (requirements !== undefined) updates.requirements = requirements?.trim() || null;
+    if (category !== undefined) updates.category = category?.trim() || null;
+    if (eligibleStates !== undefined) updates.eligibleStates = eligibleStates?.trim() || null;
+
+    const updated = await db.update(schema.scholarships).set(updates)
+      .where(eq(schema.scholarships.id, id)).returning();
+    if (!updated[0]) return res.status(404).json({ error: 'Scholarship not found' });
+    res.json({ success: true, data: updated[0] });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/scholarships/:id', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    await db.delete(schema.scholarships).where(eq(schema.scholarships.id, id));
+    res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

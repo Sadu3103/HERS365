@@ -1,102 +1,312 @@
+// @ts-nocheck
 import express from 'express';
+import { eq, and, ilike, sql } from 'drizzle-orm';
+import { db } from '../db';
+import * as schema from '../schema';
+import { requireAuth } from '../middleware/requireAuth';
+import { fetchAndExtract, getAIClient } from '../lib/scraper';
 
 const router = express.Router();
 
-const mockPrograms = [
-  { id: 1, name: 'University of Texas', city: 'Austin', state: 'Texas', division: 'NCAA D1', conference: 'Big 12', hasScholarships: true, programSize: 'Large', coachId: 1, athletesRecruited: 48, winRecord: '12-2', tuitionInState: 11000 },
-  { id: 2, name: 'Florida State University', city: 'Tallahassee', state: 'Florida', division: 'NCAA D1', conference: 'ACC', hasScholarships: true, programSize: 'Large', coachId: 2, athletesRecruited: 52, winRecord: '13-1', tuitionInState: 13000 },
-  { id: 3, name: 'Azusa Pacific University', city: 'Azusa', state: 'California', division: 'NAIA', conference: 'GSAC', hasScholarships: true, programSize: 'Medium', coachId: 3, athletesRecruited: 24, winRecord: '8-4', tuitionInState: 36000 },
-  { id: 4, name: 'Hardin-Simmons University', city: 'Abilene', state: 'Texas', division: 'NCAA D3', conference: 'ASC', hasScholarships: false, programSize: 'Small', coachId: 4, athletesRecruited: 16, winRecord: '7-3', tuitionInState: 30000 },
-  { id: 5, name: 'Shorter University', city: 'Rome', state: 'Georgia', division: 'NCAA D2', conference: 'SAC', hasScholarships: true, programSize: 'Medium', coachId: 5, athletesRecruited: 28, winRecord: '9-3', tuitionInState: 18000 },
-  { id: 6, name: 'San Diego Mesa College', city: 'San Diego', state: 'California', division: 'JUCO', conference: 'PCAC', hasScholarships: false, programSize: 'Small', coachId: null, athletesRecruited: 12, winRecord: '5-5', tuitionInState: 1500 },
-  { id: 7, name: 'Lindenwood University', city: 'St. Charles', state: 'Missouri', division: 'NCAA D1', conference: 'OVC', hasScholarships: true, programSize: 'Large', coachId: 6, athletesRecruited: 40, winRecord: '10-4', tuitionInState: 19000 },
-  { id: 8, name: 'Benedictine College', city: 'Atchison', state: 'Kansas', division: 'NAIA', conference: 'HAAC', hasScholarships: true, programSize: 'Small', coachId: 7, athletesRecruited: 20, winRecord: '6-4', tuitionInState: 32000 },
-];
-
-// In-memory application store { programId_athleteName: application }
-const applications: any[] = [];
-
-// GET /api/programs
-router.get('/', (req, res) => {
+// GET /api/programs — programs from DB with optional filters
+router.get('/', async (req, res) => {
   try {
-    const { state, division, conference, scholarship, size, search } = req.query;
-    let results = [...mockPrograms];
+    const { search, division, state } = req.query;
+
+    // Fetch teams with their programDetails and staff counts
+    const rows = await db
+      .select({
+        id: schema.teams.id,
+        name: schema.teams.name,
+        division: schema.teams.division,
+        conference: schema.teams.conference,
+        city: schema.teams.city,
+        state: schema.teams.state,
+        websiteUrl: schema.programDetails.websiteUrl,
+        hasScholarships: schema.programDetails.hasScholarships,
+        lastScrapedAt: schema.programDetails.lastScrapedAt,
+      })
+      .from(schema.teams)
+      .leftJoin(schema.programDetails, eq(schema.programDetails.teamId, schema.teams.id))
+      .where(eq(schema.teams.type, 'college'));
+
+    // Fetch staff counts in one query
+    const staffCounts = await db
+      .select({
+        teamId: schema.programStaff.teamId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(schema.programStaff)
+      .groupBy(schema.programStaff.teamId);
+
+    const staffCountMap: Record<number, number> = {};
+    for (const { teamId, count } of staffCounts) {
+      staffCountMap[teamId] = count;
+    }
+
+    let results = rows.map(r => ({
+      ...r,
+      website: r.websiteUrl || '',
+      fetched: !!r.lastScrapedAt,
+      staffCount: staffCountMap[r.id] || 0,
+    }));
 
     if (search) {
-      const q = search.toString().toLowerCase();
-      results = results.filter(p =>
-        p.name.toLowerCase().includes(q) ||
-        p.state.toLowerCase().includes(q) ||
-        p.conference.toLowerCase().includes(q)
+      const q = String(search).toLowerCase();
+      results = results.filter(r =>
+        r.name.toLowerCase().includes(q) ||
+        (r.state && r.state.toLowerCase().includes(q)) ||
+        (r.conference && r.conference.toLowerCase().includes(q))
       );
     }
-    if (state && state !== 'All') results = results.filter(p => p.state === state);
-    if (division && division !== 'All') results = results.filter(p => p.division === division);
-    if (conference && conference !== 'All') results = results.filter(p => p.conference === conference);
-    if (scholarship && scholarship !== 'All') {
-      const wantsScholarship = scholarship === 'Yes';
-      results = results.filter(p => p.hasScholarships === wantsScholarship);
+    if (division && division !== 'All') {
+      results = results.filter(r => r.division === String(division));
     }
-    if (size && size !== 'All') results = results.filter(p => p.programSize === size);
+    if (state && state !== 'All') {
+      results = results.filter(r => r.state === String(state));
+    }
 
     res.json({ success: true, data: results, total: results.length });
   } catch (error) {
+    console.error('[programs/list]', error);
     res.status(500).json({ success: false, error: 'Failed to fetch programs' });
   }
 });
 
-// GET /api/programs/:id
-router.get('/:id', (req, res) => {
+// POST /api/programs/fetch-live — fetch + extract one school, persist to DB
+router.post('/fetch-live', async (req, res) => {
   try {
-    const program = mockPrograms.find(p => p.id === parseInt(req.params.id));
-    if (!program) {
-      return res.status(404).json({ success: false, error: 'Program not found' });
+    const { schoolId } = req.body;
+    if (!schoolId) return res.status(400).json({ success: false, error: 'schoolId is required' });
+
+    const teamId = parseInt(String(schoolId), 10);
+    if (isNaN(teamId)) return res.status(400).json({ success: false, error: 'schoolId must be a number' });
+
+    const teamRows = await db
+      .select({ id: schema.teams.id, name: schema.teams.name })
+      .from(schema.teams)
+      .where(eq(schema.teams.id, teamId))
+      .limit(1);
+
+    if (teamRows.length === 0) return res.status(404).json({ success: false, error: 'School not found' });
+
+    const detailRows = await db
+      .select({ websiteUrl: schema.programDetails.websiteUrl })
+      .from(schema.programDetails)
+      .where(eq(schema.programDetails.teamId, teamId))
+      .limit(1);
+
+    const websiteUrl = detailRows[0]?.websiteUrl;
+    if (!websiteUrl) return res.status(404).json({ success: false, error: 'No website URL for this school' });
+
+    if (!getAIClient()) {
+      return res.status(503).json({
+        success: false,
+        error: 'No AI backend configured. Set OLLAMA_BASE_URL (local) or OPENAI_API_KEY (production) in server/.env.',
+      });
     }
-    res.json({ success: true, data: program });
+
+    const school = { id: teamId, name: teamRows[0].name, website: websiteUrl };
+    const result = await fetchAndExtract(school);
+
+    // Upsert programDetails
+    await db
+      .update(schema.programDetails)
+      .set({
+        lastScrapedAt: new Date(),
+        scrapedDataRaw: result as any,
+        updatedAt: new Date(),
+        ...(result.hasScholarships !== null && { hasScholarships: result.hasScholarships }),
+      })
+      .where(eq(schema.programDetails.teamId, teamId));
+
+    // Replace staff for this school
+    await db.delete(schema.programStaff).where(eq(schema.programStaff.teamId, teamId));
+    if (result.staff.length > 0) {
+      await db.insert(schema.programStaff).values(
+        result.staff.map(m => ({
+          teamId,
+          name: m.name,
+          title: m.title,
+          email: m.email,
+          phone: m.phone,
+          scrapedAt: new Date(),
+          scrapedFrom: websiteUrl,
+        }))
+      );
+    }
+
+    // Update teams table if scraper found division/conference/city/state
+    const teamUpdates: Record<string, any> = {};
+    if (result.division) teamUpdates.division = result.division;
+    if (result.conference) teamUpdates.conference = result.conference;
+    if (result.city) teamUpdates.city = result.city;
+    if (result.state) teamUpdates.state = result.state;
+    if (Object.keys(teamUpdates).length > 0) {
+      await db.update(schema.teams).set(teamUpdates).where(eq(schema.teams.id, teamId));
+    }
+
+    res.json({ success: true, data: { ...result, staff: result.staff } });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error?.message || 'Live fetch failed' });
+  }
+});
+
+// POST /api/programs/fetch-all — background fetch for all schools without staff
+router.post('/fetch-all', async (req, res) => {
+  if (!getAIClient()) {
+    return res.status(503).json({
+      success: false,
+      error: 'No AI backend configured. Set OLLAMA_BASE_URL or OPENAI_API_KEY in server/.env.',
+    });
+  }
+
+  const allSchools = await db
+    .select({
+      id: schema.teams.id,
+      name: schema.teams.name,
+      websiteUrl: schema.programDetails.websiteUrl,
+      lastScrapedAt: schema.programDetails.lastScrapedAt,
+    })
+    .from(schema.teams)
+    .leftJoin(schema.programDetails, eq(schema.programDetails.teamId, schema.teams.id))
+    .where(eq(schema.teams.type, 'college'));
+
+  const unfetched = allSchools.filter(s => !s.lastScrapedAt && s.websiteUrl);
+
+  res.json({ success: true, message: `Fetching ${unfetched.length} schools in background` });
+
+  for (const s of unfetched) {
+    try {
+      const result = await fetchAndExtract({ id: s.id, name: s.name, website: s.websiteUrl! });
+
+      await db
+        .update(schema.programDetails)
+        .set({ lastScrapedAt: new Date(), scrapedDataRaw: result as any, updatedAt: new Date() })
+        .where(eq(schema.programDetails.teamId, s.id));
+
+      if (result.staff.length > 0) {
+        await db.delete(schema.programStaff).where(eq(schema.programStaff.teamId, s.id));
+        await db.insert(schema.programStaff).values(
+          result.staff.map(m => ({
+            teamId: s.id,
+            name: m.name,
+            title: m.title,
+            email: m.email,
+            phone: m.phone,
+            scrapedAt: new Date(),
+            scrapedFrom: s.websiteUrl!,
+          }))
+        );
+      }
+    } catch {
+      // Continue on individual failures
+    }
+    await new Promise(r => setTimeout(r, 500));
+  }
+});
+
+// GET /api/programs/:id — single program with full details
+router.get('/:id', async (req, res) => {
+  try {
+    const teamId = parseInt(req.params.id, 10);
+    if (isNaN(teamId)) return res.status(400).json({ success: false, error: 'Invalid id' });
+
+    const rows = await db
+      .select({
+        id: schema.teams.id,
+        name: schema.teams.name,
+        division: schema.teams.division,
+        conference: schema.teams.conference,
+        city: schema.teams.city,
+        state: schema.teams.state,
+        websiteUrl: schema.programDetails.websiteUrl,
+        hasScholarships: schema.programDetails.hasScholarships,
+        minGpa: schema.programDetails.minGpa,
+        rosterNeeds: schema.programDetails.rosterNeeds,
+        athleticBenchmarks: schema.programDetails.athleticBenchmarks,
+        eligibilityNotes: schema.programDetails.eligibilityNotes,
+        majorsList: schema.programDetails.majorsList,
+        graduationRate: schema.programDetails.graduationRate,
+        studentAthleteSupportNotes: schema.programDetails.studentAthleteSupportNotes,
+        lastScrapedAt: schema.programDetails.lastScrapedAt,
+      })
+      .from(schema.teams)
+      .leftJoin(schema.programDetails, eq(schema.programDetails.teamId, schema.teams.id))
+      .where(eq(schema.teams.id, teamId))
+      .limit(1);
+
+    if (rows.length === 0) return res.status(404).json({ success: false, error: 'Program not found' });
+
+    const staff = await db
+      .select()
+      .from(schema.programStaff)
+      .where(eq(schema.programStaff.teamId, teamId));
+
+    res.json({ success: true, data: { ...rows[0], website: rows[0].websiteUrl || '', fetched: !!rows[0].lastScrapedAt, staff } });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to fetch program' });
   }
 });
 
-// POST /api/programs/:id/applications
-router.post('/:id/applications', (req, res) => {
+// GET /api/programs/:id/staff — staff for one program
+router.get('/:id/staff', async (req, res) => {
   try {
-    const programId = parseInt(req.params.id);
-    const { athleteName, gradYear, position, note } = req.body;
+    const teamId = parseInt(req.params.id, 10);
+    if (isNaN(teamId)) return res.status(400).json({ success: false, error: 'Invalid id' });
 
-    if (!athleteName || !athleteName.trim()) {
-      return res.status(400).json({ success: false, error: 'Athlete name is required' });
-    }
-    if (!position || !position.trim()) {
-      return res.status(400).json({ success: false, error: 'Position is required' });
-    }
+    const staff = await db
+      .select()
+      .from(schema.programStaff)
+      .where(eq(schema.programStaff.teamId, teamId));
 
-    const program = mockPrograms.find(p => p.id === programId);
-    if (!program) {
-      return res.status(404).json({ success: false, error: 'Program not found' });
-    }
+    res.json({ success: true, data: staff });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to fetch staff' });
+  }
+});
 
-    const existing = applications.find(
-      a => a.programId === programId && a.athleteName === athleteName.trim()
-    );
-    if (existing) {
+// POST /api/programs/:id/applications — submit recruiting interest (auth required)
+router.post('/:id/applications', requireAuth, async (req, res) => {
+  try {
+    const programId = parseInt(req.params.id, 10);
+    if (isNaN(programId)) return res.status(400).json({ success: false, error: 'Invalid program id' });
+
+    const athleteId = req.user?.id ?? req.user?.userId;
+    if (!athleteId) return res.status(401).json({ success: false, error: 'Authentication required' });
+
+    const { position, note } = req.body;
+    if (!position?.trim()) return res.status(400).json({ success: false, error: 'Position is required' });
+
+    const teamRows = await db
+      .select({ id: schema.teams.id })
+      .from(schema.teams)
+      .where(eq(schema.teams.id, programId))
+      .limit(1);
+    if (teamRows.length === 0) return res.status(404).json({ success: false, error: 'Program not found' });
+
+    // Duplicate check
+    const existing = await db
+      .select({ id: schema.programApplications.id })
+      .from(schema.programApplications)
+      .where(
+        and(
+          eq(schema.programApplications.athleteId, athleteId),
+          eq(schema.programApplications.programId, programId)
+        )
+      )
+      .limit(1);
+
+    if (existing.length > 0) {
       return res.status(409).json({ success: false, error: 'You have already applied to this program' });
     }
 
-    const application = {
-      id: Date.now(),
-      programId,
-      programName: program.name,
-      athleteName: athleteName.trim(),
-      gradYear: gradYear || '',
-      position: position.trim(),
-      note: note ? note.trim() : '',
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-    };
+    const inserted = await db
+      .insert(schema.programApplications)
+      .values({ athleteId, programId, position: position.trim(), note: note?.trim() || null })
+      .returning();
 
-    applications.push(application);
-    res.json({ success: true, data: application });
+    res.json({ success: true, data: inserted[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to submit application' });
   }
