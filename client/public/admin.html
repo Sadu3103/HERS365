@@ -19,8 +19,6 @@
     font:15px/1.5 ui-sans-serif,-apple-system,"SF Pro Text",Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
   a{color:inherit}
   .wrap{max-width:1080px;margin:0 auto;padding:34px 22px 90px}
-
-  /* header */
   header{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:22px}
   .brand .mark{font-size:13px;letter-spacing:.34em;text-transform:uppercase;color:var(--mut2);margin:0 0 6px}
   .brand h1{font-size:26px;margin:0;letter-spacing:-.02em}
@@ -35,11 +33,8 @@
   button.refresh:active{transform:translateY(1px)}
   button.refresh.spin svg{animation:spin .8s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
-
   .preview{font-size:12.5px;color:var(--warn);background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.25);
     border-radius:11px;padding:9px 14px;margin-bottom:18px;display:none}
-
-  /* verdict */
   .verdict{position:relative;border:1px solid var(--line);border-radius:var(--r);padding:22px 24px;
     margin-bottom:14px;overflow:hidden;background:var(--panel);transition:border-color .25s}
   .verdict::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--idle);transition:background .25s}
@@ -47,19 +42,13 @@
   .verdict .vlabel{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2);margin:0 0 8px}
   .verdict h2{font-size:23px;margin:0;letter-spacing:-.015em;display:flex;align-items:center;gap:12px}
   .verdict.ok h2{color:var(--ok)} .verdict.warn h2{color:var(--warn)} .verdict.fail h2{color:var(--fail)}
-  .verdict .sub{margin:9px 0 0;color:var(--mut);font-size:14px;max-width:70ch}
+  .verdict .sub{margin:9px 0 0;color:var(--mut);font-size:14px;max-width:72ch}
   .vdot{width:11px;height:11px;border-radius:50%;background:currentColor;flex:0 0 auto;box-shadow:0 0 0 4px rgba(255,255,255,.04)}
-
-  /* legend */
   .legend{display:flex;gap:18px;flex-wrap:wrap;margin:0 2px 26px;color:var(--mut);font-size:12.5px}
   .legend span{display:flex;align-items:center;gap:7px}
   .legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
-
-  /* board + wires */
   .board{position:relative}
   #wires{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
-
-  /* layer band */
   .layer{position:relative;z-index:1;margin:0 0 14px;border:1px solid var(--line);border-radius:var(--r);
     background:linear-gradient(180deg,rgba(255,255,255,.012),transparent);padding:14px 14px 4px}
   .layer-head{display:flex;align-items:baseline;gap:12px;padding:2px 4px 12px}
@@ -67,8 +56,6 @@
   .layer-tag::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--lc);margin-right:9px;vertical-align:middle}
   .layer-blurb{font-size:12.5px;color:var(--mut2)}
   .cards{display:flex;flex-wrap:wrap;gap:12px;padding:0 0 12px}
-
-  /* card */
   .card{position:relative;flex:1 1 240px;min-width:230px;max-width:340px;background:var(--card);
     border:1px solid var(--line);border-radius:13px;padding:14px 15px;cursor:pointer;overflow:hidden;
     transition:border-color .16s,background .16s,transform .07s}
@@ -95,8 +82,6 @@
     align-items:center;justify-content:center;background:var(--fail);color:#0a0a0b;font-weight:800;font-size:13px}
   .card.fail .xbadge{display:flex}
   .card.fail .chev{display:none}
-
-  /* expand */
   .more{display:grid;grid-template-rows:0fr;transition:grid-template-rows .26s ease}
   .card.open .more{grid-template-rows:1fr}
   .more>.inner{overflow:hidden;min-height:0}
@@ -108,7 +93,6 @@
   .more p{margin:0 0 12px;font-size:13px;line-height:1.55;color:#d4d4d8}
   .more code{background:#000;border:1px solid var(--line2);border-radius:5px;padding:1px 5px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;color:#cfcfd6}
   .needs{font-size:12px;color:var(--mut2);margin:0}
-
   footer{margin-top:30px;color:var(--mut2);font-size:12.5px;line-height:1.6}
   footer code{background:#000;border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-family:ui-monospace,monospace;font-size:11.5px}
 </style>
@@ -119,7 +103,7 @@
     <div class="brand">
       <p class="mark">HERS365</p>
       <h1>System Health</h1>
-      <p>Everything it takes to keep HERS365 hosted, and what to do when a part breaks.</p>
+      <p>Everything it takes to keep HERS365 online, and what to do when a part breaks.</p>
     </div>
     <div class="ctl">
       <div class="stamp" id="stamp">Last checked <b>never</b></div>
@@ -148,12 +132,11 @@
 
   <div class="board" id="board">
     <svg id="wires" preserveAspectRatio="none"></svg>
-    <!-- layers injected here -->
   </div>
 
   <footer>
-    Live checks hit the real services. The parts behind secrets cannot be read from a browser, so a healthy API is used to confirm them, and the rest are set by the team in the <code>CONFIG</code> block at the top of this file's script.<br>
-    Edit <code>CONFIG.api</code> if your Render API address is not <code>https://api.hers365.com</code>. This page lives at <code>client/public/admin.html</code> and ships to <code>hers365.com/admin.html</code>.
+    Live checks hit the real services: the web app on Vercel and the API on Railway. Parts behind secrets cannot be read from a browser, so a healthy API confirms them, and the rest are set by the team in the <code>CONFIG</code> block at the top of this file's script.<br>
+    This page lives at <code>client/public/admin.html</code> and is served at <code>/admin.html</code>.
   </footer>
 </div>
 
@@ -162,9 +145,11 @@
    CONFIG  —  the only part the team edits
    ============================================================ */
 const CONFIG = {
-  site: 'https://hers365.com',            // the public website
-  api:  'https://api.hers365.com',        // the Render API address. CHANGE if it is e.g. https://hers365-api.onrender.com
-  github: { owner: 'rsm-nunus', repo: 'HERS365' },  // for the live CI check
+  site: 'https://hers365.vercel.app',                       // the live web app
+  api:  'https://hers365-api-production.up.railway.app',    // the live API on Railway
+  healthPath: '/health',                                    // the API liveness route
+  apiProxy: '/health-api',                                  // same origin proxy to the API health (see client/vercel.json), avoids CORS
+  github: { owner: 'Sadu3103', repo: 'HERS365' },           // for the live CI check
   // For the parts a browser cannot test, set 'ok' or 'fail' once a teammate verifies.
   // Leave 'unknown' and they show as Unverified.
   manual: {
@@ -177,7 +162,7 @@ const CONFIG = {
 };
 
 /* ============================================================
-   LAYERS + PARTS  —  the architecture and the plain English help
+   LAYERS + PARTS
    ============================================================ */
 const LAYERS = [
   { key:'hosting', name:'Hosting',          color:'var(--hosting)', blurb:'Where the app runs' },
@@ -191,85 +176,79 @@ const LAYERS = [
 const TIER = { host:'Required to host', feature:'Feature', gate:'Deploy gate' };
 
 const PARTS = [
-  { key:'api-service', layer:'hosting', name:'Render API service', tier:'host', check:'api', hub:true,
-    short:'The backend server that runs everything.',
-    needs:'Builds, then boots <code>dist/index.js</code> on Render.',
-    cause:'The build failed, a required secret is missing, or the service crashed while starting.',
-    fix:'Open Render, the <code>hers365-api</code> service, and read the latest deploy logs. A failed build is a code or dependency error. A crash right after a clean build is almost always a missing environment variable (see Data and Auth below).' },
+  { key:'api-service', layer:'hosting', name:'API server (Railway)', tier:'host', check:'api', hub:true,
+    short:'The backend that runs everything.',
+    needs:'Deployed on Railway, answers at <code>/health</code>.',
+    cause:'The Railway service crashed on start, usually a missing environment variable, or the deploy failed.',
+    fix:'Open the Railway project, the API service, and read the deploy logs. A crash right after a clean build is almost always a missing variable (see Data and Auth below). A failed build is a code or dependency error.' },
 
-  { key:'client-site', layer:'hosting', name:'Render client site', tier:'host', check:'site', deps:['api-service'],
+  { key:'client-site', layer:'hosting', name:'Web app (Vercel)', tier:'host', check:'site', deps:['api-service'],
     short:'The website people actually visit.',
-    needs:'Builds the app, publishes <code>client/dist</code>, needs <code>VITE_API_URL</code>.',
-    cause:'The static build failed, or <code>VITE_API_URL</code> points at the wrong backend.',
-    fix:'Open Render, the <code>hers365-client</code> service, read the build logs, and confirm <code>VITE_API_URL</code> matches the live API address.' },
+    needs:'Built and served by Vercel from the <code>client</code> folder.',
+    cause:'The Vercel build failed, or the API address the app calls is wrong.',
+    fix:'Open the Vercel project <code>hers-365</code> and read the latest build logs. Confirm the <code>/api</code> rewrite in <code>client/vercel.json</code> points at the live Railway API.' },
 
-  { key:'api-health', layer:'backend', name:'API health', tier:'host', check:'rich', deps:['api-service'],
-    short:'Is the running backend healthy, not just switched on.',
-    needs:'The <code>/health</code> route reports <code>healthy</code>.',
-    cause:'The server is up but a subsystem (the database or compliance) is slow or erroring, so health comes back degraded or unhealthy.',
-    fix:'Open the <code>/health</code> URL directly. The response names the failing subsystem. The database connection is the usual culprit.' },
-
-  { key:'wiring', layer:'backend', name:'Client to API wiring', tier:'host', check:'wiring', deps:['api-service'],
-    short:'The website and the backend can actually talk.',
-    needs:'Set by <code>CORS_ORIGIN</code> on the server and <code>VITE_API_URL</code> on the client.',
-    cause:'<code>CORS_ORIGIN</code> does not include the site address, or <code>VITE_API_URL</code> is wrong, so the browser is blocked from the API.',
-    fix:'In Render set <code>CORS_ORIGIN</code> to the site address (<code>https://hers365.com</code>) and <code>VITE_API_URL</code> to the API address. They have to point at each other.' },
+  { key:'wiring', layer:'backend', name:'App to API wiring', tier:'host', check:'wiring', deps:['api-service'],
+    short:'The web app and the backend can actually talk.',
+    needs:'The <code>/api</code> rewrite in <code>client/vercel.json</code> points at the Railway API, and the API allows the site origin.',
+    cause:'The rewrite points at the wrong API, or the API blocks the site origin (CORS).',
+    fix:'Confirm the destination in <code>client/vercel.json</code> is the live Railway URL, and that the API <code>CORS_ORIGIN</code> allows the site address.' },
 
   { key:'database', layer:'data', name:'PostgreSQL database', tier:'host', check:'derive', deps:['api-service'],
     short:'Where all the data lives.',
-    needs:'<code>DATABASE_URL</code> set in Render and the database reachable.',
+    needs:'<code>DATABASE_URL</code> set in Railway and the database reachable.',
     cause:'<code>DATABASE_URL</code> is missing or wrong, or the database is paused or out of connections.',
-    fix:'In Render, <code>hers365-api</code>, Environment, confirm <code>DATABASE_URL</code> is set and correct. In your database provider, confirm the instance is awake and has free connections.' },
+    fix:'In Railway, the API service, Variables, confirm <code>DATABASE_URL</code> is set and correct. In your database provider, confirm the instance is awake and has free connections.' },
 
   { key:'secrets', layer:'auth', name:'JWT + Session secrets', tier:'host', check:'derive', deps:['api-service'],
     short:'Keeps logins secure and lets the server start.',
-    needs:'<code>JWT_SECRET</code> and <code>SESSION_SECRET</code> set.',
+    needs:'<code>JWT_SECRET</code> and <code>SESSION_SECRET</code> set in Railway.',
     cause:'One of them is missing, so the server refuses to start or every login breaks.',
-    fix:'In Render set both <code>JWT_SECRET</code> and <code>SESSION_SECRET</code> to long random strings of at least 32 characters.' },
+    fix:'In Railway set both <code>JWT_SECRET</code> and <code>SESSION_SECRET</code> to long random strings of at least 32 characters.' },
 
   { key:'stripe', layer:'apis', name:'Stripe payments', tier:'feature', check:'manual', deps:['api-service'],
     short:'Takes payments and runs subscriptions.',
-    needs:'<code>STRIPE_SECRET_KEY</code> and <code>STRIPE_WEBHOOK_SECRET</code>.',
+    needs:'<code>STRIPE_SECRET_KEY</code> and <code>STRIPE_WEBHOOK_SECRET</code> in Railway.',
     cause:'A key is missing, or the webhook signing secret does not match the endpoint set in Stripe.',
-    fix:'In Render set <code>STRIPE_SECRET_KEY</code> and <code>STRIPE_WEBHOOK_SECRET</code>. In Stripe, confirm the webhook points at the live API and the signing secret matches.' },
+    fix:'In Railway set <code>STRIPE_SECRET_KEY</code> and <code>STRIPE_WEBHOOK_SECRET</code>. In Stripe, confirm the webhook points at the live API and the signing secret matches.' },
 
   { key:'openai', layer:'apis', name:'OpenAI', tier:'feature', check:'manual', deps:['api-service'],
     short:'Powers AI features and message moderation.',
-    needs:'<code>OPENAI_API_KEY</code>.',
+    needs:'<code>OPENAI_API_KEY</code> in Railway.',
     cause:'<code>OPENAI_API_KEY</code> is missing or the account is out of credit, so moderation fails closed and messaging stops.',
-    fix:'In Render set <code>OPENAI_API_KEY</code>, and confirm the OpenAI account has billing and credit. Without it, messaging blocks every message on purpose.' },
+    fix:'In Railway set <code>OPENAI_API_KEY</code>, and confirm the OpenAI account has billing and credit. Without it, messaging blocks every message on purpose.' },
 
   { key:'maxpreps', layer:'apis', name:'MaxPreps data', tier:'feature', check:'manual', deps:['api-service'],
     short:'Brings in outside sports stats.',
-    needs:'<code>MAXPREPS_API_KEY</code>.',
+    needs:'<code>MAXPREPS_API_KEY</code> in Railway.',
     cause:'The key is missing, or MaxPreps is rate limiting or down.',
-    fix:'Set <code>MAXPREPS_API_KEY</code> in Render. If it is set, check the MaxPreps status and your quota. The site still hosts without it, the stats just stop updating.' },
+    fix:'Set <code>MAXPREPS_API_KEY</code> in Railway. If it is set, check the MaxPreps status and your quota. The site still hosts without it, the stats just stop updating.' },
 
   { key:'google-oauth', layer:'auth', name:'Google sign in', tier:'feature', check:'manual', deps:['api-service'],
     short:'Lets users log in with Google.',
     needs:'<code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code>, <code>GOOGLE_CALLBACK_URL</code>.',
     cause:'A credential is missing, or the callback URL does not match the one in the Google console.',
-    fix:'In Render set the three Google values. In the Google Cloud console, confirm the authorized redirect URI exactly matches <code>GOOGLE_CALLBACK_URL</code>.' },
+    fix:'In Railway set the three Google values. In the Google Cloud console, confirm the authorized redirect URI exactly matches <code>GOOGLE_CALLBACK_URL</code>.' },
 
   { key:'github-oauth', layer:'auth', name:'GitHub sign in', tier:'feature', check:'manual', deps:['api-service'],
     short:'Lets users log in with GitHub.',
     needs:'<code>GITHUB_CLIENT_ID</code>, <code>GITHUB_CLIENT_SECRET</code>, <code>GITHUB_CALLBACK_URL</code>.',
     cause:'A credential is missing, or the callback URL does not match the GitHub OAuth app.',
-    fix:'In Render set the three GitHub values. In the GitHub OAuth app, confirm the callback URL matches <code>GITHUB_CALLBACK_URL</code>.' },
+    fix:'In Railway set the three GitHub values. In the GitHub OAuth app, confirm the callback URL matches <code>GITHUB_CALLBACK_URL</code>.' },
 
   { key:'ci', layer:'ci', name:'GitHub Actions CI', tier:'gate', check:'ci',
     short:'Checks every code change before it ships.',
     needs:'The <code>ci.yml</code> workflow passes on the latest push.',
     cause:'A test or build step in the workflow failed on the most recent run.',
-    fix:'Open the Actions tab on GitHub, click the latest red run, and read the failed step. Fix it before merging so a broken build never reaches Render.' },
+    fix:'Open the Actions tab on GitHub, click the latest red run, and read the failed step. Fix it before merging so a broken build never reaches production.' },
 ];
 
 /* ============================================================
    STATE + RENDER
    ============================================================ */
 const byKey = Object.fromEntries(PARTS.map(p => [p.key, p]));
-const state = {};   // key -> 'ok'|'warn'|'fail'|'unknown'|'checking'
-const detail = {};  // key -> live detail string
+const state = {};
+const detail = {};
 const SWORD = { ok:'Healthy', warn:'Needs attention', fail:'Failing', unknown:'Unverified', checking:'Checking…' };
 const $ = s => document.querySelector(s);
 
@@ -328,7 +307,6 @@ function paint(p){
   c.querySelector('.live').innerHTML = detail[p.key] ? ('<b>Live:</b> ' + detail[p.key]) : '<b>Live:</b> checking…';
 }
 
-/* ---- wires: every part connects to the API hub ---- */
 function drawWires(){
   const board = $('#board'), svg = $('#wires');
   const hub = document.querySelector('[data-key="api-service"]');
@@ -350,8 +328,7 @@ function drawWires(){
     const broken = state[p.key]==='fail' || state['api-service']==='fail';
     const my = (y + hy)/2;
     d += '<path d="M '+x+' '+y+' C '+x+' '+my+', '+hx+' '+my+', '+hx+' '+hy+'" fill="none" '+
-         'stroke="'+(broken ? 'var(--fail)' : 'rgba(255,255,255,.06)')+'" stroke-width="'+(broken?2:1.25)+'" '+
-         (broken ? '' : 'stroke-dasharray="1 0"')+' />';
+         'stroke="'+(broken ? 'var(--fail)' : 'rgba(255,255,255,.06)')+'" stroke-width="'+(broken?2:1.25)+'" />';
   });
   svg.innerHTML = d;
 }
@@ -361,7 +338,7 @@ function drawWires(){
    ============================================================ */
 let corsOK = false;
 function fetchT(url, opts, ms){
-  ms = ms || 8000;
+  ms = ms || 9000;
   return Promise.race([
     fetch(url, opts),
     new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))
@@ -369,28 +346,32 @@ function fetchT(url, opts, ms){
 }
 
 async function checkApi(){
-  try{
-    const r = await fetchT(CONFIG.api + '/api/health', { mode:'cors' });
-    if(r.ok){ corsOK = true; return ['ok', 'The API answered 200 OK at <code>/api/health</code>.']; }
-    return ['fail', 'The API answered <b>'+r.status+'</b> at <code>/api/health</code>. The service started but is erroring.'];
-  }catch(e){
-    try{ await fetchT(CONFIG.api + '/api/health', { mode:'no-cors' });
-      return ['warn', 'The server answered, but this page is not allowed to read it (CORS). Expected until the portal is served from the site.'];
-    }catch(e2){ return ['fail', 'No response from <code>'+CONFIG.api+'</code>. The service is down, or the address in CONFIG is wrong.']; }
+  // The Railway API does not send CORS headers, so a browser cannot read it directly.
+  // Prefer the same origin proxy (/health-api via vercel.json), which is also the exact
+  // path the real app uses to reach the API. Fall back to the direct URL for local preview.
+  const onWeb = location.protocol === 'http:' || location.protocol === 'https:';
+  const tries = [];
+  if(onWeb && CONFIG.apiProxy) tries.push({ url: location.origin + CONFIG.apiProxy, proxied: true });
+  tries.push({ url: CONFIG.api + CONFIG.healthPath, proxied: false });
+
+  for(const t of tries){
+    try{
+      const r = await fetchT(t.url, { mode:'cors' });
+      if(!r.ok){ if(t.proxied) continue; return ['fail', 'The API answered <b>'+r.status+'</b> at <code>'+CONFIG.healthPath+'</code>.']; }
+      corsOK = corsOK || t.proxied;
+      let s = 'ok';
+      try{ const j = await r.json(); s = j.status || 'ok'; }catch(_){}
+      const via = t.proxied ? ' (via the same proxy the app uses)' : '';
+      if(s === 'ok' || s === 'healthy') return ['ok', 'The API answered 200 at <code>'+CONFIG.healthPath+'</code> and reported <b>'+s+'</b>'+via+'.'];
+      if(s === 'degraded') return ['warn', 'The API is up but reported <b>degraded</b>.'];
+      return ['fail', 'The API reported <b>'+s+'</b>.'];
+    }catch(e){ /* try next candidate */ }
   }
+  return ['fail', 'No reachable response from the API. The Railway service may be down, or the <code>/health-api</code> rewrite in <code>client/vercel.json</code> is missing.'];
 }
 async function checkSite(){
-  try{ await fetchT(CONFIG.site, { mode:'no-cors' }); return ['ok', 'The site at <code>'+CONFIG.site+'</code> responded.']; }
-  catch(e){ return ['fail', 'No response from <code>'+CONFIG.site+'</code>. The static deploy is down or the address is wrong.']; }
-}
-async function checkRich(){
-  try{
-    const r = await fetchT(CONFIG.api + '/health', { mode:'cors' });
-    const j = await r.json();
-    if(j.status === 'healthy') return ['ok', 'Reported <b>healthy</b>. Latency '+(j.latency!=null?j.latency+' ms':'ok')+', version '+(j.version||'n a')+'.'];
-    if(j.status === 'degraded') return ['warn', 'Reported <b>degraded</b>. The API is up but a subsystem is slow or erroring.'];
-    return ['fail', 'Reported <b>'+(j.status||'unhealthy')+'</b>.'];
-  }catch(e){ return ['unknown', 'Could not read <code>/health</code> from this page (CORS in preview, or the route is down). Open it directly to see detail.']; }
+  try{ await fetchT(CONFIG.site, { mode:'no-cors' }); return ['ok', 'The web app at <code>'+CONFIG.site+'</code> responded.']; }
+  catch(e){ return ['fail', 'No response from <code>'+CONFIG.site+'</code>. The Vercel deploy is down or the address is wrong.']; }
 }
 async function checkCi(){
   if(!CONFIG.github) return ['unknown', 'No GitHub repo set in CONFIG.'];
@@ -413,27 +394,23 @@ function applyManual(p){
   return [s, msg];
 }
 function applyDerive(p){
-  const h = state['api-health'], a = state['api-service'];
-  if(h === 'ok') return ['ok', 'Confirmed indirectly. The API is running and healthy, which it could not be without this.'];
+  const a = state['api-service'];
+  if(a === 'ok') return ['ok', 'Confirmed indirectly. The API is running and serving, which it cannot do without this in place.'];
   if(a === 'fail') return ['fail', 'The API is down. A missing or broken value here is a likely cause.'];
-  if(h === 'warn') return ['warn', 'The API is degraded. This may be the subsystem that is struggling.'];
-  return ['unknown', 'Not directly checkable from the browser. A healthy API would confirm it.'];
+  return ['unknown', 'Not directly checkable from the browser. A running API would confirm it.'];
 }
 
 async function runAll(){
   const btn = $('#refresh'); btn.classList.add('spin');
+  corsOK = false;
   PARTS.forEach(p => { if(p.check!=='manual'){ state[p.key]='checking'; detail[p.key]=''; paint(p);} });
 
   const [api, site] = await Promise.all([checkApi(), checkSite()]);
   set('api-service', api); set('client-site', site);
 
-  const rich = await checkRich(); set('api-health', rich);
-
-  // wiring depends on api + site + cors
   let wiring;
-  if(state['api-service']==='fail' || state['client-site']==='fail') wiring = ['fail', 'One side is down, so the site and the API cannot talk.'];
-  else if(corsOK) wiring = ['ok', 'The site reached the API and was allowed in by CORS.'];
-  else wiring = ['warn', 'Both are up, but this preview origin is not in CORS. On the live site this should be green.'];
+  if(state['api-service']==='fail' || state['client-site']==='fail') wiring = ['fail', 'One side is down, so the app and the API cannot talk.'];
+  else wiring = ['ok', 'Both the app and the API are up. The <code>/api</code> rewrite in vercel.json connects them.'];
   set('wiring', wiring);
 
   PARTS.filter(p=>p.check==='derive').forEach(p => set(p.key, applyDerive(p)));
@@ -455,10 +432,9 @@ function renderVerdict(){
   const fails = host.filter(p => state[p.key]==='fail');
   const unk   = host.filter(p => state[p.key]==='unknown');
   const warns = host.filter(p => state[p.key]==='warn');
-  const featBad = PARTS.filter(p => p.tier!=='host' && (state[p.key]==='fail'));
-  const featUnv = PARTS.filter(p => p.tier!=='host' && (state[p.key]==='unknown'));
+  const featBad = PARTS.filter(p => p.tier!=='host' && state[p.key]==='fail');
+  const featUnv = PARTS.filter(p => p.tier!=='host' && state[p.key]==='unknown');
 
-  let cls, title, sub;
   const featNote = (msg) => {
     let bits = [];
     if(featBad.length) bits.push(featBad.length+' feature'+(featBad.length>1?'s are':' is')+' down ('+featBad.map(p=>p.name).join(', ')+')');
@@ -466,6 +442,7 @@ function renderVerdict(){
     return bits.length ? (msg+' '+bits.join(', and ')+'.') : msg;
   };
 
+  let cls, title, sub;
   if(fails.length){
     cls='fail';
     title='No. '+fails.length+' blocker'+(fails.length>1?'s are':' is')+' failing.';
@@ -485,11 +462,10 @@ function renderVerdict(){
   $('#vsub').textContent = sub;
 }
 
-/* boot */
 const isPreview = location.protocol === 'file:' || /^(localhost|127\.)/.test(location.hostname);
 if(isPreview){
   const pv = $('#preview'); pv.style.display='block';
-  pv.innerHTML = 'Preview mode. Some cross origin checks are blocked until this is served from <code>hers365.com</code>. Status will be fuller once deployed.';
+  pv.innerHTML = 'Preview mode. Some cross origin checks are blocked until this is served from the live site. Status will be fuller once deployed.';
 }
 buildBoard();
 drawWires();

@@ -295,6 +295,17 @@ router.get('/players/:id', async (req, res) => {
     const [player] = await db.select().from(schema.players).where(eq(schema.players.id, id));
     if (!player) return res.status(404).json({ error: 'Player not found' });
 
+    // Parent-controlled coach discoverability. When the linked parent flips
+    // profileVisibility=false the athlete's preferences.coachDiscoverable is
+    // set to false (see server/api/parent.ts PUT /settings). Mirror the gate
+    // already enforced on /coach/players/search and /api/athletes/:id so a
+    // coach who knows the id (saved earlier, prior message, guessed) cannot
+    // pull the full unlocked profile after the parent hides the athlete.
+    const prefs = (player.preferences ?? {}) as Record<string, unknown>;
+    if (prefs.coachDiscoverable === false) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
     // Directive 1: coaches don't get a minor's phone/email/dob/address even
     // on the "unlocked" detail page. The parent gate (parent-approved
     // message link) is the only path to contact info.
