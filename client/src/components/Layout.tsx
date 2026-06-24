@@ -280,7 +280,7 @@ export const Layout = () => {
           >
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <img
-                src={athleteAvatar(user?.name ?? 'You')}
+                src={p.profileImage || athleteAvatar(user?.name ?? 'You')}
                 alt={user?.name ?? 'Profile'}
                 style={{ width: 32, height: 32, borderRadius: '50%', background: '#1c1c1c', border: '1.5px solid rgba(255,90,45,0.4)', objectFit: 'cover' }}
               />
