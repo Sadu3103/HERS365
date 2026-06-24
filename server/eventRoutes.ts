@@ -5,29 +5,57 @@ import { eq, and, sql } from 'drizzle-orm';
 
 const router = Router();
 
-// Get all events
-router.get('/', async (req, res) => {
+// Parse "TYPE|ORG|FEATURED|actual description" encoded in the description field.
+// Falls back gracefully if the format is not present.
+function parseDescription(raw: string | null | undefined): { type: string; org: string; featured: boolean; desc: string } {
+  if (!raw) return { type: 'Showcase', org: 'HERS365', featured: false, desc: '' };
+  const parts = raw.split('|');
+  if (parts.length >= 4) {
+    return {
+      type: parts[0],
+      org: parts[1],
+      featured: parts[2] === 'true',
+      desc: parts.slice(3).join('|'),
+    };
+  }
+  return { type: 'Showcase', org: 'HERS365', featured: false, desc: raw };
+}
+
+// GET /api/events — return all upcoming events with enriched fields
+router.get('/', async (_req, res) => {
   try {
-    const events = await db.select().from(schema.events).orderBy(schema.events.date);
-    res.json(events);
+    const rows = await db.select().from(schema.events).orderBy(schema.events.date);
+    const data = rows.map((e) => {
+      const { type, org, featured, desc } = parseDescription(e.description);
+      const locationParts = e.location.split(',').map((s) => s.trim());
+      return {
+        ...e,
+        type,
+        org,
+        featured,
+        description: desc,
+        city: locationParts[0] ?? '',
+        state: locationParts[1] ?? '',
+      };
+    });
+    res.json(data);
   } catch (error) {
     console.error('Error fetching events:', error);
     res.status(500).json({ message: 'Error fetching events' });
   }
 });
 
-// Register for an event
+// POST /api/events/register — register a player for an event
 router.post('/register', async (req, res) => {
-  const { eventId, playerId } = req.body;
+  const { eventId, playerId } = req.body as { eventId?: number; playerId?: number };
   try {
-    // Check if already registered
     const existing = await db
       .select()
       .from(schema.eventRegistrations)
       .where(
         and(
-          eq(schema.eventRegistrations.eventId, eventId),
-          eq(schema.eventRegistrations.playerId, playerId)
+          eq(schema.eventRegistrations.eventId, eventId as number),
+          eq(schema.eventRegistrations.playerId, playerId as number)
         )
       );
 
@@ -36,11 +64,10 @@ router.post('/register', async (req, res) => {
     }
 
     await db.insert(schema.eventRegistrations).values({
-      eventId,
-      playerId,
+      eventId: eventId as number,
+      playerId: playerId as number,
     });
 
-    // Update participant count
     await db.execute(
       sql`UPDATE events SET participant_count = participant_count + 1 WHERE id = ${eventId}`
     );

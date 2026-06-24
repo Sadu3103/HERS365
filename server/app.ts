@@ -17,6 +17,15 @@ import { usersRouter } from './api/users';
 import { programsRouter } from './api/programs';
 import { coachesRouter } from './api/coaches';
 import { parentRouter } from './api/parent';
+import eventRouter from './eventRoutes';
+import { scholarshipsRouter } from './api/scholarships';
+import { followsRouter } from './api/follows';
+import { badgesRouter } from './api/badges';
+import { faqsRouter } from './api/faqs';
+import { contactRouter } from './api/contact';
+import { adminStatsRouter } from './api/admin';
+import { leaguesRouter } from './api/leagues';
+import { teamsRouter } from './api/teams';
 import errorHandler from './middleware/errorHandler';
 
 export function createApp() {
@@ -47,6 +56,15 @@ export function createApp() {
   app.use('/api/auth/email', emailAuthRouter);
   app.use('/api/upload', uploadRouter);
   app.use('/api/admin', adminRouter);
+  app.use('/api/admin/data', adminStatsRouter);
+  app.use('/api/events', eventRouter);
+  app.use('/api/scholarships', scholarshipsRouter);
+  app.use('/api/follows', followsRouter);
+  app.use('/api/badges', badgesRouter);
+  app.use('/api/faqs', faqsRouter);
+  app.use('/api/contact', contactRouter);
+  app.use('/api/leagues', leaguesRouter);
+  app.use('/api/teams', teamsRouter);
   app.use('/api', mainApiRouter);
 
   // Final middleware: catches anything a route forwarded via next(err), logs

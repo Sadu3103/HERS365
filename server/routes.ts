@@ -358,6 +358,24 @@ router.get('/nil/opportunities', async (req: Request, res: Response, next: NextF
   }
 });
 
+router.post('/nil/apply', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { opportunityId } = req.body;
+    if (!opportunityId) {
+      return res.status(400).json({ success: false, error: 'opportunityId is required' });
+    }
+    const playerId = authUser(req)!.userId;
+    await db.insert(schema.dealApplications).values({
+      playerId,
+      opportunityId: Number(opportunityId),
+      status: 'pending',
+    });
+    res.json({ applied: true });
+  } catch (err: any) {
+    next(err);
+  }
+});
+
 router.post('/nil/chat', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { message } = req.body;

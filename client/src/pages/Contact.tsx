@@ -9,11 +9,41 @@ const DISP = "'Barlow Condensed', sans-serif";
 
 export const Contact = () => {
   const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
 
-  const send = (e: React.FormEvent) => {
+  const send = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSent(true);
+    setError(null);
+
+    if (!form.name.trim() || !form.email.trim() || !form.subject.trim() || !form.message.trim()) {
+      setError('All fields are required.');
+      return;
+    }
+    if (!form.email.includes('@') || !form.email.includes('.')) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSent(true);
+      } else {
+        setError(data.error ?? 'Something went wrong. Please try again.');
+      }
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -53,8 +83,13 @@ export const Contact = () => {
             <div style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#555', marginBottom: 7 }}>Message</div>
             <textarea className="k-input" rows={5} placeholder="Your message..." required value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} style={{ width: '100%', padding: '10px 14px', resize: 'vertical' }} />
           </div>
-          <motion.button whileTap={{ scale: 0.96 }} type="submit" className="k-btn k-btn-primary" style={{ padding: '13px 24px', borderRadius: 10, fontSize: '0.85rem', fontFamily: DISP, letterSpacing: '0.06em', textTransform: 'uppercase', alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 7 }}>
-            <Send size={15} /> Send Message
+          {error && (
+            <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, fontSize: '0.83rem', color: '#f87171' }}>
+              {error}
+            </div>
+          )}
+          <motion.button whileTap={{ scale: 0.96 }} type="submit" disabled={loading} className="k-btn k-btn-primary" style={{ padding: '13px 24px', borderRadius: 10, fontSize: '0.85rem', fontFamily: DISP, letterSpacing: '0.06em', textTransform: 'uppercase', alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 7, opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}>
+            <Send size={15} /> {loading ? 'Sending...' : 'Send Message'}
           </motion.button>
         </form>
       )}
