@@ -337,7 +337,10 @@ router.post('/requests/:id/respond', validateParams(idParam), validateBody(messa
 
     const [reqRow] = await db.select().from(schema.messageRequests).where(eq(schema.messageRequests.id, id)).limit(1);
     if (!reqRow) return res.status(404).json({ success: false, error: 'Request not found' });
-    if (reqRow.receiverId !== userId) {
+    // Allow the sending coach (receiverId) OR the subject athlete (athleteId) to respond.
+    // Athlete approval sets status='approved' but does NOT set parentId, so messaging
+    // remains blocked until a parent approves via POST /api/parent/requests/:id/respond.
+    if (reqRow.receiverId !== userId && reqRow.athleteId !== userId) {
       return res.status(403).json({ success: false, error: 'Not your request to respond to' });
     }
 
