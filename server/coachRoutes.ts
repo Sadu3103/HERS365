@@ -640,17 +640,24 @@ router.get('/analytics', async (req, res) => {
       .from(schema.messages)
       .where(eq(schema.messages.coachId, coachId));
 
-    // For now, using mock data for other metrics
+    const playersContacted = await db.select({ count: sql<number>`count(*)` })
+      .from(schema.messageRequests)
+      .where(eq(schema.messageRequests.receiverId, coachId));
+
+    const topStateRows = await db
+      .select({ state: schema.players.state, count: sql<number>`count(*)` })
+      .from(schema.coachProspects)
+      .innerJoin(schema.players, eq(schema.players.id, schema.coachProspects.athleteId))
+      .where(eq(schema.coachProspects.coachId, coachId))
+      .groupBy(schema.players.state)
+      .orderBy(desc(sql`count(*)`))
+      .limit(4);
+
     res.json({
       boardCount: boardCount[0]?.count || 0,
       messagesSent: messagesSent[0]?.count || 0,
-      profileViews: 47, // mock
-      topStates: ['TX', 'FL', 'CA', 'GA'],
-      recentlyViewed: [1, 2, 3],
-      searchQueries: 23, // mock
-      playersContacted: 18, // mock
-      offersExtended: 5, // mock
-      commitsReceived: 2, // mock
+      playersContacted: playersContacted[0]?.count || 0,
+      topStates: topStateRows.map(r => r.state).filter(Boolean),
     });
   } catch (error) {
     console.error('Failed to fetch analytics:', error);

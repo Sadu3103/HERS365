@@ -67,40 +67,21 @@ export function CoachAnalytics() {
     );
   }
 
+  const topStates: string[] = (analytics as any)?.topStates ?? [];
   const mockDetailedAnalytics = {
-    totalPlayersViewed: analytics?.profileViews || 47,
-    searchQueriesThisWeek: analytics?.searchQueries || 23,
-    messagesSentThisMonth: analytics?.messagesSent || 12,
-    boardConversionRate: 15.7,
-    topRecruitingStates: [
-      { state: 'TX', players: 45, percentage: 28 },
-      { state: 'FL', players: 32, percentage: 20 },
-      { state: 'CA', players: 28, percentage: 18 },
-      { state: 'GA', players: 22, percentage: 14 },
-      { state: 'AL', players: 18, percentage: 11 },
-    ],
+    totalPlayersViewed: 0,
+    searchQueriesThisWeek: 0,
+    messagesSentThisMonth: analytics?.messagesSent || 0,
+    boardConversionRate: 0,
+    topRecruitingStates: topStates.map(state => ({ state, players: 0, percentage: 0 })),
     recruitingPipeline: {
-      prospects: analytics?.boardCount || 24,
-      contacted: analytics?.playersContacted || 18,
-      offered: analytics?.offersExtended || 5,
-      committed: analytics?.commitsReceived || 2,
+      prospects: analytics?.boardCount || 0,
+      contacted: (analytics as any)?.playersContacted || 0,
+      offered: 0,
+      committed: 0,
     },
-    weeklyActivity: [
-      { day: 'Mon', searches: 12, views: 8, saves: 3 },
-      { day: 'Tue', searches: 15, views: 12, saves: 5 },
-      { day: 'Wed', searches: 8, views: 6, saves: 2 },
-      { day: 'Thu', searches: 18, views: 14, saves: 7 },
-      { day: 'Fri', searches: 22, views: 16, saves: 8 },
-      { day: 'Sat', searches: 25, views: 20, saves: 10 },
-      { day: 'Sun', searches: 16, views: 13, saves: 6 },
-    ],
-    positionBreakdown: [
-      { position: 'QB', count: 8, percentage: 33 },
-      { position: 'RB', count: 6, percentage: 25 },
-      { position: 'WR', count: 5, percentage: 21 },
-      { position: 'OL', count: 3, percentage: 13 },
-      { position: 'LB', count: 2, percentage: 8 },
-    ],
+    weeklyActivity: [] as { day: string; searches: number; views: number; saves: number }[],
+    positionBreakdown: [] as { position: string; count: number; percentage: number }[],
   };
 
   return (
