@@ -604,134 +604,61 @@ router.get('/analytics', async (req, res) => {
 /**
   * GET /coach/player-clips — Get player highlight clips
   */
-router.get('/player-clips', (req, res) => {
-  const clips = [
-    {
-      id: 1,
-      playerId: 1,
-      name: 'Aaliyah Thompson',
-      position: 'WR',
-      school: 'Westlake High',
-      state: 'TX',
-      gradYear: 2026,
-      stars: 5,
-      breakoutScore: 98,
-      clipUrl: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=600&auto=format&fit=crop',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=600&auto=format&fit=crop',
-      title: 'One-handed catch in double coverage 🤯 #StateChamps',
-      views: 1245,
-      likes: 234,
-      shares: 45,
-      measurements: {
-        height: '5\'8"',
-        weight: '135 lbs',
-        fortyYard: '4.52',
-        vertical: '36"',
-        broadJump: '118"'
-      },
-      stats: {
-        receptions: 64,
-        receivingYards: 1204,
-        receivingTouchdowns: 18
-      },
-      verified: true,
-      createdAt: '2024-05-15T14:30:00Z'
-    },
-    {
-      id: 2,
-      playerId: 2,
-      name: 'Jordan Davis',
-      position: 'QB',
-      school: 'Miami Southridge',
-      state: 'FL',
-      gradYear: 2026,
-      stars: 5,
-      breakoutScore: 95,
-      clipUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=600&auto=format&fit=crop',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=600&auto=format&fit=crop',
-      title: 'Testing the deep ball at Elite11 regional camp 🚀',
-      views: 987,
-      likes: 189,
-      shares: 32,
-      measurements: {
-        height: '5\'10"',
-        weight: '145 lbs',
-        fortyYard: '4.65',
-        vertical: '31"',
-        broadJump: '110"'
-      },
-      stats: {
-        passingYards: 2840,
-        passingTouchdowns: 32,
-        passingInterceptions: 4
-      },
-      verified: true,
-      createdAt: '2024-05-14T16:45:00Z'
-    },
-    {
-      id: 3,
-      playerId: 3,
-      name: 'Maya Rodriguez',
-      position: 'CB',
-      school: 'Crenshaw High',
-      state: 'CA',
-      gradYear: 2027,
-      stars: 4,
-      breakoutScore: 89,
-      clipUrl: 'https://images.unsplash.com/photo-1605296867304-46d5465a13f1?q=80&w=600&auto=format&fit=crop',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1605296867304-46d5465a13f1?q=80&w=600&auto=format&fit=crop',
-      title: 'Lockdown coverage at the 7on7 tournament 🔒',
-      views: 756,
-      likes: 145,
-      shares: 28,
-      measurements: {
-        height: '5\'7"',
-        weight: '128 lbs',
-        fortyYard: '4.58',
-        vertical: '34"',
-        broadJump: '115"'
-      },
-      stats: {
-        flagPulls: 48,
-        interceptions: 8
-      },
-      verified: false,
-      createdAt: '2024-05-13T18:20:00Z'
-    },
-    {
-      id: 4,
-      playerId: 4,
-      name: 'Destiny Williams',
-      position: 'RB',
-      school: 'Westlake HS (GA)',
-      state: 'GA',
-      gradYear: 2026,
-      stars: 4,
-      breakoutScore: 84,
-      clipUrl: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=600&auto=format&fit=crop',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=600&auto=format&fit=crop',
-      title: '40-yard reverse for the game-winner! 🏃‍♀️💨',
-      views: 1567,
-      likes: 289,
-      shares: 67,
-      measurements: {
-        height: '5\'5"',
-        weight: '130 lbs',
-        fortyYard: '4.71',
-        vertical: '29"',
-        broadJump: '105"'
-      },
-      stats: {
-        rushingYards: 934,
-        rushingTouchdowns: 12,
-        rushingAttempts: 98
-      },
-      verified: true,
-      createdAt: '2024-05-12T19:15:00Z'
-    }
-  ];
+router.get('/player-clips', async (req, res) => {
+  try {
+    // Real discovery feed for the coach dashboard. Mirrors /players/search:
+    // the live roster mapped to the scouting shape, gated by the parent
+    // controlled coachDiscoverable flag, sorted by rating so the strongest
+    // prospects surface first. Replaces the old hardcoded sample so the
+    // dashboard is consistent with search and never shows athletes who are
+    // not in the database.
+    const rowsRaw = await db.select().from(schema.players);
+    const rows = rowsRaw.filter((p) => {
+      const prefs = (p.preferences ?? {}) as Record<string, unknown>;
+      return prefs.coachDiscoverable !== false && p.name && p.position;
+    });
 
-  res.json({ clips });
+    const thumbnailByPlayer = new Map<number, string>();
+    if (rows.length > 0) {
+      const highlights = await db
+        .select({
+          playerId: schema.playerHighlights.playerId,
+          thumbnailUrl: schema.playerHighlights.thumbnailUrl,
+          createdAt: schema.playerHighlights.createdAt,
+        })
+        .from(schema.playerHighlights)
+        .orderBy(desc(schema.playerHighlights.createdAt));
+      for (const h of highlights) {
+        if (h.playerId != null && h.thumbnailUrl && !thumbnailByPlayer.has(h.playerId)) {
+          thumbnailByPlayer.set(h.playerId, h.thumbnailUrl);
+        }
+      }
+    }
+
+    const clips = rows
+      .map((p) => mapPlayerToScout({ ...p, latestHighlightThumbnail: thumbnailByPlayer.get(p.id) ?? null }))
+      .sort((a, b) => b.stars - a.stars || b.breakoutScore - a.breakoutScore)
+      .slice(0, 12)
+      .map((s) => ({
+        id: s.id,
+        playerId: s.id,
+        name: s.name,
+        position: s.position,
+        school: s.school,
+        state: s.state,
+        gradYear: s.gradYear,
+        stars: s.stars,
+        breakoutScore: s.breakoutScore,
+        verified: s.verified,
+        title: s.archetype && s.archetype !== '\u2014' ? s.archetype : `${s.position} \u00b7 ${s.school}`,
+        thumbnailUrl: s.highlightThumbnailUrl || s.profileImage || '',
+      }));
+
+    res.json({ clips });
+  } catch (error) {
+    console.error('Failed to fetch player clips:', error);
+    res.status(500).json({ error: 'Failed to fetch player clips' });
+  }
 });
 
 /**
