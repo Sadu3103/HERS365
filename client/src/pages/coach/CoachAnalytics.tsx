@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  TrendingUp,
   Users,
   Eye,
   MessageSquare,
@@ -67,40 +66,21 @@ export function CoachAnalytics() {
     );
   }
 
+  const topStates: string[] = (analytics as any)?.topStates ?? [];
   const mockDetailedAnalytics = {
-    totalPlayersViewed: analytics?.profileViews || 47,
-    searchQueriesThisWeek: analytics?.searchQueries || 23,
-    messagesSentThisMonth: analytics?.messagesSent || 12,
-    boardConversionRate: 15.7,
-    topRecruitingStates: [
-      { state: 'TX', players: 45, percentage: 28 },
-      { state: 'FL', players: 32, percentage: 20 },
-      { state: 'CA', players: 28, percentage: 18 },
-      { state: 'GA', players: 22, percentage: 14 },
-      { state: 'AL', players: 18, percentage: 11 },
-    ],
+    totalPlayersViewed: 0,
+    searchQueriesThisWeek: 0,
+    messagesSentThisMonth: analytics?.messagesSent || 0,
+    boardConversionRate: 0,
+    topRecruitingStates: topStates.map(state => ({ state, players: 0, percentage: 0 })),
     recruitingPipeline: {
-      prospects: analytics?.boardCount || 24,
-      contacted: analytics?.playersContacted || 18,
-      offered: analytics?.offersExtended || 5,
-      committed: analytics?.commitsReceived || 2,
+      prospects: analytics?.boardCount || 0,
+      contacted: (analytics as any)?.playersContacted || 0,
+      offered: 0,
+      committed: 0,
     },
-    weeklyActivity: [
-      { day: 'Mon', searches: 12, views: 8, saves: 3 },
-      { day: 'Tue', searches: 15, views: 12, saves: 5 },
-      { day: 'Wed', searches: 8, views: 6, saves: 2 },
-      { day: 'Thu', searches: 18, views: 14, saves: 7 },
-      { day: 'Fri', searches: 22, views: 16, saves: 8 },
-      { day: 'Sat', searches: 25, views: 20, saves: 10 },
-      { day: 'Sun', searches: 16, views: 13, saves: 6 },
-    ],
-    positionBreakdown: [
-      { position: 'QB', count: 8, percentage: 33 },
-      { position: 'RB', count: 6, percentage: 25 },
-      { position: 'WR', count: 5, percentage: 21 },
-      { position: 'OL', count: 3, percentage: 13 },
-      { position: 'LB', count: 2, percentage: 8 },
-    ],
+    weeklyActivity: [] as { day: string; searches: number; views: number; saves: number }[],
+    positionBreakdown: [] as { position: string; count: number; percentage: number }[],
   };
 
   return (
@@ -131,7 +111,7 @@ export function CoachAnalytics() {
               <div>
                 <p className="text-sm font-medium text-gray-400">Board Size</p>
                 <p className="text-2xl font-bold text-white">{analytics?.boardCount || 0}</p>
-                <p className="text-xs text-green-400 mt-1">+12% from last month</p>
+                <p className="text-xs text-gray-500 mt-1">prospects on your board</p>
               </div>
               <Heart className="w-8 h-8 text-red-400" />
             </div>
@@ -142,7 +122,7 @@ export function CoachAnalytics() {
               <div>
                 <p className="text-sm font-medium text-gray-400">Players Viewed</p>
                 <p className="text-2xl font-bold text-white">{mockDetailedAnalytics.totalPlayersViewed}</p>
-                <p className="text-xs text-blue-400 mt-1">+8% from last week</p>
+                <p className="text-xs text-gray-500 mt-1">profile views</p>
               </div>
               <Eye className="w-8 h-8 text-blue-400" />
             </div>
@@ -153,7 +133,7 @@ export function CoachAnalytics() {
               <div>
                 <p className="text-sm font-medium text-gray-400">Messages Sent</p>
                 <p className="text-2xl font-bold text-white">{mockDetailedAnalytics.messagesSentThisMonth}</p>
-                <p className="text-xs text-green-400 mt-1">+25% from last month</p>
+                <p className="text-xs text-gray-500 mt-1">messages sent total</p>
               </div>
               <MessageSquare className="w-8 h-8 text-green-400" />
             </div>
@@ -164,7 +144,7 @@ export function CoachAnalytics() {
               <div>
                 <p className="text-sm font-medium text-gray-400">Conversion Rate</p>
                 <p className="text-2xl font-bold text-white">{mockDetailedAnalytics.boardConversionRate}%</p>
-                <p className="text-xs text-yellow-400 mt-1">Board additions per 100 views</p>
+                <p className="text-xs text-gray-500 mt-1">board to contact rate</p>
               </div>
               <Target className="w-8 h-8 text-yellow-400" />
             </div>
@@ -287,35 +267,6 @@ export function CoachAnalytics() {
           </div>
         </div>
 
-        {/* Additional Insights */}
-        <div className="mt-8 bg-gray-800 border border-gray-700 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-white mb-6">Recruiting Insights</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="p-4 bg-gray-700 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="w-5 h-5 text-green-400" />
-                <span className="text-white font-medium">Peak Activity</span>
-              </div>
-              <p className="text-gray-300 text-sm">Your most active recruiting days are Friday and Saturday</p>
-            </div>
-
-            <div className="p-4 bg-gray-700 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <Target className="w-5 h-5 text-blue-400" />
-                <span className="text-white font-medium">Conversion Opportunity</span>
-              </div>
-              <p className="text-gray-300 text-sm">Increase contact rate with top prospects to improve commits</p>
-            </div>
-
-            <div className="p-4 bg-gray-700 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <MapPin className="w-5 h-5 text-yellow-400" />
-                <span className="text-white font-medium">Geographic Focus</span>
-              </div>
-              <p className="text-gray-300 text-sm">Texas and Florida represent 48% of your recruiting territory</p>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
