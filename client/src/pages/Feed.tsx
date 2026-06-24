@@ -762,7 +762,7 @@ export const Feed = () => {
   const [topLoading, setTopLoading] = useState(true);
   
 
-  const handleCreatePost = async (content: string) => {
+  const _handleCreatePost = async (content: string) => {
   if (!content.trim()) return;
 
   try {

@@ -33,8 +33,7 @@ async function seedRanking(playerId: number, overrides: Partial<typeof schema.at
     stateRank: 1,
     positionRank: 1,
     movement: 'up',
-    dataSources: JSON.stringify(['combine', 'max_preps']),
-    updatedAt: new Date().toISOString(),
+    dataSources: ['combine', 'max_preps'],
     ...overrides,
   }).returning();
   return row;
@@ -129,7 +128,7 @@ describe('GET /rankings/players/:id', () => {
       maxPrepsScore: 90,
       zybekScore: 85,
       usaTalentIdScore: 92,
-      dataSources: JSON.stringify(['combine', 'max_preps', 'zybek']),
+      dataSources: ['combine', 'max_preps', 'zybek'],
     });
 
     const res = await request(app).get(`/rankings/players/${a.id}`);
@@ -155,9 +154,9 @@ describe('GET /rankings/players/:id', () => {
     expect(res.body.dataSources).toEqual([]);
   });
 
-  it('returns an empty dataSources array when the column holds malformed JSON', async () => {
+  it('returns an empty dataSources array when the column holds null', async () => {
     const a = await makeAthlete();
-    await seedRanking(a.id, { dataSources: 'not-json{' });
+    await seedRanking(a.id, { dataSources: null });
     const res = await request(app).get(`/rankings/players/${a.id}`);
     expect(res.status).toBe(200);
     expect(res.body.dataSources).toEqual([]);
@@ -216,8 +215,6 @@ describe('POST /rankings/calculate/:playerId', () => {
     const rows = await db.select().from(schema.athleteRankings);
     const ranking = rows.find(r => r.playerId === a.id);
     expect(ranking).toBeDefined();
-    // dataSources is stored as a JSON-encoded string per the route comment.
-    expect(typeof ranking!.dataSources).toBe('string');
-    expect(() => JSON.parse(ranking!.dataSources as string)).not.toThrow();
+    expect(Array.isArray(ranking!.dataSources)).toBe(true);
   });
 });

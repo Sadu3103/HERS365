@@ -60,8 +60,7 @@ async function seedAthleteRanking(playerId: number, overallScore: number) {
     stateRank: 1,
     positionRank: 1,
     movement: 'up',
-    dataSources: JSON.stringify(['combine']),
-    updatedAt: new Date().toISOString(),
+    dataSources: ['combine'],
   });
 }
 

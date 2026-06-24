@@ -24,7 +24,7 @@ beforeEach(resetDb);
 async function seedEvent(overrides: Partial<typeof schema.events.$inferInsert> = {}) {
   const [row] = await db.insert(schema.events).values({
     name: 'Combine',
-    date: '2026-07-04',
+    date: new Date('2026-07-04'),
     location: 'Atlanta',
     ...overrides,
   }).returning();
@@ -39,8 +39,8 @@ describe('GET /api/events', () => {
   });
 
   it('returns events ordered by date ascending', async () => {
-    await seedEvent({ name: 'Later',   date: '2026-12-01' });
-    await seedEvent({ name: 'Earlier', date: '2026-07-04' });
+    await seedEvent({ name: 'Later',   date: new Date('2026-12-01') });
+    await seedEvent({ name: 'Earlier', date: new Date('2026-07-04') });
     const res = await request(app).get('/api/events');
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(2);

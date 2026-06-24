@@ -36,6 +36,13 @@
       "when": 1781852025980,
       "tag": "0004_swift_iron_monger",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1750723200000,
+      "tag": "0005_add_subscription_updated_at",
+      "breakpoints": true
     }
   ]
 }
