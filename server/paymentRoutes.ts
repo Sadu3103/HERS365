@@ -8,6 +8,11 @@ import { requireAuth } from './auth';
 import { sendEmail } from './email';
 import { parseIdParam } from './lib/parseIdParam';
 import { parseIntQuery } from './lib/queryParam';
+import {
+  claimStripeEvent,
+  markStripeEventProcessed,
+  recordStripeEventError,
+} from './lib/webhookDedupe';
 
 const router = express.Router();
 
@@ -63,7 +68,38 @@ router.post('/webhook', requireStripe, express.raw({ type: 'application/json' })
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // Handle subscription events
+  // Idempotency gate. Stripe delivers at-least-once: the same event.id can hit
+  // this handler more than once (retries on 5xx, network blips, replays during
+  // a redeploy). Claim the event.id in event_inbox under a unique constraint;
+  // if we lose the race, short circuit with 200 so Stripe stops retrying and
+  // we don't double-credit subscriptions / double-record payments.
+  try {
+    const { duplicate } = await claimStripeEvent(event);
+    if (duplicate) {
+      return res.json({ received: true, duplicate: true });
+    }
+  } catch (err: any) {
+    // If the dedupe ledger is unreachable we'd rather process the event than
+    // drop it on the floor — Stripe will retry on 5xx anyway. Log loudly.
+    console.error('Webhook dedupe check failed, processing without gate:', err?.message);
+  }
+
+  try {
+    await processStripeWebhookEvent(event);
+    await markStripeEventProcessed(event.id);
+  } catch (err: any) {
+    await recordStripeEventError(event.id, err?.message || String(err)).catch(() => {});
+    throw err;
+  }
+
+  res.json({ received: true });
+});
+
+// Exported for tests. The signature-verified event is handed in directly so
+// we can exercise the per-event-type side effects without forging a Stripe
+// signature, and so the dedupe gate above is the single source of truth for
+// whether processing runs.
+export async function processStripeWebhookEvent(event: Stripe.Event): Promise<void> {
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -180,9 +216,7 @@ router.post('/webhook', requireStripe, express.raw({ type: 'application/json' })
     default:
       console.log(`Unhandled event type: ${event.type}`);
   }
-
-  res.json({ received: true });
-});
+}
 
 // ----------------------
 // AUTH GATE
