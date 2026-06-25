@@ -7,6 +7,19 @@ import { parseIdParam } from '../lib/parseIdParam';
 
 const router = express.Router();
 
+// Mirrors the list-endpoint convention: unset prefs are visible, only an
+// explicit `rankingVisible:false` hides. Malformed JSON fails closed so a
+// corrupt row can never silently leak a minor who opted out.
+function isRankingVisible(preferences: unknown): boolean {
+  try {
+    const prefs = typeof preferences === 'string' ? JSON.parse(preferences) : preferences;
+    if (prefs == null) return true;
+    return (prefs as Record<string, unknown>).rankingVisible !== false;
+  } catch {
+    return false;
+  }
+}
+
 router.get('/', async (req, res) => {
   try {
     const { position, search } = req.query;
@@ -99,6 +112,10 @@ router.get('/:id', async (req, res) => {
       .limit(1);
 
     if (!p) return res.status(404).json({ success: false, error: 'Player not found' });
+    // Hidden players must be indistinguishable from nonexistent ids: returning
+    // 403 here would let an unauthenticated scraper enumerate minors who opted
+    // out of the public board. 404 leaks nothing.
+    if (!isRankingVisible(p.preferences)) return res.status(404).json({ success: false, error: 'Player not found' });
 
     res.json({
       success: true,
@@ -120,3 +137,4 @@ router.get('/:id', async (req, res) => {
 });
 
 export { router as rankingsRouter };
+export const __test__ = { isRankingVisible };
