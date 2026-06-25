@@ -10,6 +10,7 @@ import {
   parentInviteBody,
   idParam,
 } from '../middleware/safetySchemas';
+import { parseIdParam } from '../lib/parseId';
 
 const router = express.Router();
 router.use(requireAuth);
@@ -135,7 +136,8 @@ router.post('/requests/:id/respond', validateParams(idParam), validateBody(paren
     const parentId = requireParent(req, res);
     if (parentId == null) return;
 
-    const id = Number(req.params.id);
+    const id = parseIdParam(req.params.id);
+    if (id === null) return res.status(400).json({ success: false, error: 'Invalid id' });
 
     const { action } = req.body ?? {};
     if (!['approve', 'reject'].includes(action)) {

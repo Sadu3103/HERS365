@@ -10,6 +10,7 @@ import { AuthenticatedRequest, requireAuth, requireAdmin } from './auth';
 const router = express.Router();
 
 import { publicPlayerView, selfPlayerView } from './lib/playerPrivacy';
+import { parseIdParam } from './lib/parseId';
 
 // Own-profile view (kept for clarity at call sites): only the password hash
 // is stripped; the caller is the player so they can see their own contact
@@ -45,8 +46,8 @@ router.post('/subscription-plans', requireAdmin, async (req: Request, res: Respo
 
 router.get('/player-subscription/:playerId', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const pId = parseInt(req.params.playerId);
-    if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
+    const pId = parseIdParam(req.params.playerId);
+    if (pId === null) return res.status(400).json({ success: false, error: 'Invalid id' });
     const subscription = await db.select()
       .from(schema.playerSubscriptions)
       .where(eq(schema.playerSubscriptions.playerId, pId));
@@ -147,8 +148,8 @@ router.get('/players', async (req: Request, res: Response, next: NextFunction) =
 
 router.get('/players/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const pId = parseInt(req.params.id);
-    if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
+    const pId = parseIdParam(req.params.id);
+    if (pId === null) return res.status(400).json({ success: false, error: 'Invalid id' });
     const player = await db.select().from(schema.players).where(eq(schema.players.id, pId));
     res.json(publicPlayer(player[0]) || null);
   } catch (err: any) {
@@ -158,8 +159,8 @@ router.get('/players/:id', async (req: Request, res: Response, next: NextFunctio
 
 router.get('/players/:id/stats', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const pId = parseInt(req.params.id);
-    if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
+    const pId = parseIdParam(req.params.id);
+    if (pId === null) return res.status(400).json({ success: false, error: 'Invalid id' });
     const stats = await db.select().from(schema.gameStats).where(eq(schema.gameStats.playerId, pId));
     res.json(stats);
   } catch (err: any) {
@@ -169,8 +170,8 @@ router.get('/players/:id/stats', async (req: Request, res: Response, next: NextF
 
 router.get('/players/:id/highlights', requireAuth, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    const pId = parseInt(req.params.id);
-    if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
+    const pId = parseIdParam(req.params.id);
+    if (pId === null) return res.status(400).json({ success: false, error: 'Invalid id' });
     const [player] = await db.select({ subscriptionTier: schema.players.subscriptionTier })
       .from(schema.players).where(eq(schema.players.id, pId)).limit(1);
     const isPaid = !!player?.subscriptionTier && player.subscriptionTier !== 'free';
@@ -188,8 +189,8 @@ router.get('/players/:id/highlights', requireAuth, async (req: AuthenticatedRequ
 
 router.post('/players/:id/highlights', requireAuth, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    const pId = parseInt(req.params.id);
-    if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
+    const pId = parseIdParam(req.params.id);
+    if (pId === null) return res.status(400).json({ success: false, error: 'Invalid id' });
     if (req.user.userId !== pId) return res.status(403).json({ error: 'Forbidden' });
     const { videoUrl, thumbnailUrl, category, season, annotations, clipSettings } = req.body;
     const newHighlight = await db.insert(schema.playerHighlights).values({
@@ -276,8 +277,8 @@ router.get('/stories', async (req: Request, res: Response, next: NextFunction) =
 // AI BOTS & TRAINING
 router.get('/bot/:playerId', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const pId = parseInt(req.params.playerId);
-    if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
+    const pId = parseIdParam(req.params.playerId);
+    if (pId === null) return res.status(400).json({ success: false, error: 'Invalid id' });
     let bots = await db.select().from(schema.aiBots).where(eq(schema.aiBots.playerId, pId));
     if (bots.length === 0) {
       const generated = await ai.generateBotName();
@@ -295,8 +296,8 @@ router.get('/bot/:playerId', async (req: Request, res: Response, next: NextFunct
 
 router.post('/bot/:botId/chat', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const bId = parseInt(req.params.botId);
-    if (isNaN(bId)) return res.status(400).json({ error: 'Invalid bot ID' });
+    const bId = parseIdParam(req.params.botId);
+    if (bId === null) return res.status(400).json({ success: false, error: 'Invalid id' });
     const { message, context } = req.body;
     const reply = await ai.chatBot(bId, [{ role: 'user', content: message }], context);
     res.json({ reply });
@@ -432,8 +433,8 @@ router.post('/notifications/mark-read', requireAuth, async (req: AuthenticatedRe
 // POST /notifications/mark-read/:id - mark one as read
 router.post('/notifications/mark-read/:id', requireAuth, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    const id = parseIdParam(req.params.id);
+    if (id === null) return res.status(400).json({ success: false, error: 'Invalid id' });
     await db.update(schema.notifications).set({ read: true }).where(eq(schema.notifications.id, id));
     res.json({ ok: true });
   } catch (err: any) {

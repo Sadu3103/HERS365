@@ -5,6 +5,7 @@ import * as schema from './schema';
 import { eq, desc, and, sql, like, or } from 'drizzle-orm';
 import { calculateRankingScore, getRankingTier, getTierColor } from './rankingAlgorithm';
 import { publicPlayerView } from './lib/playerPrivacy';
+import { parseIdParam } from './lib/parseId';
 
 const router = Router();
 
@@ -99,7 +100,8 @@ router.get('/players', async (req, res) => {
 // Get single player ranking details with all data sources
 router.get('/players/:id', async (req, res) => {
   try {
-    const playerId = parseInt(req.params.id);
+    const playerId = parseIdParam(req.params.id);
+    if (playerId === null) return res.status(400).json({ success: false, error: 'Invalid id' });
     
     const player = await db.select()
       .from(schema.players)
@@ -229,7 +231,8 @@ router.get('/criteria', async (req, res) => {
 // Update player ranking (admin function)
 router.post('/calculate/:playerId', async (req, res) => {
   try {
-    const playerId = parseInt(req.params.playerId);
+    const playerId = parseIdParam(req.params.playerId);
+    if (playerId === null) return res.status(400).json({ success: false, error: 'Invalid id' });
     
     // Fetch all athlete data from various sources
     // This would integrate with actual data sources in production

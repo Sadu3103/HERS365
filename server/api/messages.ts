@@ -15,6 +15,7 @@ import {
 import { moderateMessage } from '../lib/moderation';
 import { eitherBlocked } from '../lib/messageBlocks';
 import { messageRateLimit } from '../middleware/messageRateLimit';
+import { parseIdParam } from '../lib/parseId';
 
 const router = express.Router();
 router.use(requireAuth);
@@ -100,17 +101,19 @@ router.get('/conversations/:partnerId/messages', async (req, res) => {
   try {
     const { userId, role } = caller(req);
     const isCoach = role === 'coach';
-    const partnerId = parseInt(req.params.partnerId, 10);
-    if (Number.isNaN(partnerId)) {
-      return res.status(400).json({ success: false, error: 'Invalid partner id' });
-    }
+    const partnerId = parseIdParam(req.params.partnerId);
+    if (partnerId === null) return res.status(400).json({ success: false, error: 'Invalid id' });
 
     const pairWhere = isCoach
       ? and(eq(schema.messages.coachId, userId), eq(schema.messages.athleteId, partnerId))
       : and(eq(schema.messages.athleteId, userId), eq(schema.messages.coachId, partnerId));
 
-    const limit = Number(req.query.limit ?? 50);
-    const offset = Number(req.query.offset ?? 0);
+    // Clamp pagination so a bogus ?limit=abc or ?offset=-1 can't blow up
+    // drizzle (.limit(NaN) → driver error → 500). Cap limit to 200 too.
+    const limitRaw = Number(req.query.limit);
+    const offsetRaw = Number(req.query.offset);
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(Math.floor(limitRaw), 200) : 50;
+    const offset = Number.isFinite(offsetRaw) && offsetRaw >= 0 ? Math.floor(offsetRaw) : 0;
 
     const rows = await db
       .select()
@@ -272,10 +275,8 @@ router.get('/unread-count', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { userId, role } = caller(req);
-    const id = parseInt(req.params.id, 10);
-    if (Number.isNaN(id)) {
-      return res.status(400).json({ success: false, error: 'Invalid message id' });
-    }
+    const id = parseIdParam(req.params.id);
+    if (id === null) return res.status(400).json({ success: false, error: 'Invalid id' });
     const [row] = await db.select().from(schema.messages).where(eq(schema.messages.id, id)).limit(1);
     if (!row) return res.status(404).json({ success: false, error: 'Not found' });
     if (row.senderId !== userId) {
@@ -324,7 +325,8 @@ router.get('/requests', async (req, res) => {
 router.post('/requests/:id/respond', validateParams(idParam), validateBody(messageRespondBody), async (req, res) => {
   try {
     const { userId } = caller(req);
-    const id = Number(req.params.id);
+    const id = parseIdParam(req.params.id);
+    if (id === null) return res.status(400).json({ success: false, error: 'Invalid id' });
     const { action } = req.body ?? {};
     if (!['approve', 'reject'].includes(action)) {
       return res.status(400).json({ success: false, error: 'action must be approve or reject' });

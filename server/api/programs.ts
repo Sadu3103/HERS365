@@ -6,6 +6,7 @@ import * as schema from '../schema';
 import { requireAuth } from '../middleware/requireAuth';
 import { validateBody, validateParams } from '../middleware/validate';
 import { programApplyBody, programApplyParams } from '../middleware/safetySchemas';
+import { parseIdParam } from '../lib/parseId';
 
 const router = express.Router();
 
@@ -69,10 +70,8 @@ router.get('/me/applications', requireAuth, async (req, res) => {
 // GET /api/programs/:id
 router.get('/:id', (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (Number.isNaN(id)) {
-      return res.status(400).json({ success: false, error: 'Invalid program id' });
-    }
+    const id = parseIdParam(req.params.id);
+    if (id === null) return res.status(400).json({ success: false, error: 'Invalid id' });
     const program = programs.find(p => p.id === id);
     if (!program) {
       return res.status(404).json({ success: false, error: 'Program not found' });
@@ -86,10 +85,8 @@ router.get('/:id', (req, res) => {
 // POST /api/programs/:id/applications — identity comes from the JWT, never the body
 router.post('/:id/applications', requireAuth, validateParams(programApplyParams), validateBody(programApplyBody), async (req, res) => {
   try {
-    const programId = parseInt(req.params.id, 10);
-    if (Number.isNaN(programId)) {
-      return res.status(400).json({ success: false, error: 'Invalid program id' });
-    }
+    const programId = parseIdParam(req.params.id);
+    if (programId === null) return res.status(400).json({ success: false, error: 'Invalid id' });
 
     const program = programs.find(p => p.id === programId);
     if (!program) {

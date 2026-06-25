@@ -8,6 +8,7 @@ import * as schema from './schema';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { validateBody } from './middleware/validate';
 import { tokenEarnBody, tokenXpEarnBody, tokenRedeemBody } from './middleware/safetySchemas';
+import { parseIdParam } from './lib/parseId';
 
 const router = express.Router();
 
@@ -18,7 +19,8 @@ const router = express.Router();
 // GET /tokens/player/:playerId - Get player's token balance
 router.get('/player/:playerId', async (req, res, next) => {
   try {
-    const playerId = parseInt(req.params.playerId);
+    const playerId = parseIdParam(req.params.playerId);
+    if (playerId === null) return res.status(400).json({ success: false, error: 'Invalid id' });
     const player = await db.select()
       .from(schema.players)
       .where(eq(schema.players.id, playerId));
@@ -134,7 +136,8 @@ router.post('/xp/earn', validateBody(tokenXpEarnBody), async (req, res, next) =>
 // GET /tokens/history/:playerId - Get player's token earning history
 router.get('/history/:playerId', async (req, res, next) => {
   try {
-    const playerId = parseInt(req.params.playerId);
+    const playerId = parseIdParam(req.params.playerId);
+    if (playerId === null) return res.status(400).json({ success: false, error: 'Invalid id' });
     const { type } = req.query; // 'nil', 'xp', or undefined for all
 
     if (type === 'nil') {

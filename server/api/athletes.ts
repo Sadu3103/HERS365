@@ -11,6 +11,7 @@ import {
   savedSchoolParams,
   athletePutBody,
 } from '../middleware/safetySchemas';
+import { parseIdParam } from '../lib/parseId';
 
 // Cross-user view: strips email/phone/dob/zip/pendingParentEmail/passwordHash
 // per the directive 1 rule "minor PII never leaves cross-user endpoints."
@@ -103,10 +104,8 @@ router.post('/me/saved-schools', requireAuth, validateBody(savedSchoolBody), asy
 // DELETE /api/athletes/me/saved-schools/:schoolId
 router.delete('/me/saved-schools/:schoolId', requireAuth, validateParams(savedSchoolParams), async (req, res) => {
   try {
-    const programId = parseInt(req.params.schoolId, 10);
-    if (Number.isNaN(programId)) {
-      return res.status(400).json({ success: false, error: 'Invalid school id' });
-    }
+    const programId = parseIdParam(req.params.schoolId);
+    if (programId === null) return res.status(400).json({ success: false, error: 'Invalid id' });
     const athleteId = Number(req.user.id);
 
     await db
@@ -130,10 +129,8 @@ router.delete('/me/saved-schools/:schoolId', requireAuth, validateParams(savedSc
 // GET /api/athletes/:id - Get specific athlete profile (DB-backed)
 router.get('/:id',optionalAuth, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (Number.isNaN(id)) {
-      return res.status(400).json({ success: false, error: 'Invalid athlete id' });
-    }
+    const id = parseIdParam(req.params.id);
+    if (id === null) return res.status(400).json({ success: false, error: 'Invalid id' });
 
     const rows = await db
       .select()
@@ -169,10 +166,8 @@ router.get('/:id',optionalAuth, async (req, res) => {
 // PUT /api/athletes/:id - Update own athlete profile (DB-backed, auth required)
 router.put('/:id', requireAuth, validateBody(athletePutBody), async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (Number.isNaN(id)) {
-      return res.status(400).json({ success: false, error: 'Invalid athlete id' });
-    }
+    const id = parseIdParam(req.params.id);
+    if (id === null) return res.status(400).json({ success: false, error: 'Invalid id' });
 
     // A user may only update their own profile
     if (Number(req.user?.id) !== id) {

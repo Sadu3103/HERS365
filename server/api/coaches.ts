@@ -1,4 +1,5 @@
 import express from 'express';
+import { parseIdParam } from '../lib/parseId';
 
 const router = express.Router();
 
@@ -87,7 +88,9 @@ function toPublicCoach(c: any) {
 // GET /api/coaches/:id
 router.get('/:id', (req, res) => {
   try {
-    const coach = mockCoaches[parseInt(req.params.id)];
+    const id = parseIdParam(req.params.id);
+    if (id === null) return res.status(400).json({ success: false, error: 'Invalid id' });
+    const coach = mockCoaches[id];
     if (!coach) {
       return res.status(404).json({ success: false, error: 'Coach not found' });
     }
