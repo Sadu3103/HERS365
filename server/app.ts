@@ -27,6 +27,7 @@ import { adminStatsRouter } from './api/admin';
 import { leaguesRouter } from './api/leagues';
 import { teamsRouter } from './api/teams';
 import errorHandler from './middleware/errorHandler';
+import { pool } from './db';
 
 export function createApp() {
   const app = express();
@@ -39,7 +40,18 @@ export function createApp() {
   }));
   app.use(express.json({ limit: '5mb' }));
 
-  app.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+  // Public health probe — used by Railway's deploy healthcheck (so a crash-looping
+  // deploy is never promoted, the previous good one keeps serving) and by the
+  // HERS365-HQ dashboard. CORS-open so the local dashboard file can read it.
+  // Returns 200 whenever the app is responding; reports DB reachability in the
+  // body rather than failing the probe, so a transient DB blip mid-deploy does
+  // not reject an otherwise-healthy release.
+  app.get('/health', async (_req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    let db = 'down';
+    try { await pool.query('SELECT 1'); db = 'up'; } catch { /* db unreachable */ }
+    res.json({ status: 'ok', db, uptime: Math.round(process.uptime()), time: new Date().toISOString() });
+  });
 
   app.use('/api/payments', paymentRouter);
   app.use('/api/rankings', rankingsRouter);
