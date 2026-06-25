@@ -34,7 +34,7 @@ export const AdminLogin = () => {
       }
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
-      navigate('/admin/dashboard');
+      navigate('/admin');
     } catch {
       setError('Network error. Try again.');
     } finally {
