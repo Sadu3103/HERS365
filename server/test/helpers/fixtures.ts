@@ -47,6 +47,25 @@ export async function makeAdmin(
   return row;
 }
 
+export async function makeTrainingPlan(overrides: Partial<typeof schema.trainingPlans.$inferInsert> = {}) {
+  const [row] = await db.insert(schema.trainingPlans).values({
+    goals: 'Speed Training',
+    weeklySchedule: 'Mon / Wed / Fri',
+    ...overrides,
+  }).returning();
+  return row;
+}
+
+export async function makeDrill(overrides: Partial<typeof schema.drills.$inferInsert> = {}) {
+  const [row] = await db.insert(schema.drills).values({
+    position: 'QB',
+    category: 'Throwing',
+    instructions: 'Throw 50 spirals. Hit the net center each rep.',
+    ...overrides,
+  }).returning();
+  return row;
+}
+
 export async function makeParent(overrides: Partial<typeof schema.parents.$inferInsert> = {}) {
   const [row] = await db.insert(schema.parents).values({
     email: email('parent'),
