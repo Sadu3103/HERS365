@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, Users, Calendar, ChevronRight, Trophy } from 'lucide-react';
 
@@ -11,9 +11,30 @@ const DISP = "'Barlow Condensed', sans-serif";
 const STATES = ['CA', 'TX', 'FL', 'OH', 'GA', 'AZ', 'WA', 'CO', 'NY', 'NC'];
 const FORMATS = ['All', '7v7', 'Flag', 'Combined'];
 
-type League = { name: string; state: string; city: string; format: string; teams: number; season: string; level: string; open: boolean };
+type League = {
+  id?: number;
+  name: string;
+  state: string;
+  city: string;
+  format: string;
+  teams: number;
+  season: string;
+  level: string;
+  open: boolean;
+};
 
-const LEAGUES: League[] = [
+interface LeagueApiRow {
+  id: number;
+  name: string;
+  state?: string;
+  city?: string;
+  format?: string;
+  ageGroups?: string;
+  season?: string;
+  registrationOpen?: boolean;
+}
+
+const FALLBACK_LEAGUES: League[] = [
   { name: 'SoCal Girls Flag Football League', state: 'CA', city: 'Los Angeles', format: 'Flag', teams: 24, season: 'Fall 2025', level: 'High School', open: true },
   { name: 'Bay Area 7v7 Circuit', state: 'CA', city: 'San Jose', format: '7v7', teams: 16, season: 'Spring 2026', level: 'All Ages', open: true },
   { name: 'Texas Girls Flag Alliance', state: 'TX', city: 'Dallas', format: 'Flag', teams: 32, season: 'Fall 2025', level: 'High School', open: false },
@@ -26,8 +47,35 @@ export const LeagueFinder = () => {
   const [state, setState] = useState('');
   const [format, setFormat] = useState('All');
   const [openOnly, setOpenOnly] = useState(false);
+  const [leagues, setLeagues] = useState<League[]>(FALLBACK_LEAGUES);
 
-  const filtered = LEAGUES.filter((l) => {
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const params = new URLSearchParams();
+    if (state) params.set('state', state);
+    if (format !== 'All') params.set('format', format);
+    const qs = params.toString();
+    fetch(`/api/leagues${qs ? `?${qs}` : ''}`, { signal: ctrl.signal })
+      .then((r) => r.ok ? r.json() : null)
+      .then((res: { success: boolean; data: LeagueApiRow[] } | null) => {
+        if (!res?.success || !res.data?.length) return;
+        setLeagues(res.data.map((l) => ({
+          id: l.id,
+          name: l.name,
+          state: l.state ?? '',
+          city: l.city ?? '',
+          format: l.format ?? 'Flag',
+          teams: 0,
+          season: l.season ?? '',
+          level: l.ageGroups ?? 'All Ages',
+          open: l.registrationOpen ?? false,
+        })));
+      })
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, [state, format]);
+
+  const filtered = leagues.filter((l) => {
     if (state && l.state !== state) return false;
     if (format !== 'All' && l.format !== format) return false;
     if (openOnly && !l.open) return false;
@@ -68,7 +116,7 @@ export const LeagueFinder = () => {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {filtered.map((l, i) => (
-          <motion.div key={i} whileHover={{ x: 3 }} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 14, padding: '16px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14 }}>
+          <motion.div key={l.id ?? i} whileHover={{ x: 3 }} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 14, padding: '16px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#f4f4f2' }}>{l.name}</div>
@@ -76,8 +124,8 @@ export const LeagueFinder = () => {
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, fontSize: '0.72rem', color: MUTED }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><MapPin size={11} />{l.city}, {l.state}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Users size={11} />{l.teams} teams</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Calendar size={11} />{l.season}</span>
+                {l.teams > 0 && <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Users size={11} />{l.teams} teams</span>}
+                {l.season && <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Calendar size={11} />{l.season}</span>}
               </div>
               <div style={{ marginTop: 6, display: 'flex', gap: 6 }}>
                 <span style={{ padding: '2px 8px', background: `${FLAME}15`, border: `1px solid ${FLAME}30`, borderRadius: 99, fontSize: '0.62rem', fontWeight: 700, color: FLAME }}>{l.format}</span>

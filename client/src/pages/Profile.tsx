@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   MapPin, Edit3, CheckCircle2, Share2, MessageSquare, Loader2, AlertTriangle,
   UserX, Link2, Instagram, Eye, Play, Upload, Film, Image, Trophy, Zap,
-  Activity, X
+  Activity, X, Award, Star, Shield, Target, Flame, Medal
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
@@ -175,6 +175,16 @@ export const Profile = () => {
   const [uploadingHighlight, setUploadingHighlight] = useState(false);
   const highlightInputRef = useRef<HTMLInputElement>(null);
 
+  interface Badge {
+    id: number;
+    name: string;
+    description: string | null;
+    icon: string | null;
+    category: string | null;
+    earnedAt: string | null;
+  }
+  const [badges, setBadges] = useState<Badge[]>([]);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (shareRef.current && !shareRef.current.contains(e.target as Node)) setShareOpen(false);
@@ -284,6 +294,13 @@ export const Profile = () => {
       .then(d => setHighlights(Array.isArray(d) ? d : []))
       .catch(() => setHighlights([]))
       .finally(() => setHighlightsLoading(false));
+  }, [profile]);
+
+  useEffect(() => {
+    if (!profile) return;
+    apiFetch<{ success: boolean; data: Badge[] }>(`/api/badges/${profile.id}`)
+      .then(d => setBadges(Array.isArray(d?.data) ? d.data : []))
+      .catch(() => setBadges([]));
   }, [profile]);
 
   const handleHighlightUpload = async (file: File) => {
@@ -570,6 +587,7 @@ export const Profile = () => {
 
         {/* OVERVIEW */}
         {activeTab === 'Overview' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             {/* Season totals */}
             <div className="k-card" style={{ padding: '18px 16px' }}>
@@ -611,6 +629,27 @@ export const Profile = () => {
                 </div>
               ) : (
                 <p style={{ fontSize: '0.82rem', color: '#555' }}>No achievements listed yet.</p>
+              )}
+            </div>
+          </div>
+
+            {/* Badges */}
+            <div className="k-card" style={{ padding: '18px 16px' }}>
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555', marginBottom: 14 }}>Badges</div>
+              {badges.length > 0 ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                  {badges.map(b => (
+                    <div key={b.id} title={b.description ?? b.name} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,90,45,0.07)', border: '1px solid rgba(255,90,45,0.2)', borderRadius: 8, padding: '8px 12px' }}>
+                      <BadgeIcon icon={b.icon} />
+                      <div>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#ddd' }}>{b.name}</div>
+                        {b.category && <div style={{ fontSize: '0.62rem', color: '#555', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{b.category}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ fontSize: '0.82rem', color: '#555' }}>Complete drills to earn your first badge.</p>
               )}
             </div>
           </div>
@@ -898,6 +937,20 @@ export const Profile = () => {
     </div>
   );
 };
+
+function BadgeIcon({ icon }: { icon: string | null }) {
+  const s = { size: 16, color: '#ff5a2d' };
+  switch ((icon ?? '').toLowerCase()) {
+    case 'star': return <Star {...s} />;
+    case 'shield': return <Shield {...s} />;
+    case 'target': return <Target {...s} />;
+    case 'flame': return <Flame {...s} />;
+    case 'medal': return <Medal {...s} />;
+    case 'trophy': return <Trophy {...s} />;
+    case 'zap': return <Zap {...s} />;
+    default: return <Award {...s} />;
+  }
+}
 
 function ShareItem({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
   return (

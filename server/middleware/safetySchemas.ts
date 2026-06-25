@@ -57,6 +57,14 @@ export const coachMessageBody = z.object({
 
 export const coachMessageParams = z.object({ playerId: positiveIdParam });
 
+// ─── Coach contact request initiation ────────────────────────────────────────
+
+export const coachContactBody = z.object({
+  message: messageContent,
+});
+
+export const coachContactParams = z.object({ athleteId: positiveIdParam });
+
 // ─── Parent routes ───────────────────────────────────────────────────────────
 
 export const parentRespondBody = z.object({

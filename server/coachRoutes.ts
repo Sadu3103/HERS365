@@ -13,6 +13,8 @@ import { validateBody, validateParams } from './middleware/validate';
 import {
   coachMessageBody,
   coachMessageParams,
+  coachContactBody,
+  coachContactParams,
   coachPlayerSaveBody,
   coachPlayerNotesBody,
   coachPlayerTierBody,
@@ -295,6 +297,17 @@ router.get('/players/:id', async (req, res) => {
     const [player] = await db.select().from(schema.players).where(eq(schema.players.id, id));
     if (!player) return res.status(404).json({ error: 'Player not found' });
 
+    // Parent-controlled coach discoverability. When the linked parent flips
+    // profileVisibility=false the athlete's preferences.coachDiscoverable is
+    // set to false (see server/api/parent.ts PUT /settings). Mirror the gate
+    // already enforced on /coach/players/search and /api/athletes/:id so a
+    // coach who knows the id (saved earlier, prior message, guessed) cannot
+    // pull the full unlocked profile after the parent hides the athlete.
+    const prefs = (player.preferences ?? {}) as Record<string, unknown>;
+    if (prefs.coachDiscoverable === false) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
     // Directive 1: coaches don't get a minor's phone/email/dob/address even
     // on the "unlocked" detail page. The parent gate (parent-approved
     // message link) is the only path to contact info.
@@ -474,6 +487,61 @@ router.patch('/players/:id/tier', validateParams(coachPlayerParams), validateBod
 // ─── Messaging ────────────────────────────────────────────────────────────────
 
 /**
+ * POST /coach/contact/:athleteId — Initiate a contact request to an athlete.
+ * Creates a pending message_request visible to the athlete's linked parents.
+ * Idempotent: re-submitting while a pending request already exists is a no-op
+ * that still returns 201 (safe to retry from the UI without spamming the parent).
+ */
+router.post('/contact/:athleteId', messageRateLimit, validateParams(coachContactParams), validateBody(coachContactBody), async (req, res) => {
+  try {
+    const coachId = coachUserId(req);
+    const athleteId = parseIdParam(req.params.athleteId);
+    if (athleteId === null) return res.status(400).json({ success: false, error: 'Invalid athlete id' });
+
+    const [athlete] = await db
+      .select({ id: schema.players.id, preferences: schema.players.preferences })
+      .from(schema.players)
+      .where(eq(schema.players.id, athleteId))
+      .limit(1);
+    if (!athlete) return res.status(404).json({ success: false, error: 'Athlete not found' });
+
+    const prefs = (athlete.preferences ?? {}) as Record<string, unknown>;
+    if (prefs.coachDiscoverable === false) {
+      return res.status(403).json({ success: false, error: 'Forbidden' });
+    }
+
+    const existing = await db
+      .select({ id: schema.messageRequests.id })
+      .from(schema.messageRequests)
+      .where(and(
+        eq(schema.messageRequests.athleteId, athleteId),
+        eq(schema.messageRequests.receiverId, coachId),
+        eq(schema.messageRequests.status, 'pending'),
+      ))
+      .limit(1);
+    if (existing.length > 0) {
+      return res.status(201).json({ success: true, data: { id: existing[0].id, status: 'pending' } });
+    }
+
+    const { message } = req.body;
+    const verdict = await moderateMessage(String(message));
+    if (!verdict.allowed) {
+      return res.status(422).json({ success: false, error: "Your message couldn't be sent. Please revise and try again." });
+    }
+
+    const [row] = await db
+      .insert(schema.messageRequests)
+      .values({ athleteId, receiverId: coachId, content: message, status: 'pending' })
+      .returning();
+
+    res.status(201).json({ success: true, data: { id: row.id, status: 'pending' } });
+  } catch (error) {
+    console.error('[coach/contact] failed:', error);
+    res.status(500).json({ success: false, error: 'Failed to send contact request' });
+  }
+});
+
+/**
  * POST /coach/message/:playerId — Send a message to an athlete
  */
 router.post('/message/:playerId', messageRateLimit, validateParams(coachMessageParams), validateBody(coachMessageBody), async (req, res) => {
@@ -572,17 +640,24 @@ router.get('/analytics', async (req, res) => {
       .from(schema.messages)
       .where(eq(schema.messages.coachId, coachId));
 
-    // For now, using mock data for other metrics
+    const playersContacted = await db.select({ count: sql<number>`count(*)` })
+      .from(schema.messageRequests)
+      .where(eq(schema.messageRequests.receiverId, coachId));
+
+    const topStateRows = await db
+      .select({ state: schema.players.state, count: sql<number>`count(*)` })
+      .from(schema.coachProspects)
+      .innerJoin(schema.players, eq(schema.players.id, schema.coachProspects.athleteId))
+      .where(eq(schema.coachProspects.coachId, coachId))
+      .groupBy(schema.players.state)
+      .orderBy(desc(sql`count(*)`))
+      .limit(4);
+
     res.json({
       boardCount: boardCount[0]?.count || 0,
       messagesSent: messagesSent[0]?.count || 0,
-      profileViews: 47, // mock
-      topStates: ['TX', 'FL', 'CA', 'GA'],
-      recentlyViewed: [1, 2, 3],
-      searchQueries: 23, // mock
-      playersContacted: 18, // mock
-      offersExtended: 5, // mock
-      commitsReceived: 2, // mock
+      playersContacted: playersContacted[0]?.count || 0,
+      topStates: topStateRows.map(r => r.state).filter(Boolean),
     });
   } catch (error) {
     console.error('Failed to fetch analytics:', error);
@@ -593,134 +668,61 @@ router.get('/analytics', async (req, res) => {
 /**
   * GET /coach/player-clips — Get player highlight clips
   */
-router.get('/player-clips', (req, res) => {
-  const clips = [
-    {
-      id: 1,
-      playerId: 1,
-      name: 'Aaliyah Thompson',
-      position: 'WR',
-      school: 'Westlake High',
-      state: 'TX',
-      gradYear: 2026,
-      stars: 5,
-      breakoutScore: 98,
-      clipUrl: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=600&auto=format&fit=crop',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=600&auto=format&fit=crop',
-      title: 'One-handed catch in double coverage 🤯 #StateChamps',
-      views: 1245,
-      likes: 234,
-      shares: 45,
-      measurements: {
-        height: '5\'8"',
-        weight: '135 lbs',
-        fortyYard: '4.52',
-        vertical: '36"',
-        broadJump: '118"'
-      },
-      stats: {
-        receptions: 64,
-        receivingYards: 1204,
-        receivingTouchdowns: 18
-      },
-      verified: true,
-      createdAt: '2024-05-15T14:30:00Z'
-    },
-    {
-      id: 2,
-      playerId: 2,
-      name: 'Jordan Davis',
-      position: 'QB',
-      school: 'Miami Southridge',
-      state: 'FL',
-      gradYear: 2026,
-      stars: 5,
-      breakoutScore: 95,
-      clipUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=600&auto=format&fit=crop',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=600&auto=format&fit=crop',
-      title: 'Testing the deep ball at Elite11 regional camp 🚀',
-      views: 987,
-      likes: 189,
-      shares: 32,
-      measurements: {
-        height: '5\'10"',
-        weight: '145 lbs',
-        fortyYard: '4.65',
-        vertical: '31"',
-        broadJump: '110"'
-      },
-      stats: {
-        passingYards: 2840,
-        passingTouchdowns: 32,
-        passingInterceptions: 4
-      },
-      verified: true,
-      createdAt: '2024-05-14T16:45:00Z'
-    },
-    {
-      id: 3,
-      playerId: 3,
-      name: 'Maya Rodriguez',
-      position: 'CB',
-      school: 'Crenshaw High',
-      state: 'CA',
-      gradYear: 2027,
-      stars: 4,
-      breakoutScore: 89,
-      clipUrl: 'https://images.unsplash.com/photo-1605296867304-46d5465a13f1?q=80&w=600&auto=format&fit=crop',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1605296867304-46d5465a13f1?q=80&w=600&auto=format&fit=crop',
-      title: 'Lockdown coverage at the 7on7 tournament 🔒',
-      views: 756,
-      likes: 145,
-      shares: 28,
-      measurements: {
-        height: '5\'7"',
-        weight: '128 lbs',
-        fortyYard: '4.58',
-        vertical: '34"',
-        broadJump: '115"'
-      },
-      stats: {
-        flagPulls: 48,
-        interceptions: 8
-      },
-      verified: false,
-      createdAt: '2024-05-13T18:20:00Z'
-    },
-    {
-      id: 4,
-      playerId: 4,
-      name: 'Destiny Williams',
-      position: 'RB',
-      school: 'Westlake HS (GA)',
-      state: 'GA',
-      gradYear: 2026,
-      stars: 4,
-      breakoutScore: 84,
-      clipUrl: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=600&auto=format&fit=crop',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=600&auto=format&fit=crop',
-      title: '40-yard reverse for the game-winner! 🏃‍♀️💨',
-      views: 1567,
-      likes: 289,
-      shares: 67,
-      measurements: {
-        height: '5\'5"',
-        weight: '130 lbs',
-        fortyYard: '4.71',
-        vertical: '29"',
-        broadJump: '105"'
-      },
-      stats: {
-        rushingYards: 934,
-        rushingTouchdowns: 12,
-        rushingAttempts: 98
-      },
-      verified: true,
-      createdAt: '2024-05-12T19:15:00Z'
-    }
-  ];
+router.get('/player-clips', async (req, res) => {
+  try {
+    // Real discovery feed for the coach dashboard. Mirrors /players/search:
+    // the live roster mapped to the scouting shape, gated by the parent
+    // controlled coachDiscoverable flag, sorted by rating so the strongest
+    // prospects surface first. Replaces the old hardcoded sample so the
+    // dashboard is consistent with search and never shows athletes who are
+    // not in the database.
+    const rowsRaw = await db.select().from(schema.players);
+    const rows = rowsRaw.filter((p) => {
+      const prefs = (p.preferences ?? {}) as Record<string, unknown>;
+      return prefs.coachDiscoverable !== false && p.name && p.position;
+    });
 
-  res.json({ clips });
+    const thumbnailByPlayer = new Map<number, string>();
+    if (rows.length > 0) {
+      const highlights = await db
+        .select({
+          playerId: schema.playerHighlights.playerId,
+          thumbnailUrl: schema.playerHighlights.thumbnailUrl,
+          createdAt: schema.playerHighlights.createdAt,
+        })
+        .from(schema.playerHighlights)
+        .orderBy(desc(schema.playerHighlights.createdAt));
+      for (const h of highlights) {
+        if (h.playerId != null && h.thumbnailUrl && !thumbnailByPlayer.has(h.playerId)) {
+          thumbnailByPlayer.set(h.playerId, h.thumbnailUrl);
+        }
+      }
+    }
+
+    const clips = rows
+      .map((p) => mapPlayerToScout({ ...p, latestHighlightThumbnail: thumbnailByPlayer.get(p.id) ?? null }))
+      .sort((a, b) => b.stars - a.stars || b.breakoutScore - a.breakoutScore)
+      .slice(0, 12)
+      .map((s) => ({
+        id: s.id,
+        playerId: s.id,
+        name: s.name,
+        position: s.position,
+        school: s.school,
+        state: s.state,
+        gradYear: s.gradYear,
+        stars: s.stars,
+        breakoutScore: s.breakoutScore,
+        verified: s.verified,
+        title: s.archetype && s.archetype !== '\u2014' ? s.archetype : `${s.position} \u00b7 ${s.school}`,
+        thumbnailUrl: s.highlightThumbnailUrl || s.profileImage || '',
+      }));
+
+    res.json({ clips });
+  } catch (error) {
+    console.error('Failed to fetch player clips:', error);
+    res.status(500).json({ error: 'Failed to fetch player clips' });
+  }
 });
 
 /**
