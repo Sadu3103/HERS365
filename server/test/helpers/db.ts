@@ -18,6 +18,7 @@ const TABLES = [
   'parents',
   'coaches',
   'players',
+  'admin_users',
 ];
 
 export async function resetDb() {

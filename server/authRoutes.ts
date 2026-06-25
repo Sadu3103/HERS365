@@ -96,6 +96,19 @@ async function findUserByEmail(email: string, role: auth.UserRole): Promise<Foun
     if (!row) return null;
     return { id: row.id, email: row.email, passwordHash: row.passwordHash, name: row.name, role: 'parent' };
   }
+  // Admins authenticate through the same default-role login the admin UI posts
+  // to (no role field). admin_users keys on `username`, which holds the email.
+  const [admin] = await db.select().from(schema.adminUsers).where(eq(schema.adminUsers.username, e)).limit(1);
+  if (admin) {
+    return {
+      id: admin.id,
+      email: admin.username,
+      passwordHash: admin.passwordHash,
+      name: admin.username,
+      role: (admin.role as auth.UserRole) || 'admin',
+    };
+  }
+
   // default: athlete
   const [row] = await db.select().from(schema.players).where(eq(schema.players.email, e)).limit(1);
   if (!row) return null;

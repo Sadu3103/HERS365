@@ -34,6 +34,19 @@ export async function makeCoach(overrides: Partial<typeof schema.coaches.$inferI
   return row;
 }
 
+export async function makeAdmin(
+  username = email('admin'),
+  overrides: Partial<typeof schema.adminUsers.$inferInsert> = {},
+) {
+  const [row] = await db.insert(schema.adminUsers).values({
+    username,
+    passwordHash: PW_HASH,
+    role: 'admin',
+    ...overrides,
+  }).returning();
+  return row;
+}
+
 export async function makeParent(overrides: Partial<typeof schema.parents.$inferInsert> = {}) {
   const [row] = await db.insert(schema.parents).values({
     email: email('parent'),
