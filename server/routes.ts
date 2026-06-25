@@ -4,7 +4,7 @@ import * as schema from './schema';
 import * as ai from './ai';
 import * as mp from './maxpreps';
 import { eq, desc, sql, and } from 'drizzle-orm';
-import { requireAuth, requireAdmin, type TokenPayload } from './auth';
+import { requireAuth, requireAdmin, optionalAuth, type TokenPayload } from './auth';
 
 const router = express.Router();
 
@@ -145,30 +145,57 @@ router.get('/profile/stats', requireAuth, async (req: Request, res: Response, ne
 });
 
 // PLAYERS & TEAMS
-router.get('/players', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/players', optionalAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const allPlayers = await db.select().from(schema.players);
-    res.json(allPlayers.map(publicPlayer));
+    // Coach discoverability: a coach listing athletes must not see those a
+    // parent hid (mirrors the /api/coach/players/search filter). Non-coach
+    // callers still get the full public directory.
+    const visible = authUser(req)?.role === 'coach'
+      ? allPlayers.filter(p => ((p.preferences ?? {}) as Record<string, unknown>).coachDiscoverable !== false)
+      : allPlayers;
+    res.json(visible.map(publicPlayer));
   } catch (err: any) {
     next(err);
   }
 });
 
-router.get('/players/:id', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/players/:id', optionalAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const pId = parseIdParam(req.params.id);
     if (pId === null) return res.status(400).json({ error: 'Invalid id' });
     const player = await db.select().from(schema.players).where(eq(schema.players.id, pId));
-    res.json(publicPlayer(player[0]) || null);
+    const row = player[0];
+    // Parent controlled coach discoverability. Mirror the gate on
+    // /api/athletes/:id and /api/coach/players/:id so a coach cannot reach a
+    // hidden minor's profile through this sibling route. Owner and public are
+    // unaffected; unset or true stays visible.
+    if (row && authUser(req)?.role === 'coach') {
+      const prefs = (row.preferences ?? {}) as Record<string, unknown>;
+      if (prefs.coachDiscoverable === false) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    }
+    res.json(publicPlayer(row) || null);
   } catch (err: any) {
     next(err);
   }
 });
 
-router.get('/players/:id/stats', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/players/:id/stats', optionalAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const pId = parseIdParam(req.params.id);
     if (pId === null) return res.status(400).json({ error: 'Invalid id' });
+    // Coach discoverability gate (see /players/:id). A hidden athlete is
+    // invisible to coaches here too, so stats cannot leak around the toggle.
+    if (authUser(req)?.role === 'coach') {
+      const [p] = await db.select({ preferences: schema.players.preferences })
+        .from(schema.players).where(eq(schema.players.id, pId)).limit(1);
+      const prefs = (p?.preferences ?? {}) as Record<string, unknown>;
+      if (prefs.coachDiscoverable === false) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    }
     const stats = await db.select().from(schema.gameStats).where(eq(schema.gameStats.playerId, pId));
     res.json(stats);
   } catch (err: any) {
@@ -180,8 +207,16 @@ router.get('/players/:id/highlights', requireAuth, async (req: Request, res: Res
   try {
     const pId = parseIdParam(req.params.id);
     if (pId === null) return res.status(400).json({ error: 'Invalid id' });
-    const [player] = await db.select({ subscriptionTier: schema.players.subscriptionTier })
+    const [player] = await db.select({ subscriptionTier: schema.players.subscriptionTier, preferences: schema.players.preferences })
       .from(schema.players).where(eq(schema.players.id, pId)).limit(1);
+    // Coach discoverability gate: a coach cannot pull a hidden minor's video
+    // media around the toggle (mirrors /api/athletes/:id). Owner unaffected.
+    if (authUser(req)?.role === 'coach') {
+      const prefs = (player?.preferences ?? {}) as Record<string, unknown>;
+      if (prefs.coachDiscoverable === false) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    }
     const isPaid = !!player?.subscriptionTier && player.subscriptionTier !== 'free';
     if (isPaid) {
       const highlights = await db.select().from(schema.playerHighlights).where(eq(schema.playerHighlights.playerId, pId));
@@ -318,6 +353,24 @@ router.get('/nil/opportunities', async (req: Request, res: Response, next: NextF
   try {
     const opps = await db.select().from(schema.nilOpportunities).limit(20);
     res.json(opps);
+  } catch (err: any) {
+    next(err);
+  }
+});
+
+router.post('/nil/apply', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { opportunityId } = req.body;
+    if (!opportunityId) {
+      return res.status(400).json({ success: false, error: 'opportunityId is required' });
+    }
+    const playerId = authUser(req)!.userId;
+    await db.insert(schema.dealApplications).values({
+      playerId,
+      opportunityId: Number(opportunityId),
+      status: 'pending',
+    });
+    res.json({ applied: true });
   } catch (err: any) {
     next(err);
   }

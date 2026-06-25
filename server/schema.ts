@@ -67,6 +67,19 @@ export const teams = pgTable('teams', {
   type: text('type').default('college'), // college, high_school
 });
 
+export const leagues = pgTable('leagues', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  state: text('state'),
+  city: text('city'),
+  format: text('format'),
+  ageGroups: text('age_groups'),
+  season: text('season'),
+  website: text('website'),
+  registrationOpen: boolean('registration_open').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 export const combineStats = pgTable('combine_stats', {
   id: serial('id').primaryKey(),
   playerId: integer('player_id').references(() => players.id),

@@ -239,11 +239,17 @@ export function CoachDashboard() {
             <div className="space-y-4">
               {clips.slice(0, 5).map((clip) => (
                 <div key={clip.id} className="flex items-center gap-4 p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors">
-                  <img
-                    src={clip.thumbnailUrl}
-                    alt={clip.title}
-                    className="w-16 h-16 object-cover rounded-lg"
-                  />
+                  {clip.thumbnailUrl ? (
+                    <img
+                      src={clip.thumbnailUrl}
+                      alt={clip.title}
+                      className="w-16 h-16 object-cover rounded-lg"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-lg bg-gray-600 flex items-center justify-center text-xl font-bold text-gray-300">
+                      {clip.name?.[0] ?? '?'}
+                    </div>
+                  )}
                   <div className="flex-1">
                     <h4 className="text-white font-medium">{clip.name}</h4>
                     <p className="text-gray-400 text-sm">{clip.position} • {clip.school}</p>
@@ -300,11 +306,19 @@ export function CoachDashboard() {
               {clips.slice(0, 6).map((clip) => (
                 <div key={clip.id} className="bg-gray-800 border border-gray-700 rounded-lg overflow-hidden hover:border-gray-600 transition-colors">
                   <div className="aspect-video bg-gray-700 relative">
-                    <img
-                      src={clip.thumbnailUrl}
-                      alt={clip.title}
-                      className="w-full h-full object-cover"
-                    />
+                    {clip.thumbnailUrl ? (
+                      <img
+                        src={clip.thumbnailUrl}
+                        alt={clip.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <div className="w-16 h-16 rounded-full bg-gray-600 flex items-center justify-center text-2xl font-bold text-gray-300">
+                          {clip.name?.[0] ?? '?'}
+                        </div>
+                      </div>
+                    )}
                     <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
                       <div className="text-center text-white">
                         <Users className="w-8 h-8 mx-auto mb-2 opacity-80" />

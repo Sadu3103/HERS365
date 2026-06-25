@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Send, Inbox, Clock, Plus, X, Shield, Check, CheckCheck, MessagesSquare, ShieldCheck, ArrowLeft, Search, AlertCircle, Zap, MoreVertical, Flag, Ban, ChevronDown, Filter } from 'lucide-react';
+import { Send, Inbox, Clock, X, Shield, Check, CheckCheck, MessagesSquare, ShieldCheck, ArrowLeft, Search, AlertCircle, Zap, MoreVertical, Flag, Ban, ChevronDown, Filter } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { apiFetch } from '../lib/api';
 
@@ -37,13 +37,6 @@ interface RequestItem {
   content: string;
   createdAt: string;
 }
-interface AthleteRow {
-  id: number;
-  name: string;
-  position: string;
-  school: string;
-}
-
 // ── Deterministic avatar from a name (gradient + initials) ──
 function initials(name: string): string {
   return (name || '?').split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
@@ -115,9 +108,6 @@ export const Messages = () => {
   const [activePartner, setActivePartner] = useState<number | null>(null);
   const [activePartnerName, setActivePartnerName] = useState('');
   const [draft, setDraft] = useState('');
-  const [composing, setComposing] = useState(false);
-  const [composeAthletes, setComposeAthletes] = useState<AthleteRow[]>([]);
-  const [composeFilter, setComposeFilter] = useState('');
   const [convSearch, setConvSearch] = useState('');
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -147,20 +137,6 @@ export const Messages = () => {
       if (state.partnerName) setActivePartnerName(state.partnerName);
     }
   }, []);
-
-  const openCompose = async () => {
-    const _u = localStorage.getItem('user');
-    const _tier = _u ? (JSON.parse(_u).subscriptionTier || JSON.parse(_u).tier || 'free') : 'free';
-    if (_tier === 'free' || _tier === 'rookie') { setShowUpgrade(true); return; }
-    setComposing(true);
-    if (composeAthletes.length > 0) return;
-    try {
-      const res = await apiFetch<{ data: AthleteRow[] }>('/api/athletes?limit=30');
-      setComposeAthletes((res.data ?? []).map((a) => ({
-        id: a.id, name: a.name ?? '', position: a.position ?? '', school: a.school ?? '',
-      })));
-    } catch { /* sidebar still opens, just empty */ }
-  };
 
   const { data: convData, isLoading: convLoading } = useQuery({
     queryKey: ['conversations'],
@@ -317,54 +293,7 @@ export const Messages = () => {
           <button onClick={() => setTab('requests')} style={tabStyle(tab === 'requests')}>
             <Clock size={13} /> REQUESTS{requests.length > 0 ? ` (${requests.length})` : ''}
           </button>
-          <button onClick={openCompose} title="New message" aria-label="New message" style={{
-            flexShrink: 0, width: 34, height: 34, borderRadius: '50%',
-            background: FLAME, border: 'none', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 14px rgba(255,90,45,0.35)',
-          }}>
-            <Plus size={17} color="#fff" />
-          </button>
         </div>
-
-        {composing && (
-          <div style={{ borderTop: `1px solid ${LINE}`, borderBottom: `1px solid ${LINE}`, paddingBottom: 8, background: INK_2 }}>
-            <div style={{ display: 'flex', alignItems: 'center', padding: '10px 12px 8px', gap: 8 }}>
-              <input
-                autoFocus
-                value={composeFilter}
-                onChange={(e) => setComposeFilter(e.target.value)}
-                placeholder="Search athletes..."
-                style={{ flex: 1, background: INK_3, border: `1px solid ${LINE}`, borderRadius: 9999, padding: '7px 14px', color: '#fff', fontSize: '0.78rem', outline: 'none' }}
-              />
-              <button onClick={() => setComposing(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED, padding: 0, display: 'flex' }}>
-                <X size={16} />
-              </button>
-            </div>
-            <div className="msg-scroll" style={{ maxHeight: 200, overflowY: 'auto' }}>
-              {composeAthletes
-                .filter((a) => a.name.toLowerCase().includes(composeFilter.toLowerCase()))
-                .map((a) => (
-                  <button
-                    key={a.id}
-                    onClick={() => { setActivePartner(a.id); setActivePartnerName(a.name); setComposing(false); setComposeFilter(''); }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 11, width: '100%', textAlign: 'left', padding: '9px 16px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff' }}
-                    onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)')}
-                    onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = 'transparent')}
-                  >
-                    <Avatar name={a.name} size={32} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '0.82rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
-                      <div style={{ fontSize: '0.68rem', color: MUTED_2 }}>{a.position}{a.school ? ` · ${a.school}` : ''}</div>
-                    </div>
-                  </button>
-                ))}
-              {composeAthletes.length === 0 && (
-                <div style={{ padding: '12px 16px', fontSize: '0.75rem', color: MUTED_2 }}>Loading athletes…</div>
-              )}
-            </div>
-          </div>
-        )}
 
         <div className="msg-scroll" style={{ flex: 1, overflowY: 'auto' }}>
           {tab === 'inbox' && !convLoading && allConversations.length > 0 && (

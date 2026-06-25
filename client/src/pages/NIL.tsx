@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DollarSign, Star, TrendingUp, Package, CheckCircle2, ChevronRight } from 'lucide-react';
+import { DollarSign, Star, TrendingUp, Package, CheckCircle2, ChevronRight, XCircle } from 'lucide-react';
 import { UpgradeGate } from '../components/UpgradeGate';
 
-const FLAME = '#ff5a2d';
 const LINE = 'rgba(255,255,255,0.07)';
 const MUTED = '#8a8a86';
 const MUTED_2 = '#5a5a56';
@@ -11,29 +10,20 @@ const PURPLE = '#a78bfa';
 const DISP = "'Barlow Condensed', sans-serif";
 
 type Deal = {
-  id: number; brand: string; category: string; value: string;
-  deliverables: string; deadline: string; status: 'available' | 'applied' | 'active';
+  id: number;
+  brandName: string | null;
+  requirements: string | null;
+  deliverables: string | null;
+  estimatedEarnings: number | null;
 };
 
-const DEALS: Deal[] = [
-  { id: 1, brand: 'SportsGear Pro', category: 'Apparel', value: '$500', deliverables: '2 Instagram posts wearing gear', deadline: 'Jun 30', status: 'available' },
-  { id: 2, brand: 'Hydro Nation', category: 'Sports Nutrition', value: '$300', deliverables: '1 TikTok + 3 story posts', deadline: 'Jul 15', status: 'available' },
-  { id: 3, brand: 'Speed Labs', category: 'Training Equipment', value: '$750', deliverables: '1 YouTube training video', deadline: 'Jul 1', status: 'applied' },
-  { id: 4, brand: 'Elite Cleats Co.', category: 'Footwear', value: '$1,200', deliverables: 'Season-long ambassador, 6 posts', deadline: 'Aug 1', status: 'available' },
-  { id: 5, brand: 'Playmaker Academy', category: 'Training App', value: '$400', deliverables: '30-day app promotion campaign', deadline: 'Jun 25', status: 'active' },
-];
-
-const CAT_COLORS: Record<string, string> = {
-  Apparel: FLAME,
-  'Sports Nutrition': '#4ade80',
-  'Training Equipment': '#60a5fa',
-  Footwear: '#fbbf24',
-  'Training App': PURPLE,
-};
 
 export const NIL = () => {
-  const [applied, setApplied] = useState<number[]>([3]);
-  const [active] = useState<number[]>([5]);
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [applied, setApplied] = useState<number[]>([]);
+  const [applying, setApplying] = useState<Record<number, boolean>>({});
   const [selected, setSelected] = useState<Deal | null>(null);
 
   const raw = localStorage.getItem('user');
@@ -41,7 +31,66 @@ export const NIL = () => {
   const tier = user?.subscriptionTier || user?.tier || 'free';
   const isElite = tier === 'elite';
 
-  const totalValue = DEALS.filter((d) => active.includes(d.id)).reduce((acc, d) => acc + parseInt(d.value.replace(/[$,]/g, '')), 0);
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    fetch('/api/nil/opportunities', { signal: controller.signal })
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setDeals(data);
+        } else if (data.success) {
+          setDeals(data.data);
+        } else {
+          setError(data.error || 'Failed to load opportunities');
+        }
+      })
+      .catch(err => {
+        if (err.name !== 'AbortError') setError('Failed to load opportunities');
+      })
+      .finally(() => setLoading(false));
+    return () => controller.abort();
+  }, []);
+
+  const handleApply = async (opportunityId: number) => {
+    setApplying(prev => ({ ...prev, [opportunityId]: true }));
+    try {
+      const res = await fetch('/api/nil/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ opportunityId }),
+      });
+      const data = await res.json();
+      if (data.applied) {
+        setApplied(prev => [...prev, opportunityId]);
+        setSelected(null);
+      }
+    } finally {
+      setApplying(prev => ({ ...prev, [opportunityId]: false }));
+    }
+  };
+
+  const totalEarnings = deals
+    .filter(d => applied.includes(d.id))
+    .reduce((acc, d) => acc + (d.estimatedEarnings ?? 0), 0);
+
+  if (loading) {
+    return (
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '80px 20px', textAlign: 'center', color: MUTED }}>
+        <DollarSign size={32} style={{ marginBottom: 12, opacity: 0.35 }} />
+        <p style={{ fontSize: '0.88rem', margin: 0 }}>Loading opportunities...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '80px 20px', textAlign: 'center', color: '#f87171' }}>
+        <XCircle size={32} style={{ marginBottom: 12, opacity: 0.6 }} />
+        <p style={{ fontSize: '0.88rem', margin: 0 }}>{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 20px 120px' }}>
@@ -61,9 +110,9 @@ export const NIL = () => {
         {/* Stats row */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
           {[
-            { icon: <DollarSign size={16} />, val: `$${totalValue}`, label: 'Active earnings' },
+            { icon: <DollarSign size={16} />, val: `$${totalEarnings.toLocaleString()}`, label: 'Applied earnings' },
             { icon: <Package size={16} />, val: applied.length, label: 'Applied deals' },
-            { icon: <TrendingUp size={16} />, val: DEALS.filter((d) => d.status === 'available').length, label: 'Open opportunities' },
+            { icon: <TrendingUp size={16} />, val: deals.length, label: 'Open opportunities' },
           ].map((s) => (
             <div key={s.label} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 12, padding: '14px 14px', textAlign: 'center' }}>
               <div style={{ color: PURPLE, marginBottom: 5, display: 'flex', justifyContent: 'center' }}>{s.icon}</div>
@@ -75,35 +124,46 @@ export const NIL = () => {
 
         {/* Deal list */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {DEALS.map((deal) => {
+          {deals.map((deal) => {
             const isApplied = applied.includes(deal.id);
-            const isActive = active.includes(deal.id);
-            const catColor = CAT_COLORS[deal.category] || MUTED;
             return (
               <motion.div
                 key={deal.id}
                 whileHover={{ x: 3 }}
                 onClick={() => setSelected(deal)}
-                style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${isActive ? `${PURPLE}40` : LINE}`, borderRadius: 14, padding: '14px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14 }}
+                style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 14, padding: '14px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14 }}
               >
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#f4f4f2' }}>{deal.brand}</div>
-                    <span style={{ padding: '2px 7px', background: `${catColor}15`, border: `1px solid ${catColor}30`, borderRadius: 99, fontSize: '0.6rem', fontWeight: 700, color: catColor }}>{deal.category}</span>
-                    {isActive && <span style={{ padding: '2px 7px', background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 99, fontSize: '0.6rem', fontWeight: 700, color: PURPLE }}>ACTIVE</span>}
-                    {isApplied && !isActive && <span style={{ padding: '2px 7px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 99, fontSize: '0.6rem', fontWeight: 700, color: '#f59e0b' }}>APPLIED</span>}
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#f4f4f2' }}>{deal.brandName}</div>
+                    {isApplied && (
+                      <span style={{ padding: '2px 7px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 99, fontSize: '0.6rem', fontWeight: 700, color: '#f59e0b' }}>APPLIED</span>
+                    )}
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: MUTED }}>{deal.deliverables}</div>
-                  <div style={{ fontSize: '0.68rem', color: MUTED_2, marginTop: 3 }}>Deadline: {deal.deadline}</div>
+                  {deal.deliverables && (
+                    <div style={{ fontSize: '0.72rem', color: MUTED }}>{deal.deliverables}</div>
+                  )}
+                  {deal.requirements && (
+                    <div style={{ fontSize: '0.68rem', color: MUTED_2, marginTop: 3 }}>{deal.requirements}</div>
+                  )}
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontFamily: DISP, fontSize: '1.2rem', fontWeight: 900, color: '#4ade80' }}>{deal.value}</div>
+                  {deal.estimatedEarnings != null && (
+                    <div style={{ fontFamily: DISP, fontSize: '1.2rem', fontWeight: 900, color: '#4ade80' }}>${deal.estimatedEarnings.toLocaleString()}</div>
+                  )}
                   <ChevronRight size={14} color={MUTED_2} style={{ marginTop: 4 }} />
                 </div>
               </motion.div>
             );
           })}
         </div>
+
+        {deals.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '48px 0', color: MUTED_2 }}>
+            <DollarSign size={32} style={{ marginBottom: 12, opacity: 0.35 }} />
+            <p style={{ fontSize: '0.88rem', margin: 0 }}>No opportunities available right now.</p>
+          </div>
+        )}
       </UpgradeGate>
 
       {/* Deal detail drawer */}
@@ -114,27 +174,36 @@ export const NIL = () => {
               <div style={{ width: 36, height: 4, background: LINE, borderRadius: 99, margin: '0 auto 20px' }} />
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
                 <div>
-                  <div style={{ fontFamily: DISP, fontSize: '1.4rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em' }}>{selected.brand}</div>
-                  <div style={{ fontSize: '0.72rem', color: MUTED, marginTop: 2 }}>{selected.category}</div>
+                  <div style={{ fontFamily: DISP, fontSize: '1.4rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em' }}>{selected.brandName}</div>
                 </div>
-                <div style={{ fontFamily: DISP, fontSize: '1.6rem', fontWeight: 900, color: '#4ade80' }}>{selected.value}</div>
+                {selected.estimatedEarnings != null && (
+                  <div style={{ fontFamily: DISP, fontSize: '1.6rem', fontWeight: 900, color: '#4ade80' }}>${selected.estimatedEarnings.toLocaleString()}</div>
+                )}
               </div>
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED_2, marginBottom: 5 }}>Deliverables</div>
-                <div style={{ fontSize: '0.88rem', color: '#d4d4d0' }}>{selected.deliverables}</div>
-              </div>
-              <div style={{ marginBottom: 24 }}>
-                <div style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED_2, marginBottom: 5 }}>Deadline</div>
-                <div style={{ fontSize: '0.88rem', color: '#d4d4d0' }}>{selected.deadline}</div>
-              </div>
-              {isElite && !applied.includes(selected.id) && !active.includes(selected.id) && (
-                <motion.button whileTap={{ scale: 0.96 }} onClick={() => { setApplied([...applied, selected.id]); setSelected(null); }} style={{ width: '100%', padding: '14px', background: PURPLE, color: '#fff', border: 'none', borderRadius: 12, fontFamily: DISP, fontWeight: 800, fontSize: '0.95rem', letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <Star size={16} /> Apply for This Deal
+              {selected.deliverables && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED_2, marginBottom: 5 }}>Deliverables</div>
+                  <div style={{ fontSize: '0.88rem', color: '#d4d4d0' }}>{selected.deliverables}</div>
+                </div>
+              )}
+              {selected.requirements && (
+                <div style={{ marginBottom: 24 }}>
+                  <div style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED_2, marginBottom: 5 }}>Requirements</div>
+                  <div style={{ fontSize: '0.88rem', color: '#d4d4d0' }}>{selected.requirements}</div>
+                </div>
+              )}
+              {isElite && !applied.includes(selected.id) && (
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => handleApply(selected.id)}
+                  disabled={applying[selected.id]}
+                  style={{ width: '100%', padding: '14px', background: PURPLE, color: '#fff', border: 'none', borderRadius: 12, fontFamily: DISP, fontWeight: 800, fontSize: '0.95rem', letterSpacing: '0.06em', textTransform: 'uppercase', cursor: applying[selected.id] ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: applying[selected.id] ? 0.6 : 1 }}>
+                  <Star size={16} /> {applying[selected.id] ? 'Submitting...' : 'Express Interest'}
                 </motion.button>
               )}
-              {(applied.includes(selected.id) || active.includes(selected.id)) && (
+              {applied.includes(selected.id) && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 12, color: '#4ade80', fontSize: '0.85rem', fontWeight: 700 }}>
-                  <CheckCircle2 size={16} />{active.includes(selected.id) ? 'Deal Active' : 'Application Submitted'}
+                  <CheckCircle2 size={16} /> Application Submitted
                 </div>
               )}
             </motion.div>

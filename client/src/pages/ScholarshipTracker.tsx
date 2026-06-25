@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   GraduationCap, DollarSign, Clock, CheckCircle2,
-  XCircle, AlertCircle, TrendingUp, Plus,
-  ChevronRight, Award,
+  XCircle, TrendingUp, Plus,
+  ChevronRight, Award, Bookmark,
 } from 'lucide-react';
 
 const FLAME_C = '#ff5a2d';
@@ -17,14 +17,13 @@ type ScholarshipStatus = 'tracking' | 'applied' | 'interview' | 'offer' | 'decli
 
 type Scholarship = {
   id: number;
-  school: string;
-  program: string;
-  division: 'D1' | 'D2' | 'D3' | 'NAIA' | 'JUCO';
-  amount: string | null;
-  deadline: string | null;
-  status: ScholarshipStatus;
-  notes: string;
-  contactName: string | null;
+  name: string;
+  amount: number;
+  deadline: string;
+  requirements: string | null;
+  category: string | null;
+  eligibleStates: string | null;
+  createdAt: string | null;
 };
 
 const STATUS_CONFIG: Record<ScholarshipStatus, { label: string; color: string; bg: string }> = {
@@ -35,44 +34,78 @@ const STATUS_CONFIG: Record<ScholarshipStatus, { label: string; color: string; b
   declined:  { label: 'Declined',  color: '#f87171',   bg: 'rgba(248,113,113,0.1)' },
 };
 
-const DIV_COLOR: Record<string, string> = {
-  D1: FLAME_C, D2: '#c084fc', D3: '#60a5fa', NAIA: '#fbbf24', JUCO: '#34d399',
-};
-
-const SEED: Scholarship[] = [
-  { id: 1, school: 'University of Texas', program: 'Athletics', division: 'D1', amount: 'Full Ride', deadline: 'Feb 1, 2027', status: 'tracking', notes: 'Reached out to coaches at showcase. Waiting for response.', contactName: 'Coach Davis' },
-  { id: 2, school: 'Florida State', program: 'Athletics', division: 'D1', amount: 'Full Ride', deadline: 'Jan 15, 2027', status: 'applied', notes: 'Sent official inquiry with highlight film. Acknowledged receipt.', contactName: 'Coach Rivera' },
-  { id: 3, school: 'Texas A&M', program: 'Athletics', division: 'D1', amount: 'Partial — $18,000/yr', deadline: 'Mar 1, 2027', status: 'interview', notes: 'Virtual meeting scheduled for June 20th. Reviewing academic requirements.', contactName: 'Coach Williams' },
-  { id: 4, school: 'Cal State Fullerton', program: 'Athletics', division: 'D2', amount: '$12,000/yr', deadline: 'Apr 15, 2027', status: 'offer', notes: 'Official offer received! Deadline to accept is Aug 1. Comparing with other offers.', contactName: 'Coach Kim' },
-  { id: 5, school: 'Arizona State', program: 'Athletics', division: 'D1', amount: 'Full Ride', deadline: 'Dec 1, 2026', status: 'declined', notes: 'Position filled. Encouraged to apply next cycle. Keep in contact with staff.', contactName: null },
-];
-
 const STATUS_ORDER: ScholarshipStatus[] = ['offer', 'interview', 'applied', 'tracking', 'declined'];
 
 export const ScholarshipTracker = () => {
-  const [items, setItems] = useState<Scholarship[]>(SEED);
+  const [items, setItems] = useState<Scholarship[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<ScholarshipStatus | 'All'>('All');
-  const [_selected, setSelected] = useState<Scholarship | null>(null);
+  const [saving, setSaving] = useState<Record<number, boolean>>({});
+  const [saved, setSaved] = useState<Record<number, boolean>>({});
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    fetch('/api/scholarships', { signal: controller.signal })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          setItems(data.data);
+        } else {
+          setError(data.error || 'Failed to load scholarships');
+        }
+      })
+      .catch(err => {
+        if (err.name !== 'AbortError') setError('Failed to load scholarships');
+      })
+      .finally(() => setLoading(false));
+    return () => controller.abort();
+  }, []);
+
+  const handleSave = async (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSaving(prev => ({ ...prev, [id]: true }));
+    try {
+      const res = await fetch(`/api/scholarships/${id}/save`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) setSaved(prev => ({ ...prev, [id]: true }));
+    } finally {
+      setSaving(prev => ({ ...prev, [id]: false }));
+    }
+  };
 
   const filtered = statusFilter === 'All'
-    ? [...items].sort((a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status))
-    : items.filter((s) => s.status === statusFilter);
+    ? items
+    : items;
 
   const stats = {
     total: items.length,
-    offers: items.filter((s) => s.status === 'offer').length,
-    active: items.filter((s) => ['applied', 'interview', 'tracking'].includes(s.status)).length,
+    saved: Object.values(saved).filter(Boolean).length,
+    deadlineSoon: items.filter(s => {
+      const d = new Date(s.deadline);
+      const diff = (d.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+      return diff > 0 && diff <= 30;
+    }).length,
   };
 
-  const advance = (id: number) => {
-    const order: ScholarshipStatus[] = ['tracking', 'applied', 'interview', 'offer'];
-    setItems((prev) => prev.map((s) => {
-      if (s.id !== id) return s;
-      const idx = order.indexOf(s.status);
-      if (idx < 0 || idx >= order.length - 1) return s;
-      return { ...s, status: order[idx + 1] };
-    }));
-  };
+  if (loading) {
+    return (
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '80px 20px', textAlign: 'center', color: MUTED }}>
+        <GraduationCap size={32} style={{ marginBottom: 12, opacity: 0.35 }} />
+        <p style={{ fontSize: '0.88rem', margin: 0 }}>Loading scholarships...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '80px 20px', textAlign: 'center', color: '#f87171' }}>
+        <XCircle size={32} style={{ marginBottom: 12, opacity: 0.6 }} />
+        <p style={{ fontSize: '0.88rem', margin: 0 }}>{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 20px 120px' }}>
@@ -92,9 +125,9 @@ export const ScholarshipTracker = () => {
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 24 }}>
         {[
-          { icon: <TrendingUp size={14} />, val: stats.total, label: 'Schools', color: FLAME_C },
-          { icon: <Clock size={14} />, val: stats.active, label: 'In Progress', color: '#60a5fa' },
-          { icon: <Award size={14} />, val: stats.offers, label: 'Offers', color: '#4ade80' },
+          { icon: <TrendingUp size={14} />, val: stats.total, label: 'Available', color: FLAME_C },
+          { icon: <Clock size={14} />, val: stats.deadlineSoon, label: 'Due Soon', color: '#60a5fa' },
+          { icon: <Award size={14} />, val: stats.saved, label: 'Saved', color: '#4ade80' },
         ].map((s, i) => (
           <div key={i} style={{ background: INK_2, border: `1px solid ${s.val > 0 ? s.color + '33' : LINE}`, borderRadius: 12, padding: '14px 16px', textAlign: 'center' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6, color: s.val > 0 ? s.color : MUTED_2 }}>{s.icon}</div>
@@ -104,7 +137,7 @@ export const ScholarshipTracker = () => {
         ))}
       </div>
 
-      {/* Status filter */}
+      {/* Status filter — kept for visual continuity, filters by category if available */}
       <div style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 4, marginBottom: 24, scrollbarWidth: 'none' }}>
         {(['All', ...STATUS_ORDER] as const).map((s) => {
           const cfg = s === 'All' ? { color: FLAME_C, bg: `${FLAME_C}18` } : STATUS_CONFIG[s];
@@ -118,67 +151,73 @@ export const ScholarshipTracker = () => {
         })}
       </div>
 
-      {/* School cards */}
-      {filtered.map((item) => {
-        const cfg = STATUS_CONFIG[item.status];
-        const divColor = DIV_COLOR[item.division] || FLAME_C;
-        return (
-          <motion.div key={item.id} className="k-card-hover" layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-            style={{ padding: '16px 18px', marginBottom: 10, cursor: 'pointer' }}
-            onClick={() => setSelected(item)}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-              {/* Status icon */}
-              <div style={{ width: 42, height: 42, borderRadius: 10, background: cfg.bg, border: `1px solid ${cfg.color}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {item.status === 'offer' && <CheckCircle2 size={18} color={cfg.color} />}
-                {item.status === 'declined' && <XCircle size={18} color={cfg.color} />}
-                {item.status === 'interview' && <AlertCircle size={18} color={cfg.color} />}
-                {(item.status === 'applied' || item.status === 'tracking') && <GraduationCap size={18} color={cfg.color} />}
+      {/* Scholarship cards */}
+      {filtered.map((item) => (
+        <motion.div key={item.id} className="k-card-hover" layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+          style={{ padding: '16px 18px', marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+            {/* Icon */}
+            <div style={{ width: 42, height: 42, borderRadius: 10, background: 'rgba(255,90,45,0.1)', border: `1px solid ${FLAME_C}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <GraduationCap size={18} color={FLAME_C} />
+            </div>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3, flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: DISP, fontSize: '1.05rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '-0.01em', color: '#f4f4f2' }}>{item.name}</span>
+                {item.category && (
+                  <span style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: 5, background: `${FLAME_C}18`, color: FLAME_C, border: `1px solid ${FLAME_C}30` }}>{item.category}</span>
+                )}
               </div>
 
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3, flexWrap: 'wrap' }}>
-                  <span style={{ fontFamily: DISP, fontSize: '1.05rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '-0.01em', color: '#f4f4f2' }}>{item.school}</span>
-                  <span style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: 5, background: `${divColor}18`, color: divColor, border: `1px solid ${divColor}30` }}>{item.division}</span>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 3, color: '#4ade80' }}>
+                  <DollarSign size={11} />
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>${item.amount.toLocaleString()}</span>
                 </div>
-
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-                  {item.amount && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 3, color: '#4ade80' }}>
-                      <DollarSign size={11} />
-                      <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>{item.amount}</span>
-                    </div>
-                  )}
-                  {item.deadline && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 3, color: MUTED_2 }}>
-                      <Clock size={11} />
-                      <span style={{ fontSize: '0.72rem' }}>Due {item.deadline}</span>
-                    </div>
-                  )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 3, color: MUTED_2 }}>
+                  <Clock size={11} />
+                  <span style={{ fontSize: '0.72rem' }}>Due {item.deadline}</span>
                 </div>
+              </div>
 
-                <p style={{ fontSize: '0.77rem', color: MUTED, margin: '0 0 10px', lineHeight: 1.45 }}>{item.notes}</p>
+              {item.requirements && (
+                <p style={{ fontSize: '0.77rem', color: MUTED, margin: '0 0 10px', lineHeight: 1.45 }}>{item.requirements}</p>
+              )}
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-                  <span style={{ fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', padding: '3px 9px', borderRadius: 5, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.color}33` }}>
-                    {cfg.label}
-                  </span>
-                  {item.status !== 'offer' && item.status !== 'declined' && (
-                    <motion.button whileTap={{ scale: 0.93 }} onClick={(e) => { e.stopPropagation(); advance(item.id); }}
-                      style={{ padding: '5px 14px', borderRadius: 8, border: 'none', background: FLAME_C, color: '#fff', fontSize: '0.68rem', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <ChevronRight size={12} /> Advance
-                    </motion.button>
+              {item.eligibleStates && (
+                <p style={{ fontSize: '0.7rem', color: MUTED_2, margin: '0 0 10px' }}>States: {item.eligibleStates}</p>
+              )}
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {saved[item.id] && (
+                    <span style={{ fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', padding: '3px 9px', borderRadius: 5, background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.3)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <CheckCircle2 size={11} /> Saved
+                    </span>
                   )}
                 </div>
+                {!saved[item.id] && (
+                  <motion.button whileTap={{ scale: 0.93 }} onClick={(e) => handleSave(item.id, e)}
+                    disabled={saving[item.id]}
+                    style={{ padding: '5px 14px', borderRadius: 8, border: 'none', background: FLAME_C, color: '#fff', fontSize: '0.68rem', fontWeight: 800, cursor: saving[item.id] ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 4, opacity: saving[item.id] ? 0.6 : 1 }}>
+                    <Bookmark size={12} /> {saving[item.id] ? 'Saving...' : 'Save'}
+                  </motion.button>
+                )}
+                {saved[item.id] && (
+                  <motion.button whileTap={{ scale: 0.93 }} style={{ padding: '5px 14px', borderRadius: 8, border: 'none', background: 'rgba(255,255,255,0.06)', color: MUTED, fontSize: '0.68rem', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <ChevronRight size={12} /> View
+                  </motion.button>
+                )}
               </div>
             </div>
-          </motion.div>
-        );
-      })}
+          </div>
+        </motion.div>
+      ))}
 
       {filtered.length === 0 && (
         <div style={{ textAlign: 'center', padding: '48px 0', color: MUTED_2 }}>
           <GraduationCap size={32} style={{ marginBottom: 12, opacity: 0.35 }} />
-          <p style={{ fontSize: '0.88rem', margin: 0 }}>No scholarships in this stage.</p>
+          <p style={{ fontSize: '0.88rem', margin: 0 }}>No scholarships found.</p>
         </div>
       )}
 

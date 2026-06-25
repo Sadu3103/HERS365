@@ -87,9 +87,10 @@ export const SquadFinder = () => {
 
   useEffect(() => {
     const ctrl = new AbortController();
-    fetch('/api/players', { signal: ctrl.signal })
+    fetch('/api/athletes', { signal: ctrl.signal })
       .then((r) => r.ok ? r.json() : null)
-      .then((data: SquadApiRow[] | null) => {
+      .then((res: { success: boolean; data: SquadApiRow[] } | null) => {
+        const data = res?.data;
         if (!data || data.length === 0) return;
         setAthletes(data.slice(0, 20).map((p) => ({ id: p.id, name: p.name || 'Athlete', school: p.school || 'HERS365', state: p.state || 'CA', pos: p.position || 'ATH', gradYear: p.gradYear || 2026, g5Rating: p.g5Rating || 75, verified: !!p.subscriptionTier && p.subscriptionTier !== 'free', bio: p.bio || 'HERS365 athlete.', lookingFor: 'all' as const, connected: false })));
       })

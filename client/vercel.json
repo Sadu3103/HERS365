@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/health-api",
+      "destination": "https://hers365-api-production.up.railway.app/health"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://hers365-api-production.up.railway.app/api/:path*"
     },
