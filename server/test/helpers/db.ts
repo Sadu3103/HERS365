@@ -22,6 +22,9 @@ const TABLES = [
   // tests that replay the same event.id start from a known state.
   'event_inbox',
   'admin_users',
+  'skill_challenge_completions',
+  'drills',
+  'training_plans',
 ];
 
 export async function resetDb() {
