@@ -17,6 +17,18 @@ type Athlete = {
   lookingFor: 'team' | '7v7' | 'training partner' | 'all'; connected: boolean;
 };
 
+interface SquadApiRow {
+  id: number;
+  name?: string;
+  school?: string;
+  state?: string;
+  position?: string;
+  gradYear?: number;
+  g5Rating?: number;
+  subscriptionTier?: string;
+  bio?: string;
+}
+
 const SEED_ATHLETES: Athlete[] = [
   { id: 1, name: 'Destiny Clarke', school: 'Houston HS, TX', state: 'TX', pos: 'QB', gradYear: 2026, g5Rating: 91, verified: true, bio: 'Looking for a 7v7 squad that trains hard. QB who can run and throw.', lookingFor: '7v7', connected: false },
   { id: 2, name: 'Priya Patel', school: 'Edison HS, NJ', state: 'NJ', pos: 'DB', gradYear: 2027, g5Rating: 87, verified: true, bio: 'Elite shutdown corner. Want a serious training partner who pushes me.', lookingFor: 'training partner', connected: false },
@@ -75,9 +87,10 @@ export const SquadFinder = () => {
 
   useEffect(() => {
     const ctrl = new AbortController();
-    fetch('/api/players', { signal: ctrl.signal })
+    fetch('/api/athletes', { signal: ctrl.signal })
       .then((r) => r.ok ? r.json() : null)
-      .then((data: any[] | null) => {
+      .then((res: { success: boolean; data: SquadApiRow[] } | null) => {
+        const data = res?.data;
         if (!data || data.length === 0) return;
         setAthletes(data.slice(0, 20).map((p) => ({ id: p.id, name: p.name || 'Athlete', school: p.school || 'HERS365', state: p.state || 'CA', pos: p.position || 'ATH', gradYear: p.gradYear || 2026, g5Rating: p.g5Rating || 75, verified: !!p.subscriptionTier && p.subscriptionTier !== 'free', bio: p.bio || 'HERS365 athlete.', lookingFor: 'all' as const, connected: false })));
       })

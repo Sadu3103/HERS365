@@ -708,6 +708,26 @@ interface RankedAthlete {
   score?: number;
 }
 
+interface PostApiRow {
+  id: number;
+  playerName?: string;
+  createdAt?: string;
+  content?: string;
+  mediaType?: string;
+  mediaUrl?: string;
+  likes?: number;
+  comments?: number;
+  category?: string;
+}
+
+interface AthletesResponse {
+  data?: unknown[];
+}
+
+interface RankingsResponse {
+  data?: RankedAthlete[];
+}
+
 function parseLikeCount(s: string): number {
   if (s.endsWith('K')) return parseFloat(s) * 1000;
   return parseInt(s, 10) || 0;
@@ -743,9 +763,9 @@ export const Feed = () => {
     const ctrl = new AbortController();
     fetch('/api/posts', { signal: ctrl.signal })
       .then(r => r.json())
-      .then((data: any[]) => {
+      .then((data: PostApiRow[]) => {
         const rows = Array.isArray(data) ? data : [];
-        const mapped: PostData[] = rows.map((p: any) => ({
+        const mapped: PostData[] = rows.map((p) => ({
           id: p.id,
           user: { name: p.playerName || 'Athlete', avatar: null },
           time: p.createdAt ? timeAgo(p.createdAt) : '',
@@ -766,7 +786,7 @@ export const Feed = () => {
   useEffect(() => {
     fetch('/api/athletes')
       .then(r => r.json())
-      .then((res: any) => {
+      .then((res: AthletesResponse) => {
         const list = Array.isArray(res?.data) ? res.data : [];
         setAthleteCount(list.length);
       })
@@ -776,7 +796,7 @@ export const Feed = () => {
   useEffect(() => {
     fetch('/api/rankings?limit=4')
       .then(r => r.json())
-      .then((data: any) => {
+      .then((data: RankedAthlete[] | RankingsResponse | null) => {
         const rows = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
         setTopAthletes(rows.slice(0, 4));
       })
@@ -1363,7 +1383,7 @@ export const Feed = () => {
                   fontSize: '.6rem',
                   color: FLAME_SOFT,
                 }}>
-                  {initials(a.name)}
+                  {initials(a.name ?? '')}
                 </span>
               </span>
               <span style={{ minWidth: 0, flex: 1 }}>
@@ -1378,7 +1398,7 @@ export const Feed = () => {
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                 }}>
-                  {a.name}
+                  {a.name ?? '—'}
                 </span>
                 {(a.position || a.school) && (
                   <span style={{

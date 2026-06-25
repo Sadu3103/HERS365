@@ -1,11 +1,31 @@
 import express from 'express';
-import { and, eq, or, desc, sql, isNotNull } from 'drizzle-orm';
+import { and, eq, or, desc, sql, isNotNull, isNull } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 import { requireAuth } from '../auth';
+import { requireVerifiedCoach } from '../middleware/requireVerifiedCoach';
+import { validateBody, validateParams } from '../middleware/validate';
+import {
+  sendMessageBody,
+  messageRespondBody,
+  idParam,
+  blockBody,
+  reportBody,
+} from '../middleware/safetySchemas';
+import { moderateMessage } from '../lib/moderation';
+import { eitherBlocked } from '../lib/messageBlocks';
+import { messageRateLimit } from '../middleware/messageRateLimit';
+import { parseIdParam } from '../lib/parseIdParam';
+import { clampIntQuery } from '../lib/queryParam';
 
 const router = express.Router();
 router.use(requireAuth);
+// Coaches must be verified before sending, listing threads, or reading messages.
+// Athletes and parents pass through unaffected.
+router.use(requireVerifiedCoach);
+
+// Soft-delete: exclude messages whose deleted_at is set from all read paths.
+const notDeleted = isNull(schema.messages.deletedAt);
 
 // Returns { userId, role } for the authenticated caller.
 function caller(req: express.Request) {
@@ -23,7 +43,10 @@ router.get('/conversations', async (req, res) => {
     const rows = await db
       .select()
       .from(schema.messages)
-      .where(isCoach ? eq(schema.messages.coachId, userId) : eq(schema.messages.athleteId, userId))
+      .where(and(
+        isCoach ? eq(schema.messages.coachId, userId) : eq(schema.messages.athleteId, userId),
+        notDeleted,
+      ))
       .orderBy(desc(schema.messages.createdAt));
 
     // Group by the partner id (the other side of the pair).
@@ -79,22 +102,22 @@ router.get('/conversations/:partnerId/messages', async (req, res) => {
   try {
     const { userId, role } = caller(req);
     const isCoach = role === 'coach';
-    const partnerId = parseInt(req.params.partnerId, 10);
-    if (Number.isNaN(partnerId)) {
-      return res.status(400).json({ success: false, error: 'Invalid partner id' });
+    const partnerId = parseIdParam(req.params.partnerId);
+    if (partnerId === null) {
+      return res.status(400).json({ success: false, error: 'Invalid id' });
     }
 
     const pairWhere = isCoach
       ? and(eq(schema.messages.coachId, userId), eq(schema.messages.athleteId, partnerId))
       : and(eq(schema.messages.athleteId, userId), eq(schema.messages.coachId, partnerId));
 
-    const limit = Number(req.query.limit ?? 50);
-    const offset = Number(req.query.offset ?? 0);
+    const limit = clampIntQuery(req.query.limit, { default: 50, min: 1, max: 200 });
+    const offset = clampIntQuery(req.query.offset, { default: 0, min: 0, max: 100000 });
 
     const rows = await db
       .select()
       .from(schema.messages)
-      .where(pairWhere)
+      .where(and(pairWhere, notDeleted))
       .orderBy(schema.messages.createdAt)
       .limit(limit)
       .offset(offset);
@@ -129,20 +152,8 @@ export async function hasParentApprovedLink(athleteId: number, coachId: number):
   return Boolean(link);
 }
 
-// Safety: true if either party has blocked the other.
-async function eitherBlocked(aId: number, aRole: string, bId: number, bRole: string): Promise<boolean> {
-  const [row] = await db.select({ id: schema.messageBlocks.id })
-    .from(schema.messageBlocks)
-    .where(or(
-      and(eq(schema.messageBlocks.blockerId, aId), eq(schema.messageBlocks.blockerRole, aRole), eq(schema.messageBlocks.blockedId, bId), eq(schema.messageBlocks.blockedRole, bRole)),
-      and(eq(schema.messageBlocks.blockerId, bId), eq(schema.messageBlocks.blockerRole, bRole), eq(schema.messageBlocks.blockedId, aId), eq(schema.messageBlocks.blockedRole, aRole)),
-    ))
-    .limit(1);
-  return Boolean(row);
-}
-
 // POST /api/messages — send a message to a partner
-router.post('/', async (req, res) => {
+router.post('/', messageRateLimit, validateBody(sendMessageBody), async (req, res) => {
   try {
     const { userId, role } = caller(req);
     const isCoach = role === 'coach';
@@ -177,6 +188,18 @@ router.post('/', async (req, res) => {
     const partnerRole = isCoach ? 'athlete' : 'coach';
     if (await eitherBlocked(userId, role, partnerIdNum, partnerRole)) {
       return res.status(403).json({ success: false, error: 'This conversation is unavailable.' });
+    }
+
+    // Content moderation runs after all the relational gates so we don't pay
+    // for an OpenAI call when the message would be rejected anyway. Generic
+    // 422 message keeps the rejected category out of the response.
+    const verdict = await moderateMessage(String(content));
+    if (!verdict.allowed) {
+      console.warn('[messages/send] rejected by moderation', { reason: verdict.reason, userId, partnerIdNum });
+      return res.status(422).json({
+        success: false,
+        error: "Your message couldn't be sent. Please revise and try again.",
+      });
     }
 
     const [row] = await db
@@ -237,12 +260,37 @@ router.get('/unread-count', async (req, res) => {
     const rows = await db
       .select()
       .from(schema.messages)
-      .where(and(sideWhere, eq(schema.messages.read, false), sql`${schema.messages.senderId} <> ${userId}`));
+      .where(and(sideWhere, notDeleted, eq(schema.messages.read, false), sql`${schema.messages.senderId} <> ${userId}`));
 
     res.json({ success: true, data: { totalUnread: rows.length } });
   } catch (err) {
     console.error('[messages/unread-count]', err);
     res.status(500).json({ success: false, error: 'Failed to get unread count' });
+  }
+});
+
+// DELETE /api/messages/:id — soft-delete a message the caller sent.
+// Row stays in DB for safety audits; UI hides it.
+router.delete('/:id', async (req, res) => {
+  try {
+    const { userId, role } = caller(req);
+    const id = parseIdParam(req.params.id);
+    if (id === null) {
+      return res.status(400).json({ success: false, error: 'Invalid id' });
+    }
+    const [row] = await db.select().from(schema.messages).where(eq(schema.messages.id, id)).limit(1);
+    if (!row) return res.status(404).json({ success: false, error: 'Not found' });
+    if (row.senderId !== userId) {
+      return res.status(403).json({ success: false, error: 'Can only delete your own messages' });
+    }
+    await db
+      .update(schema.messages)
+      .set({ deletedAt: new Date(), deletedBy: role })
+      .where(eq(schema.messages.id, id));
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[messages/delete]', err);
+    res.status(500).json({ success: false, error: 'Failed to delete message' });
   }
 });
 
@@ -275,10 +323,13 @@ router.get('/requests', async (req, res) => {
 });
 
 // POST /api/messages/requests/:id/respond — approve or reject a request
-router.post('/requests/:id/respond', async (req, res) => {
+router.post('/requests/:id/respond', validateParams(idParam), validateBody(messageRespondBody), async (req, res) => {
   try {
     const { userId } = caller(req);
-    const id = parseInt(req.params.id, 10);
+    const id = parseIdParam(req.params.id);
+    if (id === null) {
+      return res.status(400).json({ success: false, error: 'Invalid id' });
+    }
     const { action } = req.body ?? {};
     if (!['approve', 'reject'].includes(action)) {
       return res.status(400).json({ success: false, error: 'action must be approve or reject' });
@@ -286,7 +337,10 @@ router.post('/requests/:id/respond', async (req, res) => {
 
     const [reqRow] = await db.select().from(schema.messageRequests).where(eq(schema.messageRequests.id, id)).limit(1);
     if (!reqRow) return res.status(404).json({ success: false, error: 'Request not found' });
-    if (reqRow.receiverId !== userId) {
+    // Allow the sending coach (receiverId) OR the subject athlete (athleteId) to respond.
+    // Athlete approval sets status='approved' but does NOT set parentId, so messaging
+    // remains blocked until a parent approves via POST /api/parent/requests/:id/respond.
+    if (reqRow.receiverId !== userId && reqRow.athleteId !== userId) {
       return res.status(403).json({ success: false, error: 'Not your request to respond to' });
     }
 
@@ -310,7 +364,7 @@ router.post('/requests/:id/respond', async (req, res) => {
 // ── Safety: block / unblock / report ─────────────────────────────────────────
 
 // POST /api/messages/block — block a conversation partner (either party blocking stops messaging)
-router.post('/block', async (req, res) => {
+router.post('/block', validateBody(blockBody), async (req, res) => {
   try {
     const { userId, role } = caller(req);
     const partnerIdNum = Number(req.body?.partnerId);
@@ -334,7 +388,7 @@ router.post('/block', async (req, res) => {
 });
 
 // POST /api/messages/unblock
-router.post('/unblock', async (req, res) => {
+router.post('/unblock', validateBody(blockBody), async (req, res) => {
   try {
     const { userId, role } = caller(req);
     const partnerIdNum = Number(req.body?.partnerId);
@@ -368,7 +422,7 @@ router.get('/blocked', async (req, res) => {
 const REPORT_REASONS = ['inappropriate', 'harassment', 'spam', 'safety_concern', 'impersonation', 'other'];
 
 // POST /api/messages/report — report a partner; lands in the moderation queue
-router.post('/report', async (req, res) => {
+router.post('/report', validateBody(reportBody), async (req, res) => {
   try {
     const { userId, role } = caller(req);
     const { partnerId, reason, details } = req.body ?? {};

@@ -2,11 +2,14 @@
  * Admin Routes - Administrative functions for platform management
  */
 import express from 'express';
-import type { Request, Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { db } from './db';
 import * as schema from './schema';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { requireAdmin } from './auth';
+import { withoutPasswordHash } from './lib/playerPrivacy';
+import { clampIntQuery } from './lib/queryParam';
+import { parseIdParam } from './lib/parseIdParam';
 
 const router = express.Router();
 
@@ -15,7 +18,7 @@ const router = express.Router();
 // ----------------------
 
 // GET /admin/stats - Get platform-wide statistics
-router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
+router.get('/stats', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     // Total players
     const playerCount = await db.select({
@@ -80,7 +83,7 @@ router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
       verificationStats,
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -89,24 +92,32 @@ router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
 // ----------------------
 
 // GET /admin/users - List all users with filters
-router.get('/users', requireAdmin, async (req: Request, res: Response) => {
+router.get('/users', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { role, page = 1, limit = 20, search } = req.query;
-    const offset = (Number(page) - 1) * Number(limit);
+    const { role, page, limit, search } = req.query;
+    const pageNum = clampIntQuery(page, { default: 1, min: 1, max: 100000 });
+    const limitNum = clampIntQuery(limit, { default: 20, min: 1, max: 200 });
+    const offset = (pageNum - 1) * limitNum;
 
     let users: any[] = [];
     let total = 0;
 
+    // Even on admin endpoints we never ship bcrypt hashes back to the
+    // client. They have no operational use in a dashboard and the row was
+    // already loaded with .select() so the hash is in memory.
     if (role === 'player') {
-      users = await db.select().from(schema.players).limit(Number(limit)).offset(offset);
+      const rows = await db.select().from(schema.players).limit(limitNum).offset(offset);
+      users = rows.map(withoutPasswordHash);
       const count = await db.select({ count: sql<number>`count(*)::int` }).from(schema.players);
       total = count[0]?.count || 0;
     } else if (role === 'coach') {
-      users = await db.select().from(schema.coaches).limit(Number(limit)).offset(offset);
+      const rows = await db.select().from(schema.coaches).limit(limitNum).offset(offset);
+      users = rows.map(withoutPasswordHash);
       const count = await db.select({ count: sql<number>`count(*)::int` }).from(schema.coaches);
       total = count[0]?.count || 0;
     } else if (role === 'parent') {
-      users = await db.select().from(schema.parents).limit(Number(limit)).offset(offset);
+      const rows = await db.select().from(schema.parents).limit(limitNum).offset(offset);
+      users = rows.map(withoutPasswordHash);
       const count = await db.select({ count: sql<number>`count(*)::int` }).from(schema.parents);
       total = count[0]?.count || 0;
     } else {
@@ -117,8 +128,8 @@ router.get('/users', requireAdmin, async (req: Request, res: Response) => {
         name: schema.players.name,
         role: sql`'player'`,
         createdAt: schema.players.createdAt,
-      }).from(schema.players).limit(Number(limit)).offset(offset);
-      
+      }).from(schema.players).limit(limitNum).offset(offset);
+
       users = players;
       const count = await db.select({ count: sql<number>`count(*)::int` }).from(schema.players);
       total = count[0]?.count || 0;
@@ -127,21 +138,24 @@ router.get('/users', requireAdmin, async (req: Request, res: Response) => {
     res.json({
       users,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
+        page: pageNum,
+        limit: limitNum,
         total,
-        pages: Math.ceil(total / Number(limit)),
+        pages: Math.ceil(total / limitNum),
       },
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // PATCH /admin/users/:id/verify - Verify a player
-router.patch('/users/:id/verify', requireAdmin, async (req: Request, res: Response) => {
+router.patch('/users/:id/verify', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = parseInt(String(req.params.id));
+    const userId = parseIdParam(req.params.id);
+    if (userId === null) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
     const { status } = req.body;
 
     const updated = await db.update(schema.players)
@@ -153,16 +167,19 @@ router.patch('/users/:id/verify', requireAdmin, async (req: Request, res: Respon
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json(updated[0]);
+    res.json(withoutPasswordHash(updated[0]));
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // PATCH /admin/users/:id/subscription - Update user subscription
-router.patch('/users/:id/subscription', requireAdmin, async (req: Request, res: Response) => {
+router.patch('/users/:id/subscription', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = parseInt(String(req.params.id));
+    const userId = parseIdParam(req.params.id);
+    if (userId === null) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
     const { tier } = req.body;
 
     const updated = await db.update(schema.players)
@@ -174,16 +191,19 @@ router.patch('/users/:id/subscription', requireAdmin, async (req: Request, res: 
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json(updated[0]);
+    res.json(withoutPasswordHash(updated[0]));
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // DELETE /admin/users/:id - Delete a user
-router.delete('/users/:id', requireAdmin, async (req: Request, res: Response) => {
+router.delete('/users/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = parseInt(String(req.params.id));
+    const userId = parseIdParam(req.params.id);
+    if (userId === null) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
     const { role } = req.query;
 
     if (role === 'coach') {
@@ -196,7 +216,7 @@ router.delete('/users/:id', requireAdmin, async (req: Request, res: Response) =>
 
     res.json({ success: true, message: 'User deleted' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -205,16 +225,18 @@ router.delete('/users/:id', requireAdmin, async (req: Request, res: Response) =>
 // ----------------------
 
 // GET /admin/reports - Get reported content
-router.get('/reports', requireAdmin, async (req: Request, res: Response) => {
+router.get('/reports', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { status, page = 1, limit = 20 } = req.query;
-    const offset = (Number(page) - 1) * Number(limit);
+    const { status, page, limit } = req.query;
+    const pageNum = clampIntQuery(page, { default: 1, min: 1, max: 100000 });
+    const limitNum = clampIntQuery(limit, { default: 20, min: 1, max: 200 });
+    const offset = (pageNum - 1) * limitNum;
 
     // Get flagged posts for moderation
     const posts = await db.select()
       .from(schema.posts)
       .where(eq(schema.posts.moderationStatus, 'flagged'))
-      .limit(Number(limit))
+      .limit(limitNum)
       .offset(offset);
 
     const count = await db.select({ count: sql<number>`count(*)::int` })
@@ -224,20 +246,23 @@ router.get('/reports', requireAdmin, async (req: Request, res: Response) => {
     res.json({
       reports: posts,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
+        page: pageNum,
+        limit: limitNum,
         total: count[0]?.count || 0,
       },
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // PATCH /admin/posts/:id/moderate - Moderate a post
-router.patch('/posts/:id/moderate', requireAdmin, async (req: Request, res: Response) => {
+router.patch('/posts/:id/moderate', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const postId = parseInt(String(req.params.id));
+    const postId = parseIdParam(req.params.id);
+    if (postId === null) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
     const { status } = req.body; // approved, flagged, pending
 
     const updated = await db.update(schema.posts)
@@ -251,7 +276,7 @@ router.patch('/posts/:id/moderate', requireAdmin, async (req: Request, res: Resp
 
     res.json(updated[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -260,7 +285,7 @@ router.patch('/posts/:id/moderate', requireAdmin, async (req: Request, res: Resp
 // ----------------------
 
 // POST /admin/events - Create an event
-router.post('/events', requireAdmin, async (req: Request, res: Response) => {
+router.post('/events', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, date, location, registrationDeadline, participantCount } = req.body;
 
@@ -274,14 +299,17 @@ router.post('/events', requireAdmin, async (req: Request, res: Response) => {
 
     res.json(newEvent[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // PATCH /admin/events/:id - Update an event
-router.patch('/events/:id', requireAdmin, async (req: Request, res: Response) => {
+router.patch('/events/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const eventId = parseInt(String(req.params.id));
+    const eventId = parseIdParam(req.params.id);
+    if (eventId === null) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
     const { name, date, location, registrationDeadline, participantCount } = req.body;
 
     const updated = await db.update(schema.events)
@@ -301,18 +329,21 @@ router.patch('/events/:id', requireAdmin, async (req: Request, res: Response) =>
 
     res.json(updated[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // DELETE /admin/events/:id - Delete an event
-router.delete('/events/:id', requireAdmin, async (req: Request, res: Response) => {
+router.delete('/events/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const eventId = parseInt(String(req.params.id));
+    const eventId = parseIdParam(req.params.id);
+    if (eventId === null) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
     await db.delete(schema.events).where(eq(schema.events.id, eventId));
     res.json({ success: true, message: 'Event deleted' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -321,10 +352,12 @@ router.delete('/events/:id', requireAdmin, async (req: Request, res: Response) =
 // ----------------------
 
 // GET /admin/payments - Get all payments
-router.get('/payments', requireAdmin, async (req: Request, res: Response) => {
+router.get('/payments', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { status, page = 1, limit = 50 } = req.query;
-    const offset = (Number(page) - 1) * Number(limit);
+    const { status, page, limit } = req.query;
+    const pageNum = clampIntQuery(page, { default: 1, min: 1, max: 100000 });
+    const limitNum = clampIntQuery(limit, { default: 50, min: 1, max: 200 });
+    const offset = (pageNum - 1) * limitNum;
 
     const baseQuery = db.select({
       id: schema.payments.id,
@@ -346,12 +379,12 @@ router.get('/payments', requireAdmin, async (req: Request, res: Response) => {
       : baseQuery
     )
       .orderBy(desc(schema.payments.createdAt))
-      .limit(Number(limit))
+      .limit(limitNum)
       .offset(offset);
 
     res.json(payments);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -360,17 +393,17 @@ router.get('/payments', requireAdmin, async (req: Request, res: Response) => {
 // ----------------------
 
 // GET /admin/badges - Get all badges
-router.get('/badges', requireAdmin, async (req: Request, res: Response) => {
+router.get('/badges', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const badges = await db.select().from(schema.badges);
     res.json(badges);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // POST /admin/badges - Create a badge
-router.post('/badges', requireAdmin, async (req: Request, res: Response) => {
+router.post('/badges', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, description, icon, category } = req.body;
 
@@ -383,7 +416,7 @@ router.post('/badges', requireAdmin, async (req: Request, res: Response) => {
 
     res.json(newBadge[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -392,17 +425,17 @@ router.post('/badges', requireAdmin, async (req: Request, res: Response) => {
 // ----------------------
 
 // GET /admin/nil-opportunities - Get all NIL opportunities
-router.get('/nil-opportunities', requireAdmin, async (req: Request, res: Response) => {
+router.get('/nil-opportunities', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const opportunities = await db.select().from(schema.nilOpportunities);
     res.json(opportunities);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // POST /admin/nil-opportunities - Create NIL opportunity
-router.post('/nil-opportunities', requireAdmin, async (req: Request, res: Response) => {
+router.post('/nil-opportunities', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { brandName, requirements, deliverables, estimatedEarnings } = req.body;
 
@@ -415,7 +448,7 @@ router.post('/nil-opportunities', requireAdmin, async (req: Request, res: Respon
 
     res.json(newOpportunity[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -424,17 +457,17 @@ router.post('/nil-opportunities', requireAdmin, async (req: Request, res: Respon
 // ----------------------
 
 // GET /admin/subscription-plans - Get all subscription plans
-router.get('/subscription-plans', requireAdmin, async (req: Request, res: Response) => {
+router.get('/subscription-plans', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const plans = await db.select().from(schema.subscriptionPlans);
     res.json(plans);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // POST /admin/subscription-plans - Create a subscription plan
-router.post('/subscription-plans', requireAdmin, async (req: Request, res: Response) => {
+router.post('/subscription-plans', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, price, tierLevel } = req.body;
 
@@ -446,14 +479,17 @@ router.post('/subscription-plans', requireAdmin, async (req: Request, res: Respo
 
     res.json(newPlan[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // PATCH /admin/subscription-plans/:id - Update a subscription plan
-router.patch('/subscription-plans/:id', requireAdmin, async (req: Request, res: Response) => {
+router.patch('/subscription-plans/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const planId = parseInt(String(req.params.id));
+    const planId = parseIdParam(req.params.id);
+    if (planId === null) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
     const { name, price, tierLevel } = req.body;
 
     const updated = await db.update(schema.subscriptionPlans)
@@ -471,18 +507,21 @@ router.patch('/subscription-plans/:id', requireAdmin, async (req: Request, res: 
 
     res.json(updated[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // DELETE /admin/subscription-plans/:id - Delete a subscription plan
-router.delete('/subscription-plans/:id', requireAdmin, async (req: Request, res: Response) => {
+router.delete('/subscription-plans/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const planId = parseInt(String(req.params.id));
+    const planId = parseIdParam(req.params.id);
+    if (planId === null) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
     await db.delete(schema.subscriptionPlans).where(eq(schema.subscriptionPlans.id, planId));
     res.json({ success: true, message: 'Subscription plan deleted' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -491,9 +530,12 @@ router.delete('/subscription-plans/:id', requireAdmin, async (req: Request, res:
 // ----------------------
 
 // POST /admin/athletes/:id/verify - Verify an athlete profile
-router.post('/athletes/:id/verify', requireAdmin, async (req: Request, res: Response) => {
+router.post('/athletes/:id/verify', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const athleteId = parseInt(String(req.params.id));
+    const athleteId = parseIdParam(req.params.id);
+    if (athleteId === null) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
     const { verified } = req.body;
 
     if (typeof verified !== 'boolean') {
@@ -509,9 +551,9 @@ router.post('/athletes/:id/verify', requireAdmin, async (req: Request, res: Resp
       return res.status(404).json({ error: 'Athlete not found' });
     }
 
-    res.json(updated[0]);
+    res.json(withoutPasswordHash(updated[0]));
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -520,24 +562,30 @@ router.post('/athletes/:id/verify', requireAdmin, async (req: Request, res: Resp
 // ----------------------
 
 // GET /admin/coaches/verification - Get coaches pending verification
-router.get('/coaches/verification', requireAdmin, async (req: Request, res: Response) => {
+router.get('/coaches/verification', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const coaches = await db.select().from(schema.coaches)
       .where(eq(schema.coaches.verifiedStatus, false));
-    res.json(coaches);
+    res.json(coaches.map(withoutPasswordHash));
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // PATCH /admin/coaches/:id/verify - Verify a coach
-router.patch('/coaches/:id/verify', requireAdmin, async (req: Request, res: Response) => {
+router.patch('/coaches/:id/verify', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const coachId = parseInt(String(req.params.id));
+    const coachId = parseIdParam(req.params.id);
+    if (coachId === null) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
     const { verified } = req.body;
 
     const updated = await db.update(schema.coaches)
-      .set({ verifiedStatus: verified })
+      .set({
+        verifiedStatus: Boolean(verified),
+        verifiedAt: verified ? new Date() : null,
+      })
       .where(eq(schema.coaches.id, coachId))
       .returning();
 
@@ -545,9 +593,9 @@ router.patch('/coaches/:id/verify', requireAdmin, async (req: Request, res: Resp
       return res.status(404).json({ error: 'Coach not found' });
     }
 
-    res.json(updated[0]);
+    res.json(withoutPasswordHash(updated[0]));
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -556,17 +604,17 @@ router.patch('/coaches/:id/verify', requireAdmin, async (req: Request, res: Resp
 // ----------------------
 
 // GET /admin/teams - Get all teams
-router.get('/teams', requireAdmin, async (req: Request, res: Response) => {
+router.get('/teams', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const teams = await db.select().from(schema.teams);
     res.json(teams);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // POST /admin/teams - Create a team
-router.post('/teams', requireAdmin, async (req: Request, res: Response) => {
+router.post('/teams', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, logo, state, city, conference, division, wins, losses, titles, rating,
            tuitionInState, tuitionOutState, hasApplication, hasQuestionnaire,
@@ -595,14 +643,17 @@ router.post('/teams', requireAdmin, async (req: Request, res: Response) => {
 
     res.json(newTeam[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // PATCH /admin/teams/:id - Update a team
-router.patch('/teams/:id', requireAdmin, async (req: Request, res: Response) => {
+router.patch('/teams/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const teamId = parseInt(String(req.params.id));
+    const teamId = parseIdParam(req.params.id);
+    if (teamId === null) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
     const { name, logo, state, city, conference, division, wins, losses, titles, rating,
            tuitionInState, tuitionOutState, hasApplication, hasQuestionnaire,
            applicationUrl, questionnaireUrl, socials, type } = req.body;
@@ -637,18 +688,21 @@ router.patch('/teams/:id', requireAdmin, async (req: Request, res: Response) => 
 
     res.json(updated[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // DELETE /admin/teams/:id - Delete a team
-router.delete('/teams/:id', requireAdmin, async (req: Request, res: Response) => {
+router.delete('/teams/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const teamId = parseInt(String(req.params.id));
+    const teamId = parseIdParam(req.params.id);
+    if (teamId === null) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
     await db.delete(schema.teams).where(eq(schema.teams.id, teamId));
     res.json({ success: true, message: 'Team deleted' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 

@@ -9,6 +9,7 @@ import { Training } from './pages/Training';
 import { Recruiting } from './pages/Recruiting';
 import { Teams } from './pages/Teams';
 import { Auth } from './pages/Auth';
+import { AuthCallback } from './pages/AuthCallback';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { ResetPassword } from './pages/ResetPassword';
 import { Subscription } from './pages/Subscription';
@@ -38,7 +39,6 @@ import { LeagueFinder } from './pages/LeagueFinder';
 import { SquadFinder } from './pages/SquadFinder';
 import { TeamFinder } from './pages/TeamFinder';
 import { ScholarshipTracker } from './pages/ScholarshipTracker';
-import { ParentHub } from './pages/ParentHub';
 import { ParentDashboard } from './pages/ParentDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { AdminLogin } from './pages/AdminLogin';
@@ -63,10 +63,26 @@ import { NotificationProvider } from './context/NotificationContext';
 import { AuthProvider } from './context/AuthContext';
 const queryClient = new QueryClient();
 
-// Scroll to top on every route change
+// Scroll to top on route change, or to the hash target when one is present.
+// A cold load of e.g. /#how used to land at the top because the section had
+// not rendered yet when the browser tried to jump; retry briefly so deep
+// links into the landing page (The Grid, Features) scroll into view.
 function ScrollToTop() {
-  const { pathname } = useLocation();
-  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }); }, [pathname]);
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    if (hash) {
+      const id = hash.slice(1);
+      let tries = 0;
+      const jump = () => {
+        const el = document.getElementById(id);
+        if (el) { el.scrollIntoView({ behavior: 'smooth' }); return; }
+        if (tries++ < 10) requestAnimationFrame(jump);
+      };
+      requestAnimationFrame(jump);
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  }, [pathname, hash]);
   return null;
 }
 
@@ -184,7 +200,7 @@ function App() {
               <Route path="/squads" element={<SquadFinder />} />
               <Route path="/teams/find" element={<TeamFinder />} />
               <Route path="/scholarships" element={<ScholarshipTracker />} />
-              <Route path="/parent" element={<ParentHub />} />
+              <Route path="/parent" element={<ParentDashboard />} />
               <Route path="/parent/dashboard" element={<ParentDashboard />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/login" element={<AdminLogin />} />
@@ -197,6 +213,7 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/landing" element={<LandingPage />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
 

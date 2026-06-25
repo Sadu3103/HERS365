@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapPin, CheckCircle2, MessageSquare, ArrowLeft, Loader2 } from 'lucide-react';
+import { MapPin, CheckCircle2, MessageSquare, ArrowLeft, Loader2, UserPlus, UserCheck } from 'lucide-react';
 
 interface Player {
   id: number;
@@ -24,7 +24,7 @@ interface Stat {
   touchdowns?: number;
   yards?: number;
   completionPct?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 
@@ -37,6 +37,9 @@ export const PlayerProfile = () => {
   const [stats, setStats] = useState<Stat[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [following, setFollowing] = useState(false);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -50,7 +53,7 @@ export const PlayerProfile = () => {
         const res = await fetch(`/api/athletes/${playerId}`);
         if (res.ok) {
           const data = await res.json();
-          if (data) setPlayer(data);
+          if (data) setPlayer(data.data ?? data);
           else setNotFound(true);
         } else {
           setNotFound(true);
@@ -61,13 +64,58 @@ export const PlayerProfile = () => {
 
       try {
         const sRes = await fetch(`/api/athletes/${playerId}/stats`);
-        if (sRes.ok) setStats(await sRes.json());
+        if (sRes.ok) {
+          const body = await sRes.json();
+          setStats(Array.isArray(body) ? body : []);
+        }
       } catch { /* stats optional */ }
+
+      try {
+        const checkRes = await fetch(`/api/follows/check/${playerId}`, { credentials: 'include' });
+        if (checkRes.ok) {
+          const body = await checkRes.json();
+          setFollowing(body?.data?.following ?? false);
+        }
+      } catch { /* not authed — ignore */ }
+
+      try {
+        const followersRes = await fetch(`/api/follows/followers/${playerId}`);
+        if (followersRes.ok) {
+          const body = await followersRes.json();
+          setFollowerCount(Array.isArray(body?.data) ? body.data.length : 0);
+        }
+      } catch { /* optional */ }
 
       setLoading(false);
     };
     load();
   }, [playerId]);
+
+  const toggleFollow = async () => {
+    if (followLoading) return;
+    setFollowLoading(true);
+    try {
+      if (following) {
+        const res = await fetch(`/api/follows/${playerId}`, { method: 'DELETE', credentials: 'include' });
+        if (res.ok) {
+          setFollowing(false);
+          setFollowerCount(c => Math.max(0, c - 1));
+        }
+      } else {
+        const res = await fetch('/api/follows', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ followingId: playerId }),
+        });
+        if (res.ok) {
+          setFollowing(true);
+          setFollowerCount(c => c + 1);
+        }
+      }
+    } catch { /* ignore */ }
+    finally { setFollowLoading(false); }
+  };
 
   const handleMessage = () => {
     navigate('/messages', { state: { partnerId: player?.id, partnerName: player?.name } });
@@ -132,10 +180,29 @@ export const PlayerProfile = () => {
               </div>
             )}
           </div>
-          <button onClick={handleMessage}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#ff5a2d', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', flexShrink: 0 }}>
-            <MessageSquare size={15} /> Message
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+            <button onClick={handleMessage}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#ff5a2d', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem' }}>
+              <MessageSquare size={15} /> Message
+            </button>
+            <button
+              onClick={toggleFollow}
+              disabled={followLoading}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                background: following ? 'rgba(255,90,45,0.12)' : 'transparent',
+                color: following ? '#ff5a2d' : '#888',
+                border: `1px solid ${following ? 'rgba(255,90,45,0.4)' : 'rgba(255,255,255,0.12)'}`,
+                borderRadius: 8, padding: '8px 14px', cursor: followLoading ? 'wait' : 'pointer',
+                fontWeight: 700, fontSize: '0.78rem', transition: 'all 0.15s',
+                opacity: followLoading ? 0.6 : 1,
+              }}
+            >
+              {following ? <UserCheck size={14} /> : <UserPlus size={14} />}
+              {following ? 'Following' : 'Follow'}
+              <span style={{ color: '#555', fontWeight: 400 }}>{followerCount}</span>
+            </button>
+          </div>
         </div>
 
         {player.bio && (

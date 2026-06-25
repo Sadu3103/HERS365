@@ -15,6 +15,34 @@
       "when": 1781810621624,
       "tag": "0001_thankful_bushwacker",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781843035241,
+      "tag": "0002_worried_tenebrous",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1781849924152,
+      "tag": "0003_sour_madame_web",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781852025980,
+      "tag": "0004_swift_iron_monger",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782315272570,
+      "tag": "0005_clumsy_sebastian_shaw",
+      "breakpoints": true
     }
   ]
 }

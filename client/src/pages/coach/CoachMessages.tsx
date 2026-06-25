@@ -49,7 +49,11 @@ async function coachFetch<T = unknown>(path: string, opts: RequestInit = {}): Pr
   const res = await fetch(path, { ...opts, headers });
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
-  if (!res.ok) throw new Error(data?.error || `Request failed (${res.status})`);
+  if (!res.ok) {
+    const e: any = new Error(data?.error || `Request failed (${res.status})`);
+    e.status = res.status;
+    throw e;
+  }
   return data as T;
 }
 
@@ -204,11 +208,16 @@ export function CoachMessages() {
   const qc = useQueryClient();
   const { showNotification } = useNotifications();
   const [activeId, setActiveId] = useState<number | null>(null);
+  const [selectedPlayerName, setSelectedPlayerName] = useState<string>('');
   const [msgText, setMsgText] = useState('');
   const [searchQ, setSearchQ] = useState('');
   const [playerSearch, setPlayerSearch] = useState('');
   const [composeOpen, setComposeOpen] = useState(false);
   const [mobileView, setMobileView] = useState<'list' | 'thread'>('list');
+  // Typing indicator is not wired up to a backend signal yet; bind the flag so
+  // the render below doesn't throw a ReferenceError when an active thread is
+  // open. The <TypingDots /> branch stays in place for the future wire-up.
+  const isTyping = false;
 
   const convListRef = useRef<HTMLDivElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
@@ -246,12 +255,33 @@ export function CoachMessages() {
     },
   });
 
+  const [contactRequestSent, setContactRequestSent] = useState<number | null>(null);
+
   const sendMut = useMutation({
-    mutationFn: ({ athleteId, content }: { athleteId: number; content: string }) =>
-      coachFetch(`/api/coach/message/${athleteId}`, { method: 'POST', body: JSON.stringify({ message: content }) }),
-    onSuccess: () => {
+    mutationFn: async ({ athleteId, content }: { athleteId: number; content: string }) => {
+      try {
+        return await coachFetch<{ contactRequest?: boolean }>(
+          `/api/coach/message/${athleteId}`,
+          { method: 'POST', body: JSON.stringify({ message: content }) }
+        );
+      } catch (e: any) {
+        if (e?.status === 403) {
+          const r = await coachFetch<{ success: boolean; data: { status: string } }>(
+            `/api/coach/contact/${athleteId}`,
+            { method: 'POST', body: JSON.stringify({ message: content }) }
+          );
+          return { ...r, contactRequest: true };
+        }
+        throw e;
+      }
+    },
+    onSuccess: (data: any, vars) => {
       setMsgText('');
-      qc.invalidateQueries({ queryKey: ['coach-messages'] });
+      if (data?.contactRequest) {
+        setContactRequestSent(vars.athleteId);
+      } else {
+        qc.invalidateQueries({ queryKey: ['coach-messages'] });
+      }
     },
     onError: () => {
       showNotification('error', 'Message Not Sent', 'Failed to deliver your message. Please try again.');
@@ -315,6 +345,8 @@ export function CoachMessages() {
 
   const handleComposeSelect = (player: PlayerResult) => {
     setActiveId(player.id);
+    setSelectedPlayerName(player.name);
+    setContactRequestSent(null);
     setComposeOpen(false);
     setPlayerSearch('');
     setMobileView('thread');
@@ -708,12 +740,67 @@ export function CoachMessages() {
                 </button>
               </div>
             </>
+          ) : activeId && selectedPlayerName ? (
+            <>
+              <div style={S.threadHeader}>
+                {isMobile && (
+                  <button style={S.backBtn} onClick={() => setMobileView('list')}>
+                    ← Back
+                  </button>
+                )}
+                <Avatar name={selectedPlayerName} size={34} />
+                <div style={S.threadName}>{selectedPlayerName}</div>
+              </div>
+              <div ref={threadRef} style={{ ...S.thread, alignItems: 'center', justifyContent: 'center' }}>
+                {contactRequestSent === activeId ? (
+                  <div style={{ textAlign: 'center', padding: 24 }}>
+                    <div style={{ fontSize: '2rem', marginBottom: 10 }}>✅</div>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#fff', marginBottom: 6 }}>Contact Request Sent</div>
+                    <div style={{ fontSize: '0.75rem', color: '#666', maxWidth: 280, lineHeight: 1.6 }}>
+                      A parent or guardian must approve your request before messaging begins. You will be notified once approved.
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: 24 }}>
+                    <div style={{ fontSize: '0.8rem', color: '#555', lineHeight: 1.6, maxWidth: 280 }}>
+                      Send a contact request to {selectedPlayerName}. A parent must approve before direct messaging begins.
+                    </div>
+                  </div>
+                )}
+              </div>
+              {contactRequestSent !== activeId && (
+                <div style={S.footer}>
+                  <textarea
+                    rows={1}
+                    style={S.footerInput}
+                    placeholder={`Introduce yourself to ${selectedPlayerName}…`}
+                    value={msgText}
+                    onChange={e => setMsgText(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                  />
+                  <button
+                    style={{
+                      ...S.sendBtn,
+                      opacity: !msgText.trim() || sendMut.isPending ? 0.4 : 1,
+                      cursor: !msgText.trim() || sendMut.isPending ? 'not-allowed' : 'pointer',
+                    }}
+                    onClick={handleSend}
+                    disabled={!msgText.trim() || sendMut.isPending}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path d="M22 2L11 13" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </>
           ) : (
             <div style={S.emptyState}>
               <div style={{ fontSize: '2.5rem' }}>💬</div>
               <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#555' }}>Select a conversation</div>
               <div style={{ fontSize: '0.75rem', color: '#3a3a3a', textAlign: 'center', maxWidth: 260, lineHeight: 1.6 }}>
-                Choose a thread on the left, or tap <span style={{ color: '#ff5a2d' }}>+</span> to start a new conversation with a player.
+                Choose a thread on the left, or tap <span style={{ color: '#ff5a2d' }}>+</span> to reach out to a player.
               </div>
             </div>
           )}

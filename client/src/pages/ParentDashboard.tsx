@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Users, MessageSquare, Activity, Bell, CheckCircle2, XCircle, ChevronRight, Lock } from 'lucide-react';
+import { apiFetch } from '../lib/api';
 
 const FLAME = '#ff5a2d';
 const LINE = 'rgba(255,255,255,0.07)';
@@ -18,32 +19,69 @@ type PendingMsg = { id: number; from: string; role: string; org: string; preview
 type ActivityItem = { text: string; ts: string; type: 'message' };
 
 const SETTING_DEFS = [
-  { label: 'Email Notifications', desc: 'Get emailed when a coach sends a message request', defaultOn: true },
-  { label: 'SMS Alerts', desc: 'Text message alerts for urgent approvals', defaultOn: false },
-  { label: 'Profile Visibility', desc: "Allow athlete's profile to appear in coach searches", defaultOn: true },
-  { label: 'Ranking Visibility', desc: 'Include athlete in public HERS365 rankings', defaultOn: true },
+  { key: 'emailNotifications', label: 'Email Notifications', desc: 'Get emailed when a coach sends a message request', defaultOn: true },
+  { key: 'smsAlerts',           label: 'SMS Alerts',           desc: 'Text message alerts for urgent approvals',         defaultOn: false },
+  { key: 'profileVisibility',   label: 'Profile Visibility',   desc: "Allow athlete's profile to appear in coach searches", defaultOn: true },
+  { key: 'rankingVisibility',   label: 'Ranking Visibility',   desc: 'Include athlete in public HERS365 rankings',       defaultOn: true },
 ] as const;
 
-const SettingRow = ({ label, desc, defaultOn }: { label: string; desc: string; defaultOn: boolean }) => {
-  const [on, setOn] = useState(defaultOn);
+type SettingKey = (typeof SETTING_DEFS)[number]['key'];
+
+const SettingRow = ({ label, desc, on, onToggle }: { label: string; desc: string; on: boolean; onToggle: () => void }) => (
+  <div style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${LINE}`, borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
+    <div>
+      <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#f4f4f2', marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: '0.72rem', color: MUTED }}>{desc}</div>
+    </div>
+    <motion.div whileTap={{ scale: 0.9 }} onClick={onToggle} style={{ width: 40, height: 22, borderRadius: 99, background: on ? FLAME : 'rgba(255,255,255,0.1)', position: 'relative', cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s' }}>
+      <motion.div animate={{ x: on ? 20 : 2 }} transition={{ type: 'spring', stiffness: 400, damping: 28 }} style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute', top: 2 }} />
+    </motion.div>
+  </div>
+);
+
+// Server-backed parent settings. Loads from /api/parent/settings on mount,
+// PUTs a partial diff on every toggle. Optimistic UI: if the PUT fails, we
+// revert the toggle and surface nothing (settings are non-critical).
+const SettingsPanel = () => {
+  const [prefs, setPrefs] = useState<Record<SettingKey, boolean>>(() =>
+    SETTING_DEFS.reduce((acc, s) => ({ ...acc, [s.key]: s.defaultOn }), {} as Record<SettingKey, boolean>),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const json = await apiFetch('/api/parent/settings').catch(() => null);
+        if (cancelled || !json?.success) return;
+        const merged = { ...prefs, ...(json.data as Partial<Record<SettingKey, boolean>>) };
+        setPrefs(merged);
+      } catch { /* keep defaults */ }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const toggle = async (key: SettingKey) => {
+    const next = !prefs[key];
+    setPrefs((p) => ({ ...p, [key]: next }));
+    try {
+      await apiFetch('/api/parent/settings', {
+        method: 'PUT',
+        body: JSON.stringify({ [key]: next }),
+      });
+    } catch {
+      setPrefs((p) => ({ ...p, [key]: !next })); // revert
+    }
+  };
+
   return (
-    <div style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${LINE}`, borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
-      <div>
-        <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#f4f4f2', marginBottom: 2 }}>{label}</div>
-        <div style={{ fontSize: '0.72rem', color: MUTED }}>{desc}</div>
-      </div>
-      <motion.div whileTap={{ scale: 0.9 }} onClick={() => setOn(!on)} style={{ width: 40, height: 22, borderRadius: 99, background: on ? FLAME : 'rgba(255,255,255,0.1)', position: 'relative', cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s' }}>
-        <motion.div animate={{ x: on ? 20 : 2 }} transition={{ type: 'spring', stiffness: 400, damping: 28 }} style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute', top: 2 }} />
-      </motion.div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {SETTING_DEFS.map((s) => (
+        <SettingRow key={s.key} label={s.label} desc={s.desc} on={prefs[s.key]} onToggle={() => toggle(s.key)} />
+      ))}
     </div>
   );
 };
-
-const SettingsPanel = () => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-    {SETTING_DEFS.map((s) => <SettingRow key={s.label} {...s} />)}
-  </div>
-);
 
 function formatTs(iso: string): string {
   const d = new Date(iso);
@@ -68,15 +106,14 @@ export const ParentDashboard = () => {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [cRes, rRes, aRes] = await Promise.all([
-        fetch('/api/parent/children'),
-        fetch('/api/parent/requests'),
-        fetch('/api/parent/activity'),
+      const [cData, rData, aData] = await Promise.all([
+        apiFetch('/api/parent/children').catch(() => null),
+        apiFetch('/api/parent/requests').catch(() => null),
+        apiFetch('/api/parent/activity').catch(() => null),
       ]);
-      const [cData, rData, aData] = await Promise.all([cRes.json(), rRes.json(), aRes.json()]);
-      if (cData.success) setChildren(cData.data);
-      if (rData.success) setRequests(rData.data);
-      if (aData.success) setActivity(aData.data);
+      if (cData?.success) setChildren(Array.isArray(cData.data) ? cData.data : []);
+      if (rData?.success) setRequests(Array.isArray(rData.data) ? rData.data : []);
+      if (aData?.success) setActivity(Array.isArray(aData.data) ? aData.data : []);
     } catch (err) {
       console.error('[ParentDashboard] fetch error', err);
     } finally {
@@ -89,13 +126,11 @@ export const ParentDashboard = () => {
   const respond = async (id: number, action: 'approve' | 'reject') => {
     setActing(id);
     try {
-      const res = await fetch(`/api/parent/requests/${id}/respond`, {
+      const data = await apiFetch(`/api/parent/requests/${id}/respond`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
-      });
-      const data = await res.json();
-      if (data.success) {
+      }).catch(() => null);
+      if (data?.success) {
         const req = requests.find((r) => r.id === id);
         if (req) {
           setRecentActions((prev) => [...prev, { id, from: req.from, action: action === 'approve' ? 'approved' : 'rejected' }]);
@@ -222,7 +257,7 @@ export const ParentDashboard = () => {
                       </div>
                       <div style={{ fontSize: '0.65rem', color: MUTED_2, flexShrink: 0 }}>{formatTs(m.createdAt)}</div>
                     </div>
-                    <div style={{ fontSize: '0.82rem', color: '#c0c0bc', lineHeight: 1.5, marginBottom: 4, fontStyle: 'italic' }}>"{m.preview.slice(0, 100)}{m.preview.length > 100 ? '…' : ''}"</div>
+                    <div style={{ fontSize: '0.82rem', color: '#c0c0bc', lineHeight: 1.5, marginBottom: 4, fontStyle: 'italic' }}>"{(m.preview ?? '').slice(0, 100)}{(m.preview ?? '').length > 100 ? '…' : ''}"</div>
                     <div style={{ fontSize: '0.7rem', color: MUTED_2, marginBottom: 14 }}>To: {m.child}</div>
                     <div style={{ display: 'flex', gap: 10 }}>
                       <motion.button

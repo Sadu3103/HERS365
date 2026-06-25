@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, Clock, Flame, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch } from '../lib/api';
+import { apiFetch, errorMessage } from '../lib/api';
 
 interface CombineStats {
   id?: number;
@@ -112,8 +112,8 @@ export const Training = () => {
       setShowForm(false);
       setFormValues({});
       await fetchStats();
-    } catch (err: any) {
-      setFormError(err?.message || 'Failed to save. Try again.');
+    } catch (err) {
+      setFormError(errorMessage(err, 'Failed to save. Try again.'));
     } finally {
       setFormSaving(false);
     }

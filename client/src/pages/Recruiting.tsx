@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Search, Filter, Bookmark, BookmarkCheck, X, Send, MapPin,
-  Users, Award, Mail, ChevronDown, CheckCircle2, RefreshCw,
+  Search, Filter, Bookmark, BookmarkCheck, X, MapPin,
+  Users, Award, ChevronDown, CheckCircle2, RefreshCw,
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
@@ -104,9 +104,6 @@ export const Recruiting = () => {
     open: false, coach: null, program: null,
   });
   const [coachLoading, setCoachLoading] = useState(false);
-  const [showMessageCompose, setShowMessageCompose] = useState(false);
-  const [messageText, setMessageText]   = useState('');
-  const [messageSending, setMessageSending] = useState(false);
 
   const [applyModal, setApplyModal] = useState<{ open: boolean; program: Program | null }>({
     open: false, program: null,
@@ -230,8 +227,6 @@ export const Recruiting = () => {
 
   const closeCoachModal = () => {
     setCoachModal({ open: false, coach: null, program: null });
-    setShowMessageCompose(false);
-    setMessageText('');
   };
 
   const openApplyModal = (program: Program, e: React.MouseEvent) => {
@@ -248,24 +243,6 @@ export const Recruiting = () => {
   const closeApplyModal = () => {
     setApplyModal({ open: false, program: null });
     setApplySubmitted(false);
-  };
-
-  const sendMessage = async () => {
-    if (!messageText.trim() || !coachModal.coach) return;
-    setMessageSending(true);
-    try {
-      await apiFetch('/api/messages/conversations', {
-        method: 'POST',
-        body: JSON.stringify({ participantId: coachModal.coach.id, initialMessage: messageText.trim() }),
-      });
-      showNotification('success', 'Message Sent', `Your message to ${coachModal.coach.name} has been delivered`);
-      setShowMessageCompose(false);
-      setMessageText('');
-    } catch {
-      showNotification('error', 'Failed to Send', 'Could not deliver your message. Please try again.');
-    } finally {
-      setMessageSending(false);
-    }
   };
 
   const submitApplication = async () => {
@@ -595,12 +572,6 @@ export const Recruiting = () => {
                     </div>
                   </div>
 
-                  {/* Contact — display only; all coach contact goes through the platform */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16, padding: '10px 12px', background: '#0d0d0d', borderRadius: 8, border: '1px solid rgba(255,255,255,0.04)' }}>
-                    <Mail size={14} color="#555" />
-                    <span style={{ fontSize: '0.78rem', color: '#888' }}>{coachModal.coach.email}</span>
-                  </div>
-
                   {/* Bio */}
                   <div style={{ marginBottom: 16 }}>
                     <div style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#444', marginBottom: 6 }}>About</div>
@@ -620,41 +591,8 @@ export const Recruiting = () => {
                   )}
 
                   {/* Message compose */}
-                  <AnimatePresence>
-                    {showMessageCompose && (
-                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                        style={{ overflow: 'hidden', marginBottom: 12 }}>
-                        <div style={{ paddingTop: 4 }}>
-                          <textarea
-                            value={messageText}
-                            onChange={e => setMessageText(e.target.value)}
-                            placeholder={`Message ${coachModal.coach.name}...`}
-                            rows={3}
-                            style={{ width: '100%', background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', color: '#fff', fontSize: '0.82rem', outline: 'none', resize: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
-                          />
-                          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                            <button onClick={() => setShowMessageCompose(false)}
-                              style={{ ...btnSecondary, flex: '0 0 auto', padding: '8px 16px' }}>
-                              Cancel
-                            </button>
-                            <button onClick={sendMessage} disabled={messageSending || !messageText.trim()}
-                              style={{ ...btnPrimary, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: (!messageText.trim() || messageSending) ? 0.5 : 1, cursor: (!messageText.trim() || messageSending) ? 'not-allowed' : 'pointer' }}>
-                              <Send size={13} /> {messageSending ? 'Sending...' : 'Send Message'}
-                            </button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
                   {/* Modal actions */}
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => setShowMessageCompose(s => !s)}
-                      style={btnSecondary}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,90,45,0.2)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,90,45,0.1)'; }}>
-                      MESSAGE COACH
-                    </button>
                     {coachModal.program && (
                       <button
                         onClick={e => { const prog = coachModal.program!; closeCoachModal(); openApplyModal(prog, e); }}

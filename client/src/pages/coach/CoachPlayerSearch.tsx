@@ -69,7 +69,7 @@ export function CoachPlayerSearch() {
 
       if (response.ok) {
         const data = await response.json();
-        setPlayers(data.players || []);
+        setPlayers(Array.isArray(data?.players) ? data.players : []);
       }
     } catch {
       setLoadError(true);
@@ -374,6 +374,32 @@ export function CoachPlayerSearch() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {players.map((player) => (
             <div key={player.id} className="bg-gray-800 border border-gray-700 rounded-lg overflow-hidden hover:border-gray-600 transition-colors">
+              {/* Film/photo strip — uses the latest highlight thumbnail when present,
+                  falling back to the athlete's profile photo, then to a placeholder.
+                  Lets coaches eyeball candidates without clicking every card. */}
+              <Link
+                to={`/coach/player/${player.id}`}
+                className="block aspect-video bg-gray-900 relative overflow-hidden group"
+              >
+                {player.highlightThumbnailUrl || player.profileImage ? (
+                  <img
+                    src={player.highlightThumbnailUrl || player.profileImage || undefined}
+                    alt={`${player.name} preview`}
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center text-2xl font-bold text-gray-500">
+                      {player.name?.[0] ?? '?'}
+                    </div>
+                  </div>
+                )}
+                {player.highlightThumbnailUrl && (
+                  <div className="absolute bottom-2 left-2 inline-flex items-center gap-1 bg-black/70 backdrop-blur px-2 py-1 rounded text-xs font-medium text-white">
+                    ▶ Highlights
+                  </div>
+                )}
+              </Link>
               <div className="p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
@@ -423,7 +449,7 @@ export function CoachPlayerSearch() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-400">NIL Points</span>
-                    <span className="text-lg font-semibold text-yellow-400">{player.nilPoints.toLocaleString()}</span>
+                    <span className="text-lg font-semibold text-yellow-400">{(player.nilPoints ?? 0).toLocaleString()}</span>
                   </div>
                 </div>
 

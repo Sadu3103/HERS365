@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HERS365 · System Health</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<style>
+  :root{
+    --bg:#0a0a0b; --panel:#121214; --card:#161619; --card2:#1b1b1f;
+    --line:#262629; --line2:#34343a;
+    --ink:#f5f5f6; --mut:#9a9aa3; --mut2:#67676f;
+    --ok:#34d399; --warn:#fbbf24; --fail:#fb7185; --idle:#5b5b63;
+    --hosting:#2dd4bf; --backend:#a78bfa; --data:#38bdf8; --apis:#fbbf24; --auth:#fb7185; --ci:#a3e635;
+    --r:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.5 ui-sans-serif,-apple-system,"SF Pro Text",Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  .wrap{max-width:1080px;margin:0 auto;padding:34px 22px 90px}
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:22px}
+  .brand .mark{font-size:13px;letter-spacing:.34em;text-transform:uppercase;color:var(--mut2);margin:0 0 6px}
+  .brand h1{font-size:26px;margin:0;letter-spacing:-.02em}
+  .brand p{margin:5px 0 0;color:var(--mut);font-size:14px}
+  .ctl{display:flex;align-items:center;gap:12px}
+  .stamp{font-size:12.5px;color:var(--mut);text-align:right}
+  .stamp b{color:var(--ink);font-weight:600}
+  button.refresh{font:inherit;font-weight:600;font-size:13.5px;color:var(--ink);background:var(--card);
+    border:1px solid var(--line2);border-radius:11px;padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;
+    transition:border-color .15s,background .15s,transform .06s}
+  button.refresh:hover{border-color:#46464d;background:var(--card2)}
+  button.refresh:active{transform:translateY(1px)}
+  button.refresh.spin svg{animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .preview{font-size:12.5px;color:var(--warn);background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.25);
+    border-radius:11px;padding:9px 14px;margin-bottom:18px;display:none}
+  .verdict{position:relative;border:1px solid var(--line);border-radius:var(--r);padding:22px 24px;
+    margin-bottom:14px;overflow:hidden;background:var(--panel);transition:border-color .25s}
+  .verdict::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--idle);transition:background .25s}
+  .verdict.ok::before{background:var(--ok)} .verdict.warn::before{background:var(--warn)} .verdict.fail::before{background:var(--fail)}
+  .verdict .vlabel{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2);margin:0 0 8px}
+  .verdict h2{font-size:23px;margin:0;letter-spacing:-.015em;display:flex;align-items:center;gap:12px}
+  .verdict.ok h2{color:var(--ok)} .verdict.warn h2{color:var(--warn)} .verdict.fail h2{color:var(--fail)}
+  .verdict .sub{margin:9px 0 0;color:var(--mut);font-size:14px;max-width:72ch}
+  .vdot{width:11px;height:11px;border-radius:50%;background:currentColor;flex:0 0 auto;box-shadow:0 0 0 4px rgba(255,255,255,.04)}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin:0 2px 26px;color:var(--mut);font-size:12.5px}
+  .legend span{display:flex;align-items:center;gap:7px}
+  .legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
+  .board{position:relative}
+  #wires{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+  .layer{position:relative;z-index:1;margin:0 0 14px;border:1px solid var(--line);border-radius:var(--r);
+    background:linear-gradient(180deg,rgba(255,255,255,.012),transparent);padding:14px 14px 4px}
+  .layer-head{display:flex;align-items:baseline;gap:12px;padding:2px 4px 12px}
+  .layer-tag{font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--lc)}
+  .layer-tag::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--lc);margin-right:9px;vertical-align:middle}
+  .layer-blurb{font-size:12.5px;color:var(--mut2)}
+  .cards{display:flex;flex-wrap:wrap;gap:12px;padding:0 0 12px}
+  .card{position:relative;flex:1 1 240px;min-width:230px;max-width:340px;background:var(--card);
+    border:1px solid var(--line);border-radius:13px;padding:14px 15px;cursor:pointer;overflow:hidden;
+    transition:border-color .16s,background .16s,transform .07s}
+  .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--lc);opacity:.85}
+  .card:hover{border-color:var(--line2);background:var(--card2)}
+  .card:active{transform:translateY(1px)}
+  .card.hub{flex-basis:300px;background:linear-gradient(180deg,var(--card2),var(--card))}
+  .card.fail{border-color:rgba(251,113,133,.4);background:linear-gradient(180deg,rgba(251,113,133,.06),var(--card))}
+  .ctop{display:flex;align-items:center;gap:10px}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--idle);flex:0 0 auto;transition:background .2s}
+  .dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.fail{background:var(--fail)} .dot.unknown{background:var(--idle)}
+  .dot.checking{background:var(--mut);animation:breathe 1.1s ease-in-out infinite}
+  @keyframes breathe{0%,100%{opacity:.35}50%{opacity:1}}
+  .cname{font-weight:600;font-size:14.5px;letter-spacing:-.01em;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .chev{color:var(--mut2);flex:0 0 auto;transition:transform .25s}
+  .card.open .chev{transform:rotate(90deg)}
+  .cshort{color:var(--mut);font-size:12.8px;margin:8px 0 0;line-height:1.45}
+  .crow{display:flex;align-items:center;gap:8px;margin-top:11px;flex-wrap:wrap}
+  .pill{font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;border-radius:6px;padding:3px 7px;border:1px solid var(--line2);color:var(--mut)}
+  .pill.host{color:var(--ink);border-color:#45454c}
+  .sword{font-size:11.5px;font-weight:600}
+  .sword.ok{color:var(--ok)} .sword.warn{color:var(--warn)} .sword.fail{color:var(--fail)} .sword.unknown{color:var(--mut)} .sword.checking{color:var(--mut)}
+  .xbadge{position:absolute;top:10px;right:12px;width:20px;height:20px;border-radius:6px;display:none;
+    align-items:center;justify-content:center;background:var(--fail);color:#0a0a0b;font-weight:800;font-size:13px}
+  .card.fail .xbadge{display:flex}
+  .card.fail .chev{display:none}
+  .more{display:grid;grid-template-rows:0fr;transition:grid-template-rows .26s ease}
+  .card.open .more{grid-template-rows:1fr}
+  .more>.inner{overflow:hidden;min-height:0}
+  .more .block{margin-top:13px;padding-top:13px;border-top:1px solid var(--line)}
+  .more .live{font-size:12.6px;color:var(--mut);margin:0 0 12px;line-height:1.5}
+  .more .live b{color:var(--ink);font-weight:600}
+  .more h4{margin:0 0 4px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut2)}
+  .more h4.fixh{color:var(--ok)}
+  .more p{margin:0 0 12px;font-size:13px;line-height:1.55;color:#d4d4d8}
+  .more code{background:#000;border:1px solid var(--line2);border-radius:5px;padding:1px 5px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;color:#cfcfd6}
+  .needs{font-size:12px;color:var(--mut2);margin:0}
+  footer{margin-top:30px;color:var(--mut2);font-size:12.5px;line-height:1.6}
+  footer code{background:#000;border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-family:ui-monospace,monospace;font-size:11.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <p class="mark">HERS365</p>
+      <h1>System Health</h1>
+      <p>Everything it takes to keep HERS365 online, and what to do when a part breaks.</p>
+    </div>
+    <div class="ctl">
+      <div class="stamp" id="stamp">Last checked <b>never</b></div>
+      <button class="refresh" id="refresh" title="Re run all checks">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+        Refresh
+      </button>
+    </div>
+  </header>
+
+  <div class="preview" id="preview"></div>
+
+  <div class="verdict" id="verdict">
+    <p class="vlabel">Can this be hosted right now?</p>
+    <h2><span class="vdot"></span><span id="vtitle">Checking the chain…</span></h2>
+    <p class="sub" id="vsub">Pinging the live services.</p>
+  </div>
+
+  <div class="legend">
+    <span><i style="background:var(--ok)"></i> Healthy</span>
+    <span><i style="background:var(--warn)"></i> Needs attention</span>
+    <span><i style="background:var(--fail)"></i> Failing</span>
+    <span><i style="background:var(--idle)"></i> Unverified</span>
+    <span style="color:var(--mut2)">Tap any part for why it can fail and how to fix it.</span>
+  </div>
+
+  <div class="board" id="board">
+    <svg id="wires" preserveAspectRatio="none"></svg>
+  </div>
+
+  <footer>
+    Live checks hit the real services: the web app on Vercel and the API on Railway. Parts behind secrets cannot be read from a browser, so a healthy API confirms them, and the rest are set by the team in the <code>CONFIG</code> block at the top of this file's script.<br>
+    This page lives at <code>client/public/admin.html</code> and is served at <code>/admin.html</code>.
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   CONFIG  —  the only part the team edits
+   ============================================================ */
+const CONFIG = {
+  site: 'https://hers365.vercel.app',                       // the live web app
+  api:  'https://hers365-api-production.up.railway.app',    // the live API on Railway
+  healthPath: '/health',                                    // the API liveness route
+  apiProxy: '/health-api',                                  // same origin proxy to the API health (see client/vercel.json), avoids CORS
+  github: { owner: 'Sadu3103', repo: 'HERS365' },           // for the live CI check
+  // For the parts a browser cannot test, set 'ok' or 'fail' once a teammate verifies.
+  // Leave 'unknown' and they show as Unverified.
+  manual: {
+    stripe:        'unknown',
+    openai:        'unknown',
+    maxpreps:      'unknown',
+    'google-oauth':'unknown',
+    'github-oauth':'unknown'
+  }
+};
+
+/* ============================================================
+   LAYERS + PARTS
+   ============================================================ */
+const LAYERS = [
+  { key:'hosting', name:'Hosting',          color:'var(--hosting)', blurb:'Where the app runs' },
+  { key:'backend', name:'Backend',          color:'var(--backend)', blurb:'The running server' },
+  { key:'data',    name:'Data',             color:'var(--data)',    blurb:'Where the data lives' },
+  { key:'apis',    name:'Third party APIs', color:'var(--apis)',    blurb:'Outside services it calls' },
+  { key:'auth',    name:'Auth',             color:'var(--auth)',    blurb:'Logins and secrets' },
+  { key:'ci',      name:'CI',               color:'var(--ci)',      blurb:'Quality gate before shipping' },
+];
+
+const TIER = { host:'Required to host', feature:'Feature', gate:'Deploy gate' };
+
+const PARTS = [
+  { key:'api-service', layer:'hosting', name:'API server (Railway)', tier:'host', check:'api', hub:true,
+    short:'The backend that runs everything.',
+    needs:'Deployed on Railway, answers at <code>/health</code>.',
+    cause:'The Railway service crashed on start, usually a missing environment variable, or the deploy failed.',
+    fix:'Open the Railway project, the API service, and read the deploy logs. A crash right after a clean build is almost always a missing variable (see Data and Auth below). A failed build is a code or dependency error.' },
+
+  { key:'client-site', layer:'hosting', name:'Web app (Vercel)', tier:'host', check:'site', deps:['api-service'],
+    short:'The website people actually visit.',
+    needs:'Built and served by Vercel from the <code>client</code> folder.',
+    cause:'The Vercel build failed, or the API address the app calls is wrong.',
+    fix:'Open the Vercel project <code>hers-365</code> and read the latest build logs. Confirm the <code>/api</code> rewrite in <code>client/vercel.json</code> points at the live Railway API.' },
+
+  { key:'wiring', layer:'backend', name:'App to API wiring', tier:'host', check:'wiring', deps:['api-service'],
+    short:'The web app and the backend can actually talk.',
+    needs:'The <code>/api</code> rewrite in <code>client/vercel.json</code> points at the Railway API, and the API allows the site origin.',
+    cause:'The rewrite points at the wrong API, or the API blocks the site origin (CORS).',
+    fix:'Confirm the destination in <code>client/vercel.json</code> is the live Railway URL, and that the API <code>CORS_ORIGIN</code> allows the site address.' },
+
+  { key:'database', layer:'data', name:'PostgreSQL database', tier:'host', check:'derive', deps:['api-service'],
+    short:'Where all the data lives.',
+    needs:'<code>DATABASE_URL</code> set in Railway and the database reachable.',
+    cause:'<code>DATABASE_URL</code> is missing or wrong, or the database is paused or out of connections.',
+    fix:'In Railway, the API service, Variables, confirm <code>DATABASE_URL</code> is set and correct. In your database provider, confirm the instance is awake and has free connections.' },
+
+  { key:'secrets', layer:'auth', name:'JWT + Session secrets', tier:'host', check:'derive', deps:['api-service'],
+    short:'Keeps logins secure and lets the server start.',
+    needs:'<code>JWT_SECRET</code> and <code>SESSION_SECRET</code> set in Railway.',
+    cause:'One of them is missing, so the server refuses to start or every login breaks.',
+    fix:'In Railway set both <code>JWT_SECRET</code> and <code>SESSION_SECRET</code> to long random strings of at least 32 characters.' },
+
+  { key:'stripe', layer:'apis', name:'Stripe payments', tier:'feature', check:'manual', deps:['api-service'],
+    short:'Takes payments and runs subscriptions.',
+    needs:'<code>STRIPE_SECRET_KEY</code> and <code>STRIPE_WEBHOOK_SECRET</code> in Railway.',
+    cause:'A key is missing, or the webhook signing secret does not match the endpoint set in Stripe.',
+    fix:'In Railway set <code>STRIPE_SECRET_KEY</code> and <code>STRIPE_WEBHOOK_SECRET</code>. In Stripe, confirm the webhook points at the live API and the signing secret matches.' },
+
+  { key:'openai', layer:'apis', name:'OpenAI', tier:'feature', check:'manual', deps:['api-service'],
+    short:'Powers AI features and message moderation.',
+    needs:'<code>OPENAI_API_KEY</code> in Railway.',
+    cause:'<code>OPENAI_API_KEY</code> is missing or the account is out of credit, so moderation fails closed and messaging stops.',
+    fix:'In Railway set <code>OPENAI_API_KEY</code>, and confirm the OpenAI account has billing and credit. Without it, messaging blocks every message on purpose.' },
+
+  { key:'maxpreps', layer:'apis', name:'MaxPreps data', tier:'feature', check:'manual', deps:['api-service'],
+    short:'Brings in outside sports stats.',
+    needs:'<code>MAXPREPS_API_KEY</code> in Railway.',
+    cause:'The key is missing, or MaxPreps is rate limiting or down.',
+    fix:'Set <code>MAXPREPS_API_KEY</code> in Railway. If it is set, check the MaxPreps status and your quota. The site still hosts without it, the stats just stop updating.' },
+
+  { key:'google-oauth', layer:'auth', name:'Google sign in', tier:'feature', check:'manual', deps:['api-service'],
+    short:'Lets users log in with Google.',
+    needs:'<code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code>, <code>GOOGLE_CALLBACK_URL</code>.',
+    cause:'A credential is missing, or the callback URL does not match the one in the Google console.',
+    fix:'In Railway set the three Google values. In the Google Cloud console, confirm the authorized redirect URI exactly matches <code>GOOGLE_CALLBACK_URL</code>.' },
+
+  { key:'github-oauth', layer:'auth', name:'GitHub sign in', tier:'feature', check:'manual', deps:['api-service'],
+    short:'Lets users log in with GitHub.',
+    needs:'<code>GITHUB_CLIENT_ID</code>, <code>GITHUB_CLIENT_SECRET</code>, <code>GITHUB_CALLBACK_URL</code>.',
+    cause:'A credential is missing, or the callback URL does not match the GitHub OAuth app.',
+    fix:'In Railway set the three GitHub values. In the GitHub OAuth app, confirm the callback URL matches <code>GITHUB_CALLBACK_URL</code>.' },
+
+  { key:'ci', layer:'ci', name:'GitHub Actions CI', tier:'gate', check:'ci',
+    short:'Checks every code change before it ships.',
+    needs:'The <code>ci.yml</code> workflow passes on the latest push.',
+    cause:'A test or build step in the workflow failed on the most recent run.',
+    fix:'Open the Actions tab on GitHub, click the latest red run, and read the failed step. Fix it before merging so a broken build never reaches production.' },
+];
+
+/* ============================================================
+   STATE + RENDER
+   ============================================================ */
+const byKey = Object.fromEntries(PARTS.map(p => [p.key, p]));
+const state = {};
+const detail = {};
+const SWORD = { ok:'Healthy', warn:'Needs attention', fail:'Failing', unknown:'Unverified', checking:'Checking…' };
+const $ = s => document.querySelector(s);
+
+function buildBoard(){
+  const board = $('#board');
+  LAYERS.forEach(L => {
+    const parts = PARTS.filter(p => p.layer === L.key);
+    if(!parts.length) return;
+    const layer = document.createElement('div');
+    layer.className = 'layer';
+    layer.style.setProperty('--lc', L.color);
+    layer.innerHTML =
+      '<div class="layer-head"><span class="layer-tag">'+L.name+'</span><span class="layer-blurb">'+L.blurb+'</span></div>'+
+      '<div class="cards"></div>';
+    const row = layer.querySelector('.cards');
+    parts.forEach(p => {
+      state[p.key] = (p.check==='manual') ? (CONFIG.manual[p.key] || 'unknown') : 'checking';
+      const c = document.createElement('div');
+      c.className = 'card' + (p.hub ? ' hub' : '');
+      c.dataset.key = p.key;
+      c.style.setProperty('--lc', L.color);
+      c.innerHTML =
+        '<div class="xbadge">✕</div>'+
+        '<div class="ctop"><span class="dot"></span><span class="cname">'+p.name+'</span>'+
+          '<svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>'+
+        '<p class="cshort">'+p.short+'</p>'+
+        '<div class="crow"><span class="pill '+(p.tier==='host'?'host':'')+'">'+TIER[p.tier]+'</span><span class="sword">…</span></div>'+
+        '<div class="more"><div class="inner"><div class="block">'+
+          '<p class="live"></p>'+
+          '<p class="needs">Needs: '+p.needs+'</p>'+
+          '<div style="margin-top:12px"><h4>Why it can fail</h4><p>'+p.cause+'</p>'+
+          '<h4 class="fixh">How to fix it</h4><p>'+p.fix+'</p></div>'+
+        '</div></div></div>';
+      c.addEventListener('click', e => {
+        if(e.target.closest('a')) return;
+        c.classList.toggle('open');
+        requestAnimationFrame(drawWires);
+        setTimeout(drawWires, 280);
+      });
+      row.appendChild(c);
+    });
+    board.appendChild(layer);
+  });
+  PARTS.forEach(paint);
+}
+
+function paint(p){
+  const c = document.querySelector('[data-key="'+p.key+'"]');
+  if(!c) return;
+  const s = state[p.key] || 'unknown';
+  c.classList.toggle('fail', s==='fail');
+  c.querySelector('.dot').className = 'dot ' + s;
+  const sw = c.querySelector('.sword');
+  sw.className = 'sword ' + s;
+  sw.textContent = SWORD[s];
+  c.querySelector('.live').innerHTML = detail[p.key] ? ('<b>Live:</b> ' + detail[p.key]) : '<b>Live:</b> checking…';
+}
+
+function drawWires(){
+  const board = $('#board'), svg = $('#wires');
+  const hub = document.querySelector('[data-key="api-service"]');
+  if(!hub) return;
+  const br = board.getBoundingClientRect();
+  const W = board.clientWidth, H = board.scrollHeight;
+  svg.setAttribute('viewBox', '0 0 '+W+' '+H);
+  const hr = hub.getBoundingClientRect();
+  const hx = hr.left - br.left + hr.width/2;
+  const hy = hr.top - br.top + hr.height/2;
+  let d = '';
+  PARTS.forEach(p => {
+    if(p.key === 'api-service' || !p.deps || !p.deps.includes('api-service')) return;
+    const n = document.querySelector('[data-key="'+p.key+'"]');
+    if(!n) return;
+    const r = n.getBoundingClientRect();
+    const x = r.left - br.left + r.width/2;
+    const y = r.top - br.top + r.height/2;
+    const broken = state[p.key]==='fail' || state['api-service']==='fail';
+    const my = (y + hy)/2;
+    d += '<path d="M '+x+' '+y+' C '+x+' '+my+', '+hx+' '+my+', '+hx+' '+hy+'" fill="none" '+
+         'stroke="'+(broken ? 'var(--fail)' : 'rgba(255,255,255,.06)')+'" stroke-width="'+(broken?2:1.25)+'" />';
+  });
+  svg.innerHTML = d;
+}
+
+/* ============================================================
+   LIVE CHECKS
+   ============================================================ */
+let corsOK = false;
+function fetchT(url, opts, ms){
+  ms = ms || 9000;
+  return Promise.race([
+    fetch(url, opts),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))
+  ]);
+}
+
+async function checkApi(){
+  // The Railway API does not send CORS headers, so a browser cannot read it directly.
+  // Prefer the same origin proxy (/health-api via vercel.json), which is also the exact
+  // path the real app uses to reach the API. Fall back to the direct URL for local preview.
+  const onWeb = location.protocol === 'http:' || location.protocol === 'https:';
+  const tries = [];
+  if(onWeb && CONFIG.apiProxy) tries.push({ url: location.origin + CONFIG.apiProxy, proxied: true });
+  tries.push({ url: CONFIG.api + CONFIG.healthPath, proxied: false });
+
+  for(const t of tries){
+    try{
+      const r = await fetchT(t.url, { mode:'cors' });
+      if(!r.ok){ if(t.proxied) continue; return ['fail', 'The API answered <b>'+r.status+'</b> at <code>'+CONFIG.healthPath+'</code>.']; }
+      corsOK = corsOK || t.proxied;
+      let s = 'ok';
+      try{ const j = await r.json(); s = j.status || 'ok'; }catch(_){}
+      const via = t.proxied ? ' (via the same proxy the app uses)' : '';
+      if(s === 'ok' || s === 'healthy') return ['ok', 'The API answered 200 at <code>'+CONFIG.healthPath+'</code> and reported <b>'+s+'</b>'+via+'.'];
+      if(s === 'degraded') return ['warn', 'The API is up but reported <b>degraded</b>.'];
+      return ['fail', 'The API reported <b>'+s+'</b>.'];
+    }catch(e){ /* try next candidate */ }
+  }
+  return ['fail', 'No reachable response from the API. The Railway service may be down, or the <code>/health-api</code> rewrite in <code>client/vercel.json</code> is missing.'];
+}
+async function checkSite(){
+  try{ await fetchT(CONFIG.site, { mode:'no-cors' }); return ['ok', 'The web app at <code>'+CONFIG.site+'</code> responded.']; }
+  catch(e){ return ['fail', 'No response from <code>'+CONFIG.site+'</code>. The Vercel deploy is down or the address is wrong.']; }
+}
+async function checkCi(){
+  if(!CONFIG.github) return ['unknown', 'No GitHub repo set in CONFIG.'];
+  try{
+    const u = 'https://api.github.com/repos/'+CONFIG.github.owner+'/'+CONFIG.github.repo+'/actions/runs?per_page=1';
+    const r = await fetchT(u, { mode:'cors' });
+    const j = await r.json();
+    const run = j.workflow_runs && j.workflow_runs[0];
+    if(!run) return ['unknown', 'No workflow runs found yet.'];
+    if(run.status !== 'completed') return ['warn', 'Latest run is <b>'+run.status+'</b> on <code>'+run.head_branch+'</code>.'];
+    if(run.conclusion === 'success') return ['ok', 'Latest run <b>passed</b> on <code>'+run.head_branch+'</code>.'];
+    return ['fail', 'Latest run <b>'+run.conclusion+'</b> on <code>'+run.head_branch+'</code>.'];
+  }catch(e){ return ['unknown', 'Could not reach the GitHub API (private repo or rate limit). Check the Actions tab on GitHub.']; }
+}
+function applyManual(p){
+  const s = CONFIG.manual[p.key] || 'unknown';
+  const msg = s==='ok' ? 'Marked working in CONFIG by the team.'
+            : s==='fail' ? 'Marked failing in CONFIG by the team.'
+            : 'Not auto checked. A teammate sets this in CONFIG once it is verified.';
+  return [s, msg];
+}
+function applyDerive(p){
+  const a = state['api-service'];
+  if(a === 'ok') return ['ok', 'Confirmed indirectly. The API is running and serving, which it cannot do without this in place.'];
+  if(a === 'fail') return ['fail', 'The API is down. A missing or broken value here is a likely cause.'];
+  return ['unknown', 'Not directly checkable from the browser. A running API would confirm it.'];
+}
+
+async function runAll(){
+  const btn = $('#refresh'); btn.classList.add('spin');
+  corsOK = false;
+  PARTS.forEach(p => { if(p.check!=='manual'){ state[p.key]='checking'; detail[p.key]=''; paint(p);} });
+
+  const [api, site] = await Promise.all([checkApi(), checkSite()]);
+  set('api-service', api); set('client-site', site);
+
+  let wiring;
+  if(state['api-service']==='fail' || state['client-site']==='fail') wiring = ['fail', 'One side is down, so the app and the API cannot talk.'];
+  else wiring = ['ok', 'Both the app and the API are up. The <code>/api</code> rewrite in vercel.json connects them.'];
+  set('wiring', wiring);
+
+  PARTS.filter(p=>p.check==='derive').forEach(p => set(p.key, applyDerive(p)));
+  PARTS.filter(p=>p.check==='manual').forEach(p => set(p.key, applyManual(p)));
+
+  const ci = await checkCi(); set('ci', ci);
+
+  renderVerdict();
+  drawWires();
+  const d = new Date();
+  $('#stamp').innerHTML = 'Last checked <b>'+d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})+'</b>';
+  btn.classList.remove('spin');
+}
+function set(key, res){ state[key]=res[0]; detail[key]=res[1]; paint(byKey[key]); }
+
+function renderVerdict(){
+  const v = $('#verdict');
+  const host = PARTS.filter(p => p.tier==='host');
+  const fails = host.filter(p => state[p.key]==='fail');
+  const unk   = host.filter(p => state[p.key]==='unknown');
+  const warns = host.filter(p => state[p.key]==='warn');
+  const featBad = PARTS.filter(p => p.tier!=='host' && state[p.key]==='fail');
+  const featUnv = PARTS.filter(p => p.tier!=='host' && state[p.key]==='unknown');
+
+  const featNote = (msg) => {
+    let bits = [];
+    if(featBad.length) bits.push(featBad.length+' feature'+(featBad.length>1?'s are':' is')+' down ('+featBad.map(p=>p.name).join(', ')+')');
+    if(featUnv.length) bits.push(featUnv.length+' feature'+(featUnv.length>1?'s are':' is')+' unverified');
+    return bits.length ? (msg+' '+bits.join(', and ')+'.') : msg;
+  };
+
+  let cls, title, sub;
+  if(fails.length){
+    cls='fail';
+    title='No. '+fails.length+' blocker'+(fails.length>1?'s are':' is')+' failing.';
+    sub=featNote('HERS365 cannot be hosted until you fix: '+fails.map(p=>p.name).join(', ')+'.');
+  } else if(unk.length || warns.length){
+    cls='warn';
+    const items = unk.concat(warns).map(p=>p.name);
+    title='Cannot fully confirm.';
+    sub=featNote((unk.length?unk.length+' required item'+(unk.length>1?'s are':' is')+' unverified':'')+(unk.length&&warns.length?', and ':'')+(warns.length?warns.length+' need'+(warns.length>1?'':'s')+' attention':'')+': '+items.join(', ')+'.');
+  } else {
+    cls='ok';
+    title='Yes. Every required part is healthy.';
+    sub=featNote('HERS365 can be hosted right now.');
+  }
+  v.className = 'verdict ' + cls;
+  $('#vtitle').textContent = title;
+  $('#vsub').textContent = sub;
+}
+
+const isPreview = location.protocol === 'file:' || /^(localhost|127\.)/.test(location.hostname);
+if(isPreview){
+  const pv = $('#preview'); pv.style.display='block';
+  pv.innerHTML = 'Preview mode. Some cross origin checks are blocked until this is served from the live site. Status will be fuller once deployed.';
+}
+buildBoard();
+drawWires();
+runAll();
+$('#refresh').addEventListener('click', runAll);
+window.addEventListener('resize', drawWires);
+</script>
+</body>
+</html>

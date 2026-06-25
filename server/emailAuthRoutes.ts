@@ -1,22 +1,20 @@
-// @ts-nocheck
 /**
  * Email/password authentication (bcrypt + JWT).
  * Mounted under /api/auth alongside the OAuth router.
  */
 import express from 'express';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { eq } from 'drizzle-orm';
 import { db } from './db';
 import * as schema from './schema';
 import { sendPasswordResetEmail } from './email';
+import * as auth from './auth';
 
 const router = express.Router();
 
 const BCRYPT_ROUNDS = 12;
-const JWT_EXPIRES_IN = '7d';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // [D-10] Cap account creation at 5 per IP per hour to block bulk fake signups.
@@ -28,12 +26,45 @@ const registerLimiter = rateLimit({
   message: { error: 'Too many accounts created from this network — try again later' },
 });
 
-function signToken(player) {
-  return jwt.sign(
-    { id: player.id, email: player.email, subscriptionTier: player.subscriptionTier },
-    process.env.JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN }
-  );
+// Mirror the loginLimiter config used in authRoutes.ts so the email/password
+// login surface gets the same brute-force protection as the OAuth-aware
+// router. `max` is read as a function on every request so tests can lower
+// the cap via env without remounting the route.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: () => {
+    const raw = Number(process.env.LOGIN_RATE_LIMIT_MAX);
+    return Number.isFinite(raw) && raw > 0 ? raw : 20;
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts — try again in 15 minutes' },
+});
+
+// Stricter cap on /forgot-password + /reset-password to make reset-token
+// brute-forcing and reset-email spam unviable. Same env-driven `max` so the
+// throttle test can run with a low budget without slowing the suite.
+const passwordResetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: () => {
+    const raw = Number(process.env.PASSWORD_RESET_RATE_LIMIT_MAX);
+    return Number.isFinite(raw) && raw > 0 ? raw : 5;
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many password reset requests — try again later' },
+});
+
+// Issue the same JWT shape as the canonical auth router. Tokens minted here
+// previously omitted userId/role/name, which broke any downstream route that
+// branched on req.user.role or read req.user.userId.
+function signEmailAuthToken(player: { id: number; email: string; name: string | null }): string {
+  return auth.signToken({
+    userId: player.id,
+    email: player.email,
+    role: 'athlete',
+    name: player.name ?? '',
+  });
 }
 
 router.post('/register', registerLimiter, async (req, res) => {
@@ -67,7 +98,7 @@ router.post('/register', registerLimiter, async (req, res) => {
       .returning();
 
     const player = inserted[0];
-    const token = signToken(player);
+    const token = signEmailAuthToken(player);
 
     return res.status(201).json({
       token,
@@ -79,11 +110,12 @@ router.post('/register', registerLimiter, async (req, res) => {
       },
     });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error('[email-auth/register] 500:', err);
+    return res.status(500).json({ error: 'Authentication request failed, please try again' });
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body || {};
 
   if (!email || !password) {
@@ -107,7 +139,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = signToken(player);
+    const token = signEmailAuthToken(player);
 
     return res.json({
       token,
@@ -119,14 +151,15 @@ router.post('/login', async (req, res) => {
       },
     });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error('[email-auth/login] 500:', err);
+    return res.status(500).json({ error: 'Authentication request failed, please try again' });
   }
 });
 
 // In-memory reset token store — swap for DB table in production
 const resetTokens = new Map<string, { playerId: number; expiresAt: number }>();
 
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', passwordResetLimiter, async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'email is required' });
 
@@ -140,11 +173,12 @@ router.post('/forgot-password', async (req, res) => {
     await sendPasswordResetEmail(email, token);
     return res.json({ message: 'If that email exists, a reset link was sent.' });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error('[email-auth/forgot-password] 500:', err);
+    return res.status(500).json({ error: 'Authentication request failed, please try again' });
   }
 });
 
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', passwordResetLimiter, async (req, res) => {
   const { token, password } = req.body || {};
   if (!token || !password) return res.status(400).json({ error: 'token and password are required' });
   if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
@@ -160,8 +194,18 @@ router.post('/reset-password', async (req, res) => {
     resetTokens.delete(token);
     return res.json({ message: 'Password updated successfully' });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error('[email-auth/reset-password] 500:', err);
+    return res.status(500).json({ error: 'Authentication request failed, please try again' });
   }
 });
+
+// Test-only export: lets the throttle test reset the limiter state between
+// cases (the in-memory store would otherwise persist counters across tests in
+// the same file). Mirrors the _resetMessageRateLimitForTests pattern used by
+// server/middleware/messageRateLimit.ts.
+export const _emailAuthLimitersForTests = {
+  login: loginLimiter,
+  passwordReset: passwordResetLimiter,
+};
 
 export default router;

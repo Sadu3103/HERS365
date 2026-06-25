@@ -3,12 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   MapPin, Edit3, CheckCircle2, Share2, MessageSquare, Loader2, AlertTriangle,
   UserX, Link2, Instagram, Eye, Play, Upload, Film, Image, Trophy, Zap,
-  Activity, X
+  Activity, X, Award, Star, Shield, Target, Flame, Medal
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
-import { apiFetch } from '../lib/api';
+import { apiFetch, errorMessage } from '../lib/api';
 import { athleteAvatar } from '../lib/avatar';
 
 interface ApiProfile {
@@ -28,6 +28,7 @@ interface ApiProfile {
   nilPoints: number;
   heightIn: number | null;
   weightLbs: number | null;
+  profileImage: string | null;
 }
 
 interface EditForm {
@@ -85,25 +86,28 @@ function fmtHeight(inches: number | null): string {
   return `${ft}'${rem}"`;
 }
 
+type GameStatKey = keyof GameStat;
+
 function sumGameStats(stats: GameStat[]): GameStat {
-  const acc: Record<string, number> = {
+  const acc: GameStat = {
     passingAttempts: 0, passingCompletions: 0, passingYards: 0, passingTds: 0,
     interceptionsThrown: 0, rushingAttempts: 0, rushingYards: 0, rushingTds: 0,
     receptions: 0, receivingYards: 0, receivingTds: 0, flagPulls: 0,
     interceptionsCaught: 0, passBreakups: 0, defensiveTds: 0,
   };
+  const keys = Object.keys(acc) as GameStatKey[];
   for (const s of stats) {
-    for (const k of Object.keys(acc)) {
-      acc[k] += (s as any)[k] ?? 0;
+    for (const k of keys) {
+      acc[k] = (acc[k] ?? 0) + (s[k] ?? 0);
     }
   }
-  return acc as any;
+  return acc;
 }
 
 export const Profile = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { showNotification } = useNotifications();
   const [activeTab, setActiveTab] = useState('Overview');
   const [profile, setProfile] = useState<ApiProfile | null>(null);
@@ -121,6 +125,45 @@ export const Profile = () => {
     name: '', position: '', school: '', location: '', gradYear: '', bio: '', heightIn: '', weightLbs: '',
   });
   const [editSaving, setEditSaving] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+
+  // Upload a new profile photo: presign → PUT to S3 → PUT /api/profile.
+  // Refreshes the profile state inline so the avatar swaps without a reload.
+  const uploadPhoto = async (file: File) => {
+    if (!profile) return;
+    if (!file.type.startsWith('image/')) {
+      showNotification('error', 'Invalid file', 'Please pick an image.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showNotification('error', 'Too large', 'Photo must be under 5MB.');
+      return;
+    }
+    setPhotoUploading(true);
+    try {
+      const presign = await apiFetch<{ uploadUrl: string; publicUrl: string }>('/api/upload/presign', {
+        method: 'POST',
+        body: JSON.stringify({ filename: file.name, contentType: file.type, size: file.size }),
+      });
+      const putRes = await fetch(presign.uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+      if (!putRes.ok) throw new Error('upload failed');
+      const updated = await apiFetch<ApiProfile>('/api/profile', {
+        method: 'PUT',
+        body: JSON.stringify({ profileImage: presign.publicUrl }),
+      });
+      setProfile(updated);
+      showNotification('success', 'Photo updated', 'Looking good.');
+    } catch (err) {
+      showNotification('error', 'Upload failed', err instanceof Error ? err.message : 'Try again');
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
   const [editError, setEditError] = useState<string | null>(null);
 
   const [gameStats, setGameStats] = useState<GameStat[]>([]);
@@ -131,6 +174,16 @@ export const Profile = () => {
   const [highlightsLoading, setHighlightsLoading] = useState(false);
   const [uploadingHighlight, setUploadingHighlight] = useState(false);
   const highlightInputRef = useRef<HTMLInputElement>(null);
+
+  interface Badge {
+    id: number;
+    name: string;
+    description: string | null;
+    icon: string | null;
+    category: string | null;
+    earnedAt: string | null;
+  }
+  const [badges, setBadges] = useState<Badge[]>([]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -190,10 +243,11 @@ export const Profile = () => {
         }),
       });
       setProfile(updated);
+      if (user && updated.name) updateUser({ name: updated.name });
       setEditOpen(false);
       showNotification('success', 'Profile updated', 'Your changes have been saved.');
-    } catch (err: any) {
-      setEditError(err.message || 'Failed to save. Please try again.');
+    } catch (err) {
+      setEditError(errorMessage(err, 'Failed to save. Please try again.'));
     } finally {
       setEditSaving(false);
     }
@@ -219,7 +273,10 @@ export const Profile = () => {
     setStatsLoading(true);
     if (isOwnProfile) {
       apiFetch<{ game: GameStat[]; combine: CombineStat | null }>('/api/profile/stats')
-        .then(d => { setGameStats(d.game ?? []); setCombineStats(d.combine ?? null); })
+        .then(d => {
+          setGameStats(Array.isArray(d?.game) ? d.game : []);
+          setCombineStats(d?.combine ?? null);
+        })
         .catch(() => {})
         .finally(() => setStatsLoading(false));
     } else {
@@ -237,6 +294,13 @@ export const Profile = () => {
       .then(d => setHighlights(Array.isArray(d) ? d : []))
       .catch(() => setHighlights([]))
       .finally(() => setHighlightsLoading(false));
+  }, [profile]);
+
+  useEffect(() => {
+    if (!profile) return;
+    apiFetch<{ success: boolean; data: Badge[] }>(`/api/badges/${profile.id}`)
+      .then(d => setBadges(Array.isArray(d?.data) ? d.data : []))
+      .catch(() => setBadges([]));
   }, [profile]);
 
   const handleHighlightUpload = async (file: File) => {
@@ -261,8 +325,8 @@ export const Profile = () => {
       });
       setHighlights(prev => [hl, ...prev]);
       showNotification('success', 'Uploaded!', 'Your highlight has been added.');
-    } catch (err: any) {
-      showNotification('error', 'Upload failed', err.message || 'Please try again.');
+    } catch (err) {
+      showNotification('error', 'Upload failed', errorMessage(err, 'Please try again.'));
     } finally {
       setUploadingHighlight(false);
     }
@@ -332,7 +396,47 @@ export const Profile = () => {
 
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, position: 'relative' }}>
           <div style={{ position: 'relative', flexShrink: 0 }}>
-            <img src={athleteAvatar(profile.name)} alt={profile.name} style={{ width: 80, height: 80, borderRadius: '50%', background: '#1c1c1c', border: '2px solid rgba(255,90,45,0.3)', objectFit: 'cover' }} />
+            <img
+              src={profile.profileImage || athleteAvatar(profile.name)}
+              alt={profile.name}
+              style={{
+                width: 80, height: 80, borderRadius: '50%', background: '#1c1c1c',
+                border: '2px solid rgba(255,90,45,0.3)', objectFit: 'cover',
+                opacity: photoUploading ? 0.5 : 1, transition: 'opacity .2s',
+              }}
+            />
+            {isOwnProfile && !viewAsCoach && (
+              <>
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadPhoto(f);
+                    e.target.value = '';
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={photoUploading}
+                  aria-label="Change profile photo"
+                  title="Change photo"
+                  style={{
+                    position: 'absolute', bottom: -2, left: -2,
+                    width: 26, height: 26, borderRadius: '50%',
+                    background: '#ff5a2d', border: '2px solid #111',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: photoUploading ? 'wait' : 'pointer', color: '#fff',
+                    boxShadow: '0 2px 8px rgba(0,0,0,.5)',
+                  }}
+                >
+                  {photoUploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                </button>
+              </>
+            )}
             {verified && (
               <div style={{ position: 'absolute', bottom: 2, right: 2 }}>
                 <CheckCircle2 size={18} color="#ff5a2d" fill="#ff5a2d" style={{ background: '#111', borderRadius: '50%' }} />
@@ -361,9 +465,15 @@ export const Profile = () => {
                 )}
               </div>
 
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <div
+                style={{ textAlign: 'right', flexShrink: 0, cursor: 'help' }}
+                title={score === '--'
+                  ? 'Your HERS Score appears once you log enough performance data.'
+                  : 'HERS Score (0–100) derived from your logged stats, combine numbers, and on-platform recruiting activity. Updated whenever you log new data.'}
+                aria-label={score === '--' ? 'HERS Score: not yet rated' : `HERS Score: ${score} out of 100`}
+              >
                 <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '3.5rem', color: '#ff5a2d', lineHeight: 1, textShadow: '0 0 30px rgba(255,90,45,0.5)' }}>{score}</div>
-                <div style={{ fontSize: '0.6rem', color: '#444', textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: 2 }}>Score</div>
+                <div style={{ fontSize: '0.6rem', color: '#444', textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: 2 }}>HERS Score</div>
               </div>
             </div>
 
@@ -415,6 +525,57 @@ export const Profile = () => {
         </div>
       </div>
 
+      {/* Profile completion bar — only on the owner's view, only while incomplete. */}
+      {isOwnProfile && !viewAsCoach && (() => {
+        const steps = [
+          { key: 'bio', label: 'Write a bio', done: Boolean(profile.bio && profile.bio.trim().length >= 20), action: openEdit },
+          { key: 'hw', label: 'Add height & weight', done: Boolean(profile.heightIn && profile.weightLbs), action: openEdit },
+          { key: 'gpa', label: 'Set your GPA', done: Boolean(profile.gpa && profile.gpa.trim()), action: openEdit },
+          { key: 'highlight', label: 'Upload a highlight', done: highlights.length > 0, action: () => setActiveTab('Highlights') },
+          { key: 'achievements', label: 'List achievements', done: Boolean(profile.achievements && profile.achievements.trim()), action: openEdit },
+        ];
+        const doneCount = steps.filter(s => s.done).length;
+        const pct = Math.round((doneCount / steps.length) * 100);
+        if (pct === 100) return null;
+        return (
+          <div className="k-card" style={{ padding: '16px 20px', marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 12, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '0.78rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#ff5a2d' }}>
+                  Profile {pct}% Complete
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#888', marginTop: 4 }}>
+                  Complete profiles get 4x more coach views.
+                </div>
+              </div>
+              <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1rem', color: '#ddd' }}>
+                {doneCount}/{steps.length}
+              </span>
+            </div>
+            <div style={{ height: 6, borderRadius: 9999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden', marginBottom: 14 }}>
+              <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg,#ff5a2d,#ff8c66)', transition: 'width .4s' }} />
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {steps.filter(s => !s.done).slice(0, 3).map(s => (
+                <button
+                  key={s.key}
+                  onClick={s.action}
+                  style={{
+                    background: 'rgba(255,90,45,0.08)', border: '1px solid rgba(255,90,45,0.25)',
+                    color: '#ffb091', borderRadius: 9999, padding: '7px 14px', fontSize: '0.74rem',
+                    fontWeight: 700, cursor: 'pointer', transition: 'all .18s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,90,45,0.16)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,90,45,0.08)'; }}
+                >
+                  + {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
         {tabs.map(tab => (
@@ -426,6 +587,7 @@ export const Profile = () => {
 
         {/* OVERVIEW */}
         {activeTab === 'Overview' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             {/* Season totals */}
             <div className="k-card" style={{ padding: '18px 16px' }}>
@@ -467,6 +629,27 @@ export const Profile = () => {
                 </div>
               ) : (
                 <p style={{ fontSize: '0.82rem', color: '#555' }}>No achievements listed yet.</p>
+              )}
+            </div>
+          </div>
+
+            {/* Badges */}
+            <div className="k-card" style={{ padding: '18px 16px' }}>
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555', marginBottom: 14 }}>Badges</div>
+              {badges.length > 0 ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                  {badges.map(b => (
+                    <div key={b.id} title={b.description ?? b.name} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,90,45,0.07)', border: '1px solid rgba(255,90,45,0.2)', borderRadius: 8, padding: '8px 12px' }}>
+                      <BadgeIcon icon={b.icon} />
+                      <div>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#ddd' }}>{b.name}</div>
+                        {b.category && <div style={{ fontSize: '0.62rem', color: '#555', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{b.category}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ fontSize: '0.82rem', color: '#555' }}>Complete drills to earn your first badge.</p>
               )}
             </div>
           </div>
@@ -754,6 +937,20 @@ export const Profile = () => {
     </div>
   );
 };
+
+function BadgeIcon({ icon }: { icon: string | null }) {
+  const s = { size: 16, color: '#ff5a2d' };
+  switch ((icon ?? '').toLowerCase()) {
+    case 'star': return <Star {...s} />;
+    case 'shield': return <Shield {...s} />;
+    case 'target': return <Target {...s} />;
+    case 'flame': return <Flame {...s} />;
+    case 'medal': return <Medal {...s} />;
+    case 'trophy': return <Trophy {...s} />;
+    case 'zap': return <Zap {...s} />;
+    default: return <Award {...s} />;
+  }
+}
 
 function ShareItem({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
   return (

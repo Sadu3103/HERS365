@@ -124,10 +124,12 @@ export const CoachLayout = () => {
         <header className="h-20 flex items-center justify-between px-8 z-10 border-b border-white/5 backdrop-blur-md">
           <div className="flex items-center gap-3">
             <button
+              type="button"
               onClick={() => setMobileOpen(true)}
+              aria-label="Open menu"
               className="flex md:hidden text-ink-muted hover:text-white transition-colors"
             >
-              <Menu size={22} />
+              <Menu size={22} aria-hidden="true" />
             </button>
             <h1 className="text-2xl font-bold tracking-tight text-white leading-none">
               {menuItems.find(i => i.path === location.pathname)?.label || 'Overview'}
@@ -148,10 +150,14 @@ export const CoachLayout = () => {
             )}
             <div className="relative" ref={notificationsRef}>
               <button
+                type="button"
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
+                aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : 'Notifications'}
+                aria-haspopup="menu"
+                aria-expanded={notificationsOpen}
                 className="relative text-ink-muted hover:text-white transition-colors"
               >
-                <Bell size={20} />
+                <Bell size={20} aria-hidden="true" />
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-2 h-2 bg-coral-500 rounded-full shadow-[0_0_10px_rgba(255,90,45,0.8)]" />
                 )}

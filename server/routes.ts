@@ -1,39 +1,42 @@
-// @ts-nocheck
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import { db } from './db';
 import * as schema from './schema';
 import * as ai from './ai';
 import * as mp from './maxpreps';
-import { eq, desc, sql } from 'drizzle-orm';
-import { AuthenticatedRequest, requireAuth, requireAdmin } from './auth';
+import { eq, desc, sql, and } from 'drizzle-orm';
+import { requireAuth, requireAdmin, optionalAuth, type TokenPayload } from './auth';
 
 const router = express.Router();
 
-function stripPlayer(p: any) {
-  if (!p) return p;
-  const { passwordHash, ...rest } = p;
-  return rest;
+import { publicPlayerView, selfPlayerView } from './lib/playerPrivacy';
+import { parseIdParam } from './lib/parseIdParam';
+
+// requireAuth attaches the token payload to req.user, but Express's Request
+// type doesn't know about it. Read it through here for typed access.
+function authUser(req: Request): TokenPayload | undefined {
+  return (req as Request & { user?: TokenPayload }).user;
 }
 
-// Public projection — contact info of a minor never leaves list/detail endpoints.
-// stripPlayer (own-profile) keeps email; this one doesn't.
-function publicPlayer(p: any) {
-  if (!p) return p;
-  const { passwordHash, email, zipCode, ...rest } = p;
-  return rest;
-}
+// Own-profile view (kept for clarity at call sites): only the password hash
+// is stripped; the caller is the player so they can see their own contact
+// info.
+const stripPlayer = selfPlayerView;
+
+// Public projection — contact info of a minor never leaves list/detail
+// endpoints. Strips email/phone/dob/zip/pendingParentEmail/passwordHash.
+const publicPlayer = publicPlayerView;
 
 // SUBSCRIPTION PLANS
-router.get('/subscription-plans', async (req: Request, res: Response) => {
+router.get('/subscription-plans', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const plans = await db.select().from(schema.subscriptionPlans).orderBy(schema.subscriptionPlans.price);
     res.json(plans);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.post('/subscription-plans', requireAdmin, async (req: Request, res: Response) => {
+router.post('/subscription-plans', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, price, tierLevel } = req.body;
     if (!name || price === undefined) {
@@ -42,34 +45,37 @@ router.post('/subscription-plans', requireAdmin, async (req: Request, res: Respo
     const newPlan = await db.insert(schema.subscriptionPlans).values({ name, price, tierLevel }).returning();
     res.json(newPlan[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.get('/player-subscription/:playerId', async (req: Request, res: Response) => {
+router.get('/player-subscription/:playerId', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const pId = parseInt(req.params.playerId);
-    if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
+    const pId = parseIdParam(req.params.playerId);
+    if (pId === null) return res.status(400).json({ error: 'Invalid id' });
     const subscription = await db.select()
       .from(schema.playerSubscriptions)
       .where(eq(schema.playerSubscriptions.playerId, pId));
     if (subscription.length === 0) return res.json({ status: 'none', plan: null });
-    const plan = await db.select()
-      .from(schema.subscriptionPlans)
-      .where(eq(schema.subscriptionPlans.id, subscription[0].planId));
+    const subPlanId = subscription[0].planId;
+    const plan = subPlanId != null
+      ? await db.select()
+          .from(schema.subscriptionPlans)
+          .where(eq(schema.subscriptionPlans.id, subPlanId))
+      : [];
     res.json({ ...subscription[0], plan: plan[0] || null });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.post('/player-subscription', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/player-subscription', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { playerId, planId, stripeSubscriptionId } = req.body;
     if (!playerId || !planId) {
       return res.status(400).json({ error: 'PlayerId and planId are required' });
     }
-    if (req.user.userId !== playerId) return res.status(403).json({ error: 'Forbidden' });
+    if (authUser(req)!.userId !== playerId) return res.status(403).json({ error: 'Forbidden' });
     const existing = await db.select()
       .from(schema.playerSubscriptions)
       .where(eq(schema.playerSubscriptions.playerId, playerId));
@@ -91,23 +97,23 @@ router.post('/player-subscription', requireAuth, async (req: AuthenticatedReques
     }
     res.json(newSub[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // CURRENT USER PROFILE
-router.get('/profile', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/profile', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const rows = await db.select().from(schema.players).where(eq(schema.players.id, req.user.userId)).limit(1);
+    const rows = await db.select().from(schema.players).where(eq(schema.players.id, authUser(req)!.userId)).limit(1);
     res.json(stripPlayer(rows[0]) || null);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.put('/profile', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.put('/profile', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, bio, position, school, state, gradYear, heightIn, weightLbs, phone } = req.body;
+    const { name, bio, position, school, state, gradYear, heightIn, weightLbs, phone, profileImage } = req.body;
     const updates: Record<string, any> = {};
     if (name !== undefined) updates.name = name;
     if (bio !== undefined) updates.bio = bio;
@@ -118,61 +124,99 @@ router.put('/profile', requireAuth, async (req: AuthenticatedRequest, res: Respo
     if (heightIn !== undefined) updates.heightIn = heightIn === '' ? null : Number(heightIn);
     if (weightLbs !== undefined) updates.weightLbs = weightLbs === '' ? null : Number(weightLbs);
     if (phone !== undefined) updates.phone = phone || null;
-    const updated = await db.update(schema.players).set(updates).where(eq(schema.players.id, req.user.userId)).returning();
+    // Custom profile photo URL. Client uploads to /api/upload/presign first,
+    // then sends the resulting publicUrl here.
+    if (profileImage !== undefined) updates.profileImage = profileImage || null;
+    const updated = await db.update(schema.players).set(updates).where(eq(schema.players.id, authUser(req)!.userId)).returning();
     res.json(stripPlayer(updated[0]));
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.get('/profile/stats', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/profile/stats', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const gameStats = await db.select().from(schema.gameStats).where(eq(schema.gameStats.playerId, req.user.userId));
-    const combineStats = await db.select().from(schema.combineStats).where(eq(schema.combineStats.playerId, req.user.userId)).limit(1);
+    const gameStats = await db.select().from(schema.gameStats).where(eq(schema.gameStats.playerId, authUser(req)!.userId));
+    const combineStats = await db.select().from(schema.combineStats).where(eq(schema.combineStats.playerId, authUser(req)!.userId)).limit(1);
     res.json({ game: gameStats, combine: combineStats[0] || null });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // PLAYERS & TEAMS
-router.get('/players', async (req: Request, res: Response) => {
+router.get('/players', optionalAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const allPlayers = await db.select().from(schema.players);
-    res.json(allPlayers.map(publicPlayer));
+    // Coach discoverability: a coach listing athletes must not see those a
+    // parent hid (mirrors the /api/coach/players/search filter). Non-coach
+    // callers still get the full public directory.
+    const visible = authUser(req)?.role === 'coach'
+      ? allPlayers.filter(p => ((p.preferences ?? {}) as Record<string, unknown>).coachDiscoverable !== false)
+      : allPlayers;
+    res.json(visible.map(publicPlayer));
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.get('/players/:id', async (req: Request, res: Response) => {
+router.get('/players/:id', optionalAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const pId = parseInt(req.params.id);
-    if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
+    const pId = parseIdParam(req.params.id);
+    if (pId === null) return res.status(400).json({ error: 'Invalid id' });
     const player = await db.select().from(schema.players).where(eq(schema.players.id, pId));
-    res.json(publicPlayer(player[0]) || null);
+    const row = player[0];
+    // Parent controlled coach discoverability. Mirror the gate on
+    // /api/athletes/:id and /api/coach/players/:id so a coach cannot reach a
+    // hidden minor's profile through this sibling route. Owner and public are
+    // unaffected; unset or true stays visible.
+    if (row && authUser(req)?.role === 'coach') {
+      const prefs = (row.preferences ?? {}) as Record<string, unknown>;
+      if (prefs.coachDiscoverable === false) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    }
+    res.json(publicPlayer(row) || null);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.get('/players/:id/stats', async (req: Request, res: Response) => {
+router.get('/players/:id/stats', optionalAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const pId = parseInt(req.params.id);
-    if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
+    const pId = parseIdParam(req.params.id);
+    if (pId === null) return res.status(400).json({ error: 'Invalid id' });
+    // Coach discoverability gate (see /players/:id). A hidden athlete is
+    // invisible to coaches here too, so stats cannot leak around the toggle.
+    if (authUser(req)?.role === 'coach') {
+      const [p] = await db.select({ preferences: schema.players.preferences })
+        .from(schema.players).where(eq(schema.players.id, pId)).limit(1);
+      const prefs = (p?.preferences ?? {}) as Record<string, unknown>;
+      if (prefs.coachDiscoverable === false) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    }
     const stats = await db.select().from(schema.gameStats).where(eq(schema.gameStats.playerId, pId));
     res.json(stats);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.get('/players/:id/highlights', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/players/:id/highlights', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const pId = parseInt(req.params.id);
-    if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
-    const [player] = await db.select({ subscriptionTier: schema.players.subscriptionTier })
+    const pId = parseIdParam(req.params.id);
+    if (pId === null) return res.status(400).json({ error: 'Invalid id' });
+    const [player] = await db.select({ subscriptionTier: schema.players.subscriptionTier, preferences: schema.players.preferences })
       .from(schema.players).where(eq(schema.players.id, pId)).limit(1);
+    // Coach discoverability gate: a coach cannot pull a hidden minor's video
+    // media around the toggle (mirrors /api/athletes/:id). Owner unaffected.
+    if (authUser(req)?.role === 'coach') {
+      const prefs = (player?.preferences ?? {}) as Record<string, unknown>;
+      if (prefs.coachDiscoverable === false) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    }
     const isPaid = !!player?.subscriptionTier && player.subscriptionTier !== 'free';
     if (isPaid) {
       const highlights = await db.select().from(schema.playerHighlights).where(eq(schema.playerHighlights.playerId, pId));
@@ -182,15 +226,15 @@ router.get('/players/:id/highlights', requireAuth, async (req: AuthenticatedRequ
       .where(eq(schema.playerHighlights.playerId, pId)).limit(3);
     return res.json(free.map(h => ({ ...h, locked: false })));
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.post('/players/:id/highlights', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/players/:id/highlights', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const pId = parseInt(req.params.id);
-    if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
-    if (req.user.userId !== pId) return res.status(403).json({ error: 'Forbidden' });
+    const pId = parseIdParam(req.params.id);
+    if (pId === null) return res.status(400).json({ error: 'Invalid id' });
+    if (authUser(req)!.userId !== pId) return res.status(403).json({ error: 'Forbidden' });
     const { videoUrl, thumbnailUrl, category, season, annotations, clipSettings } = req.body;
     const newHighlight = await db.insert(schema.playerHighlights).values({
       playerId: pId,
@@ -203,21 +247,21 @@ router.post('/players/:id/highlights', requireAuth, async (req: AuthenticatedReq
     }).returning();
     res.json(newHighlight[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.get('/teams', async (req: Request, res: Response) => {
+router.get('/teams', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const allTeams = await db.select().from(schema.teams);
     res.json(allTeams);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // SOCIAL FEED
-router.get('/posts', async (req: Request, res: Response) => {
+router.get('/posts', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const allPosts = await db
       .select({
@@ -242,42 +286,42 @@ router.get('/posts', async (req: Request, res: Response) => {
       .limit(50);
     res.json(allPosts);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.post('/posts', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/posts', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { content, mediaUrl, mediaType } = req.body;
     const newPost = await db.insert(schema.posts).values({
-      playerId: req.user.userId,
+      playerId: authUser(req)!.userId,
       content,
       mediaUrl,
       mediaType
     }).returning();
     await db.update(schema.players)
       .set({ nilPoints: sql`nil_points + 10` })
-      .where(eq(schema.players.id, req.user.userId));
+      .where(eq(schema.players.id, authUser(req)!.userId));
     res.json(newPost[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.get('/stories', async (req: Request, res: Response) => {
+router.get('/stories', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const allStories = await db.select().from(schema.stories);
     res.json(allStories);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // AI BOTS & TRAINING
-router.get('/bot/:playerId', async (req: Request, res: Response) => {
+router.get('/bot/:playerId', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const pId = parseInt(req.params.playerId);
-    if (isNaN(pId)) return res.status(400).json({ error: 'Invalid player ID' });
+    const pId = parseIdParam(req.params.playerId);
+    if (pId === null) return res.status(400).json({ error: 'Invalid id' });
     let bots = await db.select().from(schema.aiBots).where(eq(schema.aiBots.playerId, pId));
     if (bots.length === 0) {
       const generated = await ai.generateBotName();
@@ -289,53 +333,71 @@ router.get('/bot/:playerId', async (req: Request, res: Response) => {
     }
     res.json(bots[0]);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.post('/bot/:botId/chat', async (req: Request, res: Response) => {
+router.post('/bot/:botId/chat', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const bId = parseInt(req.params.botId);
-    if (isNaN(bId)) return res.status(400).json({ error: 'Invalid bot ID' });
+    const bId = parseIdParam(req.params.botId);
+    if (bId === null) return res.status(400).json({ error: 'Invalid id' });
     const { message, context } = req.body;
     const reply = await ai.chatBot(bId, [{ role: 'user', content: message }], context);
     res.json({ reply });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.get('/nil/opportunities', async (req: Request, res: Response) => {
+router.get('/nil/opportunities', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const opps = await db.select().from(schema.nilOpportunities).limit(20);
     res.json(opps);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.post('/nil/chat', async (req: Request, res: Response) => {
+router.post('/nil/apply', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { opportunityId } = req.body;
+    if (!opportunityId) {
+      return res.status(400).json({ success: false, error: 'opportunityId is required' });
+    }
+    const playerId = authUser(req)!.userId;
+    await db.insert(schema.dealApplications).values({
+      playerId,
+      opportunityId: Number(opportunityId),
+      status: 'pending',
+    });
+    res.json({ applied: true });
+  } catch (err: any) {
+    next(err);
+  }
+});
+
+router.post('/nil/chat', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { message } = req.body;
     const reply = await ai.chatNIL([{ role: 'user', content: message }]);
     res.json({ reply });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.post('/training-plans', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/training-plans', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { position = 'QB', age = 16, skillLevel = 'Intermediate' } = req.body;
     const plan = await ai.generateTrainingPlan(position, age, skillLevel);
     res.json(plan);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // MAXPREPS — GIRLS FLAG FOOTBALL
-router.get('/maxpreps/player', async (req: Request, res: Response) => {
+router.get('/maxpreps/player', async (req: Request, res: Response, next: NextFunction) => {
   const { name, school, state } = req.query as Record<string, string>;
   if (!name) return res.status(400).json({ error: 'name is required' });
   try {
@@ -347,47 +409,47 @@ router.get('/maxpreps/player', async (req: Request, res: Response) => {
     }
     res.json({ source: 'maxpreps', query: { name, school, state }, count: filtered.length, players: filtered });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.get('/maxpreps/stats/:maxprepsId', async (req: Request, res: Response) => {
+router.get('/maxpreps/stats/:maxprepsId', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const stats = await mp.fetchPlayerStats(req.params.maxprepsId);
+    const stats = await mp.fetchPlayerStats(String(req.params.maxprepsId));
     if (!stats) return res.status(404).json({ error: 'Player not found on MaxPreps' });
     res.json({ source: 'maxpreps', stats });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.get('/maxpreps/leaders', async (req: Request, res: Response) => {
+router.get('/maxpreps/leaders', async (req: Request, res: Response, next: NextFunction) => {
   const { category = 'receiving', state, season = '2025' } = req.query as Record<string, string>;
   try {
     const leaders = await mp.fetchFlagFootballLeaders(category as any, state, season);
     res.json({ source: 'maxpreps', category, state: state || 'national', season, leaders });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.get('/maxpreps/rankings', async (req: Request, res: Response) => {
+router.get('/maxpreps/rankings', async (req: Request, res: Response, next: NextFunction) => {
   const { state = 'TX', season = '2025' } = req.query as Record<string, string>;
   try {
     const teams = await mp.fetchStateTeamRankings(state, season);
     res.json({ source: 'maxpreps', state, season, teams });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.get('/maxpreps/team/:schoolGID/roster', async (req: Request, res: Response) => {
+router.get('/maxpreps/team/:schoolGID/roster', async (req: Request, res: Response, next: NextFunction) => {
   const { season = '2025' } = req.query as Record<string, string>;
   try {
-    const roster = await mp.fetchTeamRoster(req.params.schoolGID, season);
+    const roster = await mp.fetchTeamRoster(String(req.params.schoolGID), season);
     res.json({ source: 'maxpreps', season, players: roster });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -395,9 +457,9 @@ router.get('/maxpreps/team/:schoolGID/roster', async (req: Request, res: Respons
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
 
 // GET /notifications - list for authenticated player
-router.get('/notifications', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/notifications', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const playerId = req.user?.id;
+    const playerId = authUser(req)?.id;
     if (!playerId) return res.status(401).json({ error: 'Not authenticated' });
     const isNaN_guard = isNaN(parseInt(String(playerId)));
     if (isNaN_guard) return res.status(400).json({ error: 'Invalid player ID' });
@@ -410,14 +472,14 @@ router.get('/notifications', requireAuth, async (req: AuthenticatedRequest, res:
     const unreadCount = rows.filter((n) => !n.read).length;
     res.json({ notifications: rows, unreadCount });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // POST /notifications/mark-read - mark all as read
-router.post('/notifications/mark-read', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/notifications/mark-read', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const playerId = req.user?.id;
+    const playerId = authUser(req)?.id;
     if (!playerId) return res.status(401).json({ error: 'Not authenticated' });
     await db
       .update(schema.notifications)
@@ -425,19 +487,32 @@ router.post('/notifications/mark-read', requireAuth, async (req: AuthenticatedRe
       .where(eq(schema.notifications.playerId, parseInt(String(playerId))));
     res.json({ ok: true });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // POST /notifications/mark-read/:id - mark one as read
-router.post('/notifications/mark-read/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/notifications/mark-read/:id', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
-    await db.update(schema.notifications).set({ read: true }).where(eq(schema.notifications.id, id));
+    const id = parseIdParam(req.params.id);
+    if (id === null) return res.status(400).json({ error: 'Invalid id' });
+    const callerId = authUser(req)?.id;
+    if (!callerId) return res.status(401).json({ error: 'Not authenticated' });
+    // Scope the update by both id AND owner so a notification belonging to
+    // another user can never be flipped. Treat "not yours" and "doesn't
+    // exist" the same (404) so the endpoint doesn't reveal which it is.
+    const updated = await db
+      .update(schema.notifications)
+      .set({ read: true })
+      .where(and(
+        eq(schema.notifications.id, id),
+        eq(schema.notifications.playerId, Number(callerId)),
+      ))
+      .returning({ id: schema.notifications.id });
+    if (updated.length === 0) return res.status(404).json({ error: 'Notification not found' });
     res.json({ ok: true });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 

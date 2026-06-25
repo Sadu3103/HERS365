@@ -8,7 +8,7 @@
     "dev": "tsx watch index.ts",
     "dev:legacy": "tsx watch index.ts",
     "dev:microservices": "tsx watch index.ts",
-    "dev:core": "tsx watch core-server.ts",
+    "dev:core": "APP_ENV=development tsx watch core-server.ts",
     "start": "tsx core-server.ts",
     "start:enterprise": "node dist/index.js",
     "start:microservices": "node dist/index.js",
@@ -19,6 +19,7 @@
     "db:check": "drizzle-kit check",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx seed.ts",
+    "audit:endpoints": "tsx audit-endpoints.ts",
     "db:migrate:services": "tsx scripts/migrate-microservices.ts",
     "services:health": "node scripts/check-services-health.js",
     "services:logs": "docker-compose logs -f",
@@ -45,6 +46,7 @@
     "db:push:test": "DATABASE_URL=postgres://localhost:5432/hers365_test drizzle-kit push --force"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.105.0",
     "@aws-sdk/client-s3": "^3.1033.0",
     "@aws-sdk/s3-request-presigner": "^3.1033.0",
     "@azure/cosmos": "^4.0.0",
@@ -67,7 +69,7 @@
     "crypto-js": "^4.2.0",
     "date-fns": "^4.1.0",
     "dotenv": "^16.4.7",
-    "drizzle-orm": "^0.39.3",
+    "drizzle-orm": "^0.45.2",
     "esbuild": "^0.25.0",
     "express": "^4.21.2",
     "express-rate-limit": "^8.3.1",
@@ -84,7 +86,8 @@
     "redis": "^5.12.1",
     "stripe": "^17.7.0",
     "uuid": "^13.0.0",
-    "ws": "^8.18.1"
+    "ws": "^8.18.1",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

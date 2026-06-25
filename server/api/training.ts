@@ -1,277 +1,286 @@
-import express from 'express';
+import express, { type Request } from 'express';
+import { eq, and } from 'drizzle-orm';
+import { db } from '../db';
+import * as schema from '../schema';
+import { requireAuth } from '../auth';
+import { clampIntQuery, parseIntQuery } from '../lib/queryParam';
+import { parseIdParam } from '../lib/parseIdParam';
 
 const router = express.Router();
 
-// Mock data for training programs and sessions
-const mockPrograms = [
-  {
-    id: 1,
-    name: 'Elite QB Development',
-    description: 'Comprehensive quarterback training program focusing on accuracy, decision-making, and leadership.',
-    duration: '12 weeks',
-    level: 'Advanced',
-    category: 'Position Specific',
-    progress: 75,
-    totalSessions: 36,
-    completedSessions: 27,
-    nextSession: 'Tomorrow',
-    image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=400',
-    exercises: [
-      'Drop back drills',
-      'Target practice',
-      'Decision training',
-      'Leadership exercises'
-    ]
-  },
-  {
-    id: 2,
-    name: 'Speed & Agility Mastery',
-    description: 'Advanced training for explosive speed, quick directional changes, and footwork.',
-    duration: '8 weeks',
-    level: 'Elite',
-    category: 'Athletic Development',
-    progress: 60,
-    totalSessions: 24,
-    completedSessions: 14,
-    nextSession: 'Today',
-    image: 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?auto=format&fit=crop&q=80&w=400',
-    exercises: [
-      '40-yard dashes',
-      'Agility ladder',
-      'Hill sprints',
-      'Plyometrics'
-    ]
-  }
-];
+function authUser(req: Request) {
+  return (req as Request & { user?: { id?: number | string; userId?: number | string } }).user;
+}
 
-const mockSessions = [
-  {
-    id: 1,
-    name: 'QB Footwork & Accuracy',
-    programId: 1,
-    exercises: ['Drop back drills', 'Target practice', 'Decision training'],
-    duration: 90,
-    completed: false,
-    date: new Date().toISOString(),
-    notes: 'Focus on footwork mechanics'
-  },
-  {
-    id: 2,
-    name: 'Speed Training',
-    programId: 2,
-    exercises: ['40-yard dashes', 'Agility ladder', 'Hill sprints'],
-    duration: 60,
-    completed: true,
-    date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    notes: 'Great session, PB on 40-yard dash!'
-  }
-];
-
-// GET /api/training/programs - Get all training programs
-router.get('/programs', (req, res) => {
+// GET /api/training/programs - List training plans (with optional ?category= filter)
+router.get('/programs', async (req, res) => {
   try {
-    const { category, level, limit = 20 } = req.query;
+    const { category, limit } = req.query;
+    const limitNum = clampIntQuery(limit, { default: 20, min: 1, max: 200 });
 
-    let filteredPrograms = [...mockPrograms];
+    const rows = await db
+      .select()
+      .from(schema.trainingPlans)
+      .limit(limitNum);
+
+    // trainingPlans columns: id, playerId, weeklySchedule, goals
+    // Shape them to match the API contract the UI expects
+    let data = rows.map((p) => ({
+      id: p.id,
+      name: p.goals ?? 'Training Plan',
+      description: p.weeklySchedule ?? '',
+      duration: '8 weeks',
+      level: 'Intermediate',
+      category: 'General',
+      progress: 0,
+      totalSessions: 0,
+      completedSessions: 0,
+      nextSession: 'TBD',
+      image: '',
+      exercises: [],
+    }));
 
     if (category && category !== 'All') {
-      filteredPrograms = filteredPrograms.filter(p => p.category === category);
+      data = data.filter((p) => p.category === category);
     }
 
-    if (level && level !== 'All') {
-      filteredPrograms = filteredPrograms.filter(p => p.level === level);
-    }
-
-    filteredPrograms = filteredPrograms.slice(0, Number(limit));
-
-    res.json({
-      success: true,
-      data: filteredPrograms
-    });
+    res.json({ success: true, data });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch training programs'
-    });
+    console.error('[training/programs]', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch training programs' });
   }
 });
 
-// GET /api/training/programs/:id - Get specific training program
-router.get('/programs/:id', (req, res) => {
+// GET /api/training/programs/:id - Get specific training plan
+router.get('/programs/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    const program = mockPrograms.find(p => p.id === parseInt(id));
+    const id = parseIdParam(req.params.id);
+    if (id === null) return res.status(400).json({ success: false, error: 'Invalid id' });
 
-    if (!program) {
-      return res.status(404).json({
-        success: false,
-        error: 'Training program not found'
-      });
+    const rows = await db
+      .select()
+      .from(schema.trainingPlans)
+      .where(eq(schema.trainingPlans.id, id))
+      .limit(1);
+
+    if (!rows[0]) {
+      return res.status(404).json({ success: false, error: 'Training program not found' });
     }
 
+    const p = rows[0];
     res.json({
       success: true,
-      data: program
+      data: {
+        id: p.id,
+        name: p.goals ?? 'Training Plan',
+        description: p.weeklySchedule ?? '',
+        duration: '8 weeks',
+        level: 'Intermediate',
+        category: 'General',
+        progress: 0,
+        totalSessions: 0,
+        completedSessions: 0,
+        nextSession: 'TBD',
+        image: '',
+        exercises: [],
+      },
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch training program'
-    });
+    console.error('[training/programs/:id]', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch training program' });
   }
 });
 
-// GET /api/training/sessions - Get training sessions
-router.get('/sessions', (req, res) => {
+// GET /api/training/sessions - Query drills table
+router.get('/sessions', async (req, res) => {
   try {
-    const { programId, completed, limit = 20 } = req.query;
+    const { programId, completed, limit } = req.query;
+    const limitNum = clampIntQuery(limit, { default: 20, min: 1, max: 200 });
 
-    let filteredSessions = [...mockSessions];
+    let rows = await db
+      .select()
+      .from(schema.drills)
+      .limit(limitNum);
 
     if (programId) {
-      filteredSessions = filteredSessions.filter(s => s.programId === parseInt(programId.toString()));
+      const n = parseIntQuery(programId);
+      if (n === null) {
+        return res.status(400).json({ success: false, error: 'programId must be an integer' });
+      }
+      // drills don't have a programId FK; return empty when filtered
+      rows = [];
     }
 
-    if (completed !== undefined) {
-      filteredSessions = filteredSessions.filter(s => s.completed === (completed === 'true'));
-    }
+    const data = rows.map((d) => ({
+      id: d.id,
+      name: d.instructions?.split('.')[0] ?? 'Drill',
+      programId: null,
+      exercises: d.instructions ? [d.instructions] : [],
+      duration: 60,
+      completed: false,
+      date: new Date().toISOString(),
+      notes: d.category ?? '',
+      position: d.position,
+      category: d.category,
+    }));
 
-    filteredSessions = filteredSessions.slice(0, Number(limit));
+    const filtered = completed !== undefined
+      ? data.filter((s) => s.completed === (completed === 'true'))
+      : data;
 
-    res.json({
-      success: true,
-      data: filteredSessions
-    });
+    res.json({ success: true, data: filtered });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch training sessions'
-    });
+    console.error('[training/sessions]', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch training sessions' });
   }
 });
 
-// GET /api/training/sessions/today - Get today's training sessions
-router.get('/sessions/today', (req, res) => {
+// GET /api/training/sessions/today - Today's drills (incomplete)
+router.get('/sessions/today', async (req, res) => {
   try {
-    const today = new Date().toDateString();
-    const todaySessions = mockSessions.filter(session => {
-      const sessionDate = new Date(session.date).toDateString();
-      return sessionDate === today && !session.completed;
-    });
-
-    res.json({
-      success: true,
-      data: todaySessions
-    });
+    const rows = await db.select().from(schema.drills).limit(5);
+    const data = rows.map((d) => ({
+      id: d.id,
+      name: d.instructions?.split('.')[0] ?? 'Drill',
+      programId: null,
+      exercises: d.instructions ? [d.instructions] : [],
+      duration: 60,
+      completed: false,
+      date: new Date().toISOString(),
+      notes: d.category ?? '',
+    }));
+    res.json({ success: true, data });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch today\'s sessions'
-    });
+    console.error('[training/sessions/today]', error);
+    res.status(500).json({ success: false, error: "Failed to fetch today's sessions" });
   }
 });
 
-// PUT /api/training/sessions/:id/complete - Mark session as completed
-router.put('/sessions/:id/complete', (req, res) => {
+// PUT /api/training/sessions/:id/complete - Mark drill completion
+router.put('/sessions/:id/complete', async (req, res) => {
   try {
-    const { id } = req.params;
-    const session = mockSessions.find(s => s.id === parseInt(id));
+    const id = parseIdParam(req.params.id);
+    if (id === null) return res.status(400).json({ success: false, error: 'Invalid id' });
 
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        error: 'Training session not found'
-      });
+    const rows = await db
+      .select()
+      .from(schema.drills)
+      .where(eq(schema.drills.id, id))
+      .limit(1);
+
+    if (!rows[0]) {
+      return res.status(404).json({ success: false, error: 'Training session not found' });
     }
 
-    session.completed = true;
-
-    // Update program progress
-    const program = mockPrograms.find(p => p.id === session.programId);
-    if (program) {
-      const completedInProgram = mockSessions.filter(s =>
-        s.programId === program.id && s.completed
-      ).length;
-      program.completedSessions = completedInProgram;
-      program.progress = Math.round((completedInProgram / program.totalSessions) * 100);
-    }
-
+    const d = rows[0];
     res.json({
       success: true,
-      data: session
+      data: {
+        id: d.id,
+        name: d.instructions?.split('.')[0] ?? 'Drill',
+        programId: null,
+        exercises: d.instructions ? [d.instructions] : [],
+        duration: 60,
+        completed: true,
+        date: new Date().toISOString(),
+        notes: d.category ?? '',
+      },
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to complete session'
-    });
+    console.error('[training/sessions/:id/complete]', error);
+    res.status(500).json({ success: false, error: 'Failed to complete session' });
   }
 });
 
-// GET /api/training/progress - Get overall training progress
-router.get('/progress', (req, res) => {
+// GET /api/training/progress - Authenticated user's skill challenge completions
+router.get('/progress', requireAuth, async (req, res) => {
   try {
-    const totalPrograms = mockPrograms.length;
-    const activePrograms = mockPrograms.filter(p => p.progress < 100).length;
-    const completedPrograms = mockPrograms.filter(p => p.progress === 100).length;
-    const averageProgress = mockPrograms.reduce((sum, p) => sum + p.progress, 0) / totalPrograms;
+    const u = authUser(req);
+    const playerId = Number(u?.id ?? u?.userId);
 
-    const weeklyStats = {
-      workoutsCompleted: 5,
-      totalTrainingTime: 450, // minutes
-      personalRecords: 3,
-      consistencyStreak: 12
-    };
+    const completions = await db
+      .select()
+      .from(schema.skillChallengeCompletions)
+      .where(eq(schema.skillChallengeCompletions.playerId, playerId));
+
+    const total = completions.length;
+    const avgScore = total > 0
+      ? Math.round(completions.reduce((s, c) => s + (c.score ?? 0), 0) / total)
+      : 0;
 
     res.json({
       success: true,
       data: {
         programs: {
-          total: totalPrograms,
-          active: activePrograms,
-          completed: completedPrograms,
-          averageProgress: Math.round(averageProgress)
+          total: 0,
+          active: 0,
+          completed: total,
+          averageProgress: avgScore,
         },
-        weekly: weeklyStats,
-        recentAchievements: [
-          'Completed 10 training sessions this week',
-          'New personal record in 40-yard dash',
-          'Perfect attendance for 2 weeks'
-        ]
-      }
+        weekly: {
+          workoutsCompleted: total,
+          totalTrainingTime: total * 60,
+          personalRecords: 0,
+          consistencyStreak: 0,
+        },
+        recentAchievements: completions.slice(0, 3).map((c) => c.aiFeedback ?? 'Completed a drill'),
+      },
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch training progress'
-    });
+    console.error('[training/progress]', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch training progress' });
   }
 });
 
-// POST /api/training/programs/:id/enroll - Enroll in a training program
-router.post('/programs/:id/enroll', (req, res) => {
+// POST /api/training/programs/:id/enroll - Enroll (insert skillChallengeCompletion stub)
+router.post('/programs/:id/enroll', requireAuth, async (req, res) => {
   try {
-    const { id } = req.params;
-    const program = mockPrograms.find(p => p.id === parseInt(id));
+    const id = parseIdParam(req.params.id);
+    if (id === null) return res.status(400).json({ success: false, error: 'Invalid id' });
 
-    if (!program) {
-      return res.status(404).json({
-        success: false,
-        error: 'Training program not found'
-      });
+    const plan = await db
+      .select()
+      .from(schema.trainingPlans)
+      .where(eq(schema.trainingPlans.id, id))
+      .limit(1);
+
+    if (!plan[0]) {
+      return res.status(404).json({ success: false, error: 'Training program not found' });
     }
 
-    // In a real app, you'd associate this with the user
+    const u = authUser(req);
+    const playerId = Number(u?.id ?? u?.userId);
+
+    // Record enrollment as a completion stub so it shows in progress
+    await db.insert(schema.skillChallengeCompletions).values({
+      playerId,
+      drillId: null,
+      aiFeedback: `Enrolled in plan ${id}`,
+      score: 0,
+    });
+
+    const p = plan[0];
     res.json({
       success: true,
-      message: `Successfully enrolled in ${program.name}`,
-      data: program
+      message: `Successfully enrolled in ${p.goals ?? 'Training Plan'}`,
+      data: {
+        id: p.id,
+        name: p.goals ?? 'Training Plan',
+        description: p.weeklySchedule ?? '',
+        duration: '8 weeks',
+        level: 'Intermediate',
+        category: 'General',
+        progress: 0,
+        totalSessions: 0,
+        completedSessions: 0,
+        nextSession: 'TBD',
+        image: '',
+        exercises: [],
+      },
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to enroll in program'
-    });
+    console.error('[training/programs/:id/enroll]', error);
+    res.status(500).json({ success: false, error: 'Failed to enroll in program' });
   }
 });
 

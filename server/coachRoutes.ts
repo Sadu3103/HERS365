@@ -1,20 +1,48 @@
-// @ts-nocheck
 /**
  * Coach Scouting Portal — API Routes
  * All routes require coach role JWT token
  */
-import express from 'express';
+import express, { type Request } from 'express';
 import { db } from './db';
 import * as schema from './schema';
 import { eq, ilike, and, desc, sql } from 'drizzle-orm';
-import { requireCoach } from './auth';
-import { generatePredictiveAnalytics, AthleteData } from './rankingAlgorithm';
+import { requireCoach, type TokenPayload } from './auth';
+import { requireVerifiedCoach } from './middleware/requireVerifiedCoach';
 import { hasParentApprovedLink } from './api/messages';
+import { validateBody, validateParams } from './middleware/validate';
+import {
+  coachMessageBody,
+  coachMessageParams,
+  coachContactBody,
+  coachContactParams,
+  coachPlayerSaveBody,
+  coachPlayerNotesBody,
+  coachPlayerTierBody,
+  coachPlayerParams,
+  coachProfilePutBody,
+} from './middleware/safetySchemas';
+import { publicPlayerView } from './lib/playerPrivacy';
+import { moderateMessage } from './lib/moderation';
+import { eitherBlocked } from './lib/messageBlocks';
+import { messageRateLimit } from './middleware/messageRateLimit';
+import { parseIdParam } from './lib/parseIdParam';
+import { parseIntQuery, parseFloatQuery, clampIntQuery } from './lib/queryParam';
 
 const router = express.Router();
 
-// Apply coach middleware to ALL coach routes
+// All coach routes require a coach JWT AND a verified coach account. New
+// coach accounts land unverified and are blocked from search/messaging until
+// an admin clears them via /api/admin/coaches/verification.
 router.use(requireCoach);
+router.use(requireVerifiedCoach);
+
+// requireCoach + requireVerifiedCoach guarantee req.user is a coach payload
+// by the time any handler runs, but Express's Request type doesn't carry that
+// shape. Read it through here to get a typed userId without sprinkling casts.
+function coachUserId(req: Request): number {
+  const u = (req as Request & { user?: TokenPayload }).user;
+  return Number(u?.userId);
+}
 
 // ── Map a real DB player row → the scouting-card shape the coach UI expects ──
 // Identity, academics, and recruiting fields are real. The platform does not yet
@@ -74,6 +102,12 @@ function mapPlayerToScout(p: any) {
     committed: false,
     nilPoints: p.nilPoints ?? 0,
     avatarUrl: null,
+    // Surface the athlete's own profile photo so coach search cards aren't
+    // just initial bubbles. Falls back to null when the athlete hasn't uploaded.
+    profileImage: p.profileImage ?? null,
+    // Latest highlight thumbnail, populated by a post-query enrichment step
+    // below when the field exists. Null when the athlete has no highlights yet.
+    highlightThumbnailUrl: p.latestHighlightThumbnail ?? null,
   };
 }
 
@@ -90,8 +124,51 @@ router.get('/players/search', async (req, res) => {
     const {
       q, position, state, gradYear, minBreakoutScore, maxBreakoutScore,
       minGpa, maxGpa, minHeight, maxHeight, minWeight, maxWeight,
-      verified, archetype, limit = '25', offset = '0'
-    } = req.query as Record<string, string>;
+      verified, archetype, limit, offset,
+    } = req.query as Record<string, string | undefined>;
+
+    // Reject explicitly-bad numeric filters before they reach the DB. Without
+    // this guard `parseInt('abc')` lands NaN in eq(integer, …) and Postgres
+    // returns "invalid input syntax for type integer: NaN" as a 500.
+    const gradYearNum = gradYear ? parseIntQuery(gradYear) : null;
+    if (gradYear && gradYearNum === null) {
+      return res.status(400).json({ error: 'gradYear must be an integer' });
+    }
+    const minBreakoutScoreNum = minBreakoutScore ? parseIntQuery(minBreakoutScore) : null;
+    if (minBreakoutScore && minBreakoutScoreNum === null) {
+      return res.status(400).json({ error: 'minBreakoutScore must be an integer' });
+    }
+    const maxBreakoutScoreNum = maxBreakoutScore ? parseIntQuery(maxBreakoutScore) : null;
+    if (maxBreakoutScore && maxBreakoutScoreNum === null) {
+      return res.status(400).json({ error: 'maxBreakoutScore must be an integer' });
+    }
+    const minGpaNum = minGpa ? parseFloatQuery(minGpa) : null;
+    if (minGpa && minGpaNum === null) {
+      return res.status(400).json({ error: 'minGpa must be a number' });
+    }
+    const maxGpaNum = maxGpa ? parseFloatQuery(maxGpa) : null;
+    if (maxGpa && maxGpaNum === null) {
+      return res.status(400).json({ error: 'maxGpa must be a number' });
+    }
+    const minHeightNum = minHeight ? parseIntQuery(minHeight) : null;
+    if (minHeight && minHeightNum === null) {
+      return res.status(400).json({ error: 'minHeight must be an integer' });
+    }
+    const maxHeightNum = maxHeight ? parseIntQuery(maxHeight) : null;
+    if (maxHeight && maxHeightNum === null) {
+      return res.status(400).json({ error: 'maxHeight must be an integer' });
+    }
+    const minWeightNum = minWeight ? parseIntQuery(minWeight) : null;
+    if (minWeight && minWeightNum === null) {
+      return res.status(400).json({ error: 'minWeight must be an integer' });
+    }
+    const maxWeightNum = maxWeight ? parseIntQuery(maxWeight) : null;
+    if (maxWeight && maxWeightNum === null) {
+      return res.status(400).json({ error: 'maxWeight must be an integer' });
+    }
+
+    const limitNum = clampIntQuery(limit, { default: 25, min: 1, max: 100 });
+    const offsetNum = clampIntQuery(offset, { default: 0, min: 0, max: 100000 });
 
     // Build where conditions
     const conditions = [];
@@ -108,8 +185,8 @@ router.get('/players/search', async (req, res) => {
       conditions.push(eq(schema.players.state, state));
     }
 
-    if (gradYear) {
-      conditions.push(eq(schema.players.gradYear, parseInt(gradYear)));
+    if (gradYearNum !== null) {
+      conditions.push(eq(schema.players.gradYear, gradYearNum));
     }
 
     if (archetype) {
@@ -121,10 +198,43 @@ router.get('/players/search', async (req, res) => {
     }
 
     // Real data: query the platform roster, map each athlete to the scouting shape.
-    const rows = await db.select().from(schema.players)
+    const rowsRaw = await db.select().from(schema.players)
       .where(conditions.length ? and(...conditions) : undefined);
 
-    let results = rows
+    // Parent-controlled coach discoverability: when an athlete's parent has
+    // flipped profileVisibility=false the players.preferences JSON carries
+    // coachDiscoverable=false; hide those rows from the coach search. Unset
+    // or true keeps the existing behavior (default-preserving).
+    const rows = rowsRaw.filter((p) => {
+      const prefs = (p.preferences ?? {}) as Record<string, unknown>;
+      return prefs.coachDiscoverable !== false;
+    });
+
+    // Enrich with each athlete's most recent highlight thumbnail so the coach
+    // search cards aren't faceless. Single batched query, not an N+1.
+    const playerIds = rows.map((p) => p.id);
+    const thumbnailByPlayer = new Map<number, string>();
+    if (playerIds.length > 0) {
+      const highlights = await db
+        .select({
+          playerId: schema.playerHighlights.playerId,
+          thumbnailUrl: schema.playerHighlights.thumbnailUrl,
+          createdAt: schema.playerHighlights.createdAt,
+        })
+        .from(schema.playerHighlights)
+        .orderBy(desc(schema.playerHighlights.createdAt));
+      for (const h of highlights) {
+        if (h.playerId != null && h.thumbnailUrl && !thumbnailByPlayer.has(h.playerId)) {
+          thumbnailByPlayer.set(h.playerId, h.thumbnailUrl);
+        }
+      }
+    }
+    const rowsWithThumbs = rows.map((p) => ({
+      ...p,
+      latestHighlightThumbnail: thumbnailByPlayer.get(p.id) ?? null,
+    }));
+
+    let results = rowsWithThumbs
       .filter((p) => p.name && p.position) // skip incomplete / test rows
       .map(mapPlayerToScout);
 
@@ -135,11 +245,11 @@ router.get('/players/search', async (req, res) => {
     );
     if (position) results = results.filter(p => p.position === position);
     if (state) results = results.filter(p => p.state === state);
-    if (gradYear) results = results.filter(p => p.gradYear === parseInt(gradYear));
-    if (minBreakoutScore) results = results.filter(p => p.breakoutScore >= parseInt(minBreakoutScore));
-    if (maxBreakoutScore) results = results.filter(p => p.breakoutScore <= parseInt(maxBreakoutScore));
-    if (minGpa) results = results.filter(p => p.gpa >= parseFloat(minGpa));
-    if (maxGpa) results = results.filter(p => p.gpa <= parseFloat(maxGpa));
+    if (gradYearNum !== null) results = results.filter(p => p.gradYear === gradYearNum);
+    if (minBreakoutScoreNum !== null) results = results.filter(p => p.breakoutScore >= minBreakoutScoreNum);
+    if (maxBreakoutScoreNum !== null) results = results.filter(p => p.breakoutScore <= maxBreakoutScoreNum);
+    if (minGpaNum !== null) results = results.filter(p => p.gpa >= minGpaNum);
+    if (maxGpaNum !== null) results = results.filter(p => p.gpa <= maxGpaNum);
     if (archetype) results = results.filter(p => p.archetype === archetype);
     if (verified === 'true') results = results.filter(p => p.verified);
 
@@ -149,27 +259,25 @@ router.get('/players/search', async (req, res) => {
       return feet * 12 + (inches || 0);
     };
 
-    if (minHeight) {
-      const minInches = parseInt(minHeight);
-      results = results.filter(p => heightToInches(p.height) >= minInches);
+    if (minHeightNum !== null) {
+      results = results.filter(p => heightToInches(p.height) >= minHeightNum);
     }
-    if (maxHeight) {
-      const maxInches = parseInt(maxHeight);
-      results = results.filter(p => heightToInches(p.height) <= maxInches);
+    if (maxHeightNum !== null) {
+      results = results.filter(p => heightToInches(p.height) <= maxHeightNum);
     }
 
-    if (minWeight) results = results.filter(p => p.weight >= parseInt(minWeight));
-    if (maxWeight) results = results.filter(p => p.weight <= parseInt(maxWeight));
+    if (minWeightNum !== null) results = results.filter(p => p.weight >= minWeightNum);
+    if (maxWeightNum !== null) results = results.filter(p => p.weight <= maxWeightNum);
 
     // Sort by breakout score
     results.sort((a, b) => b.breakoutScore - a.breakoutScore);
 
-    const paginated = results.slice(parseInt(offset), parseInt(offset) + parseInt(limit));
+    const paginated = results.slice(offsetNum, offsetNum + limitNum);
 
     res.json({
       total: results.length,
-      limit: parseInt(limit),
-      offset: parseInt(offset),
+      limit: limitNum,
+      offset: offsetNum,
       players: paginated,
     });
   } catch (error) {
@@ -182,36 +290,51 @@ router.get('/players/search', async (req, res) => {
  * GET /coach/players/:id — Full unlocked athlete profile (coaches see everything)
  */
 router.get('/players/:id', async (req, res) => {
-  const id = parseInt(req.params.id);
-  const mockFull = {
-    id,
-    name: 'Aaliyah Thompson',
-    position: 'WR',
-    state: 'TX',
-    city: 'Dallas',
-    school: 'Westlake High',
-    gradYear: 2026,
-    height: '5\'8"',
-    weight: 135,
-    gpa: 3.8,
-    breakoutScore: 98,
-    stars: 5,
-    archetype: 'WR Speedster',
-    email: 'available@premium',
-    phone: 'available@premium',
-    parentContact: 'available@premium',
-    highlights: [
-      { title: 'Junior Season Full Game', url: 'https://youtube.com/...', locked: false },
-      { title: 'State Championship Highlights', url: 'https://youtube.com/...', locked: false },
-    ],
-    stats: { receptions: 64, receivingYards: 1204, receivingTouchdowns: 18, ydsPerCatch: 18.8, gamesPlayed: 12 },
-    combineStats: { fortyYard: '4.52', vertical: 36, broadJump: 118, shuttle: '4.15', verified: true },
-    academicProfile: { gpa: 3.8, act: 27, sat: 1280, major: 'Sports Medicine' },
-    offers: ['TCU', 'Baylor', 'UTSA', 'Rice'],
-    committed: false,
-    nilPoints: 4200,
-  };
-  res.json(mockFull);
+  try {
+    const id = parseIdParam(req.params.id);
+    if (id === null) return res.status(400).json({ error: 'Invalid id' });
+
+    const [player] = await db.select().from(schema.players).where(eq(schema.players.id, id));
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+
+    // Parent-controlled coach discoverability. When the linked parent flips
+    // profileVisibility=false the athlete's preferences.coachDiscoverable is
+    // set to false (see server/api/parent.ts PUT /settings). Mirror the gate
+    // already enforced on /coach/players/search and /api/athletes/:id so a
+    // coach who knows the id (saved earlier, prior message, guessed) cannot
+    // pull the full unlocked profile after the parent hides the athlete.
+    const prefs = (player.preferences ?? {}) as Record<string, unknown>;
+    if (prefs.coachDiscoverable === false) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    // Directive 1: coaches don't get a minor's phone/email/dob/address even
+    // on the "unlocked" detail page. The parent gate (parent-approved
+    // message link) is the only path to contact info.
+    const safe = publicPlayerView(player) as Record<string, unknown>;
+
+    const combine = await db.select().from(schema.combineStats)
+      .where(eq(schema.combineStats.playerId, id))
+      .orderBy(desc(schema.combineStats.id))
+      .limit(1);
+
+    res.json({
+      ...safe,
+      stars: safe.g5Rating,
+      offers: safe.collegeOffers ?? [],
+      combineStats: combine[0] ? {
+        fortyYard: combine[0].fortyDash,
+        vertical: combine[0].vertical,
+        broadJump: combine[0].broadJump,
+        shuttle: combine[0].shuttle,
+        verified: false,
+      } : null,
+      highlights: [],
+    });
+  } catch (error) {
+    console.error('Player profile fetch failed:', error);
+    res.status(500).json({ error: 'Failed to fetch player profile' });
+  }
 });
 
 // ─── Scouting Board ───────────────────────────────────────────────────────────
@@ -221,7 +344,7 @@ router.get('/players/:id', async (req, res) => {
  */
 router.get('/board', async (req, res) => {
   try {
-    const coachId = req.user.userId;
+    const coachId = coachUserId(req);
 
     const board = await db.select()
       .from(schema.coachProspects)
@@ -238,10 +361,11 @@ router.get('/board', async (req, res) => {
 /**
  * POST /coach/players/:id/save — Add player to scouting board
  */
-router.post('/players/:id/save', async (req, res) => {
+router.post('/players/:id/save', validateParams(coachPlayerParams), validateBody(coachPlayerSaveBody), async (req, res) => {
   try {
-    const coachId = req.user.userId;
-    const playerId = parseInt(req.params.id);
+    const coachId = coachUserId(req);
+    const playerId = parseIdParam(req.params.id);
+    if (playerId === null) return res.status(400).json({ error: 'Invalid id' });
     const { tier = 'watching' } = req.body; // tiers: 'top-target' | 'watching' | 'offered'
 
     // Check if already exists
@@ -288,10 +412,11 @@ router.post('/players/:id/save', async (req, res) => {
 /**
  * DELETE /coach/players/:id/save — Remove from scouting board
  */
-router.delete('/players/:id/save', async (req, res) => {
+router.delete('/players/:id/save', validateParams(coachPlayerParams), async (req, res) => {
   try {
-    const coachId = req.user.userId;
-    const playerId = parseInt(req.params.id);
+    const coachId = coachUserId(req);
+    const playerId = parseIdParam(req.params.id);
+    if (playerId === null) return res.status(400).json({ error: 'Invalid id' });
 
     await db.delete(schema.coachProspects)
       .where(and(
@@ -309,10 +434,11 @@ router.delete('/players/:id/save', async (req, res) => {
 /**
  * PATCH /coach/players/:id/notes — Update notes for a player on scouting board
  */
-router.patch('/players/:id/notes', async (req, res) => {
+router.patch('/players/:id/notes', validateParams(coachPlayerParams), validateBody(coachPlayerNotesBody), async (req, res) => {
   try {
-    const coachId = req.user.userId;
-    const playerId = parseInt(req.params.id);
+    const coachId = coachUserId(req);
+    const playerId = parseIdParam(req.params.id);
+    if (playerId === null) return res.status(400).json({ error: 'Invalid id' });
     const { notes } = req.body;
 
     await db.update(schema.coachProspects)
@@ -332,10 +458,11 @@ router.patch('/players/:id/notes', async (req, res) => {
 /**
  * PATCH /coach/players/:id/tier — Update tier for a player on scouting board
  */
-router.patch('/players/:id/tier', async (req, res) => {
+router.patch('/players/:id/tier', validateParams(coachPlayerParams), validateBody(coachPlayerTierBody), async (req, res) => {
   try {
-    const coachId = req.user.userId;
-    const playerId = parseInt(req.params.id);
+    const coachId = coachUserId(req);
+    const playerId = parseIdParam(req.params.id);
+    if (playerId === null) return res.status(400).json({ error: 'Invalid id' });
     const { tier } = req.body;
 
     const validTiers = ['top-target', 'watching', 'offered'];
@@ -360,16 +487,89 @@ router.patch('/players/:id/tier', async (req, res) => {
 // ─── Messaging ────────────────────────────────────────────────────────────────
 
 /**
+ * POST /coach/contact/:athleteId — Initiate a contact request to an athlete.
+ * Creates a pending message_request visible to the athlete's linked parents.
+ * Idempotent: re-submitting while a pending request already exists is a no-op
+ * that still returns 201 (safe to retry from the UI without spamming the parent).
+ */
+router.post('/contact/:athleteId', messageRateLimit, validateParams(coachContactParams), validateBody(coachContactBody), async (req, res) => {
+  try {
+    const coachId = coachUserId(req);
+    const athleteId = parseIdParam(req.params.athleteId);
+    if (athleteId === null) return res.status(400).json({ success: false, error: 'Invalid athlete id' });
+
+    const [athlete] = await db
+      .select({ id: schema.players.id, preferences: schema.players.preferences })
+      .from(schema.players)
+      .where(eq(schema.players.id, athleteId))
+      .limit(1);
+    if (!athlete) return res.status(404).json({ success: false, error: 'Athlete not found' });
+
+    const prefs = (athlete.preferences ?? {}) as Record<string, unknown>;
+    if (prefs.coachDiscoverable === false) {
+      return res.status(403).json({ success: false, error: 'Forbidden' });
+    }
+
+    const existing = await db
+      .select({ id: schema.messageRequests.id })
+      .from(schema.messageRequests)
+      .where(and(
+        eq(schema.messageRequests.athleteId, athleteId),
+        eq(schema.messageRequests.receiverId, coachId),
+        eq(schema.messageRequests.status, 'pending'),
+      ))
+      .limit(1);
+    if (existing.length > 0) {
+      return res.status(201).json({ success: true, data: { id: existing[0].id, status: 'pending' } });
+    }
+
+    const { message } = req.body;
+    const verdict = await moderateMessage(String(message));
+    if (!verdict.allowed) {
+      return res.status(422).json({ success: false, error: "Your message couldn't be sent. Please revise and try again." });
+    }
+
+    const [row] = await db
+      .insert(schema.messageRequests)
+      .values({ athleteId, receiverId: coachId, content: message, status: 'pending' })
+      .returning();
+
+    res.status(201).json({ success: true, data: { id: row.id, status: 'pending' } });
+  } catch (error) {
+    console.error('[coach/contact] failed:', error);
+    res.status(500).json({ success: false, error: 'Failed to send contact request' });
+  }
+});
+
+/**
  * POST /coach/message/:playerId — Send a message to an athlete
  */
-router.post('/message/:playerId', async (req, res) => {
+router.post('/message/:playerId', messageRateLimit, validateParams(coachMessageParams), validateBody(coachMessageBody), async (req, res) => {
   try {
     const { message } = req.body;
-    const coachId = req.user.userId;
-    const playerId = parseInt(req.params.playerId);
+    const coachId = coachUserId(req);
+    const playerId = parseIdParam(req.params.playerId);
+    if (playerId === null) return res.status(400).json({ success: false, error: 'Invalid id' });
 
     if (!(await hasParentApprovedLink(playerId, coachId))) {
       return res.status(403).json({ success: false, error: 'Messaging requires a parent-approved contact request' });
+    }
+
+    // Block gate runs after the parent-approval check (so a coach with no
+    // contact link still gets the more specific 403) and before moderation
+    // (so a blocked coach doesn't burn an OpenAI call on a message that
+    // would never land). Either party blocking stops messaging.
+    if (await eitherBlocked(coachId, 'coach', playerId, 'athlete')) {
+      return res.status(403).json({ success: false, error: 'This conversation is unavailable.' });
+    }
+
+    const verdict = await moderateMessage(String(message));
+    if (!verdict.allowed) {
+      console.warn('[coach/message] rejected by moderation', { reason: verdict.reason, coachId, playerId });
+      return res.status(422).json({
+        success: false,
+        error: "Your message couldn't be sent. Please revise and try again.",
+      });
     }
 
     const newMessage = await db.insert(schema.messages).values({
@@ -393,7 +593,7 @@ router.post('/message/:playerId', async (req, res) => {
  */
 router.get('/messages', async (req, res) => {
   try {
-    const coachId = req.user.userId;
+    const coachId = coachUserId(req);
 
     const messages = await db.select({
       id: schema.messages.id,
@@ -428,7 +628,7 @@ router.get('/messages', async (req, res) => {
   */
 router.get('/analytics', async (req, res) => {
   try {
-    const coachId = req.user.userId;
+    const coachId = coachUserId(req);
 
     // Get board count
     const boardCount = await db.select({ count: sql<number>`count(*)` })
@@ -440,17 +640,24 @@ router.get('/analytics', async (req, res) => {
       .from(schema.messages)
       .where(eq(schema.messages.coachId, coachId));
 
-    // For now, using mock data for other metrics
+    const playersContacted = await db.select({ count: sql<number>`count(*)` })
+      .from(schema.messageRequests)
+      .where(eq(schema.messageRequests.receiverId, coachId));
+
+    const topStateRows = await db
+      .select({ state: schema.players.state, count: sql<number>`count(*)` })
+      .from(schema.coachProspects)
+      .innerJoin(schema.players, eq(schema.players.id, schema.coachProspects.athleteId))
+      .where(eq(schema.coachProspects.coachId, coachId))
+      .groupBy(schema.players.state)
+      .orderBy(desc(sql`count(*)`))
+      .limit(4);
+
     res.json({
       boardCount: boardCount[0]?.count || 0,
       messagesSent: messagesSent[0]?.count || 0,
-      profileViews: 47, // mock
-      topStates: ['TX', 'FL', 'CA', 'GA'],
-      recentlyViewed: [1, 2, 3],
-      searchQueries: 23, // mock
-      playersContacted: 18, // mock
-      offersExtended: 5, // mock
-      commitsReceived: 2, // mock
+      playersContacted: playersContacted[0]?.count || 0,
+      topStates: topStateRows.map(r => r.state).filter(Boolean),
     });
   } catch (error) {
     console.error('Failed to fetch analytics:', error);
@@ -461,134 +668,61 @@ router.get('/analytics', async (req, res) => {
 /**
   * GET /coach/player-clips — Get player highlight clips
   */
-router.get('/player-clips', (req, res) => {
-  const clips = [
-    {
-      id: 1,
-      playerId: 1,
-      name: 'Aaliyah Thompson',
-      position: 'WR',
-      school: 'Westlake High',
-      state: 'TX',
-      gradYear: 2026,
-      stars: 5,
-      breakoutScore: 98,
-      clipUrl: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=600&auto=format&fit=crop',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=600&auto=format&fit=crop',
-      title: 'One-handed catch in double coverage 🤯 #StateChamps',
-      views: 1245,
-      likes: 234,
-      shares: 45,
-      measurements: {
-        height: '5\'8"',
-        weight: '135 lbs',
-        fortyYard: '4.52',
-        vertical: '36"',
-        broadJump: '118"'
-      },
-      stats: {
-        receptions: 64,
-        receivingYards: 1204,
-        receivingTouchdowns: 18
-      },
-      verified: true,
-      createdAt: '2024-05-15T14:30:00Z'
-    },
-    {
-      id: 2,
-      playerId: 2,
-      name: 'Jordan Davis',
-      position: 'QB',
-      school: 'Miami Southridge',
-      state: 'FL',
-      gradYear: 2026,
-      stars: 5,
-      breakoutScore: 95,
-      clipUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=600&auto=format&fit=crop',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=600&auto=format&fit=crop',
-      title: 'Testing the deep ball at Elite11 regional camp 🚀',
-      views: 987,
-      likes: 189,
-      shares: 32,
-      measurements: {
-        height: '5\'10"',
-        weight: '145 lbs',
-        fortyYard: '4.65',
-        vertical: '31"',
-        broadJump: '110"'
-      },
-      stats: {
-        passingYards: 2840,
-        passingTouchdowns: 32,
-        passingInterceptions: 4
-      },
-      verified: true,
-      createdAt: '2024-05-14T16:45:00Z'
-    },
-    {
-      id: 3,
-      playerId: 3,
-      name: 'Maya Rodriguez',
-      position: 'CB',
-      school: 'Crenshaw High',
-      state: 'CA',
-      gradYear: 2027,
-      stars: 4,
-      breakoutScore: 89,
-      clipUrl: 'https://images.unsplash.com/photo-1605296867304-46d5465a13f1?q=80&w=600&auto=format&fit=crop',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1605296867304-46d5465a13f1?q=80&w=600&auto=format&fit=crop',
-      title: 'Lockdown coverage at the 7on7 tournament 🔒',
-      views: 756,
-      likes: 145,
-      shares: 28,
-      measurements: {
-        height: '5\'7"',
-        weight: '128 lbs',
-        fortyYard: '4.58',
-        vertical: '34"',
-        broadJump: '115"'
-      },
-      stats: {
-        flagPulls: 48,
-        interceptions: 8
-      },
-      verified: false,
-      createdAt: '2024-05-13T18:20:00Z'
-    },
-    {
-      id: 4,
-      playerId: 4,
-      name: 'Destiny Williams',
-      position: 'RB',
-      school: 'Westlake HS (GA)',
-      state: 'GA',
-      gradYear: 2026,
-      stars: 4,
-      breakoutScore: 84,
-      clipUrl: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=600&auto=format&fit=crop',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=600&auto=format&fit=crop',
-      title: '40-yard reverse for the game-winner! 🏃‍♀️💨',
-      views: 1567,
-      likes: 289,
-      shares: 67,
-      measurements: {
-        height: '5\'5"',
-        weight: '130 lbs',
-        fortyYard: '4.71',
-        vertical: '29"',
-        broadJump: '105"'
-      },
-      stats: {
-        rushingYards: 934,
-        rushingTouchdowns: 12,
-        rushingAttempts: 98
-      },
-      verified: true,
-      createdAt: '2024-05-12T19:15:00Z'
-    }
-  ];
+router.get('/player-clips', async (req, res) => {
+  try {
+    // Real discovery feed for the coach dashboard. Mirrors /players/search:
+    // the live roster mapped to the scouting shape, gated by the parent
+    // controlled coachDiscoverable flag, sorted by rating so the strongest
+    // prospects surface first. Replaces the old hardcoded sample so the
+    // dashboard is consistent with search and never shows athletes who are
+    // not in the database.
+    const rowsRaw = await db.select().from(schema.players);
+    const rows = rowsRaw.filter((p) => {
+      const prefs = (p.preferences ?? {}) as Record<string, unknown>;
+      return prefs.coachDiscoverable !== false && p.name && p.position;
+    });
 
-  res.json({ clips });
+    const thumbnailByPlayer = new Map<number, string>();
+    if (rows.length > 0) {
+      const highlights = await db
+        .select({
+          playerId: schema.playerHighlights.playerId,
+          thumbnailUrl: schema.playerHighlights.thumbnailUrl,
+          createdAt: schema.playerHighlights.createdAt,
+        })
+        .from(schema.playerHighlights)
+        .orderBy(desc(schema.playerHighlights.createdAt));
+      for (const h of highlights) {
+        if (h.playerId != null && h.thumbnailUrl && !thumbnailByPlayer.has(h.playerId)) {
+          thumbnailByPlayer.set(h.playerId, h.thumbnailUrl);
+        }
+      }
+    }
+
+    const clips = rows
+      .map((p) => mapPlayerToScout({ ...p, latestHighlightThumbnail: thumbnailByPlayer.get(p.id) ?? null }))
+      .sort((a, b) => b.stars - a.stars || b.breakoutScore - a.breakoutScore)
+      .slice(0, 12)
+      .map((s) => ({
+        id: s.id,
+        playerId: s.id,
+        name: s.name,
+        position: s.position,
+        school: s.school,
+        state: s.state,
+        gradYear: s.gradYear,
+        stars: s.stars,
+        breakoutScore: s.breakoutScore,
+        verified: s.verified,
+        title: s.archetype && s.archetype !== '\u2014' ? s.archetype : `${s.position} \u00b7 ${s.school}`,
+        thumbnailUrl: s.highlightThumbnailUrl || s.profileImage || '',
+      }));
+
+    res.json({ clips });
+  } catch (error) {
+    console.error('Failed to fetch player clips:', error);
+    res.status(500).json({ error: 'Failed to fetch player clips' });
+  }
 });
 
 /**
@@ -596,7 +730,7 @@ router.get('/player-clips', (req, res) => {
  */
 router.get('/profile', async (req, res) => {
   try {
-    const coachId = req.user?.id;
+    const coachId = coachUserId(req);
     if (!coachId) return res.status(401).json({ error: 'Unauthorized' });
 
     const rows = await db.select().from(schema.coaches).where(eq(schema.coaches.id, coachId)).limit(1);
@@ -612,9 +746,9 @@ router.get('/profile', async (req, res) => {
 /**
  * PUT /coach/profile — Update the authenticated coach's own profile
  */
-router.put('/profile', async (req, res) => {
+router.put('/profile', validateBody(coachProfilePutBody), async (req, res) => {
   try {
-    const coachId = req.user?.id;
+    const coachId = coachUserId(req);
     if (!coachId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { name, university, division, recruitingPositions, recruitingStates } = req.body || {};
