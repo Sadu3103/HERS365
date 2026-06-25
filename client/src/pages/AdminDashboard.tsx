@@ -31,7 +31,7 @@ export const AdminDashboard = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = JSON.parse(localStorage.getItem('user') || '{}').token ?? '';
+    const token = localStorage.getItem('token') ?? '';
     const headers = { Authorization: `Bearer ${token}` };
 
     Promise.all([
