@@ -22,6 +22,12 @@ const UPDATABLE_FIELDS = [
   'segment', 'skillTier', 'privacySetting',
 ];
 const INT_FIELDS = new Set(['age', 'gradYear']);
+const COMBINE_FIELDS = ['season', 'fortyDash', 'shuttle', 'vertical', 'broadJump', 'threeCone'];
+
+function coerceNullableString(value: unknown) {
+  if (value === undefined || value === null || value === '') return null;
+  return String(value);
+}
 
 // GET /api/athletes — real DB list with optional filters
 router.get('/', async (req, res) => {
