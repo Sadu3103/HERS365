@@ -27,6 +27,7 @@ import { eitherBlocked } from './lib/messageBlocks';
 import { messageRateLimit } from './middleware/messageRateLimit';
 import { parseIdParam } from './lib/parseIdParam';
 import { parseIntQuery, parseFloatQuery, clampIntQuery } from './lib/queryParam';
+import { recordCoachEvent } from './lib/coachEvents';
 
 const router = express.Router();
 
@@ -276,6 +277,15 @@ router.get('/players/search', async (req, res) => {
 
     const paginated = results.slice(offsetNum, offsetNum + limitNum);
 
+    recordCoachEvent(coachUserId(req), 'search_run', {
+      query: q ?? null,
+      position: position ?? null,
+      state: state ?? null,
+      gradYear: gradYearNum,
+      archetype: archetype ?? null,
+      resultCount: results.length,
+    });
+
     res.json({
       total: results.length,
       limit: limitNum,
@@ -319,6 +329,8 @@ router.get('/players/:id', async (req, res) => {
       .where(eq(schema.combineStats.playerId, id))
       .orderBy(desc(schema.combineStats.id))
       .limit(1);
+
+    recordCoachEvent(coachUserId(req), 'player_viewed', { playerId: id });
 
     res.json({
       ...safe,
