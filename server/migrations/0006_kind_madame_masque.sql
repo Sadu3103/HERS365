@@ -1,0 +1,1 @@
+ALTER TABLE "players" ADD COLUMN "email_verified" boolean DEFAULT true NOT NULL;

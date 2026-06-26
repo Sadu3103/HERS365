@@ -57,6 +57,29 @@ export async function sendPasswordResetEmail(to: string, resetToken: string) {
   });
 }
 
+export async function sendVerificationEmail(to: string, token: string) {
+  const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email?token=${token}`;
+  return sendEmail({
+    to,
+    subject: 'Confirm your H.E.R.S.365 email',
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0f0f0f; padding: 32px; border-radius: 12px;">
+        <h1 style="color: #ff6b35; font-size: 24px; margin-bottom: 8px;">H.E.R.S.365</h1>
+        <h2 style="color: #ffffff; font-size: 20px; margin-bottom: 16px;">Confirm your email address</h2>
+        <p style="color: #aaaaaa; margin-bottom: 24px;">
+          One more step — confirm your email so coaches can find you in search.
+        </p>
+        <a href="${verifyUrl}" style="display: inline-block; background: #ff6b35; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; margin-bottom: 24px;">
+          Confirm Email
+        </a>
+        <p style="color: #666666; font-size: 12px; margin-top: 24px;">
+          This link expires in 24 hours. If you did not sign up, ignore this email.
+        </p>
+      </div>
+    `,
+  });
+}
+
 export async function sendWelcomeEmail(to: string, name: string) {
   return sendEmail({
     to,

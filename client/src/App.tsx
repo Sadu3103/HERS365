@@ -12,6 +12,7 @@ import { Auth } from './pages/Auth';
 import { AuthCallback } from './pages/AuthCallback';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { ResetPassword } from './pages/ResetPassword';
+import { VerifyEmail } from './pages/VerifyEmail';
 import { Subscription } from './pages/Subscription';
 import { Audit } from './pages/Audit';
 import { Privacy } from './pages/Privacy';
@@ -216,6 +217,7 @@ function App() {
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
 
             {/* Athlete onboarding (full-screen, no nav chrome) */}
             <Route path="/onboarding" element={<Onboarding />} />
