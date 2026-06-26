@@ -13,16 +13,15 @@ const BODY  = "'DM Sans', sans-serif";
 export function VerifyEmail() {
   const [params] = useSearchParams();
   const navigate  = useNavigate();
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [message, setMessage] = useState('');
+  const token = params.get('token');
+  // Derive the missing-token error state during render so we never synchronously
+  // setState from inside the effect — that pattern triggers a cascading render
+  // and the react-compiler lint rule blocks it.
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(token ? 'loading' : 'error');
+  const [message, setMessage] = useState(token ? '' : 'Verification link is missing a token. Check the link in your email.');
 
   useEffect(() => {
-    const token = params.get('token');
-    if (!token) {
-      setStatus('error');
-      setMessage('Verification link is missing a token. Check the link in your email.');
-      return;
-    }
+    if (!token) return;
     apiFetch('/api/auth/email/verify-email', {
       method: 'POST',
       body: JSON.stringify({ token }),
@@ -35,7 +34,7 @@ export function VerifyEmail() {
         setStatus('error');
         setMessage(errorMessage(err, 'Verification link is invalid or expired.'));
       });
-  }, [params]);
+  }, [token]);
 
   return (
     <div style={{
