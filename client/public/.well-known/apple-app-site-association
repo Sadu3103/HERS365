@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAMID.com.hers365.app",
+        "paths": ["/feed", "/profile/*", "/rankings", "/recruiting", "/coach/*", "/reels", "/events", "/training", "/teams", "/auth/callback"]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["TEAMID.com.hers365.app"]
+  }
+}

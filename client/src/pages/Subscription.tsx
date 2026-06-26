@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, Zap, Star, Shield, ArrowRight, Flame } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 
 const FLAME = '#ff5a2d';
 const INK = '#0a0a0a';
@@ -80,6 +81,10 @@ export const Subscription = () => {
   const [hoveredPlan, setHoveredPlan] = useState<number | null>(null);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  // Apple's IAP guideline 3.1.1 forbids in-app paid digital purchases that
+  // route through anything other than IAP. On native iOS we route the user
+  // to the web checkout in Safari instead of opening Stripe in WKWebView.
+  const isNativePlatform = Capacitor.isNativePlatform();
 
   const cancelledMsg = searchParams.get('subscription') === 'cancelled'
     ? 'Checkout cancelled — no charge was made.'
@@ -243,38 +248,71 @@ export const Subscription = () => {
                 </ul>
 
                 {/* CTA */}
-                <motion.button
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => handleSelect(plan)}
-                  disabled={isBusy}
-                  style={{
-                    width: '100%',
-                    padding: '13px 20px',
-                    borderRadius: 10,
-                    border: isPro ? 'none' : `1px solid ${LINE}`,
-                    background: isPro ? FLAME : plan.price === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(167,139,250,0.12)',
-                    color: '#fff',
-                    fontFamily: DISP,
-                    fontWeight: 800,
-                    fontSize: '0.9rem',
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    cursor: isBusy ? 'not-allowed' : 'pointer',
-                    opacity: isBusy ? 0.6 : 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                    boxShadow: isPro ? '0 8px 24px rgba(255,90,45,.35)' : 'none',
-                    transition: 'box-shadow 0.2s',
-                  }}
-                >
-                  {isBusy ? (
-                    <><span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', animation: 'spin 0.8s linear infinite' }} />Redirecting…</>
-                  ) : (
-                    <>{plan.price === 0 ? 'Start Free' : `Get ${plan.name}`}<ArrowRight size={15} /></>
-                  )}
-                </motion.button>
+                {isNativePlatform && plan.price > 0 ? (
+                  <motion.button
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => window.open('https://hers365.vercel.app/subscribe', '_system')}
+                    style={{
+                      width: '100%',
+                      padding: '13px 20px',
+                      borderRadius: 10,
+                      border: isPro ? 'none' : `1px solid ${LINE}`,
+                      background: isPro ? FLAME : 'rgba(167,139,250,0.12)',
+                      color: '#fff',
+                      fontFamily: DISP,
+                      fontWeight: 800,
+                      fontSize: '0.9rem',
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 2,
+                      boxShadow: isPro ? '0 8px 24px rgba(255,90,45,.35)' : 'none',
+                      transition: 'box-shadow 0.2s',
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      Subscribe at hers365.com<ArrowRight size={15} />
+                    </span>
+                    <span style={{ fontSize: '0.62rem', fontWeight: 600, letterSpacing: '0.08em', opacity: 0.8 }}>Opens in Safari</span>
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => handleSelect(plan)}
+                    disabled={isBusy}
+                    style={{
+                      width: '100%',
+                      padding: '13px 20px',
+                      borderRadius: 10,
+                      border: isPro ? 'none' : `1px solid ${LINE}`,
+                      background: isPro ? FLAME : plan.price === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(167,139,250,0.12)',
+                      color: '#fff',
+                      fontFamily: DISP,
+                      fontWeight: 800,
+                      fontSize: '0.9rem',
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      cursor: isBusy ? 'not-allowed' : 'pointer',
+                      opacity: isBusy ? 0.6 : 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      boxShadow: isPro ? '0 8px 24px rgba(255,90,45,.35)' : 'none',
+                      transition: 'box-shadow 0.2s',
+                    }}
+                  >
+                    {isBusy ? (
+                      <><span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', animation: 'spin 0.8s linear infinite' }} />Redirecting…</>
+                    ) : (
+                      <>{plan.price === 0 ? 'Start Free' : `Get ${plan.name}`}<ArrowRight size={15} /></>
+                    )}
+                  </motion.button>
+                )}
               </motion.div>
             );
           })}

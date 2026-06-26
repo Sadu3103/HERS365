@@ -61,6 +61,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { NotificationProvider } from './context/NotificationContext';
 import { AuthProvider } from './context/AuthContext';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 const queryClient = new QueryClient();
 
 // Scroll to top on route change, or to the hash target when one is present.
@@ -158,6 +160,33 @@ function CoachRouteGuard({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let cleanup: (() => void) | undefined;
+
+    (async () => {
+      const { StatusBar, Style } = await import('@capacitor/status-bar');
+      const { Keyboard, KeyboardResize } = await import('@capacitor/keyboard');
+
+      await StatusBar.setStyle({ style: Style.Dark });
+      if (Capacitor.getPlatform() === 'ios') {
+        await StatusBar.setBackgroundColor({ color: '#0a0a0a' }).catch(() => {});
+      }
+
+      await Keyboard.setResizeMode({ mode: KeyboardResize.Body });
+
+      const backListener = await CapApp.addListener('backButton', ({ canGoBack }) => {
+        if (!canGoBack) CapApp.minimizeApp();
+        else window.history.back();
+      });
+
+      cleanup = () => { backListener.remove(); };
+    })();
+
+    return () => { cleanup?.(); };
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
