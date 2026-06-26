@@ -900,3 +900,58 @@ export const programApplications = pgTable('program_applications', {
   createdAt: timestamp('created_at').default(sql`now()`),
 });
 
+// ── Recruiting feature tables (extends the existing `teams` table) ───────────
+
+export const programDetails = pgTable('program_details', {
+  id: serial('id').primaryKey(),
+  teamId: integer('team_id').references(() => teams.id).unique().notNull(),
+  websiteUrl: text('website_url'),
+  hasScholarships: boolean('has_scholarships'),
+  minGpa: text('min_gpa'),
+  rosterNeeds: jsonb('roster_needs'),
+  athleticBenchmarks: jsonb('athletic_benchmarks'),
+  eligibilityNotes: text('eligibility_notes'),
+  majorsList: jsonb('majors_list'),
+  graduationRate: text('graduation_rate'),
+  studentAthleteSupportNotes: text('student_athlete_support_notes'),
+  conferenceStandings: jsonb('conference_standings'),
+  lastScrapedAt: timestamp('last_scraped_at'),
+  scrapedDataRaw: jsonb('scraped_data_raw'),
+  updatedAt: timestamp('updated_at').default(sql`now()`),
+});
+
+export const programStaff = pgTable('program_staff', {
+  id: serial('id').primaryKey(),
+  teamId: integer('team_id').references(() => teams.id).notNull(),
+  name: text('name').notNull(),
+  title: text('title').notNull(),
+  email: text('email'),
+  phone: text('phone'),
+  scrapedAt: timestamp('scraped_at').default(sql`now()`),
+  scrapedFrom: text('scraped_from'),
+});
+
+export const commitmentStories = pgTable('commitment_stories', {
+  id: serial('id').primaryKey(),
+  athleteId: integer('athlete_id').references(() => players.id),
+  athleteName: text('athlete_name').notNull(),
+  position: text('position'),
+  commitmentSchool: text('commitment_school').notNull(),
+  commitmentDivision: text('commitment_division'),
+  gradYear: integer('grad_year'),
+  storyText: text('story_text'),
+  imageUrl: text('image_url'),
+  tags: jsonb('tags'),
+  approved: boolean('approved').default(false),
+  createdAt: timestamp('created_at').default(sql`now()`),
+});
+
+export const profileViews = pgTable('profile_views', {
+  id: serial('id').primaryKey(),
+  athleteId: integer('athlete_id').references(() => players.id).notNull(),
+  viewerType: text('viewer_type').notNull(),
+  viewerName: text('viewer_name'),
+  viewerCoachId: integer('viewer_coach_id').references(() => coaches.id),
+  viewedAt: timestamp('viewed_at').default(sql`now()`),
+});
+

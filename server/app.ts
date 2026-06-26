@@ -19,6 +19,7 @@ import { coachesRouter } from './api/coaches';
 import { parentRouter } from './api/parent';
 import eventRouter from './eventRoutes';
 import { scholarshipsRouter } from './api/scholarships';
+import { storiesRouter } from './api/stories';
 import { followsRouter } from './api/follows';
 import { badgesRouter } from './api/badges';
 import { faqsRouter } from './api/faqs';
@@ -71,6 +72,7 @@ export function createApp() {
   app.use('/api/admin/data', adminStatsRouter);
   app.use('/api/events', eventRouter);
   app.use('/api/scholarships', scholarshipsRouter);
+  app.use('/api/stories', storiesRouter);
   app.use('/api/follows', followsRouter);
   app.use('/api/badges', badgesRouter);
   app.use('/api/faqs', faqsRouter);
