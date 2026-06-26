@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, ChevronRight, Plus, CheckCircle2, Shield } from 'lucide-react';
 import { athleteAvatar } from '../lib/avatar';
+import { useAuth } from '../context/AuthContext';
 
 const teams = [
   {
@@ -20,7 +21,7 @@ const teams = [
     pointsFor: 412,
     pointsAgainst: 198,
     roster: [
-      { name: 'Sarah Watkins', pos: 'QB', score: 95, verified: true },
+      { name: 'Featured Athlete', pos: 'QB', score: 95, verified: true },
       { name: 'Maya Johnson',  pos: 'WR', score: 92, verified: true },
       { name: 'Chloe Zhang',   pos: 'RB', score: 90, verified: true },
       { name: 'Ava Mitchell',  pos: 'LB', score: 89, verified: true },
@@ -83,11 +84,21 @@ function Avatar({ name, size = 36 }: { name: string; size?: number }) {
 }
 
 export const Teams = () => {
+  const { user } = useAuth();
   const [selected, setSelected] = useState<number | null>(1);
   const [division, setDivision] = useState('All');
 
-  const filtered = teams.filter(t => division === 'All' || t.division === division);
-  const activeTeam = teams.find(t => t.id === selected) ?? teams[0];
+  const teamsWithUser = useMemo(() => {
+    if (!user?.name) return teams;
+    return teams.map(t =>
+      t.id === 1
+        ? { ...t, roster: t.roster.map((p, i) => (i === 0 ? { ...p, name: user.name } : p)) }
+        : t,
+    );
+  }, [user]);
+
+  const filtered = teamsWithUser.filter(t => division === 'All' || t.division === division);
+  const activeTeam = teamsWithUser.find(t => t.id === selected) ?? teamsWithUser[0];
 
   return (
     <div style={{ padding: '24px', maxWidth: 1100, margin: '0 auto' }}>

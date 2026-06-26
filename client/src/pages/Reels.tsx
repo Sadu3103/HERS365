@@ -5,6 +5,7 @@ import {
   Play, Pause, ChevronUp, ChevronDown, Flame,
 } from 'lucide-react';
 import { athleteAvatar } from '../lib/avatar';
+import { useAuth } from '../context/AuthContext';
 
 const FLAME_C = '#ff5a2d';
 const INK = '#0a0a0a';
@@ -40,7 +41,7 @@ interface ReelApiRow {
 }
 
 const SEED: Reel[] = [
-  { id: 1, playerName: 'Sarah Watkins', playerSchool: 'Westlake HS, TX', playerPos: 'QB', caption: 'Dropping dimes in the red zone 🏈 #FlagFootball #HERS365', videoUrl: null, thumbUrl: '', likes: 1240, comments: 84, isLiked: false, isSaved: false, tag: 'Highlight' },
+  { id: 1, playerName: 'Featured Athlete', playerSchool: 'Westlake HS, TX', playerPos: 'QB', caption: 'Dropping dimes in the red zone 🏈 #FlagFootball #HERS365', videoUrl: null, thumbUrl: '', likes: 1240, comments: 84, isLiked: false, isSaved: false, tag: 'Highlight' },
   { id: 2, playerName: 'Maya Johnson', playerSchool: "St. Mary's Academy, FL", playerPos: 'WR', caption: 'Route running clinic — 4.71 speed after practice. Every rep counts.', videoUrl: null, thumbUrl: '', likes: 987, comments: 62, isLiked: true, isSaved: false, tag: 'Training' },
   { id: 3, playerName: 'Isabella Reyes', playerSchool: 'Centennial HS, CA', playerPos: 'DB', caption: 'Shutdown corner. Ranked #3 nationally. Come get it 💯', videoUrl: null, thumbUrl: '', likes: 2103, comments: 147, isLiked: false, isSaved: true, tag: 'Game Day' },
   { id: 4, playerName: 'Aaliyah Thompson', playerSchool: 'Oak Park HS, TX', playerPos: 'RB', caption: "Speed work with the squad before Friday's game 🔥", videoUrl: null, thumbUrl: '', likes: 756, comments: 39, isLiked: false, isSaved: false, tag: 'Training' },
@@ -281,7 +282,10 @@ function ReelCard({
 }
 
 export const Reels = () => {
-  const [reels, setReels] = useState<Reel[]>(SEED);
+  const { user } = useAuth();
+  const [reels, setReels] = useState<Reel[]>(() =>
+    SEED.map((r, i) => (i === 0 && user?.name ? { ...r, playerName: user.name } : r))
+  );
   const [active, setActive] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const isScrolling = useRef(false);

@@ -183,7 +183,7 @@ const gridFeatures = [
 ];
 
 const tickerItems = [
-  { label: 'Sarah Watkins', meta: 'QB · #1 Nationally' },
+  { label: 'Athlete Profile', meta: 'QB · #1 Nationally' },
   { label: '380+ Coaches', meta: 'Now Scouting' },
   { label: 'Maya Johnson', meta: 'WR · 93 HERS Rating' },
   { label: '4,200+ Athletes', meta: 'On The Grid' },
@@ -203,7 +203,7 @@ interface GridRow {
 }
 
 const fallbackLeaderboard: GridRow[] = [
-  { name: 'Sarah Watkins', meta: 'QB · 2026 · 12 offers', rank: 95, up: true, av: `linear-gradient(135deg,${FLAME},${FLAME_SOFT})` },
+  { name: 'Athlete Profile', meta: 'QB · 2026 · 12 offers', rank: 95, up: true, av: `linear-gradient(135deg,${FLAME},${FLAME_SOFT})` },
   { name: 'Maya Johnson', meta: 'QB · 2026 · 8 offers', rank: 93, up: true, av: 'linear-gradient(135deg,#3a3a3a,#1c1c1c)' },
   { name: 'Jordan Reyes', meta: 'QB · 2027 · 5 offers', rank: 91, up: false, av: 'linear-gradient(135deg,#2a2a2a,#161616)' },
   { name: 'Taylor Brooks', meta: 'QB · 2026 · 4 offers', rank: 88, up: true, av: 'linear-gradient(135deg,#222,#111)' },
@@ -388,7 +388,7 @@ export const LandingPage = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
-                  <div style={{ ...disp, fontWeight: 800, fontSize: '1.3rem', letterSpacing: '.02em' }}>Sarah Watkins</div>
+                  <div style={{ ...disp, fontWeight: 800, fontSize: '1.3rem', letterSpacing: '.02em' }}>Athlete Profile</div>
                   <span className="lp-live"><span className="lp-live-dot" />Live</span>
                 </div>
                 <div style={{ color: MUTED, fontSize: '.79rem', fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', fontFamily: DISP }}>QB · Class of 2026</div>
