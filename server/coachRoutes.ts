@@ -205,9 +205,11 @@ router.get('/players/search', async (req, res) => {
     // flipped profileVisibility=false the players.preferences JSON carries
     // coachDiscoverable=false; hide those rows from the coach search. Unset
     // or true keeps the existing behavior (default-preserving).
+    // Also filter out athletes who have not yet confirmed their email — they
+    // opted in to the platform but haven't verified, so coaches shouldn't see them.
     const rows = rowsRaw.filter((p) => {
       const prefs = (p.preferences ?? {}) as Record<string, unknown>;
-      return prefs.coachDiscoverable !== false;
+      return prefs.coachDiscoverable !== false && p.emailVerified !== false;
     });
 
     // Enrich with each athlete's most recent highlight thumbnail so the coach

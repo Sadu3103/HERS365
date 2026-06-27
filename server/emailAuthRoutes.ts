@@ -9,7 +9,7 @@ import rateLimit from 'express-rate-limit';
 import { eq } from 'drizzle-orm';
 import { db } from './db';
 import * as schema from './schema';
-import { sendPasswordResetEmail } from './email';
+import { sendPasswordResetEmail, sendVerificationEmail } from './email';
 import * as auth from './auth';
 
 const router = express.Router();
@@ -94,10 +94,16 @@ router.post('/register', registerLimiter, async (req, res) => {
 
     const inserted = await db
       .insert(schema.players)
-      .values({ email, passwordHash, name: name || email.split('@')[0] })
+      .values({ email, passwordHash, name: name || email.split('@')[0], emailVerified: false })
       .returning();
 
     const player = inserted[0];
+
+    // Send email verification — athlete won't appear in coach search until confirmed.
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    verificationTokens.set(verifyToken, { playerId: player.id, expiresAt: Date.now() + 24 * 60 * 60 * 1000 });
+    sendVerificationEmail(email, verifyToken).catch(err => console.error('[email-auth/register] verification email failed:', err));
+
     const token = signEmailAuthToken(player);
 
     return res.status(201).json({
@@ -107,6 +113,7 @@ router.post('/register', registerLimiter, async (req, res) => {
         email: player.email,
         name: player.name,
         subscriptionTier: player.subscriptionTier,
+        emailVerified: player.emailVerified,
       },
     });
   } catch (err) {
@@ -156,6 +163,9 @@ router.post('/login', loginLimiter, async (req, res) => {
   }
 });
 
+// In-memory email verification token store (24h TTL).
+const verificationTokens = new Map<string, { playerId: number; expiresAt: number }>();
+
 // In-memory reset token store — swap for DB table in production
 const resetTokens = new Map<string, { playerId: number; expiresAt: number }>();
 
@@ -196,6 +206,25 @@ router.post('/reset-password', passwordResetLimiter, async (req, res) => {
   } catch (err) {
     console.error('[email-auth/reset-password] 500:', err);
     return res.status(500).json({ error: 'Authentication request failed, please try again' });
+  }
+});
+
+router.post('/verify-email', async (req, res) => {
+  const { token } = req.body || {};
+  if (!token) return res.status(400).json({ error: 'token is required' });
+
+  const entry = verificationTokens.get(token);
+  if (!entry || entry.expiresAt < Date.now()) {
+    return res.status(400).json({ error: 'Verification link is invalid or expired' });
+  }
+
+  try {
+    await db.update(schema.players).set({ emailVerified: true }).where(eq(schema.players.id, entry.playerId));
+    verificationTokens.delete(token);
+    return res.json({ message: 'Email verified — your profile is now visible to coaches.' });
+  } catch (err) {
+    console.error('[email-auth/verify-email] 500:', err);
+    return res.status(500).json({ error: 'Verification failed, please try again' });
   }
 });
 

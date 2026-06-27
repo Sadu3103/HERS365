@@ -42,6 +42,10 @@ export const players = pgTable('players', {
   // Custom profile photo. Public URL returned from /api/upload/presign.
   // Falls back to the generated initials avatar when null.
   profileImage: text('profile_image'),
+  // Verified when the athlete clicks the link in the sign-up confirmation email.
+  // Defaults true so existing users are grandfathered. New registrations set this
+  // false explicitly and must verify before appearing in coach search.
+  emailVerified: boolean('email_verified').notNull().default(true),
   createdAt: timestamp('created_at').default(sql`now()`),
 });
 
