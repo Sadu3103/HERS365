@@ -53,15 +53,18 @@ function fmtCount(n: number): string {
 }
 
 function ActionBtn({
-  icon, count, active, color, onClick,
+  icon, count, active, color, onClick, ariaLabel, ariaPressed,
 }: {
   icon: React.ReactNode; count?: number | string; active?: boolean; color?: string; onClick?: () => void;
+  ariaLabel: string; ariaPressed?: boolean;
 }) {
   return (
     <motion.button
       whileTap={{ scale: 0.82 }}
       transition={{ type: 'spring', stiffness: 600, damping: 22 }}
       onClick={onClick}
+      aria-label={ariaLabel}
+      aria-pressed={ariaPressed}
       style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
         background: 'none', border: 'none', cursor: 'pointer',
@@ -173,6 +176,8 @@ function ReelCard({
         <motion.button
           whileTap={{ scale: 0.85 }}
           onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
+          aria-label={muted ? 'Unmute' : 'Mute'}
+          aria-pressed={muted}
           style={{
             background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(8px)',
             border: 'none', cursor: 'pointer', color: '#fff',
@@ -185,6 +190,8 @@ function ReelCard({
         <motion.button
           whileTap={{ scale: 0.85 }}
           onClick={(e) => { e.stopPropagation(); setPlaying((p) => !p); }}
+          aria-label={playing ? 'Pause' : 'Play'}
+          aria-pressed={!playing}
           style={{
             background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(8px)',
             border: 'none', cursor: 'pointer', color: '#fff',
@@ -228,21 +235,27 @@ function ReelCard({
           icon={<Heart size={22} fill={reel.isLiked ? FLAME_C : 'none'} />}
           count={fmtCount(reel.likes)}
           active={reel.isLiked}
+          ariaLabel={reel.isLiked ? 'Unlike' : 'Like'}
+          ariaPressed={reel.isLiked}
           onClick={(e?: React.MouseEvent) => { e?.stopPropagation(); onLike(); }}
         />
         <ActionBtn
           icon={<MessageCircle size={22} />}
           count={fmtCount(reel.comments)}
+          ariaLabel="View comments"
           onClick={(e?: React.MouseEvent) => e?.stopPropagation()}
         />
         <ActionBtn
           icon={<Bookmark size={22} fill={reel.isSaved ? '#fff' : 'none'} />}
           active={reel.isSaved}
           color="#fff"
+          ariaLabel={reel.isSaved ? 'Saved' : 'Save'}
+          ariaPressed={reel.isSaved}
           onClick={(e?: React.MouseEvent) => { e?.stopPropagation(); onSave(); }}
         />
         <ActionBtn
           icon={<Share2 size={22} />}
+          ariaLabel="Share"
           onClick={(e?: React.MouseEvent) => e?.stopPropagation()}
         />
       </div>
@@ -425,6 +438,7 @@ export const Reels = () => {
           whileTap={{ scale: 0.85 }}
           onClick={() => goTo(active - 1)}
           disabled={active === 0}
+          aria-label="Previous reel"
           style={{
             background: active === 0 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.55)',
             border: `1px solid ${LINE}`, borderRadius: '50%',
@@ -440,6 +454,7 @@ export const Reels = () => {
           whileTap={{ scale: 0.85 }}
           onClick={() => goTo(active + 1)}
           disabled={active === reels.length - 1}
+          aria-label="Next reel"
           style={{
             background: active === reels.length - 1 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.55)',
             border: `1px solid ${LINE}`, borderRadius: '50%',
