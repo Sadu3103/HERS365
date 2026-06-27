@@ -66,6 +66,7 @@ router.get('/me/applications', requireAuth, async (req, res) => {
     const rows = await db
       .select({
         id: schema.programApplications.id,
+        athleteId: schema.programApplications.athleteId,
         programId: schema.programApplications.programId,
         position: schema.programApplications.position,
         note: schema.programApplications.note,

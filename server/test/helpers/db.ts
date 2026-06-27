@@ -25,6 +25,9 @@ const TABLES = [
   'skill_challenge_completions',
   'drills',
   'training_plans',
+  'teams',
+  'program_applications',
+  'program_details',
 ];
 
 export async function resetDb() {
