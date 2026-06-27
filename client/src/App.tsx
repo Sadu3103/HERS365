@@ -84,6 +84,9 @@ import { NotificationProvider } from './context/NotificationContext';
 import { AuthProvider } from './context/AuthContext';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
+import GlobalErrorBoundary from './components/GlobalErrorBoundary';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 const queryClient = new QueryClient();
 
 // Scroll to top on route change, or to the hash target when one is present.
@@ -217,6 +220,7 @@ function App() {
   }, []);
 
   return (
+    <GlobalErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <NotificationProvider>
@@ -304,6 +308,12 @@ function App() {
         </NotificationProvider>
       </AuthProvider>
     </QueryClientProvider>
+    {/* Vercel telemetry — siblings of the router so they observe every page
+        view + every vital across the whole app. Both ship as small scripts
+        from Vercel's CDN and are silent in non-Vercel environments. */}
+    <Analytics />
+    <SpeedInsights />
+    </GlobalErrorBoundary>
   );
 }
 
