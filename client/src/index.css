@@ -672,3 +672,65 @@ html { scroll-behavior: smooth; }
 @media (max-width: 768px) {
   input, textarea, select { font-size: 16px !important; }
 }
+
+/* ─── HERS Rating reveal — the signature moment ───
+   Restraint disguised as drama. One orange bloom, one badge stamp, one
+   gentle delta. Numbers are tabular so the count-up doesn't reflow.
+   See client/src/hooks/useRatingReveal.ts for the JS timing. */
+
+.hers-rating-number { font-variant-numeric: tabular-nums; }
+
+@keyframes hers-glow-pulse {
+  0%   { opacity: 0;   transform: scale(.85); }
+  35%  { opacity: .55; transform: scale(1.04); }
+  100% { opacity: 0;   transform: scale(1.18); }
+}
+.hers-glow {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 140%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at center,
+    rgba(255,90,45,.42) 0%,
+    rgba(255,90,45,.12) 42%,
+    transparent 70%
+  );
+  pointer-events: none;
+  animation: hers-glow-pulse 540ms cubic-bezier(.33,0,.67,1) 860ms both;
+  filter: blur(8px);
+}
+
+@keyframes hers-stamp {
+  0%   { opacity: 0; transform: scale(1.6) rotate(-8deg); }
+  60%  { opacity: 1; transform: scale(.92) rotate(1.5deg); }
+  80%  { transform: scale(1.04) rotate(0); }
+  100% { transform: scale(1)    rotate(0); }
+}
+.hers-badge {
+  animation: hers-stamp 250ms cubic-bezier(.34,1.56,.64,1) 1180ms both;
+  transform-origin: center;
+}
+
+@keyframes hers-delta-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hers-rank-delta {
+  font-weight: 600;
+  color: #FF7A52;
+  font-variant-numeric: tabular-nums;
+  animation: hers-delta-in 200ms cubic-bezier(.22,1,.36,1) 1280ms both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hers-rating-number,
+  .hers-glow,
+  .hers-badge,
+  .hers-rank-delta {
+    animation: none !important;
+  }
+  .hers-glow { display: none; }
+}

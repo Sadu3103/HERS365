@@ -10,6 +10,9 @@ import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch, errorMessage } from '../lib/api';
 import { athleteAvatar } from '../lib/avatar';
+import { useRatingReveal } from '../hooks/useRatingReveal';
+import { ShareCard } from '../components/ShareCard';
+import { toShareCard, type ShareCardData } from '../lib/shareCard';
 
 interface ApiProfile {
   id: number;
@@ -118,6 +121,22 @@ export const Profile = () => {
   const [isEmpty, setIsEmpty] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [viewAsCoach, setViewAsCoach] = useState(false);
+
+  // The signature moment: count-up + bloom + badge stamp fires on the
+  // athlete's OWN profile only. Disabled in coach-view mode and on a
+  // teammate's profile. Reduced-motion + storage failure both fail to
+  // a static final value inside the hook. Lifted above any early returns so
+  // the hook order is stable across loading / error / empty branches.
+  const targetScore = profile?.g5Rating != null ? profile.g5Rating * 20 : null;
+  const { value: liveScore, revealing } = useRatingReveal(targetScore, {
+    enabled: isOwnProfile && !viewAsCoach,
+  });
+
+  // Share card render target + flag. Mounted off-screen only while exporting
+  // so the snapshot can read live fonts and computed styles.
+  const shareCardRef = useRef<HTMLDivElement>(null);
+  const [shareCardData, setShareCardData] = useState<ShareCardData | null>(null);
+  const [exportingCard, setExportingCard] = useState(false);
   const shareRef = useRef<HTMLDivElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const [editOpen, setEditOpen] = useState(false);
@@ -370,8 +389,8 @@ export const Profile = () => {
   if (!profile) return null;
 
   const location = [profile.city, profile.state].filter(Boolean).join(', ');
-  const score = profile.g5Rating != null ? String(profile.g5Rating * 20) : '--';
   const verified = profile.verificationStatus === 'verified';
+  const score = targetScore == null ? '--' : String(liveScore);
   const achievementList = profile.achievements
     ? profile.achievements.split(/[\n,]+/).map(a => a.trim()).filter(Boolean)
     : [];
@@ -439,7 +458,13 @@ export const Profile = () => {
             )}
             {verified && (
               <div style={{ position: 'absolute', bottom: 2, right: 2 }}>
-                <CheckCircle2 size={18} color="#ff5a2d" fill="#ff5a2d" style={{ background: '#111', borderRadius: '50%' }} />
+                <CheckCircle2
+                  size={18}
+                  color="#ff5a2d"
+                  fill="#ff5a2d"
+                  className={revealing ? 'hers-badge' : undefined}
+                  style={{ background: '#111', borderRadius: '50%' }}
+                />
               </div>
             )}
           </div>
@@ -466,14 +491,25 @@ export const Profile = () => {
               </div>
 
               <div
-                style={{ textAlign: 'right', flexShrink: 0, cursor: 'help' }}
+                style={{ textAlign: 'right', flexShrink: 0, cursor: 'help', position: 'relative' }}
                 title={score === '--'
                   ? 'Your HERS Score appears once you log enough performance data.'
                   : 'HERS Score (0–100) derived from your logged stats, combine numbers, and on-platform recruiting activity. Updated whenever you log new data.'}
-                aria-label={score === '--' ? 'HERS Score: not yet rated' : `HERS Score: ${score} out of 100`}
+                aria-label={score === '--' ? 'HERS Score: not yet rated' : `HERS Score: ${targetScore} out of 100`}
+                aria-live={revealing ? 'polite' : undefined}
               >
-                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '3.5rem', color: '#ff5a2d', lineHeight: 1, textShadow: '0 0 30px rgba(255,90,45,0.5)' }}>{score}</div>
-                <div style={{ fontSize: '0.6rem', color: '#444', textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: 2 }}>HERS Score</div>
+                {revealing && <div className="hers-glow" aria-hidden="true" />}
+                <div
+                  className="hers-rating-number"
+                  style={{
+                    fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '3.5rem',
+                    color: '#ff5a2d', lineHeight: 1, textShadow: '0 0 30px rgba(255,90,45,0.5)',
+                    position: 'relative',
+                  }}
+                >
+                  {score}
+                </div>
+                <div style={{ fontSize: '0.6rem', color: '#444', textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: 2, position: 'relative' }}>HERS Score</div>
               </div>
             </div>
 
@@ -501,6 +537,91 @@ export const Profile = () => {
                       <ShareItem icon={<Link2 size={15} color="#ff5a2d" />} label="Copy Link" onClick={() => { navigator.clipboard.writeText(profileUrl); showNotification('success', 'Link copied!', profileUrl); setShareOpen(false); }} />
                       <ShareItem icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="#ccc"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.857L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>} label="Share on X" onClick={() => { window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent('Check out my HERS365 profile')}&url=${encodeURIComponent(profileUrl)}`, '_blank', 'noopener,noreferrer'); setShareOpen(false); }} />
                       <ShareItem icon={<Instagram size={15} color="#e1306c" />} label="Share on Instagram" onClick={() => { showNotification('info', 'Instagram', 'Copy the link and paste it in your Instagram bio.'); setShareOpen(false); }} />
+                      {isOwnProfile && profile && (
+                        <ShareItem
+                          icon={<Trophy size={15} color="#ff5a2d" />}
+                          label={exportingCard ? 'Building card…' : 'Share my rating card'}
+                          onClick={() => {
+                            if (exportingCard) return;
+                            const card = toShareCard({
+                              name: profile.name,
+                              position: profile.position,
+                              school: profile.school,
+                              g5Rating: profile.g5Rating,
+                              verificationStatus: profile.verificationStatus,
+                              // rank + rankDelta are not on the profile API yet;
+                              // omit them so the card stays accurate.
+                            });
+                            if (!card) {
+                              showNotification('info', 'No card yet', 'Your HERS Rating needs to be set before we can build a card.');
+                              return;
+                            }
+                            setShareCardData(card);
+                            setExportingCard(true);
+                            setShareOpen(false);
+                            // Wait a tick so React mounts the off-screen card,
+                            // then snapshot + share. Lazy-load html-to-image so
+                            // it stays out of the main bundle.
+                            requestAnimationFrame(async () => {
+                              const fallbackToCopy = (msg: string) => {
+                                try { navigator.clipboard.writeText(profileUrl); } catch { /* noop */ }
+                                showNotification('info', 'Card unavailable', `${msg} — link copied instead.`);
+                              };
+                              try {
+                                const node = shareCardRef.current;
+                                if (!node) {
+                                  fallbackToCopy("Couldn't make the image");
+                                  return;
+                                }
+                                if (document.fonts && typeof document.fonts.ready?.then === 'function') {
+                                  await document.fonts.ready;
+                                }
+                                const { toPng } = await import('html-to-image');
+                                const dataUrl = await toPng(node, {
+                                  pixelRatio: 2,
+                                  cacheBust: true,
+                                  backgroundColor: '#0E0E11',
+                                });
+                                const blob = await (await fetch(dataUrl)).blob();
+                                const file = new File([blob], 'my-hers-rating.png', { type: 'image/png' });
+                                const navAny = navigator as Navigator & {
+                                  canShare?: (data: { files?: File[] }) => boolean;
+                                  share?: (data: { files?: File[]; title?: string; text?: string }) => Promise<void>;
+                                };
+                                if (
+                                  navAny.share &&
+                                  navAny.canShare &&
+                                  navAny.canShare({ files: [file] })
+                                ) {
+                                  try {
+                                    await navAny.share({
+                                      files: [file],
+                                      title: 'My HERS Rating',
+                                      text: 'My HERS365 rating card',
+                                    });
+                                  } catch {
+                                    // User cancelled the system share sheet —
+                                    // not an error, but don't fall through to
+                                    // the download either.
+                                  }
+                                } else {
+                                  const a = document.createElement('a');
+                                  a.href = dataUrl;
+                                  a.download = 'my-hers-rating.png';
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  document.body.removeChild(a);
+                                }
+                              } catch {
+                                fallbackToCopy("Couldn't make the image");
+                              } finally {
+                                setExportingCard(false);
+                                setShareCardData(null);
+                              }
+                            });
+                          }}
+                        />
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -934,6 +1055,19 @@ export const Profile = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Off-screen render target for the share card snapshot. Position fixed
+          at -9999px keeps it out of the viewport entirely (not 'display:none',
+          which would zero out the layout html-to-image needs). aria-hidden
+          keeps assistive tech from announcing it. */}
+      {shareCardData && (
+        <div
+          aria-hidden="true"
+          style={{ position: 'fixed', left: -9999, top: 0, pointerEvents: 'none' }}
+        >
+          <ShareCard ref={shareCardRef} data={shareCardData} />
+        </div>
+      )}
     </div>
   );
 };
