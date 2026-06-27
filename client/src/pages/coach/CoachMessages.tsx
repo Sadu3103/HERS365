@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { gsap } from 'gsap';
 import * as THREE from 'three';
+import { useNotifications } from '../../context/NotificationContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -205,6 +206,7 @@ function TypingDots() {
 
 export function CoachMessages() {
   const qc = useQueryClient();
+  const { showNotification } = useNotifications();
   const [activeId, setActiveId] = useState<number | null>(null);
   const [selectedPlayerName, setSelectedPlayerName] = useState<string>('');
   const [msgText, setMsgText] = useState('');
@@ -224,11 +226,15 @@ export function CoachMessages() {
 
   // ── Data ──────────────────────────────────────────────────────────────────
 
-  const { data: rawMsgs = [], isLoading } = useQuery({
+  const { data: rawMsgs = [], isLoading, isError: msgsError } = useQuery({
     queryKey: ['coach-messages'],
     queryFn: () => coachFetch<{ messages: RawMessage[] }>('/api/coach/messages').then(d => d.messages ?? []),
     refetchInterval: 8000,
   });
+
+  useEffect(() => {
+    if (msgsError) showNotification('error', 'Load Failed', 'Could not load messages. Check your connection and refresh.');
+  }, [msgsError, showNotification]);
 
   const convos = useMemo(() => groupMessages(rawMsgs), [rawMsgs]);
   const activeConvo = useMemo(() => convos.find(c => c.athleteId === activeId) ?? null, [convos, activeId]);
@@ -276,6 +282,9 @@ export function CoachMessages() {
       } else {
         qc.invalidateQueries({ queryKey: ['coach-messages'] });
       }
+    },
+    onError: () => {
+      showNotification('error', 'Send Failed', 'Message could not be sent. Please try again.');
     },
   });
 
@@ -616,6 +625,20 @@ export function CoachMessages() {
             {isLoading ? (
               <div style={{ padding: 20, textAlign: 'center', color: '#444', fontSize: '0.78rem' }}>
                 Loading…
+              </div>
+            ) : msgsError ? (
+              <div style={{ padding: 24, textAlign: 'center', color: '#666' }}>
+                <div style={{ fontSize: '1.2rem', marginBottom: 8 }}>⚠️</div>
+                <div style={{ fontSize: '0.78rem', lineHeight: 1.5, marginBottom: 12 }}>
+                  Could not load messages.
+                </div>
+                <button
+                  onClick={() => qc.invalidateQueries({ queryKey: ['coach-messages'] })}
+                  style={{ background: '#ff5a2d', color: '#fff', border: 'none', borderRadius: 8,
+                    padding: '6px 16px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Retry
+                </button>
               </div>
             ) : filtered.length === 0 ? (
               <div style={{ padding: 24, textAlign: 'center', color: '#444' }}>

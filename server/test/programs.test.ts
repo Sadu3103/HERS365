@@ -5,10 +5,17 @@ import { createApp } from '../app';
 import { db } from '../db';
 import * as schema from '../schema';
 import { resetDb } from './helpers/db';
-import { makeAthlete, tokenFor } from './helpers/fixtures';
+import { makeAthlete, makeTeam, tokenFor } from './helpers/fixtures';
+
+let teamA: Awaited<ReturnType<typeof makeTeam>>;
+let teamB: Awaited<ReturnType<typeof makeTeam>>;
 
 const app = createApp();
-beforeEach(resetDb);
+beforeEach(async () => {
+  await resetDb();
+  teamA = await makeTeam({ name: 'University of Texas', state: 'Texas' });
+  teamB = await makeTeam({ name: 'Florida State University', state: 'Florida', division: 'NCAA D1', conference: 'ACC' });
+});
 
 describe('GET /api/programs', () => {
   it('returns the public program list without auth', async () => {
@@ -31,10 +38,10 @@ describe('GET /api/programs', () => {
 
 describe('GET /api/programs/:id', () => {
   it('returns a single program for a valid id', async () => {
-    const res = await request(app).get('/api/programs/1');
+    const res = await request(app).get(`/api/programs/${teamA.id}`);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data.id).toBe(1);
+    expect(res.body.data.id).toBe(teamA.id);
     expect(res.body.data.name).toBeTruthy();
   });
 
@@ -74,8 +81,8 @@ describe('GET /api/programs/me/applications', () => {
     const me = await makeAthlete();
     const other = await makeAthlete();
     await db.insert(schema.programApplications).values([
-      { athleteId: me.id, programId: 1, position: 'QB' },
-      { athleteId: other.id, programId: 2, position: 'WR' },
+      { athleteId: me.id, programId: teamA.id, position: 'QB' },
+      { athleteId: other.id, programId: teamB.id, position: 'WR' },
     ]);
 
     const res = await request(app)
@@ -84,7 +91,7 @@ describe('GET /api/programs/me/applications', () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
     expect(res.body.data[0].athleteId).toBe(me.id);
-    expect(res.body.data[0].programId).toBe(1);
+    expect(res.body.data[0].programId).toBe(teamA.id);
   });
 });
 
@@ -126,13 +133,13 @@ describe('POST /api/programs/:id/applications', () => {
   it('happy path: inserts a row and returns it with programName', async () => {
     const athlete = await makeAthlete();
     const res = await request(app)
-      .post('/api/programs/1/applications')
+      .post(`/api/programs/${teamA.id}/applications`)
       .set('Authorization', `Bearer ${tokenFor(athlete, 'athlete')}`)
       .send({ position: 'QB', note: 'Excited about this program' });
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data.athleteId).toBe(athlete.id);
-    expect(res.body.data.programId).toBe(1);
+    expect(res.body.data.programId).toBe(teamA.id);
     expect(res.body.data.position).toBe('QB');
     expect(res.body.data.note).toBe('Excited about this program');
     expect(res.body.data.programName).toBeTruthy();
@@ -142,7 +149,7 @@ describe('POST /api/programs/:id/applications', () => {
       .from(schema.programApplications)
       .where(and(
         eq(schema.programApplications.athleteId, athlete.id),
-        eq(schema.programApplications.programId, 1),
+        eq(schema.programApplications.programId, teamA.id),
       ));
     expect(persisted).toHaveLength(1);
     expect(persisted[0].status).toBe('pending');
@@ -152,13 +159,13 @@ describe('POST /api/programs/:id/applications', () => {
     const athlete = await makeAthlete();
     const token = tokenFor(athlete, 'athlete');
     const first = await request(app)
-      .post('/api/programs/1/applications')
+      .post(`/api/programs/${teamA.id}/applications`)
       .set('Authorization', `Bearer ${token}`)
       .send({ position: 'QB' });
     expect(first.status).toBe(200);
 
     const second = await request(app)
-      .post('/api/programs/1/applications')
+      .post(`/api/programs/${teamA.id}/applications`)
       .set('Authorization', `Bearer ${token}`)
       .send({ position: 'QB' });
     expect(second.status).toBe(409);
@@ -168,7 +175,7 @@ describe('POST /api/programs/:id/applications', () => {
       .from(schema.programApplications)
       .where(and(
         eq(schema.programApplications.athleteId, athlete.id),
-        eq(schema.programApplications.programId, 1),
+        eq(schema.programApplications.programId, teamA.id),
       ));
     expect(rows).toHaveLength(1);
   });

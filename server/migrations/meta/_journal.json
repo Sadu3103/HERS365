@@ -57,6 +57,13 @@
       "when": 1782519317426,
       "tag": "0007_keen_epoch",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1782519665305,
+      "tag": "0008_dark_hellcat",
+      "breakpoints": true
     }
   ]
 }

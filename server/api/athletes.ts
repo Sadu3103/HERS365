@@ -1,5 +1,5 @@
 import express, { type Request } from 'express';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, gte, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 import { requireAuth, optionalAuth, type TokenPayload } from '../auth';
@@ -142,6 +142,74 @@ router.delete('/me/saved-schools/:schoolId', requireAuth, validateParams(savedSc
   }
 });
 
+// GET /api/athletes/me/insights — coach view stats for the authed athlete
+router.get('/me/insights', requireAuth, async (req, res) => {
+  try {
+    const athleteId = Number(authUser(req)?.id);
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const [totalViews, uniqueCoaches, recent] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int` })
+        .from(schema.profileViews)
+        .where(and(eq(schema.profileViews.athleteId, athleteId), gte(schema.profileViews.viewedAt, since))),
+      db.select({ count: sql<number>`count(distinct viewer_coach_id)::int` })
+        .from(schema.profileViews)
+        .where(and(eq(schema.profileViews.athleteId, athleteId), gte(schema.profileViews.viewedAt, since))),
+      db.select()
+        .from(schema.profileViews)
+        .where(eq(schema.profileViews.athleteId, athleteId))
+        .orderBy(sql`viewed_at desc`)
+        .limit(10),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        totalViewsLast30d: totalViews[0]?.count ?? 0,
+        uniqueCoachesLast30d: uniqueCoaches[0]?.count ?? 0,
+        recentViews: recent,
+      },
+    });
+  } catch (error) {
+    console.error('[athletes/me/insights]', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch insights' });
+  }
+});
+
+// GET /api/athletes/me/recommendations — programs matching athlete's position
+router.get('/me/recommendations', requireAuth, async (req, res) => {
+  try {
+    const athleteId = Number(authUser(req)?.id);
+    const athlete = await db.select({ position: schema.players.position })
+      .from(schema.players).where(eq(schema.players.id, athleteId)).limit(1);
+    const position = athlete[0]?.position;
+
+    const programs = await db
+      .select({
+        id: schema.teams.id,
+        name: schema.teams.name,
+        division: schema.teams.division,
+        state: schema.teams.state,
+        rosterNeeds: schema.programDetails.rosterNeeds,
+        hasScholarships: schema.programDetails.hasScholarships,
+      })
+      .from(schema.teams)
+      .leftJoin(schema.programDetails, eq(schema.programDetails.teamId, schema.teams.id))
+      .where(eq(schema.teams.type, 'college'));
+
+    const matches = position
+      ? programs.filter(p => {
+          const needs = p.rosterNeeds as string[] | null;
+          return needs && needs.some(n => n.toLowerCase().includes(position.toLowerCase()));
+        })
+      : programs.slice(0, 10);
+
+    res.json({ success: true, data: matches, position: position ?? null });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to fetch recommendations' });
+  }
+});
+
 // GET /api/athletes/:id - Get specific athlete profile (DB-backed)
 router.get('/:id',optionalAuth, async (req, res) => {
   try {
@@ -187,6 +255,23 @@ router.get('/:id',optionalAuth, async (req, res) => {
         success: false,
         error: 'Forbidden',
       });
+    }
+
+    // Fire-and-forget coach view tracking (u already declared above)
+    if (u?.role === 'coach') {
+      Promise.all([
+        db.insert(schema.profileViews).values({
+          athleteId: id,
+          viewerType: 'coach',
+          viewerName: typeof u.name === 'string' ? u.name : null,
+          viewerCoachId: typeof u.id === 'number' ? u.id : null,
+        }),
+        db.insert(schema.notifications).values({
+          playerId: id,
+          type: 'coach_interest',
+          actorName: typeof u.name === 'string' ? u.name : 'A coach',
+        }),
+      ]).catch(() => {});
     }
 
     res.json({ success: true, data: publicAthlete(athlete) });

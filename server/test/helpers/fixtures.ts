@@ -66,6 +66,19 @@ export async function makeDrill(overrides: Partial<typeof schema.drills.$inferIn
   return row;
 }
 
+export async function makeTeam(overrides: Partial<typeof schema.teams.$inferInsert> = {}) {
+  const [row] = await db.insert(schema.teams).values({
+    name: 'Test University',
+    city: 'Austin',
+    state: 'Texas',
+    type: 'college',
+    division: 'NCAA D1',
+    conference: 'Big 12',
+    ...overrides,
+  }).returning();
+  return row;
+}
+
 export async function makeParent(overrides: Partial<typeof schema.parents.$inferInsert> = {}) {
   const [row] = await db.insert(schema.parents).values({
     email: email('parent'),

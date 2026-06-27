@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Filter, Bookmark, BookmarkCheck, X, MapPin,
   Users, Award, ChevronDown, CheckCircle2, RefreshCw,
+  ClipboardList, BarChart2, GraduationCap,
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
@@ -34,6 +35,33 @@ interface Coach {
   email: string;
   bio: string;
   recruitedAthletes: string[];
+}
+
+interface Scholarship {
+  id: number;
+  name: string;
+  amount: number | null;
+  deadline: string | null;
+  requirements: string | null;
+  category: string | null;
+}
+
+interface Application {
+  id: number;
+  programId: number;
+  programName: string | null;
+  programDivision: string | null;
+  programState: string | null;
+  position: string;
+  note: string | null;
+  status: string;
+  createdAt: string;
+}
+
+interface Insights {
+  totalViewsLast30d: number;
+  uniqueCoachesLast30d: number;
+  recentViews: { viewerName: string | null; viewerType: string; viewedAt: string }[];
 }
 
 const divisions     = ['All', 'NCAA D1', 'NCAA D2', 'NCAA D3', 'NAIA', 'JUCO'];
@@ -91,7 +119,7 @@ export const Recruiting = () => {
   const [filterScholarship, setFilterScholarship] = useState(searchParams.get('scholarship') || 'All');
   const [filterSize, setFilterSize]       = useState(searchParams.get('size') || 'All');
   const [showFilters, setShowFilters]     = useState(false);
-  const [activeTab, setActiveTab]         = useState<'browse' | 'saved'>('browse');
+  const [activeTab, setActiveTab]         = useState<'browse' | 'saved' | 'scholarships' | 'applications' | 'insights'>('browse');
 
   const [programs, setPrograms]   = useState<Program[]>([]);
   const [loading, setLoading]     = useState(true);
@@ -112,6 +140,23 @@ export const Recruiting = () => {
   const [applyForm, setApplyForm] = useState({ position: '', note: '' });
   const [applySubmitting, setApplySubmitting] = useState(false);
   const [applySubmitted, setApplySubmitted]   = useState(false);
+
+  // Coach modal compose state — setters referenced in openCoachModal
+  const [_showMessageCompose, setShowMessageCompose] = useState(false);
+  const [_messageText, setMessageText]               = useState('');
+
+  // Scholarships tab
+  const [scholarships, setScholarships]         = useState<Scholarship[]>([]);
+  const [savedScholarshipIds, setSavedScholarshipIds] = useState<Set<number>>(new Set());
+  const [scholarshipsLoading, setScholarshipsLoading] = useState(false);
+
+  // Applications tab
+  const [applications, setApplications]   = useState<Application[]>([]);
+  const [appsLoading, setAppsLoading]     = useState(false);
+
+  // Insights tab
+  const [insights, setInsights]         = useState<Insights | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
 
   // Sync filters → URL params
   useEffect(() => {
@@ -170,6 +215,63 @@ export const Recruiting = () => {
       })
       .catch(() => setProfile({ name: user.name, gradYear: '' }));
   }, [isAuthenticated, user]);
+
+  // Fetch scholarships when that tab is active
+  useEffect(() => {
+    if (activeTab !== 'scholarships') return;
+    setScholarshipsLoading(true);
+    Promise.all([
+      apiFetch<{ data: Scholarship[] }>('/api/scholarships').then(r => setScholarships(r.data)),
+      isAuthenticated
+        ? apiFetch<{ data: Scholarship[] }>('/api/scholarships/saved').then(r => setSavedScholarshipIds(new Set(r.data.map(s => s.id))))
+        : Promise.resolve(),
+    ]).catch(() => {}).finally(() => setScholarshipsLoading(false));
+  }, [activeTab, isAuthenticated]);
+
+  // Fetch applications when that tab is active
+  useEffect(() => {
+    if (activeTab !== 'applications' || !isAuthenticated) return;
+    setAppsLoading(true);
+    apiFetch<{ data: Application[] }>('/api/programs/me/applications')
+      .then(r => setApplications(r.data))
+      .catch(() => {})
+      .finally(() => setAppsLoading(false));
+  }, [activeTab, isAuthenticated]);
+
+  // Fetch insights when that tab is active
+  useEffect(() => {
+    if (activeTab !== 'insights' || !isAuthenticated) return;
+    setInsightsLoading(true);
+    apiFetch<{ data: Insights }>('/api/athletes/me/insights')
+      .then(r => setInsights(r.data))
+      .catch(() => {})
+      .finally(() => setInsightsLoading(false));
+  }, [activeTab, isAuthenticated]);
+
+  const toggleSaveScholarship = async (id: number) => {
+    if (!isAuthenticated) { showNotification('error', 'Sign In Required', 'Log in to save scholarships'); return; }
+    const isSaved = savedScholarshipIds.has(id);
+    setSavedScholarshipIds(prev => { const n = new Set(prev); if (isSaved) n.delete(id); else n.add(id); return n; });
+    try {
+      if (isSaved) {
+        await apiFetch(`/api/scholarships/${id}/save`, { method: 'DELETE' });
+      } else {
+        await apiFetch(`/api/scholarships/${id}/save`, { method: 'POST' });
+      }
+    } catch {
+      setSavedScholarshipIds(prev => { const n = new Set(prev); if (isSaved) n.add(id); else n.delete(id); return n; });
+    }
+  };
+
+  const deadlineIn = useMemo(() => (deadline: string | null) => {
+    if (!deadline) return null;
+    const days = Math.ceil((new Date(deadline).getTime() - Date.now()) / 86400000);
+    if (days < 0) return 'Expired';
+    if (days === 0) return 'Today';
+    return `${days}d`;
+  }, []);
+
+  const STATUS_COLOR: Record<string, string> = { pending: '#f59e0b', reviewed: '#3b82f6', accepted: '#22c55e', rejected: '#ef4444' };
 
   const savedPrograms   = programs.filter(p => savedSchools.has(p.id));
   const displayPrograms = activeTab === 'browse' ? programs : savedPrograms;
@@ -317,23 +419,30 @@ export const Recruiting = () => {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 0 }}>
-        {(['browse', 'saved'] as const).map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)} style={{
+      <div style={{ display: 'flex', gap: 2, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
+        {([
+          { key: 'browse',        label: 'Programs',         icon: <GraduationCap size={12} /> },
+          { key: 'saved',         label: `Saved${savedSchools.size > 0 ? ` (${savedSchools.size})` : ''}`, icon: <Bookmark size={12} /> },
+          { key: 'scholarships',  label: 'Scholarships',     icon: <Award size={12} /> },
+          { key: 'applications',  label: 'My Applications',  icon: <ClipboardList size={12} /> },
+          { key: 'insights',      label: 'Insights',         icon: <BarChart2 size={12} /> },
+        ] as const).map(({ key, label, icon }) => (
+          <button key={key} onClick={() => setActiveTab(key)} style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            padding: '10px 18px', fontSize: '0.82rem', fontWeight: 700,
+            padding: '10px 14px', fontSize: '0.75rem', fontWeight: 700,
             letterSpacing: '0.05em', textTransform: 'uppercase',
-            color: activeTab === tab ? '#ff5a2d' : '#555',
-            borderBottom: activeTab === tab ? '2px solid #ff5a2d' : '2px solid transparent',
+            display: 'flex', alignItems: 'center', gap: 5,
+            color: activeTab === key ? '#ff5a2d' : '#555',
+            borderBottom: activeTab === key ? '2px solid #ff5a2d' : '2px solid transparent',
             transition: 'all 0.15s',
           }}>
-            {tab === 'browse' ? 'Browse Programs' : `Saved Schools${savedSchools.size > 0 ? ` (${savedSchools.size})` : ''}`}
+            {icon} {label}
           </button>
         ))}
       </div>
 
-      {/* Search + Filters */}
-      {activeTab === 'browse' && (
+      {/* Search + Filters — only shown for browse/saved tabs */}
+      {(activeTab === 'browse' || activeTab === 'saved') && (
         <div className="k-card" style={{ padding: 16, marginBottom: 16 }}>
           <div style={{ display: 'flex', gap: 10 }}>
             <div style={{ flex: 1, position: 'relative' }}>
@@ -408,7 +517,8 @@ export const Recruiting = () => {
         </div>
       )}
 
-      {/* Results meta */}
+      {/* Results meta — only for program tabs */}
+      {(activeTab === 'browse' || activeTab === 'saved') && (
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <span style={{ fontSize: '0.78rem', color: '#555' }}>
           {loading ? 'Loading programs...' : (
@@ -422,6 +532,10 @@ export const Recruiting = () => {
           </span>
         )}
       </div>
+      )}
+
+      {/* Program list — only for browse/saved tabs */}
+      {(activeTab === 'browse' || activeTab === 'saved') && (<>
 
       {/* Load error */}
       {loadError && !loading && (
@@ -534,6 +648,138 @@ export const Recruiting = () => {
           <div style={{ fontSize: '0.85rem' }}>
             {activeTab === 'saved' ? 'Bookmark programs to save them here' : 'Try adjusting your filters'}
           </div>
+        </div>
+      )}
+
+      </>)}
+
+      {/* ── Scholarships Tab ────────────────────────────────────── */}
+      {activeTab === 'scholarships' && (
+        <div>
+          {scholarshipsLoading && <div style={{ color: '#444', textAlign: 'center', padding: '48px 0' }}>Loading scholarships…</div>}
+          {!scholarshipsLoading && scholarships.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '64px 0', color: '#444' }}>
+              <Award size={36} style={{ marginBottom: 12, opacity: 0.3 }} />
+              <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '1.2rem', fontWeight: 700 }}>No scholarships yet</div>
+              <div style={{ fontSize: '0.82rem', marginTop: 6 }}>Check back soon — the admin team adds new scholarships regularly.</div>
+            </div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {scholarships.map(s => {
+              const isSaved = savedScholarshipIds.has(s.id);
+              const daysLeft = deadlineIn(s.deadline);
+              return (
+                <div key={s.id} className="k-card" style={{ padding: '16px 18px', display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff' }}>{s.name}</div>
+                      {s.category && <span style={{ background: 'rgba(255,90,45,0.1)', color: '#ff5a2d', fontSize: '0.6rem', fontWeight: 700, padding: '2px 7px', borderRadius: 4 }}>{s.category}</span>}
+                    </div>
+                    {s.amount && <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#ff5a2d', marginBottom: 4 }}>${s.amount.toLocaleString()}</div>}
+                    {s.requirements && <div style={{ fontSize: '0.75rem', color: '#666', lineHeight: 1.5 }}>{s.requirements}</div>}
+                  </div>
+                  <div style={{ flexShrink: 0, textAlign: 'right' }}>
+                    {daysLeft && (
+                      <div style={{ fontSize: '0.68rem', fontWeight: 700, color: daysLeft === 'Expired' ? '#ef4444' : daysLeft === 'Today' ? '#f59e0b' : '#888', marginBottom: 8 }}>
+                        {daysLeft === 'Expired' ? 'Expired' : daysLeft === 'Today' ? 'Due today' : `${daysLeft} left`}
+                      </div>
+                    )}
+                    <button onClick={() => toggleSaveScholarship(s.id)} style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: isSaved ? '#ff5a2d' : '#333', padding: 4,
+                    }}>
+                      {isSaved ? <BookmarkCheck size={18} fill="#ff5a2d" /> : <Bookmark size={18} />}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── My Applications Tab ─────────────────────────────────── */}
+      {activeTab === 'applications' && (
+        <div>
+          {!isAuthenticated && (
+            <div style={{ textAlign: 'center', padding: '64px 0', color: '#444' }}>
+              <ClipboardList size={36} style={{ marginBottom: 12, opacity: 0.3 }} />
+              <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '1.2rem', fontWeight: 700 }}>Sign in to view applications</div>
+            </div>
+          )}
+          {isAuthenticated && appsLoading && <div style={{ color: '#444', textAlign: 'center', padding: '48px 0' }}>Loading…</div>}
+          {isAuthenticated && !appsLoading && applications.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '64px 0', color: '#444' }}>
+              <ClipboardList size={36} style={{ marginBottom: 12, opacity: 0.3 }} />
+              <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '1.2rem', fontWeight: 700 }}>No applications yet</div>
+              <div style={{ fontSize: '0.82rem', marginTop: 6 }}>Express interest in a program from the Programs tab.</div>
+            </div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {applications.map(app => (
+              <div key={app.id} className="k-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff' }}>{app.programName ?? `Program #${app.programId}`}</div>
+                  <div style={{ fontSize: '0.72rem', color: '#555', marginTop: 2 }}>
+                    {[app.programDivision, app.programState].filter(Boolean).join(' · ')} · {app.position}
+                  </div>
+                  {app.note && <div style={{ fontSize: '0.72rem', color: '#444', marginTop: 4, fontStyle: 'italic' }}>"{app.note}"</div>}
+                </div>
+                <div style={{ flexShrink: 0, textAlign: 'right' }}>
+                  <div style={{ fontSize: '0.68rem', fontWeight: 800, color: STATUS_COLOR[app.status] ?? '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+                    {app.status}
+                  </div>
+                  <div style={{ fontSize: '0.6rem', color: '#333' }}>{new Date(app.createdAt).toLocaleDateString()}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Insights Tab ────────────────────────────────────────── */}
+      {activeTab === 'insights' && (
+        <div>
+          {!isAuthenticated && (
+            <div style={{ textAlign: 'center', padding: '64px 0', color: '#444' }}>
+              <BarChart2 size={36} style={{ marginBottom: 12, opacity: 0.3 }} />
+              <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '1.2rem', fontWeight: 700 }}>Sign in to view your insights</div>
+            </div>
+          )}
+          {isAuthenticated && insightsLoading && <div style={{ color: '#444', textAlign: 'center', padding: '48px 0' }}>Loading insights…</div>}
+          {isAuthenticated && !insightsLoading && insights && (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
+                {[
+                  { label: 'Profile Views (30d)', value: insights.totalViewsLast30d },
+                  { label: 'Unique Coaches (30d)', value: insights.uniqueCoachesLast30d },
+                ].map(({ label, value }) => (
+                  <div key={label} className="k-card" style={{ padding: '20px 18px' }}>
+                    <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '2.2rem', fontWeight: 900, color: '#ff5a2d' }}>{value}</div>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+              {insights.recentViews.length > 0 && (
+                <div>
+                  <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Recent Activity</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {insights.recentViews.map((v, i) => (
+                      <div key={i} className="k-card" style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ fontSize: '0.8rem', color: '#ccc', fontWeight: 600 }}>{v.viewerName ?? 'A coach'} viewed your profile</div>
+                        <div style={{ fontSize: '0.62rem', color: '#444' }}>{new Date(v.viewedAt).toLocaleDateString()}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {insights.recentViews.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '32px 0', color: '#444', fontSize: '0.85rem' }}>
+                  No coach views yet. Keep building your profile to get noticed.
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
