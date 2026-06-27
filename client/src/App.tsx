@@ -1,62 +1,82 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
+// Eager imports: the persistent shells + the two entry-point pages. Loading
+// these lazily would add a network round-trip to first paint, which is the
+// opposite of the win this PR is going for.
 import { Layout } from './components/Layout';
 import { CoachLayout } from './components/CoachLayout';
-import { Feed } from './pages/Feed';
-import { Rankings } from './pages/Rankings';
-import { Profile } from './pages/Profile';
-import { PlayerProfile } from './pages/PlayerProfile';
-import { Training } from './pages/Training';
-import { Recruiting } from './pages/Recruiting';
-import { Teams } from './pages/Teams';
-import { Auth } from './pages/Auth';
-import { AuthCallback } from './pages/AuthCallback';
-import { ForgotPassword } from './pages/ForgotPassword';
-import { ResetPassword } from './pages/ResetPassword';
-import { VerifyEmail } from './pages/VerifyEmail';
-import { Subscription } from './pages/Subscription';
-import { Audit } from './pages/Audit';
-import { Privacy } from './pages/Privacy';
-import { About } from './pages/About';
-import { Accessibility } from './pages/Accessibility';
-import { Contact } from './pages/Contact';
-import { CookiePolicy } from './pages/CookiePolicy';
-import { Terms } from './pages/Terms';
-import { FAQ } from './pages/FAQ';
-import { Help } from './pages/Help';
-import { ThankYou } from './pages/ThankYou';
 import { LandingPage } from './pages/LandingPage';
-import { Explore } from './pages/Explore';
-import { Events } from './pages/Events';
-import { Drills } from './pages/Drills';
-import { NIL } from './pages/NIL';
-import { Reels } from './pages/Reels';
-import { VideoStudio } from './pages/VideoStudio';
-import { Settings } from './pages/Settings';
-import { Messages } from './pages/Messages';
-import { MaxPrepsLookup } from './pages/MaxPrepsLookup';
-import { CollegeFitCalculator } from './pages/CollegeFitCalculator';
-import { CollegeFlagFootball } from './pages/CollegeFlagFootball';
-import { LeagueFinder } from './pages/LeagueFinder';
-import { SquadFinder } from './pages/SquadFinder';
-import { TeamFinder } from './pages/TeamFinder';
-import { ScholarshipTracker } from './pages/ScholarshipTracker';
-import { ParentDashboard } from './pages/ParentDashboard';
-import { AdminDashboard } from './pages/AdminDashboard';
-import { AdminLogin } from './pages/AdminLogin';
-import { StaffDashboard } from './pages/StaffDashboard';
-import { StaticPageLayout } from './pages/StaticPageLayout';
-import { NotFound } from './pages/NotFound';
-import { Onboarding } from './pages/Onboarding';
+import { Auth } from './pages/Auth';
 
-import { CoachLogin } from './pages/coach/CoachLogin';
-import { CoachDashboard } from './pages/coach/CoachDashboard';
-import { CoachPlayerSearch } from './pages/coach/CoachPlayerSearch';
-import { CoachScoutingBoard } from './pages/coach/CoachScoutingBoard';
-import { CoachMessages } from './pages/coach/CoachMessages';
-import { CoachRoster } from './pages/coach/CoachRoster';
-import { CoachPlayerProfile } from './pages/coach/CoachPlayerProfile';
-import { CoachAnalytics } from './pages/coach/CoachAnalytics';
-import { CoachSignup } from './pages/coach/CoachSignup';
+// Every other route is split into its own chunk so a first-time visitor on
+// /, /auth, or /coach/login does not download Feed + Profile + VideoStudio +
+// admin + every coach page before the landing page paints. Each chunk loads
+// the first time its route is hit, then caches.
+//
+// Named-export interop: the page files use `export const Foo = ...`, not a
+// default export. React.lazy expects a module with `default`, so this helper
+// maps the named export onto the default slot.
+const lazyNamed = <T extends Record<string, unknown>>(
+  loader: () => Promise<T>,
+  key: keyof T,
+) => lazy(async () => {
+  const m = await loader();
+  return { default: m[key] as unknown as React.ComponentType<unknown> };
+});
+
+const Feed = lazyNamed(() => import('./pages/Feed'), 'Feed');
+const Rankings = lazyNamed(() => import('./pages/Rankings'), 'Rankings');
+const Profile = lazyNamed(() => import('./pages/Profile'), 'Profile');
+const PlayerProfile = lazyNamed(() => import('./pages/PlayerProfile'), 'PlayerProfile');
+const Training = lazyNamed(() => import('./pages/Training'), 'Training');
+const Recruiting = lazyNamed(() => import('./pages/Recruiting'), 'Recruiting');
+const Teams = lazyNamed(() => import('./pages/Teams'), 'Teams');
+const AuthCallback = lazyNamed(() => import('./pages/AuthCallback'), 'AuthCallback');
+const ForgotPassword = lazyNamed(() => import('./pages/ForgotPassword'), 'ForgotPassword');
+const ResetPassword = lazyNamed(() => import('./pages/ResetPassword'), 'ResetPassword');
+const VerifyEmail = lazyNamed(() => import('./pages/VerifyEmail'), 'VerifyEmail');
+const Subscription = lazyNamed(() => import('./pages/Subscription'), 'Subscription');
+const Audit = lazyNamed(() => import('./pages/Audit'), 'Audit');
+const Privacy = lazyNamed(() => import('./pages/Privacy'), 'Privacy');
+const About = lazyNamed(() => import('./pages/About'), 'About');
+const Accessibility = lazyNamed(() => import('./pages/Accessibility'), 'Accessibility');
+const Contact = lazyNamed(() => import('./pages/Contact'), 'Contact');
+const CookiePolicy = lazyNamed(() => import('./pages/CookiePolicy'), 'CookiePolicy');
+const Terms = lazyNamed(() => import('./pages/Terms'), 'Terms');
+const FAQ = lazyNamed(() => import('./pages/FAQ'), 'FAQ');
+const Help = lazyNamed(() => import('./pages/Help'), 'Help');
+const ThankYou = lazyNamed(() => import('./pages/ThankYou'), 'ThankYou');
+const Explore = lazyNamed(() => import('./pages/Explore'), 'Explore');
+const Events = lazyNamed(() => import('./pages/Events'), 'Events');
+const Drills = lazyNamed(() => import('./pages/Drills'), 'Drills');
+const NIL = lazyNamed(() => import('./pages/NIL'), 'NIL');
+const Reels = lazyNamed(() => import('./pages/Reels'), 'Reels');
+const VideoStudio = lazyNamed(() => import('./pages/VideoStudio'), 'VideoStudio');
+const Settings = lazyNamed(() => import('./pages/Settings'), 'Settings');
+const Messages = lazyNamed(() => import('./pages/Messages'), 'Messages');
+const MaxPrepsLookup = lazyNamed(() => import('./pages/MaxPrepsLookup'), 'MaxPrepsLookup');
+const CollegeFitCalculator = lazyNamed(() => import('./pages/CollegeFitCalculator'), 'CollegeFitCalculator');
+const CollegeFlagFootball = lazyNamed(() => import('./pages/CollegeFlagFootball'), 'CollegeFlagFootball');
+const LeagueFinder = lazyNamed(() => import('./pages/LeagueFinder'), 'LeagueFinder');
+const SquadFinder = lazyNamed(() => import('./pages/SquadFinder'), 'SquadFinder');
+const TeamFinder = lazyNamed(() => import('./pages/TeamFinder'), 'TeamFinder');
+const ScholarshipTracker = lazyNamed(() => import('./pages/ScholarshipTracker'), 'ScholarshipTracker');
+const ParentDashboard = lazyNamed(() => import('./pages/ParentDashboard'), 'ParentDashboard');
+const AdminDashboard = lazyNamed(() => import('./pages/AdminDashboard'), 'AdminDashboard');
+const AdminLogin = lazyNamed(() => import('./pages/AdminLogin'), 'AdminLogin');
+const StaffDashboard = lazyNamed(() => import('./pages/StaffDashboard'), 'StaffDashboard');
+const StaticPageLayout = lazyNamed(() => import('./pages/StaticPageLayout'), 'StaticPageLayout');
+const NotFound = lazyNamed(() => import('./pages/NotFound'), 'NotFound');
+const Onboarding = lazyNamed(() => import('./pages/Onboarding'), 'Onboarding');
+
+const CoachLogin = lazyNamed(() => import('./pages/coach/CoachLogin'), 'CoachLogin');
+const CoachDashboard = lazyNamed(() => import('./pages/coach/CoachDashboard'), 'CoachDashboard');
+const CoachPlayerSearch = lazyNamed(() => import('./pages/coach/CoachPlayerSearch'), 'CoachPlayerSearch');
+const CoachScoutingBoard = lazyNamed(() => import('./pages/coach/CoachScoutingBoard'), 'CoachScoutingBoard');
+const CoachMessages = lazyNamed(() => import('./pages/coach/CoachMessages'), 'CoachMessages');
+const CoachRoster = lazyNamed(() => import('./pages/coach/CoachRoster'), 'CoachRoster');
+const CoachPlayerProfile = lazyNamed(() => import('./pages/coach/CoachPlayerProfile'), 'CoachPlayerProfile');
+const CoachAnalytics = lazyNamed(() => import('./pages/coach/CoachAnalytics'), 'CoachAnalytics');
+const CoachSignup = lazyNamed(() => import('./pages/coach/CoachSignup'), 'CoachSignup');
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
@@ -203,6 +223,12 @@ function App() {
           <Router>
           <ScrollToTop />
           <ScrollProgressBar />
+          {/* Single Suspense around the route tree. ScrollToTop +
+              ScrollProgressBar + the Layout / CoachLayout shells stay outside
+              so the persistent nav and chrome never blank while a route chunk
+              arrives. The fallback is a tiny branded spinner on a dark
+              surface — no white flash. */}
+          <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route element={<Layout />}>
               <Route path="/feed" element={<AthleteRouteGuard><Feed /></AthleteRouteGuard>} />
@@ -273,10 +299,56 @@ function App() {
               <Route path="/coach/player/:id" element={<CoachPlayerProfile />} />
             </Route>
           </Routes>
+          </Suspense>
           </Router>
         </NotificationProvider>
       </AuthProvider>
     </QueryClientProvider>
+  );
+}
+
+// Minimal branded fallback while a lazy route chunk arrives. The page surface
+// stays dark so there is no white flash between the shell and the route.
+function RouteFallback() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        minHeight: '60vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#0a0a0a',
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: '50%',
+          border: '2px solid rgba(255,255,255,0.18)',
+          borderTopColor: '#ff5a2d',
+          animation: 'auth-spin 0.65s linear infinite',
+        }}
+      />
+      <span
+        style={{
+          position: 'absolute',
+          width: 1,
+          height: 1,
+          padding: 0,
+          margin: -1,
+          overflow: 'hidden',
+          clip: 'rect(0,0,0,0)',
+          whiteSpace: 'nowrap',
+          border: 0,
+        }}
+      >
+        Loading…
+      </span>
+    </div>
   );
 }
 
