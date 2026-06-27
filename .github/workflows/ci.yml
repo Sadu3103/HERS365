@@ -23,6 +23,22 @@ jobs:
       - run: npm run build
       - run: npm run lint
 
+  client-tests:
+    name: Client — unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm test
+
   server-build:
     name: Server — TypeScript check
     runs-on: ubuntu-latest
