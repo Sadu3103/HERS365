@@ -1,10 +1,55 @@
-/* iOS safe area support */
+/* iOS safe area support + HERS365 design tokens */
 :root {
   --sat: env(safe-area-inset-top);
   --sab: env(safe-area-inset-bottom);
   --sal: env(safe-area-inset-left);
   --sar: env(safe-area-inset-right);
+
+  /* spacing — 8pt base */
+  --space-1:.25rem;  --space-2:.5rem;   --space-3:.75rem;  --space-4:1rem;
+  --space-5:1.5rem;  --space-6:2rem;    --space-7:3rem;    --space-8:4rem;
+  --space-9:6rem;    --space-10:8rem;
+  --section-py-mobile:var(--space-8);
+  --section-py-desktop:var(--space-10);
+
+  /* dark neutral ramp */
+  --surface-0:#0A0A0C;
+  --surface-1:#121216;
+  --surface-2:#1A1A20;
+  --border:#2A2A32;
+  --border-strong:#3A3A44;
+  --text-primary:#F5F5F7;
+  --text-secondary:#A0A0AB;
+  --text-tertiary:#6B6B76;
+
+  /* orange — action + "your rank" only */
+  --accent:#FF5A2D;        /* fills + large/display orange (>=24px or >=18.66 bold) */
+  --accent-text:#FF7A52;   /* small orange text/links — AA >=4.5:1 on dark */
+  --accent-on:#0A0A0C;     /* text/icon ON orange fills (near-black, not white) */
+
+  /* radius */
+  --radius-sm:8px;
+  --radius-md:12px;
+  --radius-lg:16px;
+  --radius-xl:24px;
+  --radius-full:9999px;
+
+  /* dark-safe elevation: border + inset top-glow, not big shadows */
+  --elev-card:    inset 0 1px 0 0 rgba(255,255,255,.05), 0 1px 2px 0 rgba(0,0,0,.4);
+  --elev-raised:  inset 0 1px 0 0 rgba(255,255,255,.07), 0 8px 24px -8px rgba(0,0,0,.6);
+  --elev-overlay: inset 0 1px 0 0 rgba(255,255,255,.08), 0 24px 64px -16px rgba(0,0,0,.8);
+  --accent-glow:  0 0 0 1px rgba(255,90,45,.4), 0 8px 32px -8px rgba(255,90,45,.35);
+
+  /* display tracking */
+  --tracking-display:-0.03em;
+  --tracking-h1:-0.025em;
+  --tracking-h2:-0.02em;
 }
+
+/* Tabular numerals — pin every digit to the same advance so stats stop
+   "dancing" when they update. Apply to ranks, ratings, GPAs, counts,
+   timers, percentages. Cheap and the biggest premium-feel win. */
+.tnum { font-variant-numeric: tabular-nums; }
 
 html, body {
   overscroll-behavior: none;
