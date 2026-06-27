@@ -626,40 +626,103 @@ router.get('/messages', async (req, res) => {
 // ─── Coach Analytics ──────────────────────────────────────────────────────────
 
 /**
-  * GET /coach/analytics — Recently viewed players, board stats
-  */
+ * GET /coach/analytics — Real aggregates for the coach dashboard. Pulls the
+ * existing relational counters (board / messages / contacts / top states) and
+ * layers on activity aggregates derived from coachEvents. Every metric is
+ * scoped to the authenticated coach via coachUserId(req) — no other coach's
+ * data is ever returned.
+ */
 router.get('/analytics', async (req, res) => {
   try {
     const coachId = coachUserId(req);
 
-    // Get board count
-    const boardCount = await db.select({ count: sql<number>`count(*)` })
-      .from(schema.coachProspects)
-      .where(eq(schema.coachProspects.coachId, coachId));
+    const sevenDaysAgo = sql`now() - interval '7 days'`;
 
-    // Get messages sent count
-    const messagesSent = await db.select({ count: sql<number>`count(*)` })
-      .from(schema.messages)
-      .where(eq(schema.messages.coachId, coachId));
+    const [
+      boardCountRow,
+      messagesSentRow,
+      playersContactedRow,
+      topStateRows,
+      totalPlayersViewedRow,
+      searchQueriesThisWeekRow,
+      profileViewsThisWeekRow,
+      avgSessionRow,
+    ] = await Promise.all([
+      db.select({ count: sql<number>`count(*)` })
+        .from(schema.coachProspects)
+        .where(eq(schema.coachProspects.coachId, coachId)),
+      db.select({ count: sql<number>`count(*)` })
+        .from(schema.messages)
+        .where(eq(schema.messages.coachId, coachId)),
+      db.select({ count: sql<number>`count(*)` })
+        .from(schema.messageRequests)
+        .where(eq(schema.messageRequests.receiverId, coachId)),
+      db.select({ state: schema.players.state, count: sql<number>`count(*)` })
+        .from(schema.coachProspects)
+        .innerJoin(schema.players, eq(schema.players.id, schema.coachProspects.athleteId))
+        .where(eq(schema.coachProspects.coachId, coachId))
+        .groupBy(schema.players.state)
+        .orderBy(desc(sql`count(*)`))
+        .limit(4),
+      db.select({ count: sql<number>`count(distinct ${schema.coachEvents.metadata}->>'playerId')` })
+        .from(schema.coachEvents)
+        .where(and(
+          eq(schema.coachEvents.coachId, coachId),
+          eq(schema.coachEvents.eventType, 'player_viewed'),
+        )),
+      db.select({ count: sql<number>`count(*)` })
+        .from(schema.coachEvents)
+        .where(and(
+          eq(schema.coachEvents.coachId, coachId),
+          eq(schema.coachEvents.eventType, 'search_run'),
+          sql`${schema.coachEvents.createdAt} >= ${sevenDaysAgo}`,
+        )),
+      db.select({ count: sql<number>`count(*)` })
+        .from(schema.coachEvents)
+        .where(and(
+          eq(schema.coachEvents.coachId, coachId),
+          eq(schema.coachEvents.eventType, 'profile_viewed'),
+          sql`${schema.coachEvents.createdAt} >= ${sevenDaysAgo}`,
+        )),
+      db.select({ avg: sql<number | null>`avg(((${schema.coachEvents.metadata}->>'durationMs'))::numeric)` })
+        .from(schema.coachEvents)
+        .where(and(
+          eq(schema.coachEvents.coachId, coachId),
+          eq(schema.coachEvents.eventType, 'session_ended'),
+        )),
+    ]);
 
-    const playersContacted = await db.select({ count: sql<number>`count(*)` })
-      .from(schema.messageRequests)
-      .where(eq(schema.messageRequests.receiverId, coachId));
+    const boardCount = Number(boardCountRow[0]?.count ?? 0);
+    const messagesSent = Number(messagesSentRow[0]?.count ?? 0);
+    const playersContacted = Number(playersContactedRow[0]?.count ?? 0);
+    const totalPlayersViewed = Number(totalPlayersViewedRow[0]?.count ?? 0);
+    const searchQueriesThisWeek = Number(searchQueriesThisWeekRow[0]?.count ?? 0);
+    const profileViewsThisWeek = Number(profileViewsThisWeekRow[0]?.count ?? 0);
+    const avgSessionMs = avgSessionRow[0]?.avg == null ? null : Number(avgSessionRow[0].avg);
+    const avgSessionTime = avgSessionMs == null ? null : Math.round(avgSessionMs / 1000);
 
-    const topStateRows = await db
-      .select({ state: schema.players.state, count: sql<number>`count(*)` })
-      .from(schema.coachProspects)
-      .innerJoin(schema.players, eq(schema.players.id, schema.coachProspects.athleteId))
-      .where(eq(schema.coachProspects.coachId, coachId))
-      .groupBy(schema.players.state)
-      .orderBy(desc(sql`count(*)`))
-      .limit(4);
+    const boardConversionRate = boardCount > 0
+      ? Math.round((playersContacted / boardCount) * 100)
+      : 0;
 
     res.json({
-      boardCount: boardCount[0]?.count || 0,
-      messagesSent: messagesSent[0]?.count || 0,
-      playersContacted: playersContacted[0]?.count || 0,
+      boardCount,
+      messagesSent,
+      playersContacted,
       topStates: topStateRows.map(r => r.state).filter(Boolean),
+      totalPlayersViewed,
+      searchQueriesThisWeek,
+      profileViewsThisWeek,
+      avgSessionTime,
+      boardConversionRate,
+      recruitingPipeline: {
+        prospects: boardCount,
+        contacted: playersContacted,
+        offered: 0,
+        committed: 0,
+      },
+      weeklyActivity: [] as { day: string; searches: number; views: number; saves: number }[],
+      positionBreakdown: [] as { position: string; count: number; percentage: number }[],
     });
   } catch (error) {
     console.error('Failed to fetch analytics:', error);

@@ -277,6 +277,17 @@ export const coaches = pgTable('coaches', {
   verificationNote: text('verification_note'),
 });
 
+// Coach activity events — feeds the analytics dashboard. eventType is one of
+// 'player_viewed' | 'search_run' | 'profile_viewed' | 'session_ended'.
+// metadata carries event-specific payload (durationMs, query, playerId, …).
+export const coachEvents = pgTable('coach_events', {
+  id: serial('id').primaryKey(),
+  coachId: integer('coach_id').references(() => coaches.id).notNull(),
+  eventType: text('event_type').notNull(),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').default(sql`now()`),
+});
+
 export const adminUsers = pgTable('admin_users', {
   id: serial('id').primaryKey(),
   username: text('username').notNull(),
