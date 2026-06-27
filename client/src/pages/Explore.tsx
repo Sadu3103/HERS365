@@ -52,7 +52,7 @@ const css = `
   .pill-filter:hover,.pill-filter.active{background:rgba(255,90,45,.12);border-color:rgba(255,90,45,.35);color:${FLAME}}
   .search-input{background:${INK_2};border:1px solid ${LINE};border-radius:9999px;
     color:#f4f4f2;font-family:'DM Sans',sans-serif;font-size:.9rem;padding:10px 44px 10px 40px;
-    outline:none;transition:border-color .2s,box-shadow .2s;width:100%}
+    transition:border-color .2s,box-shadow .2s;width:100%}
   .search-input:focus{border-color:rgba(255,90,45,.4);box-shadow:0 0 0 3px rgba(255,90,45,.08)}
   .explore-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
   @media(max-width:640px){.explore-grid{grid-template-columns:repeat(2,1fr);gap:10px}}

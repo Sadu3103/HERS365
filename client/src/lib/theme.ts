@@ -49,7 +49,11 @@ export function glowBlob({
   };
 }
 
+// data-reveal makes the CSS resilience rule (html:not(.js-ready) [data-reveal])
+// hold this element at the visible state until JS confirms it can run the
+// framer-motion enter. See LandingPage.tsx useEffect for the .js-ready signal.
 export const reveal = {
+  'data-reveal': true,
   initial: { opacity: 0, y: 14 },
   animate: { opacity: 1, y: 0 },
   transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] },

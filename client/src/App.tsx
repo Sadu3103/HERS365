@@ -161,6 +161,14 @@ function CoachRouteGuard({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+  // Signal JS+React are running so the CSS scroll-reveal resilience rule
+  // (html:not(.js-ready) [data-reveal]) releases its forced-visible override
+  // and framer-motion reveals can play. With JS off the class never lands
+  // and every revealed section stays visible by default.
+  useEffect(() => {
+    document.documentElement.classList.add('js-ready');
+  }, []);
+
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
