@@ -27,6 +27,7 @@ import { contactRouter } from './api/contact';
 import { adminStatsRouter } from './api/admin';
 import { leaguesRouter } from './api/leagues';
 import { teamsRouter } from './api/teams';
+import { errorsRouter } from './api/errors';
 import errorHandler from './middleware/errorHandler';
 import { pool } from './db';
 
@@ -53,6 +54,11 @@ export function createApp() {
     try { await pool.query('SELECT 1'); db = 'up'; } catch { /* db unreachable */ }
     res.json({ status: 'ok', db, uptime: Math.round(process.uptime()), time: new Date().toISOString() });
   });
+
+  // Client error sink — mounted before every other /api/* router so an auth
+  // crash on a pre-login page still reports up. No auth, allow-list schema,
+  // rate limited. See server/api/errors.ts.
+  app.use('/api/errors', errorsRouter);
 
   app.use('/api/payments', paymentRouter);
   app.use('/api/rankings', rankingsRouter);
