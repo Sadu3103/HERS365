@@ -10,6 +10,7 @@ const router = express.Router();
 
 import { publicPlayerView, selfPlayerView } from './lib/playerPrivacy';
 import { parseIdParam } from './lib/parseIdParam';
+import { recordCoachEvent } from './lib/coachEvents';
 
 // requireAuth attaches the token payload to req.user, but Express's Request
 // type doesn't know about it. Read it through here for typed access.
@@ -166,15 +167,19 @@ router.get('/players/:id', optionalAuth, async (req: Request, res: Response, nex
     if (pId === null) return res.status(400).json({ error: 'Invalid id' });
     const player = await db.select().from(schema.players).where(eq(schema.players.id, pId));
     const row = player[0];
+    const viewer = authUser(req);
     // Parent controlled coach discoverability. Mirror the gate on
     // /api/athletes/:id and /api/coach/players/:id so a coach cannot reach a
     // hidden minor's profile through this sibling route. Owner and public are
     // unaffected; unset or true stays visible.
-    if (row && authUser(req)?.role === 'coach') {
+    if (row && viewer?.role === 'coach') {
       const prefs = (row.preferences ?? {}) as Record<string, unknown>;
       if (prefs.coachDiscoverable === false) {
         return res.status(403).json({ error: 'Forbidden' });
       }
+    }
+    if (row && viewer?.role === 'coach') {
+      recordCoachEvent(Number(viewer.userId), 'profile_viewed', { playerId: pId });
     }
     res.json(publicPlayer(row) || null);
   } catch (err: any) {

@@ -5,8 +5,10 @@ import rateLimit from 'express-rate-limit';
 import { db } from './db';
 import * as schema from './schema';
 import * as auth from './auth';
+import jwt from 'jsonwebtoken';
 import { blocklistToken } from './redis';
 import { configurePassport, isGitHubOAuthConfigured } from './passport';
+import { recordCoachEvent } from './lib/coachEvents';
 
 configurePassport();
 
@@ -370,6 +372,24 @@ router.post('/logout', auth.requireAuth, async (req, res) => {
     console.error('[auth/logout] blocklist failed:', err);
     // Don't fail the logout — the client still drops its token.
   }
+
+  const user = (req as any).user as auth.TokenPayload | undefined;
+  if (user?.role === 'coach') {
+    // Derive durationMs from the token's iat so avgSessionTime in the coach
+    // analytics endpoint has real data without needing a separate session
+    // table. Falls back to null if iat is missing or malformed.
+    let durationMs: number | null = null;
+    try {
+      const decoded = jwt.decode(token) as { iat?: number } | null;
+      if (decoded?.iat) {
+        durationMs = Math.max(0, Date.now() - decoded.iat * 1000);
+      }
+    } catch {
+      durationMs = null;
+    }
+    recordCoachEvent(Number(user.userId ?? user.id), 'session_ended', { durationMs });
+  }
+
   res.clearCookie('refreshToken', { httpOnly: true, sameSite: 'lax' });
   res.json({ success: true });
 });
