@@ -22,6 +22,42 @@ html, body {
   100% { transform: translateX(400%); }
 }
 
+@keyframes hers-skeleton-sheen {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(220%); }
+}
+
+.hers-skel {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255,255,255,0.04);
+}
+.hers-skel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.06) 50%,
+    transparent 100%
+  );
+  animation: hers-skeleton-sheen 1.6s ease-in-out infinite;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hers-skel::after { animation: none; }
+}
+.hers-skel-sr {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 @keyframes pulse-ring {
   0%   { transform: scale(1);   opacity: 0.8; }
   70%  { transform: scale(2.2); opacity: 0; }

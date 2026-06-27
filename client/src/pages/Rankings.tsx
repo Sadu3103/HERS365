@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Minus, Search, CheckCircle2, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Search, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { athleteAvatar } from '../lib/avatar';
 import { POSITION_FILTERS } from '../lib/positions';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { Skeleton, VisuallyHidden } from '../components/Skeleton';
 
 type RankedPlayer = {
   id: number;
@@ -114,9 +115,91 @@ export const Rankings = () => {
 
   if (loading) {
     return (
-      <div style={{ padding: '24px', maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
-        <Loader2 size={28} color="#ff5a2d" style={{ animation: 'spin 1s linear infinite' }} />
-        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      <div
+        role="status"
+        aria-live="polite"
+        style={{ padding: '24px', maxWidth: 1100, margin: '0 auto' }}
+      >
+        <VisuallyHidden>Loading national rankings</VisuallyHidden>
+
+        {/* Heading */}
+        <div style={{ marginBottom: 28 }}>
+          <Skeleton width={260} height={28} radius={6} style={{ display: 'block', marginBottom: 8 }} />
+          <Skeleton width={320} height={12} radius={6} style={{ display: 'block' }} />
+        </div>
+
+        {/* Podium (desktop only, matches the loaded layout) */}
+        {!isMobile && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 28 }}>
+            {[0, 1, 2].map(i => (
+              <div
+                key={i}
+                className="k-card"
+                style={{
+                  padding: '20px 18px',
+                  borderColor: i === 0 ? 'rgba(255,90,45,0.4)' : 'rgba(255,255,255,0.06)',
+                  display: 'flex', alignItems: 'center', gap: 14,
+                }}
+              >
+                <Skeleton width={48} height={48} radius="50%" style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <Skeleton width="70%" height={14} style={{ display: 'block' }} />
+                  <Skeleton width="50%" height={11} style={{ display: 'block' }} />
+                </div>
+                <Skeleton width={36} height={28} radius={6} style={{ flexShrink: 0 }} />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Search + filter row */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+          <Skeleton width="100%" height={36} radius={8} style={{ display: 'block' }} />
+          <div style={{ display: 'flex', gap: 4, overflow: 'hidden' }}>
+            {[60, 56, 72, 64, 58, 70].map((w, i) => (
+              <Skeleton key={i} width={w} height={32} radius={7} style={{ flexShrink: 0 }} />
+            ))}
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="k-card" style={{ overflow: 'hidden' }}>
+          <div
+            style={{
+              display: 'grid', gridTemplateColumns: tableCols,
+              padding: '10px 16px',
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
+              gap: 12,
+            }}
+          >
+            {headers.map((_, i) => (
+              <Skeleton key={i} width={36} height={8} radius={4} style={{ justifySelf: i === 1 ? 'start' : 'center' }} />
+            ))}
+          </div>
+          {Array.from({ length: 10 }).map((_, row) => (
+            <div
+              key={row}
+              style={{
+                display: 'grid', gridTemplateColumns: tableCols,
+                padding: '12px 16px', alignItems: 'center', gap: 12,
+                borderBottom: '1px solid rgba(255,255,255,0.04)',
+              }}
+            >
+              <Skeleton width={20} height={14} radius={4} style={{ justifySelf: 'start' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                <Skeleton width={32} height={32} radius="50%" style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <Skeleton width="60%" height={11} style={{ display: 'block' }} />
+                  <Skeleton width="40%" height={9} style={{ display: 'block' }} />
+                </div>
+              </div>
+              {!isMobile && <Skeleton width={36} height={14} radius={4} style={{ justifySelf: 'center' }} />}
+              {!isMobile && <Skeleton width={36} height={12} radius={4} style={{ justifySelf: 'center' }} />}
+              {!isMobile && <Skeleton width={28} height={12} radius={4} style={{ justifySelf: 'center' }} />}
+              <Skeleton width={28} height={18} radius={4} style={{ justifySelf: 'center' }} />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
