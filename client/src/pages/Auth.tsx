@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/api';
 import { athleteAvatar } from '../lib/avatar';
 import { DemoLoginButton } from '../components/DemoLoginButton';
+import { Capacitor } from '@capacitor/core';
 
 const FLAME   = '#ff5a2d';
 const FLAME_S = '#ff8c66';
@@ -144,6 +145,10 @@ function AmbientField({ reduced, faint = false }: { reduced: boolean; faint?: bo
 type SignupRole = 'athlete' | 'parent';
 
 export const Auth = () => {
+  // GoogleLogin renders the Google Identity Services iframe widget which
+  // does not work inside WKWebView without native auth plumbing. Hide it on
+  // native; email/password and the OAuth-callback path still work.
+  const isNativePlatform = Capacitor.isNativePlatform();
   const [searchParams] = useSearchParams();
   const [isLogin,  setIsLogin]  = useState(searchParams.get('tab') !== 'signup');
   const [name,     setName]     = useState('');
@@ -659,7 +664,7 @@ export const Auth = () => {
             }}>
               <Github size={18} /> Continue with GitHub
             </button>
-            {googleClientId ? (
+            {googleClientId && !isNativePlatform ? (
               <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <GoogleLogin
                   onSuccess={handleGoogleSuccess}

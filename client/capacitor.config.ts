@@ -5,26 +5,48 @@ const config: CapacitorConfig = {
     appName: 'HERS365',
     webDir: 'dist',
     server: {
-        androidScheme: 'https'
+        androidScheme: 'https',
+        hostname: 'hers365.app',
+        iosScheme: 'https',
     },
     ios: {
-        cordovaSwiftVersion: '5.0',
-        minVersion: '13.0'
+        minVersion: '15.0',
+        contentInset: 'automatic',
+        scrollEnabled: false,
+        backgroundColor: '#0a0a0a',
     },
     android: {
-        minSdkVersion: 22,
-        buildToolsVersion: '33.0.0',
-        compileSdkVersion: 33
+        minSdkVersion: 24,
+        buildToolsVersion: '34.0.0',
+        compileSdkVersion: 34,
+        backgroundColor: '#0a0a0a',
     },
     plugins: {
         SplashScreen: {
-            launchShowDuration: 3000,
+            launchShowDuration: 2000,
             launchAutoHide: true,
-            backgroundColor: '#2563eb',
+            launchFadeOutDuration: 500,
+            backgroundColor: '#0a0a0a',
             androidSplashResourceName: 'splash',
-            androidAdaptableSplashResourceName: 'splash'
-        }
-    }
+            androidScaleType: 'CENTER_CROP',
+            showSpinner: false,
+            splashFullScreen: true,
+            splashImmersive: true,
+        },
+        StatusBar: {
+            style: 'dark',
+            backgroundColor: '#0a0a0a',
+            overlaysWebView: false,
+        },
+        Keyboard: {
+            resize: 'body',
+            style: 'dark',
+            resizeOnFullScreen: true,
+        },
+        PushNotifications: {
+            presentationOptions: ['badge', 'sound', 'alert'],
+        },
+    },
 };
 
 export default config;
