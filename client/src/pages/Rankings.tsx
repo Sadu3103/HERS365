@@ -185,8 +185,8 @@ export const Rankings = () => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
         <div style={{ position: 'relative' }}>
           <Search size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#444', pointerEvents: 'none' }} />
-          <input type="text" placeholder="Search athletes or schools..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-            style={{ width: '100%', background: '#111', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px 9px 32px', color: '#fff', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
+          <input type="text" aria-label="Search athletes or schools" placeholder="Search athletes or schools..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
+            style={{ width: '100%', background: '#111', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '9px 12px 9px 32px', color: '#fff', fontSize: '0.82rem', boxSizing: 'border-box' }} />
         </div>
         <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' as 'auto' }}>
           {positions.map(p => (

@@ -97,6 +97,15 @@ function ReelCard({
   const [showHeart, setShowHeart] = useState(false);
   const lastTap = useRef(0);
 
+  // Space key from the parent container's keyboard handler dispatches this
+  // event; the active card flips its own play state.
+  useEffect(() => {
+    if (!isActive) return;
+    const onToggle = () => setPlaying((p) => !p);
+    window.addEventListener('hers-reel-toggle-play', onToggle);
+    return () => window.removeEventListener('hers-reel-toggle-play', onToggle);
+  }, [isActive]);
+
   const handleDoubleTap = useCallback(() => {
     const now = Date.now();
     if (now - lastTap.current < 300) {
@@ -334,6 +343,30 @@ export const Reels = () => {
     setTimeout(() => { isScrolling.current = false; }, 600);
   }, [active, goTo]);
 
+  // Keyboard nav: Arrow keys move between reels, Space toggles play/pause on
+  // the active card. preventDefault on the nav keys stops the page from also
+  // scrolling and on Space stops the page-scroll default.
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    switch (e.key) {
+      case 'ArrowDown':
+      case 'ArrowRight':
+        e.preventDefault();
+        goTo(active + 1);
+        break;
+      case 'ArrowUp':
+      case 'ArrowLeft':
+        e.preventDefault();
+        goTo(active - 1);
+        break;
+      case ' ':
+      case 'Spacebar':
+        e.preventDefault();
+        // ReelCard listens on window for this when it is the active card.
+        window.dispatchEvent(new CustomEvent('hers-reel-toggle-play'));
+        break;
+    }
+  }, [active, goTo]);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -358,6 +391,7 @@ export const Reels = () => {
       position: 'fixed', inset: 0, background: INK, overflow: 'hidden',
       display: 'flex', flexDirection: 'column',
     }}>
+      <h1 className="sr-only">Reels — athlete highlights</h1>
       {/* Header */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
@@ -376,6 +410,10 @@ export const Reels = () => {
       {/* Scroll container */}
       <div
         ref={containerRef}
+        tabIndex={0}
+        role="region"
+        aria-label="Reels — use arrow keys to navigate, space to play or pause"
+        onKeyDown={handleKeyDown}
         style={{
           flex: 1, overflowY: 'scroll', scrollSnapType: 'y mandatory',
           msOverflowStyle: 'none', scrollbarWidth: 'none',
