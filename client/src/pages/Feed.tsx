@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { athleteAvatar } from '../lib/avatar';
@@ -755,33 +755,60 @@ export const Feed = () => {
   const [feedType, setFeedType] = useState<'recent' | 'trending'>('recent');
   const [posts, setPosts] = useState<PostData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // [#260] Cursor pagination + surfaced error state for the feed.
+  const [cursor, setCursor] = useState<number | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [postsError, setPostsError] = useState<string | null>(null);
   const [athleteCount, setAthleteCount] = useState<number | null>(null);
   const [topAthletes, setTopAthletes] = useState<RankedAthlete[]>([]);
   const [topLoading, setTopLoading] = useState(true);
 
+  const POSTS_PER_PAGE = 20;
+
+  const mapPostRows = (rows: PostApiRow[]): PostData[] => rows.map((p) => ({
+    id: p.id,
+    user: { name: p.playerName || 'Athlete', avatar: null },
+    time: p.createdAt ? timeAgo(p.createdAt) : '',
+    content: p.content || '',
+    image: p.mediaType === 'image' ? p.mediaUrl : undefined,
+    likes: fmtCount(p.likes ?? 0),
+    comments: fmtCount(p.comments ?? 0),
+    highlights: p.mediaType === 'video' || p.category === 'game',
+    isLiked: false,
+  }));
+
+  // [#260] Load a page of posts. `before` (a post id) loads the next page and
+  // appends; omitting it (re)loads the first page. Errors are surfaced, not
+  // swallowed, so the UI can show a retry affordance.
+  const loadPosts = useCallback(async (opts?: { before?: number; signal?: AbortSignal }) => {
+    const append = opts?.before != null;
+    if (append) setLoadingMore(true); else setIsLoading(true);
+    setPostsError(null);
+    try {
+      const qs = new URLSearchParams({ limit: String(POSTS_PER_PAGE) });
+      if (opts?.before != null) qs.set('before', String(opts.before));
+      const res = await fetch(`/api/posts?${qs.toString()}`, { signal: opts?.signal });
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      const data = await res.json();
+      const rows: PostApiRow[] = Array.isArray(data) ? data : [];
+      const mapped = mapPostRows(rows);
+      setPosts((prev) => (append ? [...prev, ...mapped] : mapped));
+      setHasMore(rows.length === POSTS_PER_PAGE);
+      if (rows.length > 0) setCursor(rows[rows.length - 1].id);
+    } catch (err) {
+      if ((err as { name?: string })?.name === 'AbortError') return;
+      setPostsError('Could not load the feed. Check your connection and try again.');
+    } finally {
+      if (append) setLoadingMore(false); else setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const ctrl = new AbortController();
-    fetch('/api/posts', { signal: ctrl.signal })
-      .then(r => r.json())
-      .then((data: PostApiRow[]) => {
-        const rows = Array.isArray(data) ? data : [];
-        const mapped: PostData[] = rows.map((p) => ({
-          id: p.id,
-          user: { name: p.playerName || 'Athlete', avatar: null },
-          time: p.createdAt ? timeAgo(p.createdAt) : '',
-          content: p.content || '',
-          image: p.mediaType === 'image' ? p.mediaUrl : undefined,
-          likes: fmtCount(p.likes ?? 0),
-          comments: fmtCount(p.comments ?? 0),
-          highlights: p.mediaType === 'video' || p.category === 'game',
-          isLiked: false,
-        }));
-        setPosts(mapped);
-      })
-      .catch(() => {})
-      .finally(() => setIsLoading(false));
+    loadPosts({ signal: ctrl.signal });
     return () => ctrl.abort();
-  }, []);
+  }, [loadPosts]);
 
   useEffect(() => {
     fetch('/api/athletes')
@@ -1211,7 +1238,36 @@ export const Feed = () => {
           />
         ))}
 
-        {!isLoading && posts.length === 0 && (
+        {/* [#260] Error state — initial load failed, with retry */}
+        {!isLoading && postsError && posts.length === 0 && (
+          <motion.div
+            {...reveal}
+            style={{ textAlign: 'center', padding: '64px 20px 40px' }}
+          >
+            <div style={{
+              fontFamily: DISP, fontWeight: 800, fontSize: '1.4rem',
+              textTransform: 'uppercase', letterSpacing: '.02em',
+              color: '#f4f4f2', marginBottom: 10,
+            }}>
+              Couldn't load the feed
+            </div>
+            <div style={{ fontSize: '.88rem', color: MUTED, maxWidth: 360, margin: '0 auto 18px', lineHeight: 1.5 }}>
+              {postsError}
+            </div>
+            <button
+              onClick={() => loadPosts()}
+              style={{
+                fontFamily: DISP, fontWeight: 700, fontSize: '.72rem', letterSpacing: '.16em',
+                textTransform: 'uppercase', color: '#0a0a0a', background: FLAME,
+                border: 'none', borderRadius: 999, padding: '10px 22px', cursor: 'pointer',
+              }}
+            >
+              Try again
+            </button>
+          </motion.div>
+        )}
+
+        {!isLoading && !postsError && posts.length === 0 && (
           <motion.div
             {...reveal}
             style={{ textAlign: 'center', padding: '72px 20px 40px' }}
@@ -1229,8 +1285,29 @@ export const Feed = () => {
           </motion.div>
         )}
 
+        {/* [#260] Load more — keyset pagination */}
+        {!isLoading && posts.length > 0 && hasMore && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, margin: '20px 0 0' }}>
+            {postsError && (
+              <div style={{ color: '#f87171', fontSize: '.82rem', textAlign: 'center' }}>{postsError}</div>
+            )}
+            <button
+              onClick={() => { if (cursor != null) loadPosts({ before: cursor }); }}
+              disabled={loadingMore}
+              style={{
+                fontFamily: DISP, fontWeight: 700, fontSize: '.72rem', letterSpacing: '.16em',
+                textTransform: 'uppercase', color: '#f4f4f2', background: 'transparent',
+                border: `1px solid ${LINE}`, borderRadius: 999, padding: '11px 26px',
+                cursor: loadingMore ? 'default' : 'pointer', opacity: loadingMore ? 0.6 : 1,
+              }}
+            >
+              {loadingMore ? 'Loading…' : 'Load more'}
+            </button>
+          </div>
+        )}
+
         {/* end-of-feed marker */}
-        {!isLoading && posts.length > 0 && (
+        {!isLoading && posts.length > 0 && !hasMore && (
         <motion.div
           {...reveal}
           style={{

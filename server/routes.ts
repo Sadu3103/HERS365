@@ -3,13 +3,14 @@ import { db } from './db';
 import * as schema from './schema';
 import * as ai from './ai';
 import * as mp from './maxpreps';
-import { eq, desc, sql, and } from 'drizzle-orm';
+import { eq, desc, sql, and, lt } from 'drizzle-orm';
 import { requireAuth, requireAdmin, optionalAuth, type TokenPayload } from './auth';
 
 const router = express.Router();
 
 import { publicPlayerView, selfPlayerView } from './lib/playerPrivacy';
 import { parseIdParam } from './lib/parseIdParam';
+import { clampIntQuery, parseIntQuery } from './lib/queryParam';
 import { recordCoachEvent } from './lib/coachEvents';
 
 // requireAuth attaches the token payload to req.user, but Express's Request
@@ -266,8 +267,23 @@ router.get('/teams', async (req: Request, res: Response, next: NextFunction) => 
 });
 
 // SOCIAL FEED
+// [#260] Keyset-paginated feed. Pass ?limit= (1–50, default 20) and
+// ?before=<id> (the last id the client already has) to load the next page.
+// Response stays a plain newest-first array, so existing callers are unaffected;
+// the client infers "has more" from whether a full page came back.
 router.get('/posts', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const limit = clampIntQuery(req.query.limit, { default: 20, min: 1, max: 50 });
+    const before = parseIntQuery(req.query.before); // cursor: only posts older than this id
+    if (req.query.before !== undefined && before === null) {
+      return res.status(400).json({ error: 'before must be an integer post id' });
+    }
+
+    // Keyset pagination must order by the same column the cursor filters on, so
+    // we sort by `id DESC` (a monotonic serial = the canonical feed timeline)
+    // rather than `createdAt`. Ordering by createdAt while paging on id silently
+    // skips/duplicates rows whenever the two disagree (e.g. a backdated post).
+
     const allPosts = await db
       .select({
         id: schema.posts.id,
@@ -287,8 +303,9 @@ router.get('/posts', async (req: Request, res: Response, next: NextFunction) => 
       })
       .from(schema.posts)
       .leftJoin(schema.players, eq(schema.posts.playerId, schema.players.id))
-      .orderBy(desc(schema.posts.createdAt))
-      .limit(50);
+      .where(before !== null ? lt(schema.posts.id, before) : undefined)
+      .orderBy(desc(schema.posts.id))
+      .limit(limit);
     res.json(allPosts);
   } catch (err: any) {
     next(err);

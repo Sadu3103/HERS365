@@ -48,6 +48,31 @@ describe('GET /api/posts', () => {
     expect(res.body[1].playerName).toBe('Alice');
   });
 
+  it('paginates with ?limit and ?before (keyset cursor)', async () => {
+    const a = await makeAthlete({ name: 'Pag' });
+    const p1 = await seedPost(a.id, { content: 'p1' });
+    const p2 = await seedPost(a.id, { content: 'p2' });
+    const p3 = await seedPost(a.id, { content: 'p3' });
+    // newest-first ordering => p3, p2, p1
+
+    const page1 = await request(app).get('/api/posts').query({ limit: 2 });
+    expect(page1.status).toBe(200);
+    expect(page1.body).toHaveLength(2);
+    expect(page1.body[0].id).toBe(p3.id);
+    expect(page1.body[1].id).toBe(p2.id);
+
+    const lastId = page1.body[page1.body.length - 1].id;
+    const page2 = await request(app).get('/api/posts').query({ limit: 2, before: lastId });
+    expect(page2.status).toBe(200);
+    expect(page2.body).toHaveLength(1);
+    expect(page2.body[0].id).toBe(p1.id);
+  });
+
+  it('rejects a non-numeric before cursor with 400', async () => {
+    const res = await request(app).get('/api/posts').query({ before: 'abc' });
+    expect(res.status).toBe(400);
+  });
+
   it('does not leak PII fields like email/passwordHash/dob via the join', async () => {
     const a = await makeAthlete({ email: 'leaky@test.local', dob: new Date('2010-01-01'), zipCode: '90001' });
     await seedPost(a.id, { content: 'hi' });
