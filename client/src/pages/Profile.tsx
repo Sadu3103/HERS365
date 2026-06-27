@@ -10,6 +10,7 @@ import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch, errorMessage } from '../lib/api';
 import { athleteAvatar } from '../lib/avatar';
+import { useRatingReveal } from '../hooks/useRatingReveal';
 
 interface ApiProfile {
   id: number;
@@ -118,6 +119,16 @@ export const Profile = () => {
   const [isEmpty, setIsEmpty] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [viewAsCoach, setViewAsCoach] = useState(false);
+
+  // The signature moment: count-up + bloom + badge stamp fires on the
+  // athlete's OWN profile only. Disabled in coach-view mode and on a
+  // teammate's profile. Reduced-motion + storage failure both fail to
+  // a static final value inside the hook. Lifted above any early returns so
+  // the hook order is stable across loading / error / empty branches.
+  const targetScore = profile?.g5Rating != null ? profile.g5Rating * 20 : null;
+  const { value: liveScore, revealing } = useRatingReveal(targetScore, {
+    enabled: isOwnProfile && !viewAsCoach,
+  });
   const shareRef = useRef<HTMLDivElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const [editOpen, setEditOpen] = useState(false);
@@ -370,8 +381,8 @@ export const Profile = () => {
   if (!profile) return null;
 
   const location = [profile.city, profile.state].filter(Boolean).join(', ');
-  const score = profile.g5Rating != null ? String(profile.g5Rating * 20) : '--';
   const verified = profile.verificationStatus === 'verified';
+  const score = targetScore == null ? '--' : String(liveScore);
   const achievementList = profile.achievements
     ? profile.achievements.split(/[\n,]+/).map(a => a.trim()).filter(Boolean)
     : [];
@@ -439,7 +450,13 @@ export const Profile = () => {
             )}
             {verified && (
               <div style={{ position: 'absolute', bottom: 2, right: 2 }}>
-                <CheckCircle2 size={18} color="#ff5a2d" fill="#ff5a2d" style={{ background: '#111', borderRadius: '50%' }} />
+                <CheckCircle2
+                  size={18}
+                  color="#ff5a2d"
+                  fill="#ff5a2d"
+                  className={revealing ? 'hers-badge' : undefined}
+                  style={{ background: '#111', borderRadius: '50%' }}
+                />
               </div>
             )}
           </div>
@@ -466,14 +483,25 @@ export const Profile = () => {
               </div>
 
               <div
-                style={{ textAlign: 'right', flexShrink: 0, cursor: 'help' }}
+                style={{ textAlign: 'right', flexShrink: 0, cursor: 'help', position: 'relative' }}
                 title={score === '--'
                   ? 'Your HERS Score appears once you log enough performance data.'
                   : 'HERS Score (0–100) derived from your logged stats, combine numbers, and on-platform recruiting activity. Updated whenever you log new data.'}
-                aria-label={score === '--' ? 'HERS Score: not yet rated' : `HERS Score: ${score} out of 100`}
+                aria-label={score === '--' ? 'HERS Score: not yet rated' : `HERS Score: ${targetScore} out of 100`}
+                aria-live={revealing ? 'polite' : undefined}
               >
-                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '3.5rem', color: '#ff5a2d', lineHeight: 1, textShadow: '0 0 30px rgba(255,90,45,0.5)' }}>{score}</div>
-                <div style={{ fontSize: '0.6rem', color: '#444', textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: 2 }}>HERS Score</div>
+                {revealing && <div className="hers-glow" aria-hidden="true" />}
+                <div
+                  className="hers-rating-number"
+                  style={{
+                    fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '3.5rem',
+                    color: '#ff5a2d', lineHeight: 1, textShadow: '0 0 30px rgba(255,90,45,0.5)',
+                    position: 'relative',
+                  }}
+                >
+                  {score}
+                </div>
+                <div style={{ fontSize: '0.6rem', color: '#444', textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: 2, position: 'relative' }}>HERS Score</div>
               </div>
             </div>
 
