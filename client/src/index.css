@@ -485,7 +485,10 @@ html, body {
   .k-badge-coral  { background: rgba(255,90,45,0.1);   color: #ff5a2d; font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 5px; border: 1px solid rgba(255,90,45,0.15); }
   .k-badge-dim    { background: rgba(255,255,255,0.05); color: #666;    font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.08); }
 
-  /* ── Input focus style ── */
+  /* ── Input focus style ──
+     Mouse click → :focus, soft orange wash via border + shadow.
+     Keyboard tab → :focus-visible falls through to the global ring above.
+     No outline:none here, otherwise the global ring is suppressed. */
   .k-input {
     background: #161616;
     border: 1px solid rgba(255,255,255,0.08);
@@ -493,7 +496,6 @@ html, body {
     color: #fff;
     font-size: 0.85rem;
     font-family: 'DM Sans', sans-serif;
-    outline: none;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
 
@@ -548,7 +550,76 @@ html, body {
 }
 @keyframes auth-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
+  /* Auth spinner — original entry */
   .auth-spinner { animation: none !important; }
+
+  /* Global motion off-switch.
+     Override every keyframe animation, transition, and scroll-jump to a
+     snap so the OS-level reduced-motion preference is actually respected
+     instead of only silencing the auth spinner. */
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  html { scroll-behavior: auto !important; }
+
+  /* Page transition wrapper — render at the visible state both ways. */
+  .page-transition-enter,
+  .page-transition-enter-active,
+  .page-transition-exit,
+  .page-transition-exit-active {
+    transition: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  /* Scroll-progress bar — keep position but no transition. */
+  .scroll-progress { transition: none !important; }
+
+  /* Landing-page marquee + pulses + glows + reveal animations. */
+  .lp-ticker-track,
+  .lp-pulse,
+  .k-glow-coral,
+  .k-glow-border,
+  .k-fade-up,
+  .k-score-enter,
+  .k-progress-fill::after {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  /* Scroll-reveal: framer-motion targets get inline opacity/transform; we
+     force final visible state with !important so nothing stays hidden. */
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* Scroll-reveal resilience —
+   The landing page hides sections via inline opacity:0 until an
+   IntersectionObserver flips them in. If JS or the observer never runs,
+   the content is invisible. The `.js-ready` class on <html> is added in
+   useEffect after mount; before then, force the visible state via CSS.
+   Net: with JS off, every revealed section renders at full opacity.
+   With JS on, the framer-motion reveal still plays. */
+html:not(.js-ready) [data-reveal] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Screen-reader-only helper for visually-hidden landmarks + headings. */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ─── Smooth scroll ─── */
@@ -587,10 +658,13 @@ html { scroll-behavior: smooth; }
   transition: opacity 140ms ease;
 }
 
-/* ─── Focus ring ─── */
+/* ─── Focus ring — WCAG AA visible on dark, orange, and busy backgrounds ───
+   Two layers: a solid 2px branded ring, plus a 4px near-black halo so the
+   ring still reads on top of an orange button or a busy hero photo. */
 :focus-visible {
-  outline: 2px solid rgba(255,90,45,0.55);
+  outline: 2px solid var(--accent, #FF5A2D);
   outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(10, 10, 12, 0.9);
   border-radius: 4px;
 }
 

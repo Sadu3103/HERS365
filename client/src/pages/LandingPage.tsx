@@ -137,7 +137,12 @@ const css = `
   }
 `;
 
+// data-reveal lets a CSS rule (html:not(.js-ready) [data-reveal]) force the
+// visible state when JS or the IntersectionObserver never run, so content
+// is never trapped at opacity:0. With JS on, the framer-motion enter still
+// plays normally.
 const reveal = {
+  'data-reveal': true,
   initial: { opacity: 0, y: 26 },
   whileInView: { opacity: 1, y: 0 },
   viewport: { once: true, amount: 0.15 },
@@ -295,6 +300,7 @@ export const LandingPage = () => {
         </Link>
       </div>
 
+      <main>
       {/* HERO */}
       <header className="lp-hero-header" style={{ position: 'relative', padding: '152px 0 80px', overflow: 'hidden' }}>
         {/* BG glows */}
@@ -598,6 +604,7 @@ export const LandingPage = () => {
           </motion.div>
         </div>
       </section>
+      </main>
 
       {/* FOOTER */}
       <footer style={{ borderTop: `1px solid ${LINE}`, padding: '44px 0 36px' }}>
