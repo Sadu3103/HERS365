@@ -319,7 +319,7 @@ export const Auth = () => {
             aria-level={2}
             style={{
               fontFamily: DISP, fontWeight: 900, fontSize: 'clamp(3rem,4.4vw,4.5rem)',
-              textTransform: 'uppercase', lineHeight: 0.9, letterSpacing: '.005em', margin: 0,
+              textTransform: 'uppercase', lineHeight: 0.9, letterSpacing: 'var(--tracking-display)', margin: 0,
             }}
           >
             Your game.<br />Their offer.<br />
@@ -407,7 +407,7 @@ export const Auth = () => {
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.22 }}
             >
-              <h1 style={{ fontFamily: DISP, fontWeight: 900, fontSize: 'clamp(2.4rem,5vw,3rem)', textTransform: 'uppercase', lineHeight: 0.92, margin: '0 0 10px', letterSpacing: '.01em' }}>
+              <h1 style={{ fontFamily: DISP, fontWeight: 900, fontSize: 'clamp(2.4rem,5vw,3rem)', textTransform: 'uppercase', lineHeight: 0.92, margin: '0 0 10px', letterSpacing: 'var(--tracking-display)' }}>
                 {isLogin ? 'Welcome back.' : 'Join the elite.'}
               </h1>
               <p style={{ color: MUTED, fontSize: '0.98rem', margin: '0 0 32px', lineHeight: 1.5 }}>
@@ -640,9 +640,9 @@ export const Auth = () => {
               </p>
               <p style={{ margin: 0 }}>
                 By creating an account you agree to our{' '}
-                <Link to="/terms" style={{ color: FLAME, textDecoration: 'underline' }}>Terms</Link>{' '}
+                <Link to="/terms" style={{ color: 'var(--accent-text)', textDecoration: 'underline' }}>Terms</Link>{' '}
                 and{' '}
-                <Link to="/privacy" style={{ color: FLAME, textDecoration: 'underline' }}>Privacy Policy</Link>.
+                <Link to="/privacy" style={{ color: 'var(--accent-text)', textDecoration: 'underline' }}>Privacy Policy</Link>.
               </p>
             </div>
           )}
