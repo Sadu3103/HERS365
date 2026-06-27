@@ -47,8 +47,8 @@ function Avatar({ name, size = 36 }: { name: string; size?: number }) {
 function Trend({ curr, prev }: { curr: number; prev: number }) {
   const diff = prev - curr;
   if (diff === 0) return <Minus size={13} color="#444" />;
-  if (diff > 0)   return <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}><TrendingUp size={13} color="#4ade80" /><span style={{ fontSize: '0.65rem', color: '#4ade80', fontWeight: 700 }}>+{diff}</span></div>;
-  return <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}><TrendingDown size={13} color="#f87171" /><span style={{ fontSize: '0.65rem', color: '#f87171', fontWeight: 700 }}>{diff}</span></div>;
+  if (diff > 0)   return <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}><TrendingUp size={13} color="#4ade80" /><span className="tnum" style={{ fontSize: '0.65rem', color: '#4ade80', fontWeight: 700 }}>+{diff}</span></div>;
+  return <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}><TrendingDown size={13} color="#f87171" /><span className="tnum" style={{ fontSize: '0.65rem', color: '#f87171', fontWeight: 700 }}>{diff}</span></div>;
 }
 
 export const Rankings = () => {
@@ -125,7 +125,7 @@ export const Rankings = () => {
     <div style={{ padding: '24px', maxWidth: 1100, margin: '0 auto' }}>
 
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '2rem', textTransform: 'uppercase', color: '#fff', marginBottom: 4 }}>
+        <h1 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '2rem', textTransform: 'uppercase', color: '#fff', marginBottom: 4, letterSpacing: 'var(--tracking-display)' }}>
           National Rankings
         </h1>
         <p style={{ color: '#555', fontSize: '0.85rem' }}>Top female high school athletes ranked by performance score</p>
@@ -153,13 +153,13 @@ export const Rankings = () => {
                 }} />
               )}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <span style={{
+                <span className="tnum" style={{
                   fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800,
                   fontSize: i === 0 ? '1.6rem' : '1.2rem',
                   color: i === 0 ? '#ff5a2d' : '#444',
                   textShadow: i === 0 ? '0 0 16px rgba(255,90,45,0.4)' : 'none',
                 }}>#{p.rank}</span>
-                <span style={{
+                <span className="tnum" style={{
                   fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800,
                   fontSize: i === 0 ? '2rem' : '1.8rem', color: '#ff5a2d',
                   textShadow: i === 0 ? '0 0 20px rgba(255,90,45,0.5)' : '0 0 12px rgba(255,90,45,0.2)',
@@ -228,7 +228,7 @@ export const Rankings = () => {
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{
+              <span className="tnum" style={{
                 fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1rem',
                 color: p.rank <= 3 ? '#ff5a2d' : '#555',
               }}>{p.rank}</span>
@@ -252,15 +252,15 @@ export const Rankings = () => {
             )}
 
             {!isMobile && (
-              <div style={{ textAlign: 'center', fontSize: '0.82rem', fontWeight: 600, color: '#ccc' }}>{p.gradYear ?? '–'}</div>
+              <div className="tnum" style={{ textAlign: 'center', fontSize: '0.82rem', fontWeight: 600, color: '#ccc' }}>{p.gradYear ?? '–'}</div>
             )}
 
             {!isMobile && (
-              <div style={{ textAlign: 'center', fontSize: '0.82rem', fontWeight: 600, color: '#ccc' }}>{p.gpa ?? '–'}</div>
+              <div className="tnum" style={{ textAlign: 'center', fontSize: '0.82rem', fontWeight: 600, color: '#ccc' }}>{p.gpa ?? '–'}</div>
             )}
 
             <div style={{ textAlign: 'center' }}>
-              <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.1rem', color: '#ff5a2d' }}>{p.rating}</span>
+              <span className="tnum" style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.1rem', color: '#ff5a2d' }}>{p.rating}</span>
               <div style={{ marginTop: 2, display: 'flex', justifyContent: 'center' }}>
                 <Trend curr={p.rank} prev={p.rank - (p.change > 0 ? 1 : p.change < 0 ? -1 : 0)} />
               </div>
@@ -290,7 +290,7 @@ export const Rankings = () => {
             }}
           >Previous</button>
 
-          <span style={{ fontSize: '0.75rem', color: '#666' }}>
+          <span className="tnum" style={{ fontSize: '0.75rem', color: '#666' }}>
             Page {page} of {totalPages} · {total} athletes
           </span>
 

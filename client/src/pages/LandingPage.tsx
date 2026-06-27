@@ -30,7 +30,7 @@ const css = `
     padding:13px 26px;border-radius:9999px;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:9px;
     transition:transform .18s cubic-bezier(.25,1,.5,1),box-shadow .22s,border-color .22s,color .22s;
     text-decoration:none;position:relative;overflow:hidden;white-space:nowrap}
-  .lp-btn-primary{background:${FLAME};color:#fff;box-shadow:0 6px 22px rgba(255,90,45,.32)}
+  .lp-btn-primary{background:${FLAME};color:var(--accent-on);box-shadow:0 6px 22px rgba(255,90,45,.32)}
   .lp-btn-primary::after{content:'';position:absolute;inset:0;
     background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.22) 50%,transparent 100%);
     transform:translateX(-110%);transition:transform .6s cubic-bezier(.25,1,.5,1);pointer-events:none}
@@ -314,7 +314,7 @@ export const LandingPage = () => {
           <div style={{ borderLeft: `3px solid ${FLAME}`, paddingLeft: 28 }}>
             <motion.span {...reveal} style={{
               display: 'inline-flex', alignItems: 'center', gap: 9, ...disp, fontWeight: 700, letterSpacing: '.18em',
-              fontSize: '.79rem', color: FLAME, marginBottom: 22, border: '1px solid rgba(255,90,45,.28)',
+              fontSize: '.79rem', color: 'var(--accent-text)', marginBottom: 22, border: '1px solid rgba(255,90,45,.28)',
               padding: '7px 14px', borderRadius: 9999, background: 'rgba(255,90,45,.06)', lineHeight: 1.2,
             }}>
               <span className="lp-pulse" style={{ width: 7, height: 7, borderRadius: '50%', background: FLAME, flexShrink: 0 }} />
@@ -325,7 +325,7 @@ export const LandingPage = () => {
               {...reveal}
               transition={{ ...reveal.transition, delay: 0.08 }}
               className="lp-hero-title"
-              style={{ ...disp, fontWeight: 900, fontSize: 'clamp(3.8rem,9vw,7.4rem)', lineHeight: 0.88, margin: 0 }}
+              style={{ ...disp, fontWeight: 900, fontSize: 'clamp(3.8rem,9vw,7.4rem)', lineHeight: 0.88, margin: 0, letterSpacing: 'var(--tracking-display)' }}
             >
               Get Seen.<br />
               Get Ranked.<br />
@@ -394,7 +394,7 @@ export const LandingPage = () => {
                 <div style={{ color: MUTED, fontSize: '.79rem', fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', fontFamily: DISP }}>QB · Class of 2026</div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ ...disp, fontWeight: 900, fontSize: '2.8rem', color: FLAME, lineHeight: 1 }}>95</div>
+                <div className="tnum" style={{ ...disp, fontWeight: 900, fontSize: '2.8rem', color: FLAME, lineHeight: 1 }}>95</div>
                 <div style={{ fontSize: '.6rem', letterSpacing: '.14em', color: MUTED_2, fontWeight: 700, fontFamily: DISP, textTransform: 'uppercase', marginTop: 2 }}>HERS Rating</div>
               </div>
             </div>
@@ -418,7 +418,7 @@ export const LandingPage = () => {
                     (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,.03)';
                   }}
                 >
-                  <div style={{ ...disp, fontWeight: 800, fontSize: '1.5rem' }}>{s.v}</div>
+                  <div className="tnum" style={{ ...disp, fontWeight: 800, fontSize: '1.5rem' }}>{s.v}</div>
                   <div style={{ fontSize: '.63rem', letterSpacing: '.1em', color: MUTED_2, textTransform: 'uppercase', fontWeight: 700, marginTop: 2, fontFamily: DISP }}>{s.l}</div>
                 </div>
               ))}
@@ -433,7 +433,7 @@ export const LandingPage = () => {
               }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.73rem', color: MUTED, fontWeight: 600 }}>
-              <span>Recruiting Visibility</span><span style={{ color: FLAME, fontWeight: 700 }}>92%</span>
+              <span>Recruiting Visibility</span><span className="tnum" style={{ color: 'var(--accent-text)', fontWeight: 700 }}>92%</span>
             </div>
 
             {/* Footer row */}
@@ -454,7 +454,7 @@ export const LandingPage = () => {
         <div className="lp-ticker-track">
           {[...tickerItems, ...tickerItems].map((item, i) => (
             <span key={i} className="lp-ticker-item">
-              <b style={{ color: FLAME }}>{item.label}</b>
+              <b style={{ color: 'var(--accent-text)' }}>{item.label}</b>
               <span style={{ color: MUTED_2 }}>·</span>
               {item.meta}
               <span className="lp-ticker-sep">◆</span>
@@ -474,7 +474,7 @@ export const LandingPage = () => {
               className="stat-cell"
               style={{ padding: '36px 24px', textAlign: 'center', borderRight: i < 3 ? `1px solid ${LINE}` : 'none' }}
             >
-              <div style={{ ...disp, fontWeight: 900, fontSize: '3.2rem', lineHeight: 1 }}>
+              <div className="tnum" style={{ ...disp, fontWeight: 900, fontSize: '3.2rem', lineHeight: 1 }}>
                 <span style={{ color: FLAME }}>{s.n}</span>{s.suffix}
               </div>
               <div style={{ fontSize: '.77rem', letterSpacing: '.14em', textTransform: 'uppercase', color: MUTED, fontWeight: 600, marginTop: 8, fontFamily: DISP }}>{s.c}</div>
@@ -506,7 +506,7 @@ export const LandingPage = () => {
                   <ClipText>{c.title}</ClipText>
                 </h3>
                 <p style={{ color: MUTED, fontSize: '.98rem', margin: 0, lineHeight: 1.65 }}>{c.body}</p>
-                <div style={{ position: 'absolute', bottom: 16, right: 22, ...disp, fontWeight: 900, fontSize: '3.6rem', color: 'rgba(255,255,255,.04)', lineHeight: 1, userSelect: 'none' }}>0{i + 1}</div>
+                <div className="tnum" style={{ position: 'absolute', bottom: 16, right: 22, ...disp, fontWeight: 900, fontSize: '3.6rem', color: 'rgba(255,255,255,.04)', lineHeight: 1, userSelect: 'none' }}>0{i + 1}</div>
               </motion.div>
             ))}
           </div>
@@ -553,7 +553,7 @@ export const LandingPage = () => {
                   borderBottom: i < leaderboard.length - 1 ? `1px solid ${LINE}` : 'none',
                   alignItems: 'center', cursor: 'pointer',
                 }}>
-                  <div style={{ width: 16, ...disp, fontWeight: 900, fontSize: '.8rem', color: MUTED_2, flexShrink: 0 }}>{i + 1}</div>
+                  <div className="tnum" style={{ width: 16, ...disp, fontWeight: 900, fontSize: '.8rem', color: MUTED_2, flexShrink: 0 }}>{i + 1}</div>
                   <div style={{
                     width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: r.av,
                     backgroundImage: `url("${athleteAvatar(r.name)}")`, backgroundSize: 'cover', backgroundPosition: 'center',
@@ -563,7 +563,7 @@ export const LandingPage = () => {
                     <div style={{ fontWeight: 700, fontSize: '.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
                     <div style={{ color: MUTED_2, fontSize: '.73rem' }}>{r.meta}</div>
                   </div>
-                  <div style={{ marginLeft: 'auto', ...disp, fontWeight: 900, fontSize: '1.28rem', color: i === 0 ? FLAME : '#f4f4f2', flexShrink: 0 }}>
+                  <div className="tnum" style={{ marginLeft: 'auto', ...disp, fontWeight: 900, fontSize: '1.28rem', color: i === 0 ? FLAME : '#f4f4f2', flexShrink: 0 }}>
                     {r.up && <span style={{ fontSize: '.58rem', color: '#4ade80', marginRight: 2 }}>▲</span>}{r.rank}
                   </div>
                 </div>

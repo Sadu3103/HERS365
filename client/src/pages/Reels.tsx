@@ -79,7 +79,7 @@ function ActionBtn({
         {icon}
       </div>
       {count !== undefined && (
-        <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.02em' }}>
+        <span className="tnum" style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.02em' }}>
           {count}
         </span>
       )}
