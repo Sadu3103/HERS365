@@ -332,6 +332,26 @@ router.get('/players/:id', async (req, res) => {
 
     recordCoachEvent(coachUserId(req), 'player_viewed', { playerId: id });
 
+    // Athlete-visible "who looked at me" record. Fire-and-forget — a log
+    // failure (FK, dropped connection, anything) must never break the
+    // profile fetch response itself.
+    {
+      const coachId = coachUserId(req);
+      const u = (req as Request & { user?: TokenPayload }).user;
+      const viewerName = (u?.name ?? '').slice(0, 200) || null;
+      db.insert(schema.profileViews)
+        .values({
+          athleteId: id,
+          viewerType: 'coach',
+          viewerName,
+          viewerCoachId: Number.isFinite(coachId) && coachId > 0 ? coachId : null,
+        })
+        .then(() => undefined)
+        .catch((err) => {
+          console.error('[profile-views] failed to log coach view:', err);
+        });
+    }
+
     res.json({
       ...safe,
       stars: safe.g5Rating,
