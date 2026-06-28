@@ -28,6 +28,7 @@ import { adminStatsRouter } from './api/admin';
 import { leaguesRouter } from './api/leagues';
 import { teamsRouter } from './api/teams';
 import { errorsRouter } from './api/errors';
+import pushTokenRouter from './api/pushTokens';
 import errorHandler from './middleware/errorHandler';
 import { pool } from './db';
 
@@ -85,6 +86,7 @@ export function createApp() {
   app.use('/api/contact', contactRouter);
   app.use('/api/leagues', leaguesRouter);
   app.use('/api/teams', teamsRouter);
+  app.use('/api/push-token', pushTokenRouter);
   app.use('/api', mainApiRouter);
 
   // Final middleware: catches anything a route forwarded via next(err), logs
