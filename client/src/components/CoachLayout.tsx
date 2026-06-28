@@ -12,6 +12,7 @@ import {
   Bell,
   UserCircle,
   Menu,
+  Inbox,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MobileNav } from './MobileNav';
@@ -52,10 +53,38 @@ export const CoachLayout = () => {
 
   const unreadCount = coachNotifications.filter(n => n.unread).length;
 
-  const menuItems = [
+  // Pending-applications badge on the Inbox link. Fire-and-forget; a fetch
+  // failure leaves the badge at 0, which is the right default — the link
+  // still works and the inbox page will show the real error if any.
+  const [pendingApps, setPendingApps] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = localStorage.getItem('coachToken');
+        if (!token) return;
+        const res = await fetch('/api/coach/applications', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (cancelled) return;
+        const count = Array.isArray(json.data)
+          ? (json.data as { status?: string }[]).filter((a) => a.status === 'pending').length
+          : 0;
+        setPendingApps(count);
+      } catch {
+        // ignore — badge stays at 0
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [location.pathname]);
+
+  const menuItems: { icon: typeof CircleGauge; label: string; path: string; badge?: number }[] = [
     { icon: CircleGauge, label: 'Dashboard', path: '/coach/dashboard' },
     { icon: Search, label: 'Player Search', path: '/coach/search' },
     { icon: ClipboardList, label: 'Scouting Board', path: '/coach/board' },
+    { icon: Inbox, label: 'Inbox', path: '/coach/applications', badge: pendingApps },
     { icon: BarChart3, label: 'Analytics', path: '/coach/analytics' },
     { icon: Users, label: 'My Roster', path: '/coach/roster' },
     { icon: MessageSquare, label: 'Messages', path: '/coach/messages' },
@@ -83,13 +112,31 @@ export const CoachLayout = () => {
                 <motion.div
                   whileHover={{ x: 5 }}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                    isActive 
-                      ? 'bg-green-500/10 border border-green-500/30 text-green-500 shadow-[0_0_15px_rgba(34,197,94,0.1)]' 
+                    isActive
+                      ? 'bg-green-500/10 border border-green-500/30 text-green-500 shadow-[0_0_15px_rgba(34,197,94,0.1)]'
                       : 'text-ink-muted hover:text-white hover:bg-white/5'
                   }`}
                 >
                   <item.icon size={20} className={isActive ? 'animate-pulse' : ''} />
-                  <span className="font-semibold tracking-wide">{item.label}</span>
+                  <span className="font-semibold tracking-wide flex-1">{item.label}</span>
+                  {item.badge !== undefined && item.badge > 0 && (
+                    <span
+                      aria-label={`${item.badge} pending`}
+                      className="tnum"
+                      style={{
+                        background: '#ff5a2d',
+                        color: '#0a0a0c',
+                        fontSize: '0.65rem',
+                        fontWeight: 800,
+                        padding: '2px 7px',
+                        borderRadius: 9999,
+                        minWidth: 20,
+                        textAlign: 'center',
+                      }}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
                 </motion.div>
               </Link>
             );
