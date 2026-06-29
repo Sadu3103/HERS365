@@ -268,6 +268,9 @@ router.get('/teams', async (req: Request, res: Response, next: NextFunction) => 
 // SOCIAL FEED
 router.get('/posts', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const page  = Math.max(1, parseInt(req.query.page  as string) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 25));
+    const offset = (page - 1) * limit;
     const allPosts = await db
       .select({
         id: schema.posts.id,
@@ -288,7 +291,8 @@ router.get('/posts', async (req: Request, res: Response, next: NextFunction) => 
       .from(schema.posts)
       .leftJoin(schema.players, eq(schema.posts.playerId, schema.players.id))
       .orderBy(desc(schema.posts.createdAt))
-      .limit(50);
+      .limit(limit)
+      .offset(offset);
     res.json(allPosts);
   } catch (err: any) {
     next(err);
