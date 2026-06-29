@@ -1,11 +1,24 @@
-import express from 'express';
+import express, { type Request } from 'express';
 import { asc, desc, eq, and, isNotNull } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 import { clampIntQuery } from '../lib/queryParam';
 import { parseIdParam } from '../lib/parseIdParam';
+import { requireAuth, type TokenPayload } from '../auth';
 
 const router = express.Router();
+
+// Single source of truth for the display rating. /api/rankings/ and
+// /api/rankings/me both call this so an athlete's rating on the floating
+// "your rank" dock can never drift from the rating she sees on her own
+// row in the board.
+export function computeRating(g5Rating: number | null | undefined, xpPoints: number | null | undefined): number {
+  return Math.min(99, (g5Rating ?? 0) * 18 + Math.round((xpPoints ?? 0) / 100));
+}
+
+function authUser(req: Request): TokenPayload | undefined {
+  return (req as Request & { user?: TokenPayload }).user;
+}
 
 // Mirrors the list-endpoint convention: unset prefs are visible, only an
 // explicit `rankingVisible:false` hides. Malformed JSON fails closed so a
@@ -73,7 +86,7 @@ router.get('/', async (req, res) => {
       position: p.position ?? '–',
       gpa: p.gpa ?? null,
       gradYear: p.gradYear ?? null,
-      rating: Math.min(99, (p.g5Rating ?? 0) * 18 + Math.round((p.xpPoints ?? 0) / 100)),
+      rating: computeRating(p.g5Rating, p.xpPoints),
       change: 0,
       verified: p.verificationStatus === 'verified',
     }));
@@ -97,6 +110,88 @@ router.get('/', async (req, res) => {
   } catch (error) {
     console.error('[rankings]', error);
     res.status(500).json({ success: false, error: 'Failed to fetch rankings' });
+  }
+});
+
+// ─── GET /api/rankings/me ──────────────────────────────────────────────────
+// Returns ONLY the signed-in athlete's own standing. Auth required.
+// Self-scoped — no enumeration of other athletes, no PII beyond the caller's
+// own rank/rating/position. Fails closed: every unknown shape resolves to
+// ranked:false with a reason so the client can render nothing without
+// having to interpret a status code. Respects the same parent-controlled
+// visibility gates the public list uses (privacySetting + rankingVisible).
+//
+// MUST be declared BEFORE '/:id' or Express matches 'me' against the
+// numeric-id route and parseIdParam rejects it as 400.
+router.get('/me', requireAuth, async (req, res) => {
+  try {
+    const user = authUser(req);
+    if (!user || user.role !== 'athlete') {
+      return res.json({ success: true, ranked: false, reason: 'not_athlete' });
+    }
+
+    const [me] = await db
+      .select({
+        id: schema.players.id,
+        name: schema.players.name,
+        position: schema.players.position,
+        g5Rating: schema.players.g5Rating,
+        xpPoints: schema.players.xpPoints,
+        privacySetting: schema.players.privacySetting,
+        preferences: schema.players.preferences,
+      })
+      .from(schema.players)
+      .where(eq(schema.players.id, Number(user.userId)))
+      .limit(1);
+
+    if (!me) {
+      return res.json({ success: true, ranked: false, reason: 'not_athlete' });
+    }
+    if (me.g5Rating == null) {
+      return res.json({ success: true, ranked: false, reason: 'unrated' });
+    }
+    const mePrefs = (me.preferences ?? {}) as Record<string, unknown>;
+    if (me.privacySetting !== 'public' || mePrefs.rankingVisible === false) {
+      return res.json({ success: true, ranked: false, reason: 'hidden' });
+    }
+
+    // Build the IDENTICAL ordered+visible set the list handler uses — same
+    // WHERE, same ORDER BY, same post-filter on rankingVisible — and find
+    // the caller's index in it. We only select id+preferences; nothing
+    // else leaves the server.
+    const board = await db
+      .select({
+        id: schema.players.id,
+        preferences: schema.players.preferences,
+      })
+      .from(schema.players)
+      .where(and(eq(schema.players.privacySetting, 'public'), isNotNull(schema.players.g5Rating)))
+      .orderBy(desc(schema.players.g5Rating), desc(schema.players.xpPoints), asc(schema.players.name))
+      .limit(2000);
+
+    const visible = board.filter((p) => {
+      const prefs = (p.preferences ?? {}) as Record<string, unknown>;
+      return prefs.rankingVisible !== false;
+    });
+
+    const idx = visible.findIndex((p) => p.id === me.id);
+    if (idx < 0) {
+      // Belt + suspenders: the gates above said she's visible, but the set
+      // says otherwise (race, edited mid-fetch). Fail closed.
+      return res.json({ success: true, ranked: false, reason: 'hidden' });
+    }
+
+    return res.json({
+      success: true,
+      ranked: true,
+      rank: idx + 1,
+      total: visible.length,
+      rating: computeRating(me.g5Rating, me.xpPoints),
+      position: me.position ?? '–',
+    });
+  } catch (error) {
+    console.error('[rankings/me]', error);
+    res.status(500).json({ success: false });
   }
 });
 
@@ -126,7 +221,7 @@ router.get('/:id', async (req, res) => {
         position: p.position,
         gpa: p.gpa,
         gradYear: p.gradYear,
-        rating: Math.min(99, (p.g5Rating ?? 0) * 18 + Math.round((p.xpPoints ?? 0) / 100)),
+        rating: computeRating(p.g5Rating, p.xpPoints),
         verified: p.verificationStatus === 'verified',
       },
     });
@@ -137,4 +232,4 @@ router.get('/:id', async (req, res) => {
 });
 
 export { router as rankingsRouter };
-export const __test__ = { isRankingVisible };
+export const __test__ = { isRankingVisible, computeRating };
