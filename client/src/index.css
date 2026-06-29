@@ -103,6 +103,90 @@ html, body {
   border: 0;
 }
 
+/* ─── Rankings stadium ─── */
+/* The board's k-card wrapper clips with overflow:hidden, which kills any
+   position:sticky on its descendants. The rankings page sidesteps the
+   clip on a per-element basis by NOT applying .k-card around the sticky
+   header section (the .rk-board wrapper below replaces it with a clipped
+   inner). Tokens for the header sit here so the same blur reads identically
+   on Safari and Chrome. */
+.rk-board {
+  position: relative;
+  background: #111111;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  /* No overflow:hidden — sticky header would die. Child rows clip their own
+     corners via border-radius on first/last where needed. */
+}
+.rk-board > * + * { border-top: 1px solid rgba(255,255,255,0.05); }
+
+.rk-thead {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(10,10,12,0.85);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 1px 0 rgba(255,90,45,0.12);
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+
+/* The athlete's own row — orange identity rail on the left + soft wash so
+   "you are here" never disappears even when the dock is dismissed. */
+.rk-row-self {
+  box-shadow: inset 3px 0 0 #FF5A2D;
+  background: linear-gradient(90deg, rgba(255,90,45,0.06), transparent 40%);
+}
+
+/* The bottom dock. transform/opacity enter via the .rk-dock--in class flip;
+   reduced-motion is handled by the global *, *::before, *::after rule
+   already in this file (transition-duration: 0.001ms !important). */
+.rk-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-bottom: env(safe-area-inset-bottom);
+  transform: translateY(100%);
+  opacity: 0;
+  transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1), opacity 240ms cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+.rk-dock--in {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+/* Tuck-out when the athlete's real row appears on screen — gentle 8px lift,
+   not a full re-slide back off screen. */
+.rk-dock--tucked {
+  transform: translateY(8px);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+/* Mobile: clear the BottomTabBar (mounted by Layout). Bar height ≈ 56px
+   from its label+icon padding; the safe-area inset stacks on top. */
+@media (max-width: 767px) {
+  .rk-dock {
+    bottom: 56px;
+    padding-bottom: env(safe-area-inset-bottom);
+    margin: 0;
+  }
+}
+@keyframes rk-dock-arrive {
+  0%   { box-shadow: 0 -1px 0 rgba(255,90,45,0.45), 0 -16px 40px -12px rgba(255,90,45,0.30); }
+  100% { box-shadow: 0 -1px 0 rgba(255,90,45,0.40), 0 -16px 40px -12px rgba(255,90,45,0.22); }
+}
+.rk-dock--in .rk-dock-surface {
+  animation: rk-dock-arrive 600ms ease 80ms 1 both;
+}
+
 @keyframes pulse-ring {
   0%   { transform: scale(1);   opacity: 0.8; }
   70%  { transform: scale(2.2); opacity: 0; }
