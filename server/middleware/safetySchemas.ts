@@ -206,6 +206,21 @@ export const programApplyBody = z.object({
   note: z.string().trim().max(2000).optional().nullable(),
 });
 
+// ─── Commitment stories ─────────────────────────────────────────────────────
+// POST /api/stories accepts a free-form storyText plus school/name/etc.
+// Caps mirror the DB columns + a defensive ceiling so a runaway payload
+// can't slip past the JSON body limit and into the moderation queue.
+export const storySubmitBody = z.object({
+  athleteName: z.string().trim().min(1).max(200),
+  commitmentSchool: z.string().trim().min(1).max(200),
+  position: z.string().trim().max(64).optional(),
+  commitmentDivision: z.string().trim().max(64).optional(),
+  gradYear: z.coerce.number().int().min(1900).max(2100).optional(),
+  storyText: z.string().trim().max(2000).optional(),
+  imageUrl: z.string().trim().max(1000).optional(),
+  tags: z.array(z.string().trim().max(64)).max(20).optional(),
+});
+
 export const athletePutBody = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   sport: optionalString(32),

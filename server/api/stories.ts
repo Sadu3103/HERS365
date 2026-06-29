@@ -3,6 +3,8 @@ import { desc, eq } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 import { requireAuth, type TokenPayload } from '../auth';
+import { validateBody } from './../middleware/validate';
+import { storySubmitBody } from '../middleware/safetySchemas';
 
 const router = express.Router();
 
@@ -35,14 +37,13 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/stories — athlete submits commitment story (auth required, goes to pending review)
-router.post('/', requireAuth, async (req, res) => {
+// POST /api/stories — athlete submits commitment story (auth required, goes to pending review).
+// validateBody runs the zod allow-list first so unknown fields are dropped
+// before they ever touch the DB write.
+router.post('/', requireAuth, validateBody(storySubmitBody), async (req, res) => {
   try {
     const athleteId = Number(authUser(req)?.id);
     const { athleteName, position, commitmentSchool, commitmentDivision, gradYear, storyText, imageUrl, tags } = req.body;
-
-    if (!athleteName?.trim()) return res.status(400).json({ success: false, error: 'athleteName is required' });
-    if (!commitmentSchool?.trim()) return res.status(400).json({ success: false, error: 'commitmentSchool is required' });
 
     const inserted = await db
       .insert(schema.commitmentStories)
@@ -52,10 +53,10 @@ router.post('/', requireAuth, async (req, res) => {
         position: position?.trim() || null,
         commitmentSchool: commitmentSchool.trim(),
         commitmentDivision: commitmentDivision?.trim() || null,
-        gradYear: gradYear ? parseInt(String(gradYear), 10) : null,
+        gradYear: gradYear ?? null,
         storyText: storyText?.trim() || null,
         imageUrl: imageUrl?.trim() || null,
-        tags: tags || null,
+        tags: tags ?? null,
         approved: false,
       })
       .returning();

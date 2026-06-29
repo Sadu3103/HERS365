@@ -1,5 +1,5 @@
 import express from 'express';
-import { and, eq, or, desc, sql, isNotNull, isNull } from 'drizzle-orm';
+import { and, eq, or, desc, sql, isNotNull, isNull, inArray } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 import { requireAuth } from '../auth';
@@ -61,13 +61,18 @@ router.get('/conversations', async (req, res) => {
       byPartner.set(partnerId, entry);
     }
 
-    // Resolve partner names.
+    // Resolve partner names — single SELECT instead of N+1, otherwise an
+    // active user with many conversation partners costs one round-trip
+    // per partner.
     const partnerIds = [...byPartner.keys()];
     const partnerTable = isCoach ? schema.players : schema.coaches;
     const names = new Map<number, string>();
-    for (const pid of partnerIds) {
-      const [row] = await db.select().from(partnerTable).where(eq(partnerTable.id, pid)).limit(1);
-      names.set(pid, row?.name ?? 'Unknown');
+    if (partnerIds.length > 0) {
+      const partnerRows = await db
+        .select({ id: partnerTable.id, name: partnerTable.name })
+        .from(partnerTable)
+        .where(inArray(partnerTable.id, partnerIds));
+      partnerRows.forEach((r) => names.set(r.id, r.name ?? 'Unknown'));
     }
 
     const data = partnerIds.map((pid) => {
@@ -195,7 +200,9 @@ router.post('/', messageRateLimit, validateBody(sendMessageBody), async (req, re
     // 422 message keeps the rejected category out of the response.
     const verdict = await moderateMessage(String(content));
     if (!verdict.allowed) {
-      console.warn('[messages/send] rejected by moderation', { reason: verdict.reason, userId, partnerIdNum });
+      // userId + partnerIdNum stripped — moderation rejections on a
+      // minors platform must not leave a who/whom trail in shared logs.
+      console.warn('[messages/send] rejected by moderation', { reason: verdict.reason });
       return res.status(422).json({
         success: false,
         error: "Your message couldn't be sent. Please revise and try again.",

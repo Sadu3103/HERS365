@@ -385,6 +385,7 @@ export function CoachPlayerSearch() {
                   <img
                     src={player.highlightThumbnailUrl || player.profileImage || undefined}
                     alt={`${player.name} preview`}
+                    loading="lazy"
                     className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                 ) : (

@@ -5,7 +5,7 @@
 import express, { type Request } from 'express';
 import { db } from './db';
 import * as schema from './schema';
-import { eq, ilike, and, desc, sql } from 'drizzle-orm';
+import { eq, ilike, and, desc, sql, inArray } from 'drizzle-orm';
 import { requireCoach, type TokenPayload } from './auth';
 import { requireVerifiedCoach } from './middleware/requireVerifiedCoach';
 import { hasParentApprovedLink } from './api/messages';
@@ -218,6 +218,8 @@ router.get('/players/search', async (req, res) => {
     const playerIds = rows.map((p) => p.id);
     const thumbnailByPlayer = new Map<number, string>();
     if (playerIds.length > 0) {
+      // Was scanning the entire playerHighlights table on every coach
+      // search; now scoped to the playerIds in the current result set.
       const highlights = await db
         .select({
           playerId: schema.playerHighlights.playerId,
@@ -225,6 +227,7 @@ router.get('/players/search', async (req, res) => {
           createdAt: schema.playerHighlights.createdAt,
         })
         .from(schema.playerHighlights)
+        .where(inArray(schema.playerHighlights.playerId, playerIds))
         .orderBy(desc(schema.playerHighlights.createdAt));
       for (const h of highlights) {
         if (h.playerId != null && h.thumbnailUrl && !thumbnailByPlayer.has(h.playerId)) {
@@ -579,7 +582,9 @@ router.post('/message/:playerId', messageRateLimit, validateParams(coachMessageP
 
     const verdict = await moderateMessage(String(message));
     if (!verdict.allowed) {
-      console.warn('[coach/message] rejected by moderation', { reason: verdict.reason, coachId, playerId });
+      // coachId + playerId stripped — moderation rejections on a
+      // minors platform must not leave a who/whom trail in shared logs.
+      console.warn('[coach/message] rejected by moderation', { reason: verdict.reason });
       return res.status(422).json({
         success: false,
         error: "Your message couldn't be sent. Please revise and try again.",
