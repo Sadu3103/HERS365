@@ -304,10 +304,13 @@ export const subscriptionPlans = pgTable('subscription_plans', {
 
 export const playerSubscriptions = pgTable('player_subscriptions', {
   id: serial('id').primaryKey(),
-  playerId: integer('player_id').references(() => players.id),
-  planId: integer('plan_id').references(() => subscriptionPlans.id),
-  status: text('status'),
+  playerId: integer('player_id').references(() => players.id).notNull(),
+  planId: integer('plan_id').references(() => subscriptionPlans.id).notNull(),
+  status: text('status').notNull(),
   stripeSubscriptionId: text('stripe_subscription_id'),
+  stripeCustomerId: text('stripe_customer_id'),
+  createdAt: timestamp('created_at').default(sql`now()`),
+  updatedAt: timestamp('updated_at').default(sql`now()`),
 });
 
 export const schedules = pgTable('schedules', {
@@ -428,11 +431,11 @@ export const brandPartnerships = pgTable('brand_partnerships', {
 export const payments = pgTable('payments', {
   id: serial('id').primaryKey(),
   playerId: integer('player_id').references(() => players.id),
-  amount: integer('amount').notNull(), // in cents
+  amount: integer('amount').notNull(),
   currency: text('currency').default('usd'),
-  status: text('status').default('pending'), // pending, completed, failed, refunded
-  paymentMethod: text('payment_method'), // card, paypal, stripe, cash, check
-  paymentType: text('payment_type'), // subscription, one_time, tournament_fee, equipment, training
+  status: text('status').default('pending'),
+  paymentMethod: text('payment_method'),
+  paymentType: text('payment_type'),
   description: text('description'),
   stripePaymentIntentId: text('stripe_payment_intent_id'),
   stripeCustomerId: text('stripe_customer_id'),
@@ -442,8 +445,8 @@ export const payments = pgTable('payments', {
   parentPhone: text('parent_phone'),
   notes: text('notes'),
   createdAt: timestamp('created_at').default(sql`now()`),
-  updatedAt: text('updated_at').default(sql`now()`),
-  paidAt: text('paid_at'),
+  updatedAt: timestamp('updated_at').default(sql`now()`),
+  paidAt: timestamp('paid_at'),
 });
 
 export const paymentMethods = pgTable('payment_methods', {
