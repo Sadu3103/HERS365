@@ -77,7 +77,7 @@ export const ScholarshipTracker = () => {
 
   const filtered = statusFilter === 'All'
     ? items
-    : items;
+    : items.filter((s) => s.status === statusFilter);
 
   const stats = {
     total: items.length,
