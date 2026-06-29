@@ -45,7 +45,7 @@ function getStripe(): Stripe {
 // Authenticity is enforced via signature verification instead.
 
 // POST /webhook - Handle Stripe webhooks
-router.post('/webhook', requireStripe, express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
+router.post('/webhook', requireStripe, async (req: Request, res: Response) => {
   const sig = req.headers['stripe-signature'];
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
