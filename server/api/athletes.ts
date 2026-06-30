@@ -155,10 +155,18 @@ router.get('/me/insights', requireAuth, async (req, res) => {
       db.select({ count: sql<number>`count(distinct viewer_coach_id)::int` })
         .from(schema.profileViews)
         .where(and(eq(schema.profileViews.athleteId, athleteId), gte(schema.profileViews.viewedAt, since))),
-      db.select()
+      db.select({
+          id: schema.profileViews.id,
+          viewerType: schema.profileViews.viewerType,
+          viewerName: schema.profileViews.viewerName,
+          viewerCoachId: schema.profileViews.viewerCoachId,
+          viewedAt: schema.profileViews.viewedAt,
+          viewerUniversity: schema.coaches.university,
+        })
         .from(schema.profileViews)
+        .leftJoin(schema.coaches, eq(schema.coaches.id, schema.profileViews.viewerCoachId))
         .where(eq(schema.profileViews.athleteId, athleteId))
-        .orderBy(sql`viewed_at desc`)
+        .orderBy(sql`${schema.profileViews.viewedAt} desc`)
         .limit(10),
     ]);
 
