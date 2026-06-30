@@ -28,6 +28,7 @@ import { messageRateLimit } from './middleware/messageRateLimit';
 import { parseIdParam } from './lib/parseIdParam';
 import { parseIntQuery, parseFloatQuery, clampIntQuery } from './lib/queryParam';
 import { recordCoachEvent } from './lib/coachEvents';
+import { sendEmail } from './email';
 
 const router = express.Router();
 
@@ -331,6 +332,26 @@ router.get('/players/:id', async (req, res) => {
       .limit(1);
 
     recordCoachEvent(coachUserId(req), 'player_viewed', { playerId: id });
+
+    // Athlete-visible "who looked at me" record. Fire-and-forget — a log
+    // failure (FK, dropped connection, anything) must never break the
+    // profile fetch response itself.
+    {
+      const coachId = coachUserId(req);
+      const u = (req as Request & { user?: TokenPayload }).user;
+      const viewerName = (u?.name ?? '').slice(0, 200) || null;
+      db.insert(schema.profileViews)
+        .values({
+          athleteId: id,
+          viewerType: 'coach',
+          viewerName,
+          viewerCoachId: Number.isFinite(coachId) && coachId > 0 ? coachId : null,
+        })
+        .then(() => undefined)
+        .catch((err) => {
+          console.error('[profile-views] failed to log coach view:', err);
+        });
+    }
 
     res.json({
       ...safe,
@@ -848,6 +869,151 @@ router.put('/profile', validateBody(coachProfilePutBody), async (req, res) => {
     return res.json(profile);
   } catch (err) {
     return res.status(500).json({ error: 'Failed to update coach profile' });
+  }
+});
+
+// ─── Recruiting Inbox (STASHED FOR COMMIT B/A SPLIT) ─────────────────────────
+
+const _INBOX_STASH = `placeholder`;
+const APPLICATION_STATUSES = new Set(['pending', 'reviewing', 'interested', 'pass']);
+
+// Resolve THIS coach's program team via program_staff. Returns null when the
+// coach has not been linked to a program — the UI shows an empty inbox in
+// that case instead of every athlete's application.
+async function coachProgramTeamId(req: Request): Promise<number | null> {
+  const u = (req as Request & { user?: TokenPayload }).user;
+  const email = (u?.email ?? '').toLowerCase().trim();
+  if (!email) return null;
+  const rows = await db
+    .select({ teamId: schema.programStaff.teamId })
+    .from(schema.programStaff)
+    .where(sql`lower(${schema.programStaff.email}) = ${email}`)
+    .limit(1);
+  return rows[0]?.teamId ?? null;
+}
+
+/**
+ * GET /coach/applications — applications submitted to THIS coach's program.
+ * Returns an empty list if the coach has no linked program rather than 404
+ * so the UI can render its empty state.
+ */
+router.get('/applications', async (req, res) => {
+  try {
+    const teamId = await coachProgramTeamId(req);
+    if (teamId == null) {
+      return res.json({ success: true, data: [], total: 0 });
+    }
+
+    const rows = await db
+      .select({
+        id: schema.programApplications.id,
+        athleteId: schema.programApplications.athleteId,
+        athleteName: schema.players.name,
+        position: schema.programApplications.position,
+        note: schema.programApplications.note,
+        status: schema.programApplications.status,
+        createdAt: schema.programApplications.createdAt,
+        athletePosition: schema.players.position,
+        athleteSchool: schema.players.school,
+        athleteState: schema.players.state,
+        athleteGradYear: schema.players.gradYear,
+        programName: schema.teams.name,
+        programDivision: schema.teams.division,
+      })
+      .from(schema.programApplications)
+      .innerJoin(schema.players, eq(schema.players.id, schema.programApplications.athleteId))
+      .innerJoin(schema.teams, eq(schema.teams.id, schema.programApplications.programId))
+      .where(eq(schema.programApplications.programId, teamId))
+      .orderBy(desc(schema.programApplications.createdAt));
+
+    res.json({ success: true, data: rows, total: rows.length });
+  } catch (error) {
+    console.error('[coach/applications/list]', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch applications' });
+  }
+});
+
+/**
+ * PATCH /coach/applications/:id — update the status of one application.
+ * The verify-belongs-to-this-coach gate runs as a UPDATE ... WHERE
+ * program_id = <coach's team> so a stray id from another program is a 404,
+ * not a 500.
+ */
+router.patch('/applications/:id', async (req, res) => {
+  try {
+    const id = parseIdParam(req.params.id);
+    if (id === null) return res.status(400).json({ success: false, error: 'Invalid id' });
+
+    const { status } = req.body ?? {};
+    if (typeof status !== 'string' || !APPLICATION_STATUSES.has(status)) {
+      return res.status(400).json({
+        success: false,
+        error: 'status must be one of: pending, reviewing, interested, pass',
+      });
+    }
+
+    const teamId = await coachProgramTeamId(req);
+    if (teamId == null) {
+      return res.status(403).json({ success: false, error: 'Coach is not linked to a program' });
+    }
+
+    const updated = await db
+      .update(schema.programApplications)
+      .set({ status })
+      .where(and(
+        eq(schema.programApplications.id, id),
+        eq(schema.programApplications.programId, teamId),
+      ))
+      .returning();
+
+    if (updated.length === 0) {
+      return res.status(404).json({ success: false, error: 'Application not found' });
+    }
+    const row = updated[0];
+
+    // Notify the athlete. Email failure is logged but never throws — the
+    // status change itself is the source of truth.
+    void (async () => {
+      try {
+        const [athlete] = await db
+          .select({ email: schema.players.email, name: schema.players.name })
+          .from(schema.players)
+          .where(eq(schema.players.id, row.athleteId))
+          .limit(1);
+        if (!athlete?.email) return;
+        const [program] = await db
+          .select({ name: schema.teams.name })
+          .from(schema.teams)
+          .where(eq(schema.teams.id, teamId))
+          .limit(1);
+        const programName = program?.name ?? 'the program';
+        const firstName = (athlete.name ?? '').trim().split(/\s+/)[0] || 'Athlete';
+        const statusLabel = status.toUpperCase();
+        const safePosition = String(row.position ?? '').slice(0, 80);
+        await sendEmail({
+          to: athlete.email,
+          subject: `Update on your HERS365 application to ${programName}`,
+          html: `
+            <div style="font-family: 'DM Sans', sans-serif; max-width: 560px; margin: 0 auto; color: #0a0a0c;">
+              <p>Hi ${firstName},</p>
+              <p>
+                Coach at ${programName} has reviewed your application for the
+                ${safePosition} position. Your current status is:
+                <strong style="color: #ff5a2d;">${statusLabel}</strong>.
+              </p>
+              <p style="color: #6b6b76; font-size: 13px;">Sent automatically by HERS365.</p>
+            </div>
+          `,
+        });
+      } catch (err) {
+        console.error('[coach/applications/patch] email failed:', err);
+      }
+    })();
+
+    res.json({ success: true, data: row });
+  } catch (error) {
+    console.error('[coach/applications/patch]', error);
+    res.status(500).json({ success: false, error: 'Failed to update application' });
   }
 });
 

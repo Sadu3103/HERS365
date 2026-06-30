@@ -76,6 +76,7 @@ const CoachMessages = lazyNamed(() => import('./pages/coach/CoachMessages'), 'Co
 const CoachRoster = lazyNamed(() => import('./pages/coach/CoachRoster'), 'CoachRoster');
 const CoachPlayerProfile = lazyNamed(() => import('./pages/coach/CoachPlayerProfile'), 'CoachPlayerProfile');
 const CoachAnalytics = lazyNamed(() => import('./pages/coach/CoachAnalytics'), 'CoachAnalytics');
+const CoachApplicationsInbox = lazyNamed(() => import('./pages/coach/CoachApplicationsInbox'), 'CoachApplicationsInbox');
 const CoachSignup = lazyNamed(() => import('./pages/coach/CoachSignup'), 'CoachSignup');
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -298,6 +299,7 @@ function App() {
               <Route path="/coach/search" element={<CoachPlayerSearch />} />
               <Route path="/coach/board" element={<CoachScoutingBoard />} />
               <Route path="/coach/analytics" element={<CoachAnalytics />} />
+              <Route path="/coach/applications" element={<CoachApplicationsInbox />} />
               <Route path="/coach/messages" element={<CoachMessages />} />
               <Route path="/coach/roster" element={<CoachRoster />} />
               <Route path="/coach/player/:id" element={<CoachPlayerProfile />} />

@@ -64,6 +64,13 @@
       "when": 1782519665305,
       "tag": "0008_dark_hellcat",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1782621832843,
+      "tag": "0009_heavy_black_widow",
+      "breakpoints": true
     }
   ]
 }

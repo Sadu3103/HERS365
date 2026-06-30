@@ -955,3 +955,16 @@ export const profileViews = pgTable('profile_views', {
   viewedAt: timestamp('viewed_at').default(sql`now()`),
 });
 
+// Device push tokens registered by usePushNotifications on native. One row
+// per device token (UNIQUE) so re-registering the same token upserts the
+// owning user/coach + bumps updatedAt without duplicating rows.
+export const pushTokens = pgTable('push_tokens', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => players.id),
+  coachId: integer('coach_id').references(() => coaches.id),
+  token: text('token').notNull().unique(),
+  platform: text('platform').notNull(), // 'ios' | 'android' | 'web'
+  createdAt: timestamp('created_at').default(sql`now()`),
+  updatedAt: timestamp('updated_at').default(sql`now()`),
+});
+
