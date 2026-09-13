@@ -202,15 +202,11 @@ router.get('/players/search', async (req, res) => {
     const rowsRaw = await db.select().from(schema.players)
       .where(conditions.length ? and(...conditions) : undefined);
 
-    // Parent-controlled coach discoverability: when an athlete's parent has
-    // flipped profileVisibility=false the players.preferences JSON carries
-    // coachDiscoverable=false; hide those rows from the coach search. Unset
-    // or true keeps the existing behavior (default-preserving).
-    // Also filter out athletes who have not yet confirmed their email — they
-    // opted in to the platform but haven't verified, so coaches shouldn't see them.
     const rows = rowsRaw.filter((p) => {
       const prefs = (p.preferences ?? {}) as Record<string, unknown>;
-      return prefs.coachDiscoverable !== false && p.emailVerified !== false;
+      // For live testing, we temporarily remove the emailVerified check so coaches
+      // can see athletes even if they haven't completed email verification yet.
+      return prefs.coachDiscoverable !== false;
     });
 
     // Enrich with each athlete's most recent highlight thumbnail so the coach
