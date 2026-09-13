@@ -12,7 +12,6 @@ import {
 } from '../middleware/safetySchemas';
 import { parseIdParam } from '../lib/parseIdParam';
 import { parseIntQuery, clampIntQuery } from '../lib/queryParam';
-import { publicAthleteDiscoveryEnabled } from '../lib/publicExposure';
 
 // Cross-user view: strips email/phone/dob/zip/pendingParentEmail/passwordHash
 // per the directive 1 rule "minor PII never leaves cross-user endpoints."
@@ -39,9 +38,6 @@ const INT_FIELDS = new Set(['age', 'gradYear']);
 // GET /api/athletes — real DB list with optional filters
 router.get('/', optionalAuth, async (req, res) => {
   try {
-    if (!authUser(req) && !publicAthleteDiscoveryEnabled()) {
-      return res.status(401).json({ success: false, error: 'Authentication required' });
-    }
     const { position, state, gradYear, limit, offset } = req.query;
     const conditions = [];
     if (position && position !== 'All') conditions.push(eq(schema.players.position, String(position)));
@@ -50,6 +46,14 @@ router.get('/', optionalAuth, async (req, res) => {
       const n = parseIntQuery(gradYear);
       if (n === null) return res.status(400).json({ success: false, error: 'gradYear must be an integer' });
       conditions.push(eq(schema.players.gradYear, n));
+    }
+
+    const u = authUser(req);
+    if (u?.role !== 'admin') {
+      conditions.push(sql`${schema.players.privacySetting} != 'private'`);
+    }
+    if (u?.role === 'coach' || !u) {
+      conditions.push(sql`coalesce(${schema.players.preferences}->>'coachDiscoverable', 'true') != 'false'`);
     }
 
     const limitNum = clampIntQuery(limit, { default: 20, min: 1, max: 100 });
@@ -235,9 +239,6 @@ router.get('/:id',optionalAuth, async (req, res) => {
 
     //Privacy Check
     const u = authUser(req);
-    if (!u && !publicAthleteDiscoveryEnabled()) {
-      return res.status(401).json({ success: false, error: 'Authentication required' });
-    }
     const isOwner = u?.userId ? Number(u.userId) === id : false;
     const isCoach = u?.role === 'coach';
 
@@ -266,21 +267,17 @@ router.get('/:id',optionalAuth, async (req, res) => {
 
     // Fire-and-forget coach view tracking (u already declared above)
     if (u?.role === 'coach') {
-      // Token payload no longer carries name; hydrate it from the coaches row
-      // via a subselect so both inserts still fire immediately.
-      const coachId = typeof u.id === 'number' ? u.id : Number(u.userId);
-      const coachName = sql`(select name from coaches where id = ${coachId})`;
       Promise.all([
         db.insert(schema.profileViews).values({
           athleteId: id,
           viewerType: 'coach',
-          viewerName: coachName as any,
-          viewerCoachId: Number.isFinite(coachId) ? coachId : null,
+          viewerName: typeof u.name === 'string' ? u.name : null,
+          viewerCoachId: typeof u.id === 'number' ? u.id : null,
         }),
         db.insert(schema.notifications).values({
           playerId: id,
           type: 'coach_interest',
-          actorName: sql`coalesce((select name from coaches where id = ${coachId}), 'A coach')` as any,
+          actorName: typeof u.name === 'string' ? u.name : 'A coach',
         }),
       ]).catch(() => {});
     }
@@ -288,23 +285,6 @@ router.get('/:id',optionalAuth, async (req, res) => {
     res.json({ success: true, data: publicAthlete(athlete) });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to fetch athlete profile' });
-  }
-});
-
-// GET /api/athletes/:id/stats — Fetch game stats for an athlete
-router.get('/:id/stats', optionalAuth, async (req, res) => {
-  try {
-    const id = parseIdParam(req.params.id);
-    if (id === null) return res.status(400).json({ success: false, error: 'Invalid id' });
-    const u = authUser(req);
-    if (!u && !publicAthleteDiscoveryEnabled()) {
-      return res.status(401).json({ success: false, error: 'Authentication required' });
-    }
-    const rows = await db.select().from(schema.gameStats).where(eq(schema.gameStats.playerId, id));
-    res.json({ success: true, data: rows });
-  } catch (err) {
-    console.error('[athletes/stats GET]', err);
-    res.status(500).json({ success: false, error: 'Failed to fetch athlete stats' });
   }
 });
 

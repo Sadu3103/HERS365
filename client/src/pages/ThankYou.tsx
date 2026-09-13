@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Check, ArrowRight, Star } from 'lucide-react';
-import { tokens } from '../lib/tokens';
 
-const { colors, text, type, radii } = tokens;
+const FLAME = '#8B3BFF';
+const INK = '#0a0a0a';
+const INK_2 = '#111111';
+const LINE = 'rgba(255,255,255,0.07)';
+const MUTED = '#8a8a86';
+const MUTED_2 = '#5a5a56';
+const DISP = "'Barlow Condensed', sans-serif";
 
 const PLAN_PERKS: Record<string, string[]> = {
   Pro: ['Priority ranking visibility', 'Unlimited film uploads', 'Coach DM access', 'Performance analytics'],
@@ -37,14 +42,14 @@ export const ThankYou = () => {
 
   return (
     <div style={{
-      minHeight: '100vh', background: colors.surface0, color: text.primary,
-      fontFamily: type.font.body, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      minHeight: '100vh', background: INK, color: '#f4f4f2',
+      fontFamily: "'DM Sans', sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: '40px 20px',
     }}>
       {/* BG glow */}
       <div style={{
         position: 'fixed', inset: 0, pointerEvents: 'none',
-        background: 'radial-gradient(ellipse 60% 50% at 50% 0%, rgba(139,59,255,.18) 0%, transparent 70%)',
+        background: 'radial-gradient(ellipse 60% 50% at 50% 0%, rgba(139, 59, 255,.18) 0%, transparent 70%)',
       }} />
 
       <motion.div
@@ -61,10 +66,10 @@ export const ThankYou = () => {
             transition={{ delay: 0.2, duration: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
             style={{
               width: 72, height: 72, borderRadius: '50%',
-              background: 'rgba(139,59,255,.12)', border: `2px solid ${colors.accent}`,
+              background: 'rgba(139, 59, 255,.12)', border: `2px solid ${FLAME}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 0 40px rgba(139,59,255,.3)',
-              color: colors.accent,
+              boxShadow: '0 0 40px rgba(139, 59, 255,.3)',
+              color: FLAME,
             }}
           >
             <Check size={32} strokeWidth={2.5} />
@@ -78,8 +83,8 @@ export const ThankYou = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.5 }}
             style={{
-              fontFamily: type.font.display, fontWeight: type.weight.bold, letterSpacing: '.2em',
-              fontSize: '.8rem', color: colors.accent, marginBottom: 12,
+              fontFamily: DISP, fontWeight: 700, letterSpacing: '.2em',
+              fontSize: '.8rem', color: FLAME, marginBottom: 12,
               textTransform: 'uppercase',
             }}
           >
@@ -90,12 +95,12 @@ export const ThankYou = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.38, duration: 0.55 }}
             style={{
-              fontFamily: type.font.display, fontWeight: type.weight.bold, textTransform: 'uppercase',
+              fontFamily: DISP, fontWeight: 900, textTransform: 'uppercase',
               fontSize: 'clamp(2.6rem,6vw,3.8rem)', lineHeight: 0.92,
               margin: 0, letterSpacing: '.01em',
             }}
           >
-            You're On The Grid,<br /><em style={{ color: colors.accent, fontStyle: 'normal' }}>Coach-Visible.</em>
+            You're On The Grid,<br /><em style={{ color: FLAME, fontStyle: 'normal' }}>Coach-Visible.</em>
           </motion.h1>
 
           {!isFree && amountDollars && (
@@ -103,9 +108,9 @@ export const ThankYou = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5, duration: 0.5 }}
-              style={{ color: text.secondary, fontSize: '.92rem', marginTop: 14 }}
+              style={{ color: MUTED, fontSize: '.92rem', marginTop: 14 }}
             >
-              <b style={{ color: text.primary, fontFamily: type.font.display, fontWeight: type.weight.bold, fontSize: '1.1rem' }}>
+              <b style={{ color: '#f4f4f2', fontFamily: DISP, fontWeight: 800, fontSize: '1.1rem' }}>
                 {planName}
               </b>
               {' '}— ${amountDollars}/{interval}. Your profile is now ranked and visible to every coach on the grid.
@@ -119,16 +124,16 @@ export const ThankYou = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.46, duration: 0.55 }}
           style={{
-            background: colors.surface1, border: `1px solid ${colors.border}`,
+            background: INK_2, border: `1px solid ${LINE}`,
             borderRadius: 18, padding: '22px 24px', marginBottom: 22,
           }}
         >
           <div style={{
-            fontFamily: type.font.display, fontWeight: type.weight.bold, textTransform: 'uppercase',
+            fontFamily: DISP, fontWeight: 800, textTransform: 'uppercase',
             letterSpacing: '.1em', fontSize: '.85rem', marginBottom: 16,
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
-            <Star size={14} color={colors.accent} fill={colors.accent} />
+            <Star size={14} color={FLAME} fill={FLAME} />
             {planName} Unlocked
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
@@ -142,12 +147,12 @@ export const ThankYou = () => {
               >
                 <div style={{
                   width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-                  background: 'rgba(139,59,255,.12)', border: '1px solid rgba(139,59,255,.3)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: colors.accent,
+                  background: 'rgba(139, 59, 255,.12)', border: '1px solid rgba(139, 59, 255,.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: FLAME,
                 }}>
                   <Check size={10} strokeWidth={3} />
                 </div>
-                <span style={{ fontSize: '.92rem', color: text.primary }}>{perk}</span>
+                <span style={{ fontSize: '.92rem', color: '#e8e8e6' }}>{perk}</span>
               </motion.div>
             ))}
           </div>
@@ -165,20 +170,20 @@ export const ThankYou = () => {
               <button
                 onClick={() => navigate('/onboarding')}
                 style={{
-                  background: colors.accent, color: colors.accentOn,
-                  fontFamily: type.font.display, fontWeight: type.weight.bold, textTransform: 'uppercase',
+                  background: FLAME, color: '#fff',
+                  fontFamily: DISP, fontWeight: 800, textTransform: 'uppercase',
                   letterSpacing: '.06em', fontSize: '.92rem',
-                  padding: '14px 24px', borderRadius: radii.full, border: 'none',
+                  padding: '14px 24px', borderRadius: 9999, border: 'none',
                   cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
-                  boxShadow: '0 8px 26px rgba(139,59,255,.38)',
+                  boxShadow: '0 8px 26px rgba(139, 59, 255,.38)',
                   transition: 'transform .18s, box-shadow .2s',
                 }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 14px 32px rgba(139,59,255,.52)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'none'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 26px rgba(139,59,255,.38)'; }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 14px 32px rgba(139, 59, 255,.52)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'none'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 8px 26px rgba(139, 59, 255,.38)'; }}
               >
                 Complete Your Profile <ArrowRight size={15} />
               </button>
-              <p style={{ textAlign: 'center', color: text.tertiary, fontSize: '.82rem', margin: 0 }}>
+              <p style={{ textAlign: 'center', color: MUTED_2, fontSize: '.82rem', margin: 0 }}>
                 Coaches can't find you until your profile is complete.
               </p>
             </>
@@ -186,12 +191,12 @@ export const ThankYou = () => {
             <Link
               to="/profile"
               style={{
-                background: colors.accent, color: colors.accentOn,
-                fontFamily: type.font.display, fontWeight: type.weight.bold, textTransform: 'uppercase',
+                background: FLAME, color: '#fff',
+                fontFamily: DISP, fontWeight: 800, textTransform: 'uppercase',
                 letterSpacing: '.06em', fontSize: '.92rem',
-                padding: '14px 24px', borderRadius: radii.full,
+                padding: '14px 24px', borderRadius: 9999,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
-                boxShadow: '0 8px 26px rgba(139,59,255,.38)',
+                boxShadow: '0 8px 26px rgba(139, 59, 255,.38)',
                 textDecoration: 'none',
               }}
             >
@@ -201,12 +206,12 @@ export const ThankYou = () => {
           <Link
             to="/"
             style={{
-              textAlign: 'center', color: text.secondary, fontSize: '.84rem',
+              textAlign: 'center', color: MUTED, fontSize: '.84rem',
               textDecoration: 'none', paddingTop: 4,
               transition: 'color .2s',
             }}
-            onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = text.primary; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = text.secondary; }}
+            onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = '#f4f4f2'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = MUTED; }}
           >
             Back to home
           </Link>
@@ -217,7 +222,7 @@ export const ThankYou = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.85, duration: 0.5 }}
-          style={{ textAlign: 'center', color: text.tertiary, fontSize: '.78rem', marginTop: 24 }}
+          style={{ textAlign: 'center', color: MUTED_2, fontSize: '.78rem', marginTop: 24 }}
         >
           Manage your subscription anytime from your profile settings.
         </motion.p>

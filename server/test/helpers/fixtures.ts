@@ -2,7 +2,6 @@ import { db } from '../../db';
 import * as schema from '../../schema';
 import { signToken, type UserRole } from '../../auth';
 import bcrypt from 'bcryptjs';
-import { eq } from 'drizzle-orm';
 
 // cost 4: fast for tests, same algorithm as hashPassword (cost 12)
 const PW_HASH = bcrypt.hashSync('Test-pw-123', 4);
@@ -19,40 +18,6 @@ export async function makeAthlete(overrides: Partial<typeof schema.players.$infe
     city: 'Los Angeles',
     ...overrides,
   }).returning();
-  // Default to an activated athlete: the DB trigger requires a live consent
-  // and a verified relation before status can flip. Tests exercising the
-  // pending/deactivated states pass an explicit status override.
-  if (overrides.status === undefined) {
-    return activateAthlete(row.id);
-  }
-  return row;
-}
-
-export async function activateAthlete(playerId: number) {
-  const parent = await makeParent();
-  const [consent] = await db.insert(schema.guardianConsents).values({
-    parentId: parent.id,
-    playerId,
-    consentType: 'guardian_link',
-    framework: 'coppa',
-    consented: true,
-    consentVersion: 'test',
-    consentText: 'test consent',
-    method: 'email_code',
-    grantedBy: parent.email,
-  }).returning();
-  await db.insert(schema.parentChildRelations).values({
-    parentId: parent.id,
-    playerId,
-    relationship: 'guardian',
-    status: 'verified',
-    verifiedAt: new Date(),
-    consentId: consent.id,
-  });
-  const [row] = await db.update(schema.players)
-    .set({ status: 'active', activatedAt: new Date() })
-    .where(eq(schema.players.id, playerId))
-    .returning();
   return row;
 }
 
@@ -131,6 +96,6 @@ export async function linkParentChild(parentId: number, playerId: number) {
   return row;
 }
 
-export function tokenFor(user: { id: number }, role: UserRole) {
-  return signToken({ userId: user.id, role });
+export function tokenFor(user: { id: number; email: string; name: string | null }, role: UserRole) {
+  return signToken({ userId: user.id, email: user.email, role, name: user.name ?? '' });
 }

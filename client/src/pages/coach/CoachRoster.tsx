@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   Users,
   Eye,
@@ -17,13 +17,11 @@ import {
   Phone,
   Send,
   CheckCircle2,
-  ChevronDown,
+  Loader2,
 } from 'lucide-react';
 import type { PlayerSearchResult } from '../../types';
 import { useNotifications } from '../../context/NotificationContext';
-import { Button, Card, EmptyState, RowSkeleton } from '../../components/ui';
-import { colors, text, type as typeToken } from '../../lib/tokens';
-import { springs, staggerDelay } from '../../lib/motion';
+import { apiFetch } from '../../lib/api';
 
 type RosterStatus = 'watching' | 'contacted' | 'offered' | 'committed';
 
@@ -58,14 +56,13 @@ const STATUSES: {
   id: RosterStatus;
   label: string;
   icon: typeof Binoculars;
-  fill: string;
-  border: string;
-  tone: string;
+  badge: string;
+  text: string;
 }[] = [
-  { id: 'watching', label: 'Watching', icon: Binoculars, fill: 'rgba(255,46,147,0.1)', border: 'rgba(255,46,147,0.2)', tone: colors.pinkText },
-  { id: 'contacted', label: 'Contacted', icon: Phone, fill: 'rgba(139,59,255,0.1)', border: 'rgba(139,59,255,0.2)', tone: colors.accentText },
-  { id: 'offered', label: 'Offered', icon: Send, fill: 'rgba(139,59,255,0.16)', border: 'rgba(139,59,255,0.3)', tone: colors.accentHover },
-  { id: 'committed', label: 'Committed', icon: CheckCircle2, fill: 'rgba(57,255,20,0.1)', border: 'rgba(57,255,20,0.25)', tone: colors.neon },
+  { id: 'watching', label: 'Watching', icon: Binoculars, badge: 'bg-yellow-600/20 border-yellow-600/40', text: 'text-yellow-400' },
+  { id: 'contacted', label: 'Contacted', icon: Phone, badge: 'bg-blue-600/20 border-blue-600/40', text: 'text-blue-400' },
+  { id: 'offered', label: 'Offered', icon: Send, badge: 'bg-purple-600/20 border-purple-600/40', text: 'text-purple-400' },
+  { id: 'committed', label: 'Committed', icon: CheckCircle2, badge: 'bg-green-600/20 border-green-600/40', text: 'text-green-400' },
 ];
 
 const statusMeta = (status: RosterStatus) => STATUSES.find((s) => s.id === status)!;
@@ -82,111 +79,6 @@ const statusToTier = (status: RosterStatus): string => {
   return 'watching';
 };
 
-const displayHeading = {
-  fontFamily: typeToken.font.display,
-  letterSpacing: typeToken.tracking.h1,
-} as const;
-
-async function coachFetch<T = any>(path: string, opts: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('coachToken');
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...((opts.headers as Record<string, string> | undefined) ?? {}),
-  };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(path, { ...opts, headers });
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
-  if (!res.ok) {
-    const err = new Error(data?.error || data?.message || `Request failed (${res.status})`) as any;
-    err.status = res.status;
-    throw err;
-  }
-  return data as T;
-}
-
-function StatusControl({
-  status,
-  onChange,
-  full = false,
-}: {
-  status: RosterStatus;
-  onChange: (status: RosterStatus) => void;
-  full?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const meta = statusMeta(status);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [open]);
-
-  return (
-    <div ref={wrapRef} className={`relative ${full ? 'w-full' : 'inline-block'}`}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        className={`flex items-center justify-between gap-2 border font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
-          full ? 'w-full rounded-[12px] px-3 py-2 text-sm' : 'rounded-full pl-3 pr-2.5 py-1.5 text-xs'
-        }`}
-        style={{
-          minHeight: 44,
-          background: meta.fill,
-          borderColor: meta.border,
-          color: meta.tone,
-        }}
-      >
-        <span>{meta.label}</span>
-        <ChevronDown className="h-3.5 w-3.5 flex-shrink-0" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.ul
-            role="listbox"
-            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.98 }}
-            transition={springs.snappy}
-            className={`absolute z-20 mt-1.5 overflow-hidden rounded-[12px] border p-1 shadow-lg ${full ? 'w-full' : 'min-w-[9rem]'}`}
-            style={{ background: colors.surface2, borderColor: colors.border }}
-          >
-            {STATUSES.map((s) => {
-              const active = s.id === status;
-              return (
-                <li key={s.id} role="option" aria-selected={active}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onChange(s.id);
-                      setOpen(false);
-                    }}
-                    className="flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 min-h-[44px] text-left text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset"
-                    style={{ color: s.tone, background: active ? s.fill : 'transparent', ['--tw-ring-color' as string]: colors.accent }}
-                    onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
-                    onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
-                  >
-                    <s.icon className="h-3.5 w-3.5 flex-shrink-0" />
-                    <span className="flex-1">{s.label}</span>
-                    {active && <Check className="h-3.5 w-3.5 flex-shrink-0" />}
-                  </button>
-                </li>
-              );
-            })}
-          </motion.ul>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
 export function CoachRoster() {
   const [roster, setRoster] = useState<RosterAthlete[]>([]);
   const [loading, setLoading] = useState(true);
@@ -194,18 +86,17 @@ export function CoachRoster() {
   const [editingNotes, setEditingNotes] = useState<number | null>(null);
   const [notesDraft, setNotesDraft] = useState('');
   const { showNotification } = useNotifications();
-  const reduce = useReducedMotion();
 
   useEffect(() => {
     const load = async () => {
       try {
-        const boardRes = await coachFetch<{ board: Array<{ athleteId: number; tier: string; notes: string }> }>('/api/coach/board');
+        const boardRes = await apiFetch<{ board: Array<{ athleteId: number; tier: string; notes: string }> }>('/api/coach/board');
         const entries = boardRes.board ?? [];
 
         const rows = await Promise.all(
           entries.map(async (entry) => {
             try {
-              const player = await coachFetch<PlayerApiRow>(`/api/players/${entry.athleteId}`);
+              const player = await apiFetch<PlayerApiRow>(`/api/players/${entry.athleteId}`);
               return player ? { entry, player } : null;
             } catch { return null; }
           })
@@ -257,7 +148,7 @@ export function CoachRoster() {
     const athlete = roster.find((a) => a.id === id);
     setRoster((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
     showNotification('success', 'Status Updated', `${athlete?.name} moved to ${statusMeta(status).label}.`);
-    coachFetch(`/api/coach/players/${id}/tier`, {
+    apiFetch(`/api/coach/players/${id}/tier`, {
       method: 'PATCH',
       body: JSON.stringify({ tier: statusToTier(status) }),
     }).catch(() => {});
@@ -268,7 +159,7 @@ export function CoachRoster() {
     setRoster((prev) => prev.filter((a) => a.id !== id));
     if (editingNotes === id) setEditingNotes(null);
     showNotification('info', 'Removed from Roster', `${athlete?.name} was removed from your roster.`);
-    coachFetch(`/api/coach/players/${id}/save`, { method: 'DELETE' }).catch(() => {});
+    apiFetch(`/api/coach/players/${id}/save`, { method: 'DELETE' }).catch(() => {});
   };
 
   const startEditNotes = (id: number, current: string) => {
@@ -283,7 +174,7 @@ export function CoachRoster() {
     setEditingNotes(null);
     setNotesDraft('');
     showNotification('success', 'Notes Saved', `Notes updated for ${athlete?.name}.`);
-    coachFetch(`/api/coach/players/${id}/notes`, {
+    apiFetch(`/api/coach/players/${id}/notes`, {
       method: 'PATCH',
       body: JSON.stringify({ notes: notesToSave }),
     }).catch(() => {});
@@ -315,122 +206,103 @@ export function CoachRoster() {
 
   const renderStars = (stars: number) =>
     Array.from({ length: 5 }, (_, i) => (
-      <Star
-        key={i}
-        className="h-4 w-4"
-        style={{ color: i < stars ? colors.neon : colors.border, fill: i < stars ? 'currentColor' : 'none' }}
-      />
+      <Star key={i} className={`w-4 h-4 ${i < stars ? 'text-yellow-400 fill-current' : 'text-gray-600'}`} />
     ));
-
-  const rowTransition = (idx: number) =>
-    reduce ? { duration: 0 } : { ...springs.gentle, delay: staggerDelay(idx) };
 
   if (loading) {
     return (
-      <div className="min-h-screen" style={{ background: colors.surface0, color: text.primary }}>
-        <div style={{ background: colors.surface1, borderBottom: `1px solid ${colors.border}` }}>
-          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-            <h1 className="text-3xl font-bold" style={{ ...displayHeading, color: text.primary }}>My Roster</h1>
-            <p className="mt-2" style={{ color: text.secondary }}>Manage your shortlisted and recruited athletes</p>
-          </div>
-        </div>
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <Card className="divide-y px-6" style={{ borderColor: colors.border }}>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} style={{ borderColor: colors.border }}>
-                <RowSkeleton />
-              </div>
-            ))}
-          </Card>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 12, color: '#555' }}>
+        <Loader2 size={20} className="animate-spin" />
+        <span style={{ fontSize: '0.85rem' }}>Loading roster...</span>
       </div>
     );
   }
   if (error) {
     return (
-      <div
-        className="flex flex-col items-center justify-center gap-4"
-        style={{ height: '60vh', color: text.tertiary }}
-      >
-        <span style={{ fontSize: typeToken.size.md }}>Failed to load roster.</span>
-        <Button onClick={() => window.location.reload()}>Retry</Button>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 16, color: '#555' }}>
+        <span style={{ fontSize: '0.9rem' }}>Failed to load roster.</span>
+        <button onClick={() => window.location.reload()} style={{ background: '#8B3BFF', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 20px', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}>Retry</button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen" style={{ background: colors.surface0, color: text.primary }}>
+    <div className="min-h-screen bg-gray-900 text-white">
       {/* Header */}
-      <div style={{ background: colors.surface1, borderBottom: `1px solid ${colors.border}` }}>
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <div className="bg-gray-800 border-b border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold" style={{ ...displayHeading, color: text.primary }}>My Roster</h1>
-              <p className="mt-2" style={{ color: text.secondary }}>Manage your shortlisted and recruited athletes</p>
+              <h1 className="text-3xl font-bold text-white">My Roster</h1>
+              <p className="text-gray-400 mt-2">Manage your shortlisted and recruited athletes</p>
             </div>
             <div className="flex items-center gap-3">
-              <Button variant="ghost" onClick={exportToCSV}>
-                <Download className="h-5 w-5" />
+              <button
+                onClick={exportToCSV}
+                className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                <Download className="w-5 h-5" />
                 Export to CSV
-              </Button>
-              <Link to="/coach/search">
-                <Button>Find Athletes</Button>
+              </button>
+              <Link
+                to="/coach/search"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                Find Athletes
               </Link>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Summary Stats */}
-        <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-          <Card>
-            <div className="flex items-center justify-between p-5">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-5">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium" style={{ color: text.secondary }}>Total Athletes</p>
-                <p className="tnum mt-1 text-2xl font-bold" style={{ ...displayHeading, color: text.primary }}>{roster.length}</p>
+                <p className="text-sm font-medium text-gray-400">Total Athletes</p>
+                <p className="text-2xl font-bold text-white mt-1">{roster.length}</p>
               </div>
-              <Users className="h-8 w-8" style={{ color: colors.accentText }} />
+              <Users className="w-8 h-8 text-blue-400" />
             </div>
-          </Card>
+          </div>
           {STATUSES.map((s) => {
             const Icon = s.icon;
             return (
-              <Card key={s.id}>
-                <div className="flex items-center justify-between p-5">
+              <div key={s.id} className="bg-gray-800 border border-gray-700 rounded-lg p-5">
+                <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium" style={{ color: text.secondary }}>{s.label}</p>
-                    <p className="tnum mt-1 text-2xl font-bold" style={{ ...displayHeading, color: text.primary }}>{statusCounts[s.id]}</p>
+                    <p className="text-sm font-medium text-gray-400">{s.label}</p>
+                    <p className="text-2xl font-bold text-white mt-1">{statusCounts[s.id]}</p>
                   </div>
-                  <Icon className="h-8 w-8" style={{ color: s.tone }} />
+                  <Icon className={`w-8 h-8 ${s.text}`} />
                 </div>
-              </Card>
+              </div>
             );
           })}
         </div>
 
         {/* Roster */}
         {roster.length === 0 ? (
-          <EmptyState
-            icon={<Users className="h-12 w-12" />}
-            title="Your roster is empty"
-            body="Start building your roster by shortlisting athletes from the player search."
-            cta={
-              <Link to="/coach/search">
-                <Button>Search Athletes</Button>
-              </Link>
-            }
-          />
+          <div className="text-center py-16">
+            <Users className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+            <h3 className="text-xl font-medium text-gray-400 mb-2">Your roster is empty</h3>
+            <p className="text-gray-500 mb-6">Start building your roster by shortlisting athletes from the player search.</p>
+            <Link
+              to="/coach/search"
+              className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
+              Search Athletes
+            </Link>
+          </div>
         ) : (
           <>
             {/* Desktop table */}
-            <Card className="hidden overflow-visible lg:block">
+            <div className="hidden lg:block bg-gray-800 border border-gray-700 rounded-lg overflow-hidden">
               <table className="w-full">
                 <thead>
-                  <tr
-                    className="text-left text-xs font-semibold uppercase tracking-wider"
-                    style={{ borderBottom: `1px solid ${colors.border}`, color: text.secondary }}
-                  >
+                  <tr className="border-b border-gray-700 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
                     <th className="px-6 py-4">Athlete</th>
                     <th className="px-6 py-4">Position</th>
                     <th className="px-6 py-4">School</th>
@@ -441,53 +313,56 @@ export function CoachRoster() {
                   </tr>
                 </thead>
                 <tbody>
-                  <AnimatePresence initial={false}>
-                    {roster.map((athlete, idx) => (
+                  {roster.map((athlete, idx) => {
+                    const meta = statusMeta(athlete.status);
+                    return (
                       <motion.tr
                         key={athlete.id}
-                        layout={!reduce}
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, x: -12, transition: { duration: reduce ? 0 : 0.18 } }}
-                        transition={rowTransition(idx)}
-                        className="align-top transition-colors last:border-0"
-                        style={{ borderBottom: `1px solid ${colors.border}` }}
+                        transition={{ delay: idx * 0.04 }}
+                        className="border-b border-gray-700/60 last:border-0 hover:bg-gray-700/30 transition-colors align-top"
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <Link
-                              to={`/coach/player/${athlete.id}`}
-                              className="font-semibold transition-colors hover:opacity-80"
-                              style={{ color: text.primary }}
-                            >
+                            <Link to={`/coach/player/${athlete.id}`} className="font-semibold text-white hover:text-blue-400 transition-colors">
                               {athlete.name}
                             </Link>
-                            {athlete.verified && <Award className="h-4 w-4 flex-shrink-0" style={{ color: colors.accentText }} />}
+                            {athlete.verified && <Award className="w-4 h-4 text-blue-400 flex-shrink-0" />}
                           </div>
-                          <div className="mt-1 flex items-center gap-3 text-xs" style={{ color: text.secondary }}>
-                            <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{athlete.state}</span>
-                            <span className="flex items-center gap-1"><GraduationCap className="h-3 w-3" />{athlete.gradYear}</span>
+                          <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
+                            <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{athlete.state}</span>
+                            <span className="flex items-center gap-1"><GraduationCap className="w-3 h-3" />{athlete.gradYear}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span
-                            className="inline-block rounded px-2.5 py-1 text-xs font-semibold"
-                            style={{ background: colors.surface2, color: text.secondary }}
-                          >
+                          <span className="inline-block bg-gray-700 text-gray-200 text-xs font-semibold px-2.5 py-1 rounded">
                             {athlete.position}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm" style={{ color: text.secondary }}>{athlete.school}</td>
+                        <td className="px-6 py-4 text-sm text-gray-300">{athlete.school}</td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <span className="tnum text-lg font-bold" style={{ color: colors.neon }}>{athlete.breakoutScore}</span>
+                            <span className="text-lg font-bold text-green-400">{athlete.breakoutScore}</span>
                             <div className="flex">{renderStars(athlete.stars)}</div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <StatusControl status={athlete.status} onChange={(s) => changeStatus(athlete.id, s)} />
+                          <div className="relative inline-block">
+                            <select
+                              value={athlete.status}
+                              onChange={(e) => changeStatus(athlete.id, e.target.value as RosterStatus)}
+                              className={`appearance-none cursor-pointer border rounded-full pl-3 pr-8 py-1.5 text-xs font-semibold ${meta.badge} ${meta.text} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                            >
+                              {STATUSES.map((s) => (
+                                <option key={s.id} value={s.id} className="bg-gray-800 text-white">
+                                  {s.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </td>
-                        <td className="min-w-[16rem] px-6 py-4">
+                        <td className="px-6 py-4 min-w-[16rem]">
                           {editingNotes === athlete.id ? (
                             <div className="flex items-start gap-2">
                               <textarea
@@ -495,28 +370,27 @@ export function CoachRoster() {
                                 onChange={(e) => setNotesDraft(e.target.value)}
                                 autoFocus
                                 rows={2}
-                                className="k-input flex-1 resize-none text-sm"
+                                className="flex-1 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 placeholder="Add notes..."
                               />
                               <div className="flex flex-col gap-1">
-                                <Button size="sm" className="px-2" onClick={() => saveNotes(athlete.id)} title="Save">
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                <Button size="sm" variant="ghost" className="px-2" onClick={() => setEditingNotes(null)} title="Cancel">
-                                  <X className="h-4 w-4" />
-                                </Button>
+                                <button onClick={() => saveNotes(athlete.id)} className="p-1.5 bg-blue-600 hover:bg-blue-700 rounded transition-colors" title="Save">
+                                  <Check className="w-4 h-4" />
+                                </button>
+                                <button onClick={() => setEditingNotes(null)} className="p-1.5 bg-gray-600 hover:bg-gray-500 rounded transition-colors" title="Cancel">
+                                  <X className="w-4 h-4" />
+                                </button>
                               </div>
                             </div>
                           ) : (
                             <button
                               onClick={() => startEditNotes(athlete.id, athlete.notes)}
-                              className="group flex w-full items-start gap-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                              style={{ ['--tw-ring-color' as string]: colors.accent }}
+                              className="group flex items-start gap-2 text-left text-sm w-full"
                             >
-                              <span style={{ color: athlete.notes ? text.secondary : text.tertiary, fontStyle: athlete.notes ? 'normal' : 'italic' }}>
+                              <span className={athlete.notes ? 'text-gray-300' : 'text-gray-500 italic'}>
                                 {athlete.notes || 'Click to add notes...'}
                               </span>
-                              <Pencil className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ color: text.tertiary }} />
+                              <Pencil className="w-3.5 h-3.5 text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5" />
                             </button>
                           )}
                         </td>
@@ -524,130 +398,117 @@ export function CoachRoster() {
                           <div className="flex items-center justify-end gap-1">
                             <Link
                               to={`/coach/player/${athlete.id}`}
-                              className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg transition-colors hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                              style={{ color: text.secondary, ['--tw-ring-color' as string]: colors.accent }}
+                              className="p-2 text-gray-400 hover:text-blue-400 transition-colors"
                               title="View profile"
-                              aria-label="View profile"
                             >
-                              <Eye className="h-5 w-5" />
+                              <Eye className="w-5 h-5" />
                             </Link>
                             <button
                               onClick={() => removeAthlete(athlete.id)}
-                              className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg transition-colors hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                              style={{ color: text.secondary, ['--tw-ring-color' as string]: colors.accent }}
-                              onMouseEnter={(e) => (e.currentTarget.style.color = colors.dangerText)}
-                              onMouseLeave={(e) => (e.currentTarget.style.color = text.secondary)}
+                              className="p-2 text-gray-400 hover:text-red-400 transition-colors"
                               title="Remove from roster"
-                              aria-label="Remove from roster"
                             >
-                              <Trash2 className="h-5 w-5" />
+                              <Trash2 className="w-5 h-5" />
                             </button>
                           </div>
                         </td>
                       </motion.tr>
-                    ))}
-                  </AnimatePresence>
+                    );
+                  })}
                 </tbody>
               </table>
-            </Card>
+            </div>
 
             {/* Mobile / tablet cards */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:hidden">
-              <AnimatePresence initial={false}>
-                {roster.map((athlete, idx) => (
+            <div className="lg:hidden grid grid-cols-1 md:grid-cols-2 gap-4">
+              {roster.map((athlete, idx) => {
+                const meta = statusMeta(athlete.status);
+                return (
                   <motion.div
                     key={athlete.id}
-                    layout={!reduce}
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.96, transition: { duration: reduce ? 0 : 0.18 } }}
-                    transition={rowTransition(idx)}
+                    transition={{ delay: idx * 0.04 }}
+                    className="bg-gray-800 border border-gray-700 rounded-lg p-5"
                   >
-                    <Card className="p-5">
-                      <div className="mb-3 flex items-start justify-between">
-                        <div className="min-w-0 flex-1">
-                          <div className="mb-1 flex items-center gap-2">
-                            <Link
-                              to={`/coach/player/${athlete.id}`}
-                              className="truncate text-lg font-semibold transition-colors hover:opacity-80"
-                              style={{ color: text.primary }}
-                            >
-                              {athlete.name}
-                            </Link>
-                            {athlete.verified && <Award className="h-4 w-4 flex-shrink-0" style={{ color: colors.accentText }} />}
-                          </div>
-                          <div className="flex items-center gap-3 text-xs" style={{ color: text.secondary }}>
-                            <span className="rounded px-2 py-0.5 font-semibold" style={{ background: colors.surface2, color: text.secondary }}>{athlete.position}</span>
-                            <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{athlete.state}</span>
-                            <span className="flex items-center gap-1"><GraduationCap className="h-3 w-3" />{athlete.gradYear}</span>
-                          </div>
-                          <p className="mt-1 text-sm" style={{ color: text.secondary }}>{athlete.school}</p>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Link to={`/coach/player/${athlete.id}`} className="text-lg font-semibold text-white hover:text-blue-400 transition-colors truncate">
+                            {athlete.name}
+                          </Link>
+                          {athlete.verified && <Award className="w-4 h-4 text-blue-400 flex-shrink-0" />}
                         </div>
+                        <div className="flex items-center gap-3 text-xs text-gray-400">
+                          <span className="bg-gray-700 text-gray-200 font-semibold px-2 py-0.5 rounded">{athlete.position}</span>
+                          <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{athlete.state}</span>
+                          <span className="flex items-center gap-1"><GraduationCap className="w-3 h-3" />{athlete.gradYear}</span>
+                        </div>
+                        <p className="text-sm text-gray-300 mt-1">{athlete.school}</p>
+                      </div>
+                      <button
+                        onClick={() => removeAthlete(athlete.id)}
+                        className="p-2 text-gray-400 hover:text-red-400 transition-colors flex-shrink-0"
+                        title="Remove from roster"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl font-bold text-green-400">{athlete.breakoutScore}</span>
+                        <div className="flex">{renderStars(athlete.stars)}</div>
+                      </div>
+                      <Link to={`/coach/player/${athlete.id}`} className="flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300 transition-colors">
+                        <Eye className="w-4 h-4" /> Profile
+                      </Link>
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="block text-xs font-medium text-gray-400 mb-1.5">Status</label>
+                      <select
+                        value={athlete.status}
+                        onChange={(e) => changeStatus(athlete.id, e.target.value as RosterStatus)}
+                        className={`w-full appearance-none cursor-pointer border rounded-lg px-3 py-2 text-sm font-semibold ${meta.badge} ${meta.text} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                      >
+                        {STATUSES.map((s) => (
+                          <option key={s.id} value={s.id} className="bg-gray-800 text-white">{s.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-400 mb-1.5">Notes</label>
+                      {editingNotes === athlete.id ? (
+                        <div className="space-y-2">
+                          <textarea
+                            value={notesDraft}
+                            onChange={(e) => setNotesDraft(e.target.value)}
+                            autoFocus
+                            rows={3}
+                            className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Add notes..."
+                          />
+                          <div className="flex gap-2">
+                            <button onClick={() => saveNotes(athlete.id)} className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors">Save</button>
+                            <button onClick={() => setEditingNotes(null)} className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white text-sm rounded transition-colors">Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
                         <button
-                          onClick={() => removeAthlete(athlete.id)}
-                          className="flex-shrink-0 inline-flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg transition-colors hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                          style={{ color: text.secondary, ['--tw-ring-color' as string]: colors.accent }}
-                          onMouseEnter={(e) => (e.currentTarget.style.color = colors.dangerText)}
-                          onMouseLeave={(e) => (e.currentTarget.style.color = text.secondary)}
-                          title="Remove from roster"
-                          aria-label="Remove from roster"
+                          onClick={() => startEditNotes(athlete.id, athlete.notes)}
+                          className="w-full text-left bg-gray-700/50 border border-gray-700 rounded px-3 py-2 text-sm min-h-[2.5rem] hover:bg-gray-700 transition-colors"
                         >
-                          <Trash2 className="h-5 w-5" />
+                          <span className={athlete.notes ? 'text-gray-300' : 'text-gray-500 italic'}>
+                            {athlete.notes || 'Click to add notes...'}
+                          </span>
                         </button>
-                      </div>
-
-                      <div className="mb-4 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="tnum text-xl font-bold" style={{ color: colors.neon }}>{athlete.breakoutScore}</span>
-                          <div className="flex">{renderStars(athlete.stars)}</div>
-                        </div>
-                        <Link
-                          to={`/coach/player/${athlete.id}`}
-                          className="flex items-center gap-1 text-sm transition-colors hover:opacity-80"
-                          style={{ color: colors.accentText }}
-                        >
-                          <Eye className="h-4 w-4" /> Profile
-                        </Link>
-                      </div>
-
-                      <div className="mb-4">
-                        <label className="mb-1.5 block text-xs font-medium" style={{ color: text.secondary }}>Status</label>
-                        <StatusControl status={athlete.status} onChange={(s) => changeStatus(athlete.id, s)} full />
-                      </div>
-
-                      <div>
-                        <label className="mb-1.5 block text-xs font-medium" style={{ color: text.secondary }}>Notes</label>
-                        {editingNotes === athlete.id ? (
-                          <div className="space-y-2">
-                            <textarea
-                              value={notesDraft}
-                              onChange={(e) => setNotesDraft(e.target.value)}
-                              autoFocus
-                              rows={3}
-                              className="k-input w-full resize-none text-sm"
-                              placeholder="Add notes..."
-                            />
-                            <div className="flex gap-2">
-                              <Button size="sm" onClick={() => saveNotes(athlete.id)}>Save</Button>
-                              <Button size="sm" variant="ghost" onClick={() => setEditingNotes(null)}>Cancel</Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => startEditNotes(athlete.id, athlete.notes)}
-                            className="min-h-[2.5rem] w-full rounded border px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                            style={{ background: colors.surface2, borderColor: colors.border, ['--tw-ring-color' as string]: colors.accent }}
-                          >
-                            <span style={{ color: athlete.notes ? text.secondary : text.tertiary, fontStyle: athlete.notes ? 'normal' : 'italic' }}>
-                              {athlete.notes || 'Click to add notes...'}
-                            </span>
-                          </button>
-                        )}
-                      </div>
-                    </Card>
+                      )}
+                    </div>
                   </motion.div>
-                ))}
-              </AnimatePresence>
+                );
+              })}
             </div>
           </>
         )}

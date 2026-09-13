@@ -1,18 +1,24 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { LayoutGrid, Trophy, User, Search, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useHaptics } from '../lib/haptics';
-import { colors, radii } from '../lib/tokens';
-import { defaultAthleteTabs, type NavTab } from './navTabs';
+
+const FLAME = '#8B3BFF';
+
+const tabs = [
+  { icon: LayoutGrid, label: 'Grid',    path: '/feed' },
+  { icon: Trophy,     label: 'Ranking', path: '/rankings' },
+  { icon: User,       label: 'Profile', path: '/profile', isMiddle: true },
+  { icon: Zap,        label: 'Pro',     path: '/subscribe' },
+  { icon: Search,     label: 'Recruit', path: '/recruiting' },
+];
 
 interface BottomTabBarProps {
   unreadMessages?: number;
-  tabs?: NavTab[];
 }
 
-export const BottomTabBar: React.FC<BottomTabBarProps> = ({ unreadMessages = 0, tabs = defaultAthleteTabs }) => {
+export const BottomTabBar: React.FC<BottomTabBarProps> = () => {
   const location = useLocation();
-  const haptics = useHaptics();
 
   return (
     <nav
@@ -23,26 +29,81 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ unreadMessages = 0, 
         left: 0,
         right: 0,
         zIndex: 50,
-        background: 'rgba(10,10,10,0.88)',
-        backdropFilter: 'blur(24px) saturate(1.6)',
-        WebkitBackdropFilter: 'blur(24px) saturate(1.6)',
-        borderTop: '1px solid rgba(255,255,255,0.07)',
-        // display is controlled by the `flex md:hidden` classes so the bar shows
-        // on mobile and hides on desktop. An inline display here would override
-        // md:hidden and leak the mobile bar onto desktop.
-        alignItems: 'stretch',
+        background: 'rgba(10,10,10,0.92)',
+        backdropFilter: 'blur(24px) saturate(1.8)',
+        WebkitBackdropFilter: 'blur(24px) saturate(1.8)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        alignItems: 'center',
         paddingBottom: 'env(safe-area-inset-bottom)',
+        height: 64,
       }}
     >
-      {tabs.map(({ icon: Icon, label, path }) => {
+      {tabs.map(({ icon: Icon, label, path, isMiddle }) => {
         const active = location.pathname === path || (path === '/feed' && location.pathname === '/');
-        const hasBadge = path === '/messages' && unreadMessages > 0;
+
+        if (isMiddle) {
+          return (
+            <Link
+              key={path}
+              to={path}
+              style={{ flex: 1, textDecoration: 'none', display: 'flex', justifyContent: 'center' }}
+            >
+              <motion.div
+                whileTap={{ scale: 0.88 }}
+                transition={{ type: 'spring', stiffness: 600, damping: 22 }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 3,
+                  position: 'relative',
+                  top: -6,
+                }}
+              >
+                <div style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: '50%',
+                  background: active
+                    ? 'linear-gradient(135deg, #8B3BFF, #FF2E93)'
+                    : 'rgba(139, 59, 255, 0.18)',
+                  border: active
+                    ? '2px solid #fff'
+                    : '1.5px solid rgba(139, 59, 255, 0.45)',
+                  boxShadow: active
+                    ? '0 4px 18px rgba(139, 59, 255, 0.55)'
+                    : '0 2px 10px rgba(0,0,0,0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s ease',
+                }}>
+                  <Icon
+                    size={22}
+                    color={active ? '#fff' : '#c4b5fd'}
+                    strokeWidth={2.3}
+                  />
+                </div>
+                <span style={{
+                  fontSize: '0.62rem',
+                  fontWeight: active ? 800 : 600,
+                  letterSpacing: '0.03em',
+                  color: active ? '#fff' : 'rgba(255,255,255,0.5)',
+                  lineHeight: 1,
+                  marginTop: 1,
+                }}>
+                  {label}
+                </span>
+              </motion.div>
+            </Link>
+          );
+        }
 
         return (
           <Link
             key={path}
             to={path}
-            onClick={() => { if (!active) haptics.press(); }}
             style={{ flex: 1, textDecoration: 'none' }}
           >
             <motion.div
@@ -53,46 +114,25 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ unreadMessages = 0, 
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 3,
-                paddingTop: 10,
-                paddingBottom: 8,
+                gap: 4,
+                paddingTop: 8,
+                paddingBottom: 6,
+                minHeight: 48,
                 position: 'relative',
               }}
             >
-              <div style={{ position: 'relative' }}>
-                <Icon
-                  size={22}
-                  color={active ? colors.accent : 'rgba(255,255,255,0.38)'}
-                  strokeWidth={active ? 2.2 : 1.8}
-                  style={{ transition: 'color 0.18s, stroke 0.18s' }}
-                />
-                {hasBadge && (
-                  <div style={{
-                    position: 'absolute',
-                    top: -3,
-                    right: -5,
-                    minWidth: 14,
-                    height: 14,
-                    borderRadius: radii.full,
-                    background: colors.accent,
-                    border: `1.5px solid ${colors.surface0}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '0 3px',
-                  }}>
-                    <span style={{ fontSize: '0.52rem', fontWeight: 800, color: colors.accentOn, lineHeight: 1 }}>
-                      {unreadMessages > 9 ? '9+' : unreadMessages}
-                    </span>
-                  </div>
-                )}
-              </div>
+              <Icon
+                size={22}
+                color={active ? FLAME : 'rgba(255,255,255,0.42)'}
+                strokeWidth={active ? 2.3 : 1.8}
+                style={{ transition: 'color 0.18s, stroke 0.18s' }}
+              />
 
               <span style={{
-                fontSize: '0.6rem',
+                fontSize: '0.62rem',
                 fontWeight: active ? 700 : 500,
                 letterSpacing: '0.02em',
-                color: active ? colors.accent : 'rgba(255,255,255,0.35)',
+                color: active ? FLAME : 'rgba(255,255,255,0.4)',
                 transition: 'color 0.18s',
                 lineHeight: 1,
               }}>
@@ -107,10 +147,10 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ unreadMessages = 0, 
                     top: 0,
                     left: '50%',
                     transform: 'translateX(-50%)',
-                    width: 32,
-                    height: 2,
-                    borderRadius: radii.full,
-                    background: colors.accent,
+                    width: 28,
+                    height: 2.5,
+                    borderRadius: 9999,
+                    background: FLAME,
                   }}
                   transition={{ type: 'spring', stiffness: 500, damping: 32 }}
                 />
@@ -122,3 +162,4 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ unreadMessages = 0, 
     </nav>
   );
 };
+

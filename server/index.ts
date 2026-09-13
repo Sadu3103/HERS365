@@ -21,8 +21,7 @@ dotenv.config();
 
 // [D-02] Fail fast on missing required env vars
 const REQUIRED_ENV_VARS = ['DATABASE_URL', 'JWT_SECRET', 'STRIPE_SECRET_KEY', 'SESSION_SECRET'];
-const APP_ENV = process.env.APP_ENV ?? process.env.NODE_ENV ?? 'development';
-if (APP_ENV !== 'test' && APP_ENV !== 'development') {
+if (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'development') {
   const missing = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
   if (missing.length > 0) {
     console.error(`Missing required environment variables: ${missing.join(', ')}`);

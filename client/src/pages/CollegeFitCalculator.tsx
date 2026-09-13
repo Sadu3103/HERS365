@@ -5,11 +5,13 @@ import {
   Zap, ChevronDown, ChevronUp, Star,
 } from 'lucide-react';
 import { FLAG_POSITIONS } from '../lib/positions';
-import { colors, type as t, radii } from '../lib/tokens';
-import { Card, Chip, Input, Button } from '../components/ui';
 
-const DISP = t.font.display;
-const LINE = colors.border;
+const FLAME_C = '#8B3BFF';
+const INK_2 = '#111111';
+const LINE = 'rgba(255,255,255,0.07)';
+const MUTED = '#8a8a86';
+const MUTED_2 = '#5a5a56';
+const DISP = "'Barlow Condensed', sans-serif";
 
 type FitLevel = 'reach' | 'target' | 'safety' | 'strong fit';
 
@@ -44,10 +46,10 @@ function getFit(gpa: number, rating: number, college: College): FitLevel {
 }
 
 const FIT_CFG: Record<FitLevel, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
-  'strong fit': { label: 'Strong Fit',  color: colors.success,    bg: `${colors.success}1a`, icon: <CheckCircle2 size={16} /> },
-  target:       { label: 'Target',      color: colors.pinkText,   bg: `${colors.pink}1a`,    icon: <Star size={16} /> },
-  safety:       { label: 'Safety',      color: colors.accentText, bg: `${colors.accent}1a`,  icon: <CheckCircle2 size={16} /> },
-  reach:        { label: 'Reach',       color: colors.danger,     bg: `${colors.danger}1a`,  icon: <AlertCircle size={16} /> },
+  'strong fit': { label: 'Strong Fit',  color: '#4ade80', bg: 'rgba(74,222,128,0.1)', icon: <CheckCircle2 size={16} /> },
+  target:       { label: 'Target',      color: '#fbbf24', bg: 'rgba(251,191,36,0.1)', icon: <Star size={16} /> },
+  safety:       { label: 'Safety',      color: '#60a5fa', bg: 'rgba(96,165,250,0.1)', icon: <CheckCircle2 size={16} /> },
+  reach:        { label: 'Reach',       color: '#f87171', bg: 'rgba(248,113,113,0.1)', icon: <AlertCircle size={16} /> },
 };
 
 export const CollegeFitCalculator = () => {
@@ -71,86 +73,95 @@ export const CollegeFitCalculator = () => {
 
   const fitCounts = results.reduce((acc, r) => ({ ...acc, [r.fit]: (acc[r.fit] || 0) + 1 }), {} as Record<string, number>);
 
-  const fieldLabel = { fontSize: t.size.xs, fontWeight: t.weight.bold, letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: colors.textTertiary, marginBottom: 8 };
-
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 20px 120px' }}>
       <div style={{ marginBottom: 28 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontSize: t.size.xs, fontWeight: t.weight.bold, letterSpacing: '0.12em', textTransform: 'uppercase', color: colors.accentText }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: FLAME_C }}>
           <GraduationCap size={13} /> COLLEGE FIT
         </div>
-        <h1 style={{ fontFamily: DISP, fontSize: 'clamp(1.9rem, 5vw, 2.6rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: t.tracking.h2, margin: '0 0 8px', lineHeight: 1 }}>
+        <h1 style={{ fontFamily: DISP, fontSize: 'clamp(1.9rem, 5vw, 2.6rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.02em', margin: '0 0 8px', lineHeight: 1 }}>
           Find Your Fit.
         </h1>
-        <p style={{ color: colors.textSecondary, fontSize: t.size.md, margin: 0 }}>
+        <p style={{ color: MUTED, fontSize: '0.88rem', margin: 0 }}>
           Enter your stats and see which programs match your profile.
         </p>
       </div>
 
-      <Card style={{ padding: '22px 22px 20px', marginBottom: 24 }}>
+      {/* Input form */}
+      <div style={{ background: INK_2, border: `1px solid ${LINE}`, borderRadius: 14, padding: '22px 22px 20px', marginBottom: 24 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
           <div>
-            <div style={fieldLabel}>GPA</div>
-            <Input
+            <div style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED_2, marginBottom: 8 }}>GPA</div>
+            <input
+              className="k-input"
               type="number" step="0.1" min="0" max="4"
               placeholder="e.g. 3.7"
               value={gpa} onChange={(e) => setGpa(e.target.value)}
+              style={{ width: '100%', padding: '10px 14px' }}
             />
           </div>
           <div>
-            <div style={fieldLabel}>HERS Rating</div>
-            <Input
+            <div style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED_2, marginBottom: 8 }}>HERS Rating</div>
+            <input
+              className="k-input"
               type="number" min="0" max="100"
               placeholder="e.g. 87"
               value={rating} onChange={(e) => setRating(e.target.value)}
+              style={{ width: '100%', padding: '10px 14px' }}
             />
           </div>
         </div>
 
         <div style={{ marginBottom: 18 }}>
-          <div style={fieldLabel}>Position</div>
+          <div style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED_2, marginBottom: 8 }}>Position</div>
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
             {FLAG_POSITIONS.map((p) => (
-              <motion.span key={p} whileTap={{ scale: 0.93 }}>
-                <Chip selectable selected={pos === p} onClick={() => setPos(p)} style={{ fontWeight: t.weight.bold }}>{p}</Chip>
-              </motion.span>
+              <motion.button key={p} whileTap={{ scale: 0.93 }} onClick={() => setPos(p)}
+                style={{ padding: '5px 12px', borderRadius: 7, border: 'none', background: pos === p ? FLAME_C : 'rgba(255,255,255,0.05)', color: pos === p ? '#fff' : MUTED, fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.15s' }}>
+                {p}
+              </motion.button>
             ))}
           </div>
         </div>
 
-        <motion.span whileTap={{ scale: 0.96 }} style={{ display: 'block' }}>
-          <Button
-            onClick={() => setCalculated(true)}
-            disabled={!gpa || !rating}
-            style={{ width: '100%', fontFamily: DISP, fontSize: t.size.md, letterSpacing: '0.06em', textTransform: 'uppercase' }}
-          >
-            <Zap size={15} /> Calculate My Fit
-          </Button>
-        </motion.span>
-      </Card>
+        <motion.button
+          whileTap={{ scale: 0.96 }}
+          className="k-btn k-btn-primary"
+          onClick={() => setCalculated(true)}
+          disabled={!gpa || !rating}
+          style={{ width: '100%', padding: '13px', borderRadius: 10, justifyContent: 'center', fontFamily: DISP, fontSize: '1rem', letterSpacing: '0.06em', textTransform: 'uppercase', opacity: !gpa || !rating ? 0.5 : 1 }}
+        >
+          <Zap size={15} /> Calculate My Fit
+        </motion.button>
+      </div>
 
+      {/* Results */}
       {calculated && results.length > 0 && (
         <>
+          {/* Fit summary */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 22 }}>
             {(['strong fit', 'target', 'safety', 'reach'] as FitLevel[]).map((f) => {
               const cfg = FIT_CFG[f];
               return (
-                <div key={f} style={{ background: cfg.bg, border: `1px solid ${cfg.color}30`, borderRadius: radii.md, padding: '10px', textAlign: 'center' }}>
-                  <div style={{ fontFamily: DISP, fontSize: t.size.xl, fontWeight: 900, color: cfg.color, letterSpacing: '-0.01em' }}>{fitCounts[f] || 0}</div>
-                  <div style={{ fontSize: t.size.xs, color: cfg.color, fontWeight: t.weight.bold, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{cfg.label}</div>
+                <div key={f} style={{ background: cfg.bg, border: `1px solid ${cfg.color}30`, borderRadius: 10, padding: '10px', textAlign: 'center' }}>
+                  <div style={{ fontFamily: DISP, fontSize: '1.3rem', fontWeight: 900, color: cfg.color, letterSpacing: '-0.01em' }}>{fitCounts[f] || 0}</div>
+                  <div style={{ fontSize: '0.58rem', color: cfg.color, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{cfg.label}</div>
                 </div>
               );
             })}
           </div>
 
+          {/* Division filter */}
           <div style={{ display: 'flex', gap: 7, marginBottom: 18, flexWrap: 'wrap' }}>
             {['All', 'D1', 'D2', 'NAIA'].map((d) => (
-              <motion.span key={d} whileTap={{ scale: 0.94 }}>
-                <Chip selectable selected={divFilter === d} onClick={() => setDivFilter(d)} style={{ fontWeight: t.weight.bold }}>{d}</Chip>
-              </motion.span>
+              <motion.button key={d} whileTap={{ scale: 0.94 }} onClick={() => setDivFilter(d)}
+                style={{ padding: '4px 12px', borderRadius: 99, border: 'none', background: divFilter === d ? FLAME_C : 'rgba(255,255,255,0.05)', color: divFilter === d ? '#fff' : MUTED_2, fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer' }}>
+                {d}
+              </motion.button>
             ))}
           </div>
 
+          {/* College cards */}
           {results.map((r) => {
             const cfg = FIT_CFG[r.fit];
             const isOpen = expanded === r.name;
@@ -158,21 +169,21 @@ export const CollegeFitCalculator = () => {
               <motion.div key={r.name} className="k-card-hover" layout style={{ padding: '14px 18px', marginBottom: 10, cursor: 'pointer' }}
                 onClick={() => setExpanded(isOpen ? null : r.name)}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 38, height: 38, borderRadius: radii.md, background: cfg.bg, border: `1px solid ${cfg.color}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: cfg.color, flexShrink: 0 }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 9, background: cfg.bg, border: `1px solid ${cfg.color}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: cfg.color, flexShrink: 0 }}>
                     {cfg.icon}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontFamily: DISP, fontSize: t.size.md, fontWeight: t.weight.bold, textTransform: 'uppercase', letterSpacing: '-0.01em', color: colors.textPrimary }}>{r.name}</span>
-                      <span style={{ fontSize: t.size.xs, fontWeight: t.weight.bold, padding: '2px 7px', borderRadius: radii.sm, background: `${cfg.color}18`, color: cfg.color, border: `1px solid ${cfg.color}30`, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{cfg.label}</span>
+                      <span style={{ fontFamily: DISP, fontSize: '1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '-0.01em', color: '#f4f4f2' }}>{r.name}</span>
+                      <span style={{ fontSize: '0.58rem', fontWeight: 800, padding: '2px 7px', borderRadius: 5, background: `${cfg.color}18`, color: cfg.color, border: `1px solid ${cfg.color}30`, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{cfg.label}</span>
                     </div>
-                    <div style={{ fontSize: t.size.sm, color: colors.textTertiary, marginTop: 2 }}>{r.division} · {r.state}{r.scholarships ? ' · Scholarships Available' : ''}</div>
+                    <div style={{ fontSize: '0.68rem', color: MUTED_2, marginTop: 2 }}>{r.division} · {r.state}{r.scholarships ? ' · Scholarships Available' : ''}</div>
                   </div>
-                  {isOpen ? <ChevronUp size={16} color={colors.textTertiary} /> : <ChevronDown size={16} color={colors.textTertiary} />}
+                  {isOpen ? <ChevronUp size={16} color={MUTED_2} /> : <ChevronDown size={16} color={MUTED_2} />}
                 </div>
                 {isOpen && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${LINE}` }}>
-                    <p style={{ fontSize: t.size.base, color: colors.textSecondary, margin: '0 0 12px', lineHeight: 1.5 }}>{r.note}</p>
+                    <p style={{ fontSize: '0.8rem', color: MUTED, margin: '0 0 12px', lineHeight: 1.5 }}>{r.note}</p>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       {[
                         { label: 'Min GPA', val: r.minGPA.toFixed(1), yours: numGpa, good: numGpa >= r.minGPA },
@@ -180,11 +191,11 @@ export const CollegeFitCalculator = () => {
                         { label: 'Min Rating', val: r.minRating, yours: numRating, good: numRating >= r.minRating },
                         { label: 'Avg Rating', val: r.avgRating, yours: numRating, good: numRating >= r.avgRating },
                       ].map((stat) => (
-                        <div key={stat.label} style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${LINE}`, borderRadius: radii.sm, padding: '8px 10px' }}>
-                          <div style={{ fontSize: t.size.xs, color: colors.textTertiary, fontWeight: t.weight.bold, letterSpacing: '0.09em', textTransform: 'uppercase', marginBottom: 3 }}>{stat.label}</div>
+                        <div key={stat.label} style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${LINE}`, borderRadius: 8, padding: '8px 10px' }}>
+                          <div style={{ fontSize: '0.58rem', color: MUTED_2, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', marginBottom: 3 }}>{stat.label}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ fontFamily: DISP, fontSize: t.size.lg, fontWeight: t.weight.bold, color: colors.textPrimary }}>{stat.val}</span>
-                            <span style={{ fontSize: t.size.sm, color: stat.good ? colors.success : colors.danger, fontWeight: t.weight.bold }}>Yours: {typeof stat.yours === 'number' && stat.label.includes('GPA') ? stat.yours.toFixed(1) : stat.yours}</span>
+                            <span style={{ fontFamily: DISP, fontSize: '1.1rem', fontWeight: 800, color: '#f4f4f2' }}>{stat.val}</span>
+                            <span style={{ fontSize: '0.65rem', color: stat.good ? '#4ade80' : '#f87171', fontWeight: 700 }}>Yours: {typeof stat.yours === 'number' && stat.label.includes('GPA') ? stat.yours.toFixed(1) : stat.yours}</span>
                           </div>
                         </div>
                       ))}

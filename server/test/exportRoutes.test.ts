@@ -24,7 +24,7 @@ beforeEach(resetDb);
 function adminToken() {
   // signToken accepts the admin role directly; the export routes only check
   // role === 'admin', they don't look the user up in any users table.
-  return signToken({ userId: 1, role: 'admin' });
+  return signToken({ userId: 1, email: 'admin@test.local', role: 'admin', name: 'Admin' });
 }
 
 describe('GET /export/players', () => {

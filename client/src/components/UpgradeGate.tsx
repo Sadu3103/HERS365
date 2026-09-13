@@ -2,11 +2,13 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Lock, Zap, Star, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { colors, text, type as typeTokens, radii } from '../lib/tokens';
 
-const DISP = typeTokens.font.display;
+const FLAME = '#8B3BFF';
+const MUTED = '#8a8a86';
+const MUTED_2 = '#5a5a56';
+const DISP = "'Barlow Condensed', sans-serif";
 
-type Tier = 'pro' | 'elite';
+type Tier = 'pro' | 'high_school' | 'college' | 'elite';
 
 interface UpgradeGateProps {
   requiredTier?: Tier;
@@ -16,20 +18,23 @@ interface UpgradeGateProps {
 }
 
 const TIER_META: Record<Tier, { icon: React.ReactNode; accent: string; planName: string; price: string }> = {
-  pro: { icon: <Zap size={18} />, accent: colors.accent, planName: 'Pro', price: '$9.99/mo' },
-  elite: { icon: <Star size={18} />, accent: colors.pink, planName: 'Elite', price: '$29.99/mo' },
+  pro: { icon: <Zap size={18} />, accent: FLAME, planName: 'Athlete Pro', price: '$19.99/mo' },
+  high_school: { icon: <Star size={18} />, accent: '#a78bfa', planName: 'High School Coach', price: '$250/yr' },
+  college: { icon: <Star size={18} />, accent: '#38bdf8', planName: 'College Recruiter', price: '$499/yr' },
+  elite: { icon: <Star size={18} />, accent: '#a78bfa', planName: 'Elite', price: '$29.99/mo' },
 };
 
 export const UpgradeGate = ({ requiredTier = 'pro', feature, children, inline = false }: UpgradeGateProps) => {
   const navigate = useNavigate();
-  const meta = TIER_META[requiredTier];
+  const meta = TIER_META[requiredTier] || TIER_META['pro'];
 
   const raw = localStorage.getItem('user');
   const user = raw ? JSON.parse(raw) : null;
   const currentTier = user?.subscriptionTier || user?.tier || 'free';
+  const hasOverride = Boolean(user?.diamondOverride);
 
-  const tierRank: Record<string, number> = { free: 0, rookie: 0, pro: 1, elite: 2 };
-  const hasAccess = (tierRank[currentTier] ?? 0) >= (tierRank[requiredTier] ?? 0);
+  const tierRank: Record<string, number> = { free: 0, rookie: 0, pro: 1, high_school: 2, college: 3, elite: 2 };
+  const hasAccess = hasOverride || (tierRank[currentTier] ?? 0) >= (tierRank[requiredTier] ?? 1);
 
   if (hasAccess) return <>{children}</>;
 
@@ -40,7 +45,7 @@ export const UpgradeGate = ({ requiredTier = 'pro', feature, children, inline = 
         onClick={() => navigate('/subscribe')}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
-          padding: '6px 12px', borderRadius: radii.full, cursor: 'pointer',
+          padding: '6px 12px', borderRadius: 99, cursor: 'pointer',
           background: `${meta.accent}12`, border: `1px solid ${meta.accent}30`,
           fontSize: '0.72rem', fontWeight: 700, color: meta.accent,
         }}
@@ -59,7 +64,7 @@ export const UpgradeGate = ({ requiredTier = 'pro', feature, children, inline = 
       style={{
         background: 'rgba(255,255,255,0.02)',
         border: `1px solid ${meta.accent}35`,
-        borderRadius: radii.lg,
+        borderRadius: 16,
         padding: '32px 28px',
         textAlign: 'center',
         position: 'relative',
@@ -70,7 +75,7 @@ export const UpgradeGate = ({ requiredTier = 'pro', feature, children, inline = 
       <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse 60% 50% at 50% 0%, ${meta.accent}12 0%, transparent 70%)`, pointerEvents: 'none' }} />
 
       <div style={{ position: 'relative' }}>
-        <div style={{ width: 48, height: 48, borderRadius: radii.full, background: `${meta.accent}15`, border: `1.5px solid ${meta.accent}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: meta.accent }}>
+        <div style={{ width: 48, height: 48, borderRadius: '50%', background: `${meta.accent}15`, border: `1.5px solid ${meta.accent}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: meta.accent }}>
           <Lock size={20} />
         </div>
 
@@ -78,7 +83,7 @@ export const UpgradeGate = ({ requiredTier = 'pro', feature, children, inline = 
           {feature ? `${feature} is ${meta.planName}+` : `${meta.planName} Feature`}
         </div>
 
-        <p style={{ color: text.secondary, fontSize: '0.85rem', margin: '0 0 22px', lineHeight: 1.55, maxWidth: 360, marginLeft: 'auto', marginRight: 'auto' }}>
+        <p style={{ color: MUTED, fontSize: '0.85rem', margin: '0 0 22px', lineHeight: 1.55, maxWidth: 360, marginLeft: 'auto', marginRight: 'auto' }}>
           Upgrade to {meta.planName} ({meta.price}) to unlock this feature and get full access to recruiting tools on HERS365.
         </p>
 
@@ -88,9 +93,9 @@ export const UpgradeGate = ({ requiredTier = 'pro', feature, children, inline = 
           style={{
             padding: '12px 24px',
             background: meta.accent,
-            color: colors.accentOn,
+            color: '#fff',
             border: 'none',
-            borderRadius: radii.sm,
+            borderRadius: 10,
             fontFamily: DISP,
             fontWeight: 800,
             fontSize: '0.88rem',
@@ -108,7 +113,7 @@ export const UpgradeGate = ({ requiredTier = 'pro', feature, children, inline = 
           <ArrowRight size={14} />
         </motion.button>
 
-        <div style={{ marginTop: 14, fontSize: '0.72rem', color: text.tertiary }}>Cancel anytime · No commitment</div>
+        <div style={{ marginTop: 14, fontSize: '0.72rem', color: MUTED_2 }}>Cancel anytime · No commitment</div>
       </div>
     </motion.div>
   );

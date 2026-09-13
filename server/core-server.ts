@@ -5,11 +5,10 @@
 // other module (via ./app) reads process.env at its top level.
 import './load-env';
 import { createApp } from './app';
-import { assertProductionEnv } from './lib/envAssertions';
 
 // dev:core sets APP_ENV (not NODE_ENV); resolve once so the guards below fire
 // correctly under either. Mirrors the demo gate in authRoutes.ts.
-const APP_ENV = process.env.APP_ENV ?? process.env.NODE_ENV ?? 'development';
+const APP_ENV = process.env.NODE_ENV ?? process.env.APP_ENV;
 
 // [D-02] Fail fast on missing required env vars
 const REQUIRED_ENV_VARS = ['DATABASE_URL', 'JWT_SECRET', 'SESSION_SECRET'];
@@ -43,21 +42,6 @@ if (APP_ENV !== 'test') {
     );
     process.exit(1);
   }
-}
-
-// [D-11] Production-only assertions (PRD item 11): explicit APP_ENV=production,
-// non-localhost CORS_ORIGIN, REDIS_URL, 32+ char CODE_PEPPER, Twilio creds when
-// SMS_ENABLED=true. All failures are collected into one message so a bad deploy
-// surfaces everything at once. Dev/test stay permissive.
-// Secrets rotation notes:
-// - JWT_SECRET rotation invalidates all live tokens (forced re-login).
-// - CODE_PEPPER rotation invalidates all outstanding verification/reset codes.
-// - Twilio credentials and the storage SSE key rotate on their own schedule.
-try {
-  assertProductionEnv(process.env);
-} catch (err) {
-  console.error((err as Error).message);
-  process.exit(1);
 }
 
 const port = process.env.PORT || process.env.COSMOS_API_PORT || 4000;

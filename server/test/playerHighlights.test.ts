@@ -1,4 +1,4 @@
-import { afterEach, describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import { eq } from 'drizzle-orm';
 import { createApp } from '../app';
@@ -9,9 +9,6 @@ import { makeAthlete, tokenFor } from './helpers/fixtures';
 
 const app = createApp();
 beforeEach(resetDb);
-afterEach(() => {
-  process.env.MEDIA_UPLOAD_ENABLED = 'true';
-});
 
 async function seedHighlight(playerId: number, overrides: Partial<typeof schema.playerHighlights.$inferInsert> = {}) {
   const [row] = await db.insert(schema.playerHighlights).values({
@@ -138,22 +135,5 @@ describe('POST /api/players/:id/highlights', () => {
       .where(eq(schema.playerHighlights.playerId, athlete.id));
     expect(persisted).toHaveLength(1);
     expect(persisted[0].category).toBe('training');
-  });
-
-  it('blocks highlight media URL writes when media upload is closed', async () => {
-    process.env.MEDIA_UPLOAD_ENABLED = 'false';
-    const athlete = await makeAthlete();
-    const res = await request(app)
-      .post(`/api/players/${athlete.id}/highlights`)
-      .set('Authorization', `Bearer ${tokenFor(athlete, 'athlete')}`)
-      .send({
-        videoUrl: 'https://cdn/clip.mp4',
-        thumbnailUrl: 'https://cdn/thumb.jpg',
-        category: 'training',
-        season: '2025',
-      });
-
-    expect(res.status).toBe(403);
-    expect(res.body.code).toBe('MEDIA_UPLOAD_DISABLED');
   });
 });

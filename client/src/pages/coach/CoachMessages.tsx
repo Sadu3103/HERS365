@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { gsap } from 'gsap';
 import * as THREE from 'three';
 import { useNotifications } from '../../context/NotificationContext';
-import { colors, type as typography } from '../../lib/tokens';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -60,23 +59,27 @@ async function coachFetch<T = unknown>(path: string, opts: RequestInit = {}): Pr
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function hueOf(name: string): number {
+const GRADIENTS = [
+  ['#8B3BFF', '#ff8a6a'], ['#a855f7', '#ec4899'],
+  ['#3b82f6', '#06b6d4'], ['#10b981', '#84cc16'],
+  ['#f59e0b', '#ef4444'], ['#8b5cf6', '#6366f1'],
+];
+
+function getGradient(name: string): [string, string] {
   let h = 0;
-  for (let i = 0; i < (name || '').length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  return h % 360;
+  for (let i = 0; i < name.length; i++) h = ((h << 5) - h) + name.charCodeAt(i);
+  return GRADIENTS[Math.abs(h) % GRADIENTS.length] as [string, string];
 }
 
 function Avatar({ name, size = 40 }: { name: string; size?: number }) {
-  const hue = hueOf(name);
+  const [a, b] = getGradient(name);
   const initials = name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
   return (
     <div style={{
       width: size, height: size, borderRadius: '50%',
-      background: `linear-gradient(135deg, hsl(${hue} 55% 32%), hsl(${(hue + 40) % 360} 60% 22%))`,
-      border: `1px solid ${colors.border}`,
+      background: `linear-gradient(135deg, ${a}, ${b})`,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: typography.font.display, letterSpacing: '.02em',
-      fontSize: size * 0.36, fontWeight: 800, color: colors.textPrimary, flexShrink: 0,
+      fontSize: size * 0.35, fontWeight: 700, color: '#fff', flexShrink: 0,
     }}>
       {initials}
     </div>
@@ -147,7 +150,7 @@ function ParticleCanvas() {
     }
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     const mat = new THREE.PointsMaterial({
-      color: 0x8b3bff, size: 0.055,
+      color: 0xff5a2d, size: 0.055,
       transparent: true, opacity: 0.55,
       blending: THREE.AdditiveBlending, depthWrite: false,
     });
@@ -191,9 +194,9 @@ function TypingDots() {
   }, []);
   return (
     <div style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 6,
-      background: colors.surface2, borderRadius: 16, padding: '10px 14px', marginBottom: 4 }}>
+      background: '#1c1c1e', borderRadius: 16, padding: '10px 14px', marginBottom: 4 }}>
       <div ref={dotsRef} style={{ display: 'flex', gap: 4 }}>
-        {[0,1,2].map(i => <div key={i} className="dot" style={{ width: 6, height: 6, borderRadius: '50%', background: colors.textTertiary }} />)}
+        {[0,1,2].map(i => <div key={i} className="dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#666' }} />)}
       </div>
     </div>
   );
@@ -373,28 +376,27 @@ export function CoachMessages() {
       marginBottom: 12,
     },
     title: {
-      fontFamily: typography.font.display,
-      fontSize: '0.95rem', fontWeight: 800, letterSpacing: '0.08em',
-      color: colors.textPrimary, textTransform: 'uppercase' as const,
+      fontSize: '0.78rem', fontWeight: 800, letterSpacing: '0.08em',
+      color: '#fff', textTransform: 'uppercase' as const,
     },
     coachBadge: {
       fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.06em',
-      background: colors.gradientBrand,
+      background: 'linear-gradient(90deg,#a855f7,#8B3BFF)',
       WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
       textTransform: 'uppercase' as const,
     },
     composeBtn: {
-      width: 44, height: 44, borderRadius: '50%',
-      background: colors.accent, border: 'none', cursor: 'pointer',
+      width: 30, height: 30, borderRadius: '50%',
+      background: '#8B3BFF', border: 'none', cursor: 'pointer',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      color: colors.accentOn, fontSize: 20, lineHeight: 1, flexShrink: 0,
+      color: '#fff', fontSize: 18, lineHeight: 1, flexShrink: 0,
       transition: 'background 0.2s',
     },
     searchInput: {
-      width: '100%', background: colors.surface1,
-      border: `1px solid ${colors.border}`,
+      width: '100%', background: '#1a1a1e',
+      border: '1px solid rgba(255,255,255,0.08)',
       borderRadius: 9999, padding: '8px 14px',
-      color: colors.textPrimary, fontSize: '0.78rem', outline: 'none',
+      color: '#fff', fontSize: '0.78rem', outline: 'none',
     },
     composePanel: {
       overflow: 'hidden', height: 0, opacity: 0,
@@ -405,13 +407,13 @@ export function CoachMessages() {
     },
     composeSectionLabel: {
       fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.08em',
-      color: colors.accent, textTransform: 'uppercase' as const, marginBottom: 8,
+      color: '#8B3BFF', textTransform: 'uppercase' as const, marginBottom: 8,
     },
     playerSearchInput: {
-      width: '100%', background: colors.surface0,
-      border: `1px solid ${colors.border}`,
+      width: '100%', background: '#111113',
+      border: '1px solid rgba(255,255,255,0.1)',
       borderRadius: 9999, padding: '7px 14px',
-      color: colors.textPrimary, fontSize: '0.78rem', outline: 'none',
+      color: '#fff', fontSize: '0.78rem', outline: 'none',
       marginBottom: 8,
     },
     playerResultItem: {
@@ -424,8 +426,8 @@ export function CoachMessages() {
     posBadge: (_pos: string) => ({
       fontSize: '0.6rem', fontWeight: 700,
       padding: '2px 6px', borderRadius: 4,
-      background: 'rgba(139,59,255,0.15)',
-      color: colors.accentText,
+      background: 'rgba(168,85,247,0.15)',
+      color: '#c084fc',
       letterSpacing: '0.04em',
     }),
     convList: {
@@ -434,30 +436,30 @@ export function CoachMessages() {
     convRow: (active: boolean) => ({
       display: 'flex', alignItems: 'center', gap: 10,
       width: '100%', padding: '11px 14px', textAlign: 'left' as const,
-      background: active ? 'rgba(139,59,255,0.08)' : 'transparent',
+      background: active ? 'rgba(139, 59, 255,0.08)' : 'transparent',
       border: 'none', borderBottom: '1px solid rgba(255,255,255,0.04)',
-      cursor: 'pointer', color: colors.textPrimary,
-      borderLeft: active ? `2px solid ${colors.accent}` : '2px solid transparent',
+      cursor: 'pointer', color: '#fff',
+      borderLeft: active ? '2px solid #8B3BFF' : '2px solid transparent',
       transition: 'background 0.15s',
     }),
     convInfo: { flex: 1, minWidth: 0 },
     convName: (unread: boolean) => ({
       fontSize: '0.82rem', fontWeight: unread ? 700 : 500,
       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const,
-      color: colors.textPrimary,
+      color: '#fff',
     }),
     convPreview: {
-      fontSize: '0.7rem', color: colors.textSecondary,
+      fontSize: '0.7rem', color: '#666',
       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const,
       marginTop: 2,
     },
     unreadBadge: {
       minWidth: 18, height: 18, borderRadius: 9,
-      background: colors.accent, display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: '0.6rem', fontWeight: 700, color: colors.accentOn, padding: '0 4px',
+      background: '#8B3BFF', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: '0.6rem', fontWeight: 700, color: '#fff', padding: '0 4px',
     },
     convMeta: {
-      fontSize: '0.65rem', color: colors.textTertiary, marginTop: 1,
+      fontSize: '0.65rem', color: '#555', marginTop: 1,
     },
     main: {
       flex: 1, display: 'flex', flexDirection: 'column' as const,
@@ -469,11 +471,11 @@ export function CoachMessages() {
       display: 'flex', alignItems: 'center', gap: 12,
       background: 'rgba(22,22,26,0.4)',
     },
-    threadName: { fontWeight: 700, fontSize: '0.9rem', color: colors.textPrimary, flex: 1 },
+    threadName: { fontWeight: 700, fontSize: '0.9rem', color: '#fff', flex: 1 },
     viewProfileLink: {
-      fontSize: '0.7rem', color: colors.accent,
+      fontSize: '0.7rem', color: '#8B3BFF',
       textDecoration: 'none', fontWeight: 600,
-      padding: '4px 10px', border: '1px solid rgba(139,59,255,0.3)',
+      padding: '4px 10px', border: '1px solid rgba(139, 59, 255,0.3)',
       borderRadius: 999, transition: 'background 0.15s',
     },
     thread: {
@@ -486,12 +488,12 @@ export function CoachMessages() {
       padding: '9px 14px', borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
       fontSize: '0.84rem', lineHeight: 1.45,
       alignSelf: mine ? 'flex-end' : 'flex-start',
-      background: mine ? colors.gradientBrand : colors.surface2,
-      color: colors.textPrimary,
+      background: mine ? 'linear-gradient(135deg,#8B3BFF,#ff7a4d)' : '#1c1c1e',
+      color: '#fff',
       wordBreak: 'break-word' as const,
     }),
     bubbleMeta: (mine: boolean) => ({
-      fontSize: '0.62rem', color: colors.textTertiary,
+      fontSize: '0.62rem', color: '#555',
       alignSelf: mine ? 'flex-end' : 'flex-start',
       marginBottom: 2,
     }),
@@ -502,39 +504,32 @@ export function CoachMessages() {
       paddingBottom: 'calc(14px + env(safe-area-inset-bottom, 0px))',
     },
     footerInput: {
-      flex: 1, background: colors.surface1,
-      border: `1px solid ${colors.border}`,
+      flex: 1, background: '#1a1a1e',
+      border: '1px solid rgba(255,255,255,0.1)',
       borderRadius: 9999, padding: '10px 16px',
-      color: colors.textPrimary, fontSize: '0.84rem', outline: 'none',
+      color: '#fff', fontSize: '0.84rem', outline: 'none',
       resize: 'none' as const,
     },
     sendBtn: {
-      width: 44, height: 44, borderRadius: '50%',
-      background: colors.accent, border: 'none',
+      width: 40, height: 40, borderRadius: '50%',
+      background: '#8B3BFF', border: 'none',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       cursor: 'pointer', flexShrink: 0, alignSelf: 'flex-end',
     },
     emptyState: {
       flex: 1, display: 'flex', flexDirection: 'column' as const,
       alignItems: 'center', justifyContent: 'center', gap: 10,
-      color: colors.textTertiary,
+      color: '#444',
     },
     backBtn: {
-      background: 'none', border: 'none', color: colors.accent,
+      background: 'none', border: 'none', color: '#8B3BFF',
       cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
-      padding: '4px 8px', borderRadius: 8, minHeight: 44,
-      display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
+      padding: '4px 8px', borderRadius: 8,
+      display: 'flex', alignItems: 'center', gap: 4,
     },
   };
 
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const onResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -544,10 +539,10 @@ export function CoachMessages() {
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: ${colors.border}; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
         .conv-row:hover { background: rgba(255,255,255,0.03) !important; }
         .player-result-item:hover { background: rgba(255,255,255,0.07) !important; }
-        .view-profile-link:hover { background: rgba(139,59,255,0.1); }
+        .view-profile-link:hover { background: rgba(139, 59, 255,0.1); }
       `}</style>
 
       <ParticleCanvas />
@@ -600,7 +595,7 @@ export function CoachMessages() {
               {playerSearch.length > 1 && (
                 <div>
                   {playerResults.length === 0 ? (
-                    <div style={{ fontSize: '0.72rem', color: colors.textTertiary, padding: '6px 4px' }}>
+                    <div style={{ fontSize: '0.72rem', color: '#555', padding: '6px 4px' }}>
                       {playerSearch.length < 2 ? 'Type to search…' : 'No players found'}
                     </div>
                   ) : playerResults.map(p => (
@@ -615,7 +610,7 @@ export function CoachMessages() {
                         <div style={{ fontSize: '0.78rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {p.name}
                         </div>
-                        <div style={{ fontSize: '0.65rem', color: colors.textSecondary }}>{p.school} · {p.state}</div>
+                        <div style={{ fontSize: '0.65rem', color: '#666' }}>{p.school} · {p.state}</div>
                       </div>
                       <span style={S.posBadge(p.position)}>{p.position}</span>
                     </div>
@@ -628,25 +623,25 @@ export function CoachMessages() {
           {/* Conversation list */}
           <div ref={convListRef} style={S.convList}>
             {isLoading ? (
-              <div style={{ padding: 20, textAlign: 'center', color: colors.textTertiary, fontSize: '0.78rem' }}>
+              <div style={{ padding: 20, textAlign: 'center', color: '#444', fontSize: '0.78rem' }}>
                 Loading…
               </div>
             ) : msgsError ? (
-              <div style={{ padding: 24, textAlign: 'center', color: colors.textSecondary }}>
+              <div style={{ padding: 24, textAlign: 'center', color: '#666' }}>
                 <div style={{ fontSize: '1.2rem', marginBottom: 8 }}>⚠️</div>
                 <div style={{ fontSize: '0.78rem', lineHeight: 1.5, marginBottom: 12 }}>
                   Could not load messages.
                 </div>
                 <button
                   onClick={() => qc.invalidateQueries({ queryKey: ['coach-messages'] })}
-                  style={{ background: colors.accent, color: colors.accentOn, border: 'none', borderRadius: 8,
-                    padding: '6px 16px', minHeight: 44, fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                  style={{ background: '#8B3BFF', color: '#fff', border: 'none', borderRadius: 8,
+                    padding: '6px 16px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
                 >
                   Retry
                 </button>
               </div>
             ) : filtered.length === 0 ? (
-              <div style={{ padding: 24, textAlign: 'center', color: colors.textTertiary }}>
+              <div style={{ padding: 24, textAlign: 'center', color: '#444' }}>
                 <div style={{ fontSize: '1.5rem', marginBottom: 8 }}>📭</div>
                 <div style={{ fontSize: '0.78rem', lineHeight: 1.5 }}>
                   {searchQ ? 'No conversations match.' : 'No messages yet. Use + to reach out to a player.'}
@@ -705,7 +700,7 @@ export function CoachMessages() {
                   return (
                     <div key={m.id}>
                       {(i === 0 || new Date(m.createdAt).getDate() !== new Date(activeConvo.msgs[i - 1].createdAt).getDate()) && (
-                        <div style={{ textAlign: 'center', fontSize: '0.65rem', color: colors.textTertiary, margin: '8px 0 4px' }}>
+                        <div style={{ textAlign: 'center', fontSize: '0.65rem', color: '#444', margin: '8px 0 4px' }}>
                           {new Date(m.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                         </div>
                       )}
@@ -763,14 +758,14 @@ export function CoachMessages() {
                 {contactRequestSent === activeId ? (
                   <div style={{ textAlign: 'center', padding: 24 }}>
                     <div style={{ fontSize: '2rem', marginBottom: 10 }}>✅</div>
-                    <div style={{ fontSize: '0.88rem', fontWeight: 600, color: colors.textPrimary, marginBottom: 6 }}>Contact Request Sent</div>
-                    <div style={{ fontSize: '0.75rem', color: colors.textSecondary, maxWidth: 280, lineHeight: 1.6 }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#fff', marginBottom: 6 }}>Contact Request Sent</div>
+                    <div style={{ fontSize: '0.75rem', color: '#666', maxWidth: 280, lineHeight: 1.6 }}>
                       A parent or guardian must approve your request before messaging begins. You will be notified once approved.
                     </div>
                   </div>
                 ) : (
                   <div style={{ textAlign: 'center', padding: 24 }}>
-                    <div style={{ fontSize: '0.8rem', color: colors.textTertiary, lineHeight: 1.6, maxWidth: 280 }}>
+                    <div style={{ fontSize: '0.8rem', color: '#555', lineHeight: 1.6, maxWidth: 280 }}>
                       Send a contact request to {selectedPlayerName}. A parent must approve before direct messaging begins.
                     </div>
                   </div>
@@ -806,9 +801,9 @@ export function CoachMessages() {
           ) : (
             <div style={S.emptyState}>
               <div style={{ fontSize: '2.5rem' }}>💬</div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 600, color: colors.textSecondary }}>Select a conversation</div>
-              <div style={{ fontSize: '0.75rem', color: colors.textTertiary, textAlign: 'center', maxWidth: 260, lineHeight: 1.6 }}>
-                Choose a thread on the left, or tap <span style={{ color: colors.accent }}>+</span> to reach out to a player.
+              <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#555' }}>Select a conversation</div>
+              <div style={{ fontSize: '0.75rem', color: '#3a3a3a', textAlign: 'center', maxWidth: 260, lineHeight: 1.6 }}>
+                Choose a thread on the left, or tap <span style={{ color: '#8B3BFF' }}>+</span> to reach out to a player.
               </div>
             </div>
           )}

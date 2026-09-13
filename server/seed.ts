@@ -8,63 +8,25 @@ if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PROD_SEED !== 'tr
   throw new Error('seed.ts is for local/staging only. Set ALLOW_PROD_SEED=true to override.');
 }
 
-// Walk a seeded athlete through the real guardian consent path so the
-// players_activation_gate trigger lets us flip her to 'active'. The trigger
-// requires a live guardian_consents row AND a verified parent_child_relations
-// row to exist BEFORE the status update, so order matters here.
-async function activateAthleteThroughConsent(player, parentPassword) {
-  const parentEmail = `parent.${player.email}`;
-  let [parent] = await db.select().from(schema.parents).where(eq(schema.parents.email, parentEmail));
-  if (!parent) {
-    [parent] = await db.insert(schema.parents).values({
-      email: parentEmail,
-      passwordHash: parentPassword,
-      name: `Guardian of ${player.name}`,
-      emailVerified: true,
-    }).returning();
-  }
-
-  const [consent] = await db.insert(schema.guardianConsents).values({
-    parentId: parent.id,
-    playerId: player.id,
-    consentType: 'parental',
-    framework: 'parental_consent',
-    consented: true,
-    consentVersion: 'v1-2026-07',
-    consentText: 'Seeded demo consent — guardian approved this athlete joining HERS365.',
-    method: 'seed',
-    grantedBy: parent.email,
-  }).returning();
-
-  await db.insert(schema.parentChildRelations).values({
-    parentId: parent.id,
-    playerId: player.id,
-    relationship: 'guardian',
-    status: 'verified',
-    consentId: consent.id,
-    verifiedAt: new Date(),
-  });
-
-  const [activated] = await db.update(schema.players)
-    .set({ status: 'active', activatedAt: new Date() })
-    .where(eq(schema.players.id, player.id))
-    .returning();
-  return activated;
-}
-
 async function seed() {
   console.log('🌱 Seeding database...');
 
-  // ── Subscription Plans ────────────────────────────────────────────────────
+  // ── Subscription Plans (Matching Investor Pitch Deck) ─────────────────────
   for (const plan of [
-    { name: 'Rookie', price: 0, tierLevel: 'free' },
-    { name: 'Pro', price: 999, tierLevel: 'pro' },
-    { name: 'Elite', price: 2999, tierLevel: 'elite' },
+    { name: 'Basic', price: 0, tierLevel: 'free' },
+    { name: 'Athlete Pro', price: 1999, tierLevel: 'pro' },
+    { name: 'High School Coach', price: 25000, tierLevel: 'high_school' },
+    { name: 'College Recruiter', price: 49900, tierLevel: 'college' },
   ]) {
     const existing = await db.select().from(schema.subscriptionPlans).where(eq(schema.subscriptionPlans.tierLevel, plan.tierLevel));
     if (existing.length === 0) {
       await db.insert(schema.subscriptionPlans).values(plan);
       console.log(`✅ Created plan: ${plan.name}`);
+    } else {
+      await db.update(schema.subscriptionPlans)
+        .set({ name: plan.name, price: plan.price })
+        .where(eq(schema.subscriptionPlans.tierLevel, plan.tierLevel));
+      console.log(`✅ Updated plan: ${plan.name}`);
     }
   }
 
@@ -132,12 +94,12 @@ async function seed() {
     { name: 'Riley Nguyen',     email: 'riley@hers365.com',   position: 'ATH',state: 'WA', city: 'Seattle',      school: 'Eastside Catholic',    gradYear: 2026, g5Rating: 5, gpa: '3.9', archetype: 'Playmaker',    verificationStatus: 'verified',   subscriptionTier: 'elite' },
   ];
 
-  const parentPassword = await bcrypt.hash('hers365', 10);
   const insertedAthletes: typeof schema.players.$inferSelect[] = [];
   for (const p of athletesData) {
     const existing = await db.select().from(schema.players).where(eq(schema.players.email, p.email));
     if (existing.length === 0) {
       const [inserted] = await db.insert(schema.players).values({ ...p, passwordHash: athletePassword }).returning();
+      insertedAthletes.push(inserted);
       await db.insert(schema.athleteRankings).values({
         playerId: inserted.id,
         nationalRank: athletesData.indexOf(p) + 1,
@@ -145,7 +107,6 @@ async function seed() {
         positionRank: 1,
         movement: 'up',
       });
-      insertedAthletes.push(await activateAthleteThroughConsent(inserted, parentPassword));
       console.log(`✅ Created athlete: ${p.name}`);
     } else {
       insertedAthletes.push(existing[0]);

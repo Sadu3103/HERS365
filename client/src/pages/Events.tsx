@@ -4,10 +4,13 @@ import {
   Calendar, MapPin, Users, Flame,
   CheckCircle2, Clock, ChevronRight, Trophy,
 } from 'lucide-react';
-import { colors, type as t, radii } from '../lib/tokens';
-import { Badge } from '../components/ui';
 
-const DISP = t.font.display;
+const FLAME_C = '#8B3BFF';
+const INK_2 = '#111111';
+const LINE = 'rgba(255,255,255,0.07)';
+const MUTED = '#8a8a86';
+const MUTED_2 = '#5a5a56';
+const DISP = "'Barlow Condensed', sans-serif";
 
 type EventType = 'Tournament' | 'Camp' | '7v7' | 'Combine' | 'Showcase';
 
@@ -75,17 +78,19 @@ function mapApiEvent(e: ApiEvent, registeredIds: Set<number>): EventItem {
 }
 
 const TYPES = ['All', 'Tournament', 'Camp', '7v7', 'Combine', 'Showcase'] as const;
+const TYPE_COLOR: Record<string, string> = {
+  Tournament: '#fbbf24', Camp: '#34d399', '7v7': FLAME_C, Combine: '#60a5fa', Showcase: '#c084fc',
+};
 
-// Spots-left urgency reads as a semantic status: scarce = danger, tight = pink
-// attention, plenty = success. null (uncapped) shows no urgency color.
 function urgencyColor(left: number | null): string | null {
   if (left === null) return null;
-  if (left <= 10) return colors.danger;
-  if (left <= 25) return colors.pink;
-  return colors.success;
+  if (left <= 10) return '#f87171';
+  if (left <= 25) return '#fbbf24';
+  return '#4ade80';
 }
 
 function EventCard({ ev, onRegister }: { ev: EventItem; onRegister: () => void }) {
+  const color = TYPE_COLOR[ev.type] || FLAME_C;
   const urg = urgencyColor(ev.spotsLeft);
 
   return (
@@ -98,53 +103,53 @@ function EventCard({ ev, onRegister }: { ev: EventItem; onRegister: () => void }
       style={{ padding: '18px 20px', marginBottom: 12 }}
     >
       {ev.featured && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 10, color: colors.accent }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 10, color: FLAME_C }}>
           <Flame size={11} />
-          <span style={{ fontSize: t.size.xs, fontWeight: t.weight.bold, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Featured Event</span>
+          <span style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Featured Event</span>
         </div>
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: DISP, fontSize: t.size.lg, fontWeight: t.weight.bold, textTransform: 'uppercase', letterSpacing: '-0.01em', color: colors.textPrimary }}>{ev.title}</span>
-            <Badge tone="accent">{ev.type}</Badge>
+            <span style={{ fontFamily: DISP, fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '-0.01em', color: '#f4f4f2' }}>{ev.title}</span>
+            <span style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 8px', borderRadius: 5, background: `${color}18`, color, border: `1px solid ${color}30` }}>{ev.type}</span>
           </div>
-          <div style={{ fontSize: t.size.sm, color: colors.textTertiary, marginBottom: 10 }}>{ev.org}</div>
+          <div style={{ fontSize: '0.7rem', color: MUTED_2, marginBottom: 10 }}>{ev.org}</div>
 
           <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: colors.textSecondary }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: MUTED }}>
               <Calendar size={12} />
-              <span style={{ fontSize: t.size.base, fontWeight: t.weight.semibold }}>{ev.date}</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>{ev.date}</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: colors.textSecondary }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: MUTED }}>
               <MapPin size={12} />
-              <span style={{ fontSize: t.size.base, fontWeight: t.weight.semibold }}>{ev.city}, {ev.state}</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>{ev.city}, {ev.state}</span>
             </div>
             {ev.spotsLeft !== null && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Users size={12} color={urg || colors.textSecondary} />
-                <span style={{ fontSize: t.size.base, fontWeight: t.weight.bold, color: urg || colors.textSecondary }}>{ev.spotsLeft} spots left</span>
+                <Users size={12} color={urg || MUTED} />
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: urg || MUTED }}>{ev.spotsLeft} spots left</span>
               </div>
             )}
           </div>
 
-          <p style={{ fontSize: t.size.base, color: colors.textSecondary, margin: '0 0 14px', lineHeight: 1.5 }}>{ev.desc}</p>
+          <p style={{ fontSize: '0.8rem', color: MUTED, margin: '0 0 14px', lineHeight: 1.5 }}>{ev.desc}</p>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <span style={{ fontSize: t.size.base, fontWeight: t.weight.bold, color: colors.textPrimary }}>{ev.cost}</span>
-              {ev.spots && <span style={{ fontSize: t.size.xs, color: colors.textTertiary }}>· {ev.spots} total spots</span>}
+              <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#f4f4f2' }}>{ev.cost}</span>
+              {ev.spots && <span style={{ fontSize: '0.65rem', color: MUTED_2 }}>· {ev.spots} total spots</span>}
             </div>
 
             <motion.button
               whileTap={{ scale: 0.94 }}
               onClick={onRegister}
               style={{
-                padding: '10px 18px', minHeight: 44, borderRadius: radii.sm, border: 'none',
-                background: ev.registered ? `${colors.success}1f` : colors.accent,
-                color: ev.registered ? colors.success : colors.accentOn,
-                fontSize: t.size.sm, fontWeight: t.weight.bold, letterSpacing: '0.04em',
+                padding: '7px 18px', borderRadius: 8, border: 'none',
+                background: ev.registered ? 'rgba(74,222,128,0.12)' : FLAME_C,
+                color: ev.registered ? '#4ade80' : '#fff',
+                fontSize: '0.73rem', fontWeight: 800, letterSpacing: '0.04em',
                 cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
               }}
             >
@@ -186,15 +191,14 @@ export const Events = () => {
   }, []);
 
   const register = async (id: number) => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}') as { id?: number };
+    const playerId = user.id;
+
     try {
-      const token = localStorage.getItem('token');
       const res = await fetch('/api/events/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ eventId: id }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId: id, playerId }),
       });
 
       if (!res.ok) {
@@ -226,64 +230,61 @@ export const Events = () => {
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 20px 120px' }}>
       <div style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontSize: t.size.xs, fontWeight: t.weight.bold, letterSpacing: '0.12em', textTransform: 'uppercase', color: colors.accent }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: FLAME_C }}>
           <Trophy size={13} /> EVENTS
         </div>
-        <h1 style={{ fontFamily: DISP, fontSize: 'clamp(1.9rem, 5vw, 2.6rem)', fontWeight: t.weight.bold, textTransform: 'uppercase', letterSpacing: '-0.02em', margin: '0 0 8px', lineHeight: 1 }}>
+        <h1 style={{ fontFamily: DISP, fontSize: 'clamp(1.9rem, 5vw, 2.6rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.02em', margin: '0 0 8px', lineHeight: 1 }}>
           Get On The Field.
         </h1>
-        <p style={{ color: colors.textSecondary, fontSize: t.size.md, margin: 0 }}>
+        <p style={{ color: MUTED, fontSize: '0.88rem', margin: 0 }}>
           Tournaments, camps, showcases, and combines. Where scouts are watching.
         </p>
       </div>
 
       {registeredCount > 0 && (
         <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: `${colors.success}1a`, border: `1px solid ${colors.success}33`, borderRadius: radii.full, padding: '5px 12px', marginBottom: 20, fontSize: t.size.sm, fontWeight: t.weight.bold, color: colors.success }}>
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 99, padding: '5px 12px', marginBottom: 20, fontSize: '0.72rem', fontWeight: 700, color: '#4ade80' }}>
           <CheckCircle2 size={13} /> {registeredCount} event{registeredCount !== 1 ? 's' : ''} registered
         </motion.div>
       )}
 
       <div style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 4, marginBottom: 24, scrollbarWidth: 'none' }}>
-        {TYPES.map((type) => (
-          <motion.button key={type} whileTap={{ scale: 0.94 }} onClick={() => setTypeFilter(type)}
-            style={{ padding: '10px 18px', minHeight: 44, borderRadius: radii.pill, border: 'none', background: typeFilter === type ? colors.accent : 'rgba(255,255,255,0.05)', color: typeFilter === type ? colors.accentOn : colors.textSecondary, fontSize: t.size.sm, fontWeight: t.weight.bold, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', letterSpacing: '0.03em' }}>
-            {type}
+        {TYPES.map((t) => (
+          <motion.button key={t} whileTap={{ scale: 0.94 }} onClick={() => setTypeFilter(t)}
+            style={{ padding: '6px 14px', borderRadius: 99, border: 'none', background: typeFilter === t ? (TYPE_COLOR[t] || FLAME_C) : 'rgba(255,255,255,0.05)', color: typeFilter === t ? '#fff' : MUTED, fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', letterSpacing: '0.03em' }}>
+            {t}
           </motion.button>
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 24, padding: '14px 18px', background: colors.surface1, border: `1px solid ${colors.border}`, borderRadius: radii.md }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 24, padding: '14px 18px', background: INK_2, border: `1px solid ${LINE}`, borderRadius: 12 }}>
         {[
           { icon: <Calendar size={14} />, val: events.length, label: 'Events' },
           { icon: <Clock size={14} />, val: events.filter((e) => e.spotsLeft !== null && e.spotsLeft <= 20).length, label: 'Filling Fast' },
           { icon: <Trophy size={14} />, val: registeredCount, label: 'Registered' },
-        ].map((s, i) => {
-          const highlight = i === 2 && registeredCount > 0;
-          return (
-            <div key={i} style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4, color: highlight ? colors.success : colors.textTertiary }}>{s.icon}</div>
-              <div style={{ fontFamily: DISP, fontSize: t.size.xl, fontWeight: t.weight.bold, color: highlight ? colors.success : colors.accent, letterSpacing: '-0.02em' }}>{s.val}</div>
-              <div style={{ fontSize: t.size.xs, color: colors.textTertiary, fontWeight: t.weight.bold, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{s.label}</div>
-            </div>
-          );
-        })}
+        ].map((s, i) => (
+          <div key={i} style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4, color: i === 2 && registeredCount > 0 ? '#4ade80' : MUTED_2 }}>{s.icon}</div>
+            <div style={{ fontFamily: DISP, fontSize: '1.25rem', fontWeight: 900, color: i === 2 && registeredCount > 0 ? '#4ade80' : FLAME_C, letterSpacing: '-0.02em' }}>{s.val}</div>
+            <div style={{ fontSize: '0.6rem', color: MUTED_2, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{s.label}</div>
+          </div>
+        ))}
       </div>
 
       {loading && (
-        <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textSecondary, fontSize: t.size.base }}>
+        <div style={{ textAlign: 'center', padding: '48px 0', color: MUTED, fontSize: '0.85rem' }}>
           Loading events...
         </div>
       )}
 
       {error && !loading && (
-        <div style={{ textAlign: 'center', padding: '48px 0', color: colors.dangerText, fontSize: t.size.base }}>
+        <div style={{ textAlign: 'center', padding: '48px 0', color: '#f87171', fontSize: '0.85rem' }}>
           {error}
         </div>
       )}
 
       {!loading && !error && filtered.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textSecondary, fontSize: t.size.base }}>
+        <div style={{ textAlign: 'center', padding: '48px 0', color: MUTED, fontSize: '0.85rem' }}>
           No events match this filter.
         </div>
       )}

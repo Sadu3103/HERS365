@@ -1,18 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Eye, Trash2, Star, Users, MapPin, GraduationCap, Award } from 'lucide-react';
+import {
+  Trash2,
+  Star,
+  Users,
+  MapPin,
+  GraduationCap,
+  Award,
+  Eye,
+  Search,
+  MessageSquare,
+  Edit3,
+  Check,
+  X,
+  Target,
+  FileText,
+  Sparkles,
+  ChevronRight,
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { ScoutingBoardItem, PlayerSearchResult } from '../../types';
 import { useNotifications } from '../../context/NotificationContext';
-import { Button, Card, EmptyState, CardSkeleton } from '../../components/ui';
-import { colors, radii } from '../../lib/tokens';
 
 const TIERS = [
-  { id: 'top-target', label: 'Top Targets', dot: colors.danger, description: 'Priority recruits' },
-  { id: 'watching', label: 'Watching', dot: colors.pink, description: 'Prospects to monitor' },
-  { id: 'offered', label: 'Offered', dot: colors.success, description: 'Players with offers' },
+  { id: 'top-target', label: 'Top Targets', color: 'text-red-400', bg: 'bg-red-500/15', border: 'border-red-500/30', badge: 'bg-red-500/20 text-red-300 border-red-500/30' },
+  { id: 'watching',   label: 'Watching',    color: 'text-yellow-400', bg: 'bg-yellow-500/15', border: 'border-yellow-500/30', badge: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' },
+  { id: 'offered',    label: 'Offered',     color: 'text-green-400', bg: 'bg-green-500/15', border: 'border-green-500/30', badge: 'bg-green-500/20 text-green-300 border-green-500/30' },
 ] as const;
-
-const DISPLAY = "'Barlow Condensed', sans-serif";
 
 export function CoachScoutingBoard() {
   const [board, setBoard] = useState<ScoutingBoardItem[]>([]);
@@ -20,77 +34,78 @@ export function CoachScoutingBoard() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [activeTier, setActiveTier] = useState<string>('all');
-  const [editingNotes, setEditingNotes] = useState<number | null>(null);
+  const [editingNotesId, setEditingNotesId] = useState<number | null>(null);
   const [notesText, setNotesText] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
   const { showNotification } = useNotifications();
 
-  useEffect(() => {
-    fetchScoutingBoard();
-  }, []);
-
-  const fetchScoutingBoard = async () => {
+  const fetchScoutingBoard = useCallback(async () => {
     setLoadError(false);
     try {
       const token = localStorage.getItem('coachToken');
       const response = await fetch('/api/coach/board', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
       if (response.ok) {
         const data = await response.json();
-        setBoard(data.board || []);
+        const rawBoard: ScoutingBoardItem[] = data.board || [];
+        setBoard(rawBoard);
 
-        // Fetch player details for each board item
-        const playerPromises = data.board.map(async (item: ScoutingBoardItem) => {
+        // Fetch player details for items that need it
+        const playerPromises = rawBoard.map(async (item: ScoutingBoardItem) => {
+          if (item.player) {
+            return { id: item.playerId, data: item.player };
+          }
           try {
-            const playerResponse = await fetch(`/api/coach/players/${item.playerId}`, {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-              },
+            const pRes = await fetch(`/api/coach/players/${item.playerId}`, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
             });
-            if (playerResponse.ok) {
-              const playerData = await playerResponse.json();
-              return { id: item.playerId, data: playerData };
+            if (pRes.ok) {
+              const pData = await pRes.json();
+              return { id: item.playerId, data: pData };
             }
           } catch {
-            showNotification('error', 'Player Load Failed', `Could not load data for player ${item.playerId}.`);
+            // Non-critical fallback
           }
           return null;
         });
 
         const playerResults = await Promise.all(playerPromises);
         const playerMap = new Map<number, PlayerSearchResult>();
-        playerResults.forEach(result => {
-          if (result) {
-            // Convert full profile to search result format
-            const player: PlayerSearchResult = {
-              id: result.data.id,
-              name: result.data.name,
-              position: result.data.position,
-              state: result.data.state,
-              city: result.data.city,
-              school: result.data.school,
-              gradYear: result.data.gradYear,
-              height: result.data.height,
-              weight: result.data.weight,
-              gpa: result.data.gpa,
-              breakoutScore: result.data.breakoutScore,
-              stars: result.data.stars,
-              archetype: result.data.archetype,
-              stats: result.data.stats,
-              combineStats: result.data.combineStats,
-              highlights: result.data.highlights?.length || 0,
-              verified: result.data.verified || false,
-              offers: result.data.offers?.length || 0,
-              committed: result.data.committed || false,
-              nilPoints: result.data.nilPoints,
+        playerResults.forEach((res) => {
+          if (res?.data) {
+            const p = res.data;
+            const normalized: PlayerSearchResult = {
+              id: p.id,
+              name: p.name || 'Unknown Athlete',
+              position: p.position || 'ATH',
+              state: p.state || 'N/A',
+              city: p.city || '',
+              school: p.school || 'High School',
+              gradYear: p.gradYear || 2026,
+              height: p.height,
+              weight: p.weight,
+              gpa: p.gpa,
+              breakoutScore: p.breakoutScore ?? 80,
+              stars: p.stars ?? 4,
+              archetype: p.archetype,
+              stats: p.stats,
+              combineStats: p.combineStats,
+              highlights: Array.isArray(p.highlights) ? p.highlights.length : (p.highlights || 0),
+              verified: Boolean(p.verified),
+              offers: Array.isArray(p.offers) ? p.offers.length : (p.offers || 0),
+              committed: Boolean(p.committed),
+              nilPoints: p.nilPoints ?? 0,
+              highlightThumbnailUrl: p.highlightThumbnailUrl,
+              profileImage: p.profileImage,
             };
-            playerMap.set(result.id, player);
+            playerMap.set(res.id, normalized);
           }
         });
         setPlayers(playerMap);
+      } else {
+        setLoadError(true);
       }
     } catch {
       setLoadError(true);
@@ -98,357 +113,413 @@ export function CoachScoutingBoard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showNotification]);
+
+  useEffect(() => {
+    fetchScoutingBoard();
+  }, [fetchScoutingBoard]);
 
   const removeFromBoard = async (playerId: number) => {
-    const playerName = players.get(playerId)?.name;
     try {
       const token = localStorage.getItem('coachToken');
-      await fetch(`/api/coach/players/${playerId}/save`, {
+      const res = await fetch(`/api/coach/players/${playerId}/save`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-
-      setBoard(prev => prev.filter(item => item.playerId !== playerId));
-      showNotification('info', 'Removed from Board', playerName ? `${playerName} was removed from your board.` : 'Player removed from your board.');
+      if (res.ok || res.status === 200 || res.status === 204) {
+        setBoard(prev => prev.filter(item => item.playerId !== playerId));
+        showNotification('info', 'Prospect Removed', 'Player removed from scouting board.');
+      }
     } catch {
-      showNotification('error', 'Remove Failed', 'Could not remove player from board. Please try again.');
+      showNotification('error', 'Remove Failed', 'Could not remove player.');
     }
   };
 
-  const updateTier = async (playerId: number, newTier: string) => {
+  const updateTier = async (playerId: number, newTier: 'top-target' | 'watching' | 'offered') => {
     try {
       const token = localStorage.getItem('coachToken');
       const response = await fetch(`/api/coach/players/${playerId}/tier`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ tier: newTier }),
       });
 
       if (response.ok) {
         setBoard(prev => prev.map(item =>
-          item.playerId === playerId ? { ...item, tier: newTier as ScoutingBoardItem['tier'] } : item
+          item.playerId === playerId ? { ...item, tier: newTier } : item
         ));
-        const tierLabel = TIERS.find(t => t.id === newTier)?.label ?? newTier;
-        const playerName = players.get(playerId)?.name;
-        showNotification('success', 'Tier Updated', playerName ? `${playerName} moved to ${tierLabel}.` : `Player moved to ${tierLabel}.`);
+        const tierObj = TIERS.find(t => t.id === newTier);
+        showNotification('success', 'Tier Updated', `Moved to ${tierObj?.label || newTier}`);
       }
     } catch {
-      showNotification('error', 'Update Failed', 'Could not update player tier. Please try again.');
+      showNotification('error', 'Update Failed', 'Could not update player tier.');
     }
   };
 
-  const updateNotes = async (playerId: number, notes: string) => {
+  const saveNotes = async (playerId: number) => {
+    setSavingNotes(true);
     try {
       const token = localStorage.getItem('coachToken');
-      await fetch(`/api/coach/players/${playerId}/notes`, {
+      const res = await fetch(`/api/coach/players/${playerId}/notes`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ notes }),
+        body: JSON.stringify({ notes: notesText }),
       });
 
-      setBoard(prev => prev.map(item =>
-        item.playerId === playerId ? { ...item, notes } : item
-      ));
-      setEditingNotes(null);
-      setNotesText('');
+      if (res.ok) {
+        setBoard(prev => prev.map(item =>
+          item.playerId === playerId ? { ...item, notes: notesText } : item
+        ));
+        setEditingNotesId(null);
+        showNotification('success', 'Notes Saved', 'Coaching evaluation notes updated.');
+      }
     } catch {
       showNotification('error', 'Save Failed', 'Could not save notes. Please try again.');
+    } finally {
+      setSavingNotes(false);
     }
   };
 
-  const startEditingNotes = (playerId: number, currentNotes: string) => {
-    setEditingNotes(playerId);
-    setNotesText(currentNotes || '');
+  const startEditingNotes = (item: ScoutingBoardItem) => {
+    setEditingNotesId(item.playerId);
+    setNotesText(item.notes || '');
+  };
+
+  const getTierCount = (tierId: string) => {
+    return board.filter(item => item.tier === tierId).length;
   };
 
   const filteredBoard = activeTier === 'all'
     ? board
     : board.filter(item => item.tier === activeTier);
 
-  const getTierStats = (tierId: string) => {
-    return board.filter(item => item.tier === tierId).length;
-  };
-
   const renderStars = (stars: number) => {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
-        className="w-4 h-4"
-        style={{ color: i < stars ? colors.pink : colors.border, fill: i < stars ? colors.pink : 'none' }}
+        className={`w-3.5 h-3.5 ${i < stars ? 'text-amber-400 fill-amber-400' : 'text-white/20'}`}
       />
     ));
   };
 
   return (
-    <div className="min-h-screen" style={{ background: colors.surface0, color: colors.textPrimary }}>
-      {/* Header */}
-      <div style={{ background: colors.surface1, borderBottom: `1px solid ${colors.border}` }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1
-                className="text-3xl font-bold"
-                style={{ fontFamily: DISPLAY, letterSpacing: '-0.02em', color: colors.textPrimary }}
-              >
-                Scouting Board
-              </h1>
-              <p className="mt-2" style={{ color: colors.textSecondary }}>Manage your recruiting pipeline</p>
-            </div>
-            <Link to="/coach/search">
-              <Button variant="primary">Find More Players</Button>
-            </Link>
+    <div className="space-y-6 max-w-7xl mx-auto pb-16">
+      {/* Top Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 bg-surface-card border border-white/10 rounded-2xl shadow-xl backdrop-blur-md">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-green-400">Recruiting Pipeline</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
           </div>
+          <h1 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight font-display">
+            Scouting Board
+          </h1>
+          <p className="text-xs sm:text-sm text-ink-muted mt-1">
+            Track prioritized recruits, manage offer tiers, and maintain confidential staff evaluations.
+          </p>
+        </div>
+        <Link
+          to="/coach/search"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 hover:bg-green-600 text-black font-bold rounded-xl transition-all duration-200 shadow-[0_0_20px_rgba(34,197,94,0.25)] text-sm"
+        >
+          <Search className="w-4 h-4" />
+          <span>Find More Recruits</span>
+        </Link>
+      </div>
+
+      {/* Pipeline Summary Metrics Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <div className="p-4 bg-surface-card border border-white/10 rounded-2xl">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">Total Pipeline</div>
+          <div className="text-2xl font-black text-white font-display">{board.length}</div>
+          <div className="text-[10px] text-ink-muted mt-1">Active recruits tracked</div>
+        </div>
+        <div className="p-4 bg-surface-card border border-red-500/20 rounded-2xl bg-gradient-to-br from-red-500/5 to-transparent">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-red-400 mb-1">Top Targets</div>
+          <div className="text-2xl font-black text-red-400 font-display">{getTierCount('top-target')}</div>
+          <div className="text-[10px] text-ink-muted mt-1">Highest priority</div>
+        </div>
+        <div className="p-4 bg-surface-card border border-yellow-500/20 rounded-2xl bg-gradient-to-br from-yellow-500/5 to-transparent">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-yellow-400 mb-1">Watching</div>
+          <div className="text-2xl font-black text-yellow-400 font-display">{getTierCount('watching')}</div>
+          <div className="text-[10px] text-ink-muted mt-1">Under evaluation</div>
+        </div>
+        <div className="p-4 bg-surface-card border border-green-500/20 rounded-2xl bg-gradient-to-br from-green-500/5 to-transparent">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-green-400 mb-1">Offered</div>
+          <div className="text-2xl font-black text-green-400 font-display">{getTierCount('offered')}</div>
+          <div className="text-[10px] text-ink-muted mt-1">Offers extended</div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Tier Filters */}
-        <div className="mb-8">
-          <div className="flex flex-wrap gap-4 mb-6">
+      {/* Tier Filter Tabs */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <button
+          onClick={() => setActiveTier('all')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
+            activeTier === 'all'
+              ? 'bg-green-500 text-black shadow-[0_0_20px_rgba(34,197,94,0.3)]'
+              : 'bg-surface-card border border-white/10 text-ink-muted hover:text-white'
+          }`}
+        >
+          All Recruits ({board.length})
+        </button>
+        {TIERS.map((tier) => {
+          const count = getTierCount(tier.id);
+          const active = activeTier === tier.id;
+          return (
             <button
-              onClick={() => setActiveTier('all')}
-              className="px-4 py-2 min-h-[44px] rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-              style={
-                activeTier === 'all'
-                  ? { background: colors.accent, color: colors.accentOn, ['--tw-ring-color' as string]: colors.accent }
-                  : { background: colors.surface1, color: colors.textSecondary, ['--tw-ring-color' as string]: colors.accent }
-              }
+              key={tier.id}
+              onClick={() => setActiveTier(tier.id)}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-2 border ${
+                active
+                  ? `${tier.bg} ${tier.color} ${tier.border} shadow-lg`
+                  : 'bg-surface-card border-white/10 text-ink-muted hover:text-white'
+              }`}
             >
-              All Players ({board.length})
+              <span className={`w-2 h-2 rounded-full ${active ? 'bg-current animate-pulse' : 'bg-white/30'}`} />
+              <span>{tier.label}</span>
+              <span className="text-[11px] opacity-75">({count})</span>
             </button>
-            {TIERS.map((tier) => (
-              <button
-                key={tier.id}
-                onClick={() => setActiveTier(tier.id)}
-                className="px-4 py-2 min-h-[44px] rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                style={
-                  activeTier === tier.id
-                    ? { background: tier.dot, color: colors.surface0, ['--tw-ring-color' as string]: colors.accent }
-                    : { background: colors.surface1, color: colors.textSecondary, ['--tw-ring-color' as string]: colors.accent }
-                }
-              >
-                {tier.label} ({getTierStats(tier.id)})
-              </button>
-            ))}
-          </div>
+          );
+        })}
+      </div>
 
-          {/* Tier Descriptions */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {TIERS.map((tier) => (
-              <Card key={tier.id} className="p-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-3 h-3 rounded-full" style={{ background: tier.dot }}></div>
-                  <h3
-                    className="text-lg font-semibold"
-                    style={{ fontFamily: DISPLAY, color: colors.textPrimary }}
-                  >
-                    {tier.label}
-                  </h3>
-                </div>
-                <p className="text-sm" style={{ color: colors.textSecondary }}>{tier.description}</p>
-                <p className="font-medium mt-2" style={{ color: colors.textPrimary }}>{getTierStats(tier.id)} players</p>
-              </Card>
-            ))}
-          </div>
+      {/* Board Content */}
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-20 bg-surface-card border border-white/10 rounded-2xl">
+          <div className="w-8 h-8 rounded-full border-2 border-green-500 border-t-transparent animate-spin mb-3" />
+          <p className="text-xs text-ink-muted uppercase tracking-wider font-bold">Loading scouting board...</p>
         </div>
-
-        {/* Board Content */}
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
+      ) : loadError ? (
+        <div className="p-8 text-center bg-surface-card border border-coral-500/20 rounded-2xl">
+          <p className="text-sm text-coral-400 mb-3">Could not load your scouting board.</p>
+          <button
+            onClick={() => { setLoading(true); fetchScoutingBoard(); }}
+            className="px-4 py-2 bg-green-500 hover:bg-green-600 text-black font-bold rounded-xl text-xs"
+          >
+            Retry
+          </button>
+        </div>
+      ) : filteredBoard.length === 0 ? (
+        <div className="p-16 text-center bg-surface-card border border-white/10 rounded-2xl space-y-4">
+          <Target className="w-12 h-12 text-ink-muted mx-auto opacity-30" />
+          <div>
+            <h3 className="text-lg font-bold text-white mb-1">
+              {activeTier === 'all'
+                ? 'Your Scouting Board is Empty'
+                : `No Prospects in ${TIERS.find(t => t.id === activeTier)?.label}`}
+            </h3>
+            <p className="text-xs text-ink-muted max-w-sm mx-auto">
+              {activeTier === 'all'
+                ? 'Search for elite talent and add prospects to your pipeline to organize evaluations.'
+                : 'Move recruits into this tier or add more athletes from player search.'}
+            </p>
           </div>
-        ) : loadError ? (
-          <EmptyState
-            icon={<Heart className="w-12 h-12" />}
-            title="Could not load your scouting board."
-            cta={
-              <Button variant="primary" onClick={() => { setLoading(true); fetchScoutingBoard(); }}>
-                Retry
-              </Button>
-            }
-          />
-        ) : filteredBoard.length === 0 ? (
-          <EmptyState
-            icon={<Heart className="w-12 h-12" />}
-            title={activeTier === 'all' ? 'Your scouting board is empty' : `No players in ${TIERS.find(t => t.id === activeTier)?.label}`}
-            body={activeTier === 'all'
-              ? 'Start by searching for players and adding them to your board'
-              : 'Try changing the filter or adding players to this tier'}
-            cta={
-              <Link to="/coach/search">
-                <Button variant="primary" size="lg">Search Players</Button>
-              </Link>
-            }
-          />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredBoard.map((item) => {
-              const player = players.get(item.playerId);
-              if (!player) return null;
+          <Link
+            to="/coach/search"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-black font-bold rounded-xl text-xs transition-all shadow-[0_0_20px_rgba(34,197,94,0.25)]"
+          >
+            <Search className="w-4 h-4" />
+            <span>Search Prospects</span>
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredBoard.map((item) => {
+            const player = players.get(item.playerId);
+            const tierInfo = TIERS.find(t => t.id === item.tier) || TIERS[1];
+            const isEditingNotes = editingNotesId === item.playerId;
 
-              const tierInfo = TIERS.find(t => t.id === item.tier);
-
-              return (
-                <Card key={item.playerId} hover className="overflow-hidden">
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3
-                            className="text-xl font-semibold"
-                            style={{ fontFamily: DISPLAY, color: colors.textPrimary }}
-                          >
-                            {player.name}
-                          </h3>
-                          {player.verified && (
-                            <Award className="w-5 h-5" style={{ color: colors.accentText }} />
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4 text-sm mb-2" style={{ color: colors.textSecondary }}>
-                          <span className="flex items-center gap-1">
-                            <Users className="w-4 h-4" />
-                            {player.position}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-4 h-4" />
-                            {player.state}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <GraduationCap className="w-4 h-4" />
-                            {player.gradYear}
-                          </span>
-                        </div>
-                        <div
-                          className="inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium"
-                          style={{ background: tierInfo?.dot, color: colors.surface0 }}
+            return (
+              <div
+                key={item.playerId}
+                className="bg-surface-card border border-white/10 rounded-2xl overflow-hidden hover:border-white/20 transition-all duration-300 shadow-xl flex flex-col justify-between"
+              >
+                <div className="p-5">
+                  {/* Card Header & Tier Pill */}
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Link
+                          to={`/coach/player/${item.playerId}`}
+                          className="text-lg font-bold text-white hover:text-green-400 transition-colors truncate block"
                         >
-                          <div className="w-2 h-2 rounded-full" style={{ background: colors.surface0 }}></div>
-                          {tierInfo?.label}
-                        </div>
+                          {player?.name || `Prospect #${item.playerId}`}
+                        </Link>
+                        {player?.verified && (
+                          <Award className="w-4 h-4 text-green-400 shrink-0" title="Verified Athlete" />
+                        )}
                       </div>
-                      <button
-                        onClick={() => removeFromBoard(item.playerId)}
-                        aria-label={`Remove ${player.name} from board`}
-                        className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                        style={{ color: colors.textSecondary, ['--tw-ring-color' as string]: colors.accent }}
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                      <div className="flex items-center gap-3 text-xs text-ink-muted">
+                        <span className="flex items-center gap-1 text-white font-semibold">
+                          <Users className="w-3.5 h-3.5 text-green-400" />
+                          {player?.position || 'ATH'}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-3.5 h-3.5" />
+                          {player?.state || 'US'}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <GraduationCap className="w-3.5 h-3.5" />
+                          '{player?.gradYear || '26'}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="space-y-3 mb-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm" style={{ color: colors.textSecondary }}>Breakout Score</span>
-                        <span className="text-lg font-semibold" style={{ color: colors.success }}>{player.breakoutScore}</span>
+                    <button
+                      onClick={() => removeFromBoard(item.playerId)}
+                      className="p-1.5 text-ink-muted hover:text-coral-500 rounded-lg hover:bg-coral-500/10 transition-colors"
+                      title="Remove from board"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* School / Club */}
+                  <p className="text-xs text-ink-muted mb-3 truncate">
+                    {[player?.school, player?.city].filter(Boolean).join(' • ') || 'High School Prospect'}
+                  </p>
+
+                  {/* Tier Selector Row */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+                        Recruiting Tier
+                      </label>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${tierInfo.badge}`}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                        {tierInfo.label}
+                      </span>
+                    </div>
+                    <select
+                      value={item.tier}
+                      onChange={(e) => updateTier(item.playerId, e.target.value as 'top-target' | 'watching' | 'offered')}
+                      className="w-full bg-surface-hover border border-white/10 rounded-xl px-3 py-2 text-white text-xs font-semibold focus:border-green-500/60 focus:outline-none transition-colors"
+                    >
+                      {TIERS.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          Move to {t.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Metrics Row */}
+                  {player && (
+                    <div className="grid grid-cols-3 gap-2 p-2.5 bg-surface-hover/60 border border-white/5 rounded-xl mb-4 text-center">
+                      <div>
+                        <div className="text-[10px] uppercase font-bold text-ink-muted">Breakout</div>
+                        <div className="text-sm font-black text-green-400 flex items-center justify-center gap-0.5">
+                          <Sparkles className="w-3 h-3 text-green-400" />
+                          {player.breakoutScore}
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm" style={{ color: colors.textSecondary }}>Rating</span>
-                        <div className="flex items-center gap-1">
+                      <div>
+                        <div className="text-[10px] uppercase font-bold text-ink-muted">Rating</div>
+                        <div className="flex items-center justify-center gap-0.5 mt-0.5">
                           {renderStars(player.stars)}
                         </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm" style={{ color: colors.textSecondary }}>NIL Points</span>
-                        <span className="text-lg font-semibold" style={{ color: colors.pinkText }}>{player.nilPoints.toLocaleString()}</span>
+                      <div>
+                        <div className="text-[10px] uppercase font-bold text-ink-muted">NIL Pts</div>
+                        <div className="text-sm font-black text-amber-400">
+                          {(player.nilPoints ?? 0).toLocaleString()}
+                        </div>
                       </div>
                     </div>
+                  )}
 
-                    {/* Tier Selector */}
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium mb-2" style={{ color: colors.textSecondary }}>Change Tier</label>
-                      <select
-                        value={item.tier}
-                        onChange={(e) => updateTier(item.playerId, e.target.value)}
-                        className="w-full px-3 py-2 text-sm"
-                        style={{
-                          background: colors.surface2,
-                          border: `1px solid ${colors.border}`,
-                          borderRadius: radii.sm,
-                          color: colors.textPrimary,
-                        }}
-                      >
-                        {TIERS.map((tier) => (
-                          <option key={tier.id} value={tier.id}>{tier.label}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Notes */}
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium mb-2" style={{ color: colors.textSecondary }}>Notes</label>
-                      {editingNotes === item.playerId ? (
-                        <div className="space-y-2">
-                          <textarea
-                            value={notesText}
-                            onChange={(e) => setNotesText(e.target.value)}
-                            className="w-full px-3 py-2 text-sm h-20 resize-none"
-                            style={{
-                              background: colors.surface2,
-                              border: `1px solid ${colors.border}`,
-                              borderRadius: radii.sm,
-                              color: colors.textPrimary,
-                            }}
-                            placeholder="Add notes about this player..."
-                          />
-                          <div className="flex gap-2">
-                            <Button variant="primary" size="sm" onClick={() => updateNotes(item.playerId, notesText)}>
-                              Save
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setEditingNotes(null)}>
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
+                  {/* Coaching Notes Section */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted flex items-center gap-1">
+                        <FileText className="w-3 h-3 text-green-400" />
+                        Private Scouting Notes
+                      </span>
+                      {!isEditingNotes && (
                         <button
-                          type="button"
-                          onClick={() => startEditingNotes(item.playerId, item.notes || '')}
-                          className="w-full text-left px-3 py-2 text-sm min-h-[2.5rem] cursor-pointer transition-colors"
-                          style={{
-                            background: colors.surface2,
-                            border: `1px solid ${colors.border}`,
-                            borderRadius: radii.sm,
-                            color: colors.textPrimary,
-                          }}
+                          onClick={() => startEditingNotes(item)}
+                          className="text-[11px] text-green-400 hover:text-green-300 font-semibold flex items-center gap-1"
                         >
-                          {item.notes ? (
-                            <span style={{ color: colors.textSecondary }}>{item.notes}</span>
-                          ) : (
-                            <span className="italic" style={{ color: colors.textTertiary }}>Click to add notes...</span>
-                          )}
+                          <Edit3 className="w-3 h-3" />
+                          {item.notes ? 'Edit' : 'Add Note'}
                         </button>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <Link
-                        to={`/coach/player/${player.id}`}
-                        className="flex items-center gap-2 transition-colors"
-                        style={{ color: colors.accentText }}
-                      >
-                        <Eye className="w-4 h-4" />
-                        View Profile
-                      </Link>
-                      <div className="text-sm" style={{ color: colors.textSecondary }}>
-                        {player.offers} offers • {player.highlights} highlights
+                    {isEditingNotes ? (
+                      <div className="space-y-2">
+                        <textarea
+                          value={notesText}
+                          onChange={(e) => setNotesText(e.target.value)}
+                          placeholder="Log scout notes, combine metrics impressions, campus visit status..."
+                          className="w-full bg-surface-hover border border-white/15 rounded-xl p-3 text-xs text-white placeholder:text-ink-muted focus:border-green-500/60 focus:outline-none resize-none h-24"
+                        />
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => setEditingNotesId(null)}
+                            disabled={savingNotes}
+                            className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-ink-muted hover:text-white rounded-lg text-xs font-semibold"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => saveNotes(item.playerId)}
+                            disabled={savingNotes}
+                            className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-black rounded-lg text-xs font-bold inline-flex items-center gap-1"
+                          >
+                            {savingNotes ? (
+                              <div className="w-3 h-3 rounded-full border border-black border-t-transparent animate-spin" />
+                            ) : (
+                              <Check className="w-3 h-3" />
+                            )}
+                            <span>Save Note</span>
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div
+                        onClick={() => startEditingNotes(item)}
+                        className="p-3 bg-surface-hover/50 border border-white/5 hover:border-white/10 rounded-xl cursor-pointer transition-colors min-h-[52px]"
+                      >
+                        {item.notes ? (
+                          <p className="text-xs text-white/90 leading-relaxed line-clamp-3">
+                            {item.notes}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-ink-muted italic">
+                            Click to add private evaluation notes...
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                </div>
+
+                {/* Footer Quick Profile Link */}
+                <div className="flex items-center justify-between px-5 py-3 border-t border-white/5 bg-surface/50 text-xs">
+                  <div className="text-ink-muted font-medium">
+                    {player?.offers || 0} Offers Extended
+                  </div>
+                  <Link
+                    to={`/coach/player/${item.playerId}`}
+                    className="inline-flex items-center gap-1 text-green-400 hover:text-green-300 font-bold transition-colors"
+                  >
+                    <span>Full Profile</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

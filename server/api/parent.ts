@@ -8,7 +8,6 @@ import {
   parentRespondBody,
   parentSettingsBody,
   parentInviteBody,
-  parentStatSubmissionBody,
   idParam,
 } from '../middleware/safetySchemas';
 import { parseIdParam } from '../lib/parseIdParam';
@@ -227,108 +226,6 @@ router.get('/activity', async (req, res) => {
     res.status(500).json({ success: false, error: 'Failed to fetch activity' });
   }
 });
-
-// POST /api/parent/stat-submissions (and alias /stats/submit) — parent-entered intake queue for the
-// ingestion workflow.
-const handleParentStatSubmit = async (req: express.Request, res: express.Response) => {
-  try {
-    const parentId = requireParent(req, res);
-    if (parentId == null) return;
-
-    const body = req.body ?? {};
-    let playerId: number | null = body.playerId ? Number(body.playerId) : null;
-    let athleteName = body.athleteName;
-
-    if (playerId != null) {
-      const childIds = await getChildIds(parentId);
-      if (!childIds.includes(playerId)) {
-        return res.status(403).json({ success: false, error: 'Not your child' });
-      }
-      if (!athleteName) {
-        const [p] = await db.select({ name: schema.players.name }).from(schema.players).where(eq(schema.players.id, playerId)).limit(1);
-        if (p) athleteName = p.name;
-      }
-    } else if (body.athleteEmail) {
-      const [child] = await db
-        .select({ id: schema.players.id, name: schema.players.name })
-        .from(schema.players)
-        .where(eq(schema.players.email, String(body.athleteEmail).toLowerCase().trim()))
-        .limit(1);
-      if (child) {
-        const childIds = await getChildIds(parentId);
-        if (!childIds.includes(child.id)) {
-          return res.status(403).json({ success: false, error: 'Not your child' });
-        }
-        playerId = child.id;
-        if (!athleteName) athleteName = child.name;
-      }
-    }
-
-    const [row] = await db.insert(schema.parentStatSubmissions).values({
-      parentId,
-      playerId,
-      athleteEmail: body.athleteEmail ?? body.email ?? null,
-      athleteName: athleteName ?? body.name ?? null,
-      athleteDob: body.athleteDob ? new Date(body.athleteDob) : (body.dob ? new Date(body.dob) : null),
-      gradYear: body.gradYear ?? null,
-      position: body.position ?? null,
-      state: body.state ?? null,
-      division: body.division ?? null,
-      school: body.school ?? null,
-      season: body.season ?? null,
-      passingTds: body.passingTds ?? body.touchdownsPassing ?? null,
-      rushingTds: body.rushingTds ?? body.touchdownsRushing ?? null,
-      receivingTds: body.receivingTds ?? body.touchdownsReceiving ?? null,
-      defensiveTds: body.defensiveTds ?? null,
-      flagPulls: body.flagPulls ?? null,
-      interceptions: body.interceptions ?? null,
-      sacks: body.sacks ?? null,
-      passingYards: body.passingYards ?? null,
-      rushingYards: body.rushingYards ?? null,
-      receivingYards: body.receivingYards ?? null,
-      hersRating: body.hersRating ?? null,
-      fortyYardDash: body.fortyYardDash ?? null,
-      verticalJump: body.verticalJump ?? null,
-      shuttle5105: body.shuttle5105 ?? null,
-      broadJump: body.broadJump ?? null,
-      maxPrepsUrl: body.maxPrepsUrl ?? null,
-      source: body.source ?? 'parent_portal',
-      notes: body.notes ?? null,
-      status: 'pending',
-    }).returning();
-
-    res.status(201).json({ success: true, data: row });
-  } catch (err) {
-    console.error('[parent/stat-submissions POST]', err);
-    res.status(500).json({ success: false, error: 'Failed to submit stats' });
-  }
-};
-
-router.post('/stat-submissions', validateBody(parentStatSubmissionBody), handleParentStatSubmit);
-router.post('/stats/submit', validateBody(parentStatSubmissionBody), handleParentStatSubmit);
-
-// GET /api/parent/stat-submissions (and alias /stats/submit) — review own submitted rows
-const handleParentStatList = async (req: express.Request, res: express.Response) => {
-  try {
-    const parentId = requireParent(req, res);
-    if (parentId == null) return;
-
-    const rows = await db
-      .select()
-      .from(schema.parentStatSubmissions)
-      .where(eq(schema.parentStatSubmissions.parentId, parentId))
-      .orderBy(desc(schema.parentStatSubmissions.submittedAt));
-
-    res.json({ success: true, data: rows });
-  } catch (err) {
-    console.error('[parent/stat-submissions GET]', err);
-    res.status(500).json({ success: false, error: 'Failed to fetch stat submissions' });
-  }
-};
-
-router.get('/stat-submissions', handleParentStatList);
-router.get('/stats/submit', handleParentStatList);
-
 
 // GET /api/parent/settings — server-backed parent preferences. Replaces the
 // useState-only toggles that lived in ParentHub/ParentDashboard.

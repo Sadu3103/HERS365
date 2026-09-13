@@ -1,17 +1,16 @@
 import { forwardRef } from 'react';
 import type { ShareCardData } from '../lib/shareCard';
-import { colors, text, type as typeTokens } from '../lib/tokens';
 
 // ─── Card visual — 9:16 (540 × 960), exported at pixelRatio 2 → 1080 × 1920 ─
 
-const BG = colors.surface0;
-const ACCENT = colors.accent;
-const ACCENT_TEXT = colors.accentText;
-const TEXT_PRIMARY = text.primary;
-const TEXT_SECONDARY = text.secondary;
+const BG = '#0E0E11';
+const ACCENT = '#8B3BFF';
+const ACCENT_TEXT = '#A66BFF';
+const TEXT_PRIMARY = '#F5F5F7';
+const TEXT_SECONDARY = '#B0B0B8';
 const DIVIDER = 'rgba(255,255,255,0.08)';
-const DISP = typeTokens.font.display;
-const BODY = typeTokens.font.body;
+const DISP = "'Barlow Condensed', sans-serif";
+const BODY = "'DM Sans', sans-serif";
 
 interface ShareCardProps {
   data: ShareCardData;
@@ -31,7 +30,7 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
   const deltaLine = (() => {
     if (typeof rankDelta !== 'number' || rankDelta === 0) return null;
     if (rankDelta > 0) return { symbol: '▲', n: rankDelta, color: ACCENT_TEXT };
-    return { symbol: '▼', n: Math.abs(rankDelta), color: text.tertiary };
+    return { symbol: '▼', n: Math.abs(rankDelta), color: '#8A8A92' };
   })();
 
   return (
@@ -62,7 +61,7 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
           width: 720,
           height: 720,
           borderRadius: '50%',
-          background: `radial-gradient(circle at center, rgba(139,59,255,.42) 0%, rgba(139,59,255,.12) 42%, transparent 70%)`,
+          background: `radial-gradient(circle at center, rgba(139, 59, 255,.42) 0%, rgba(139, 59, 255,.12) 42%, transparent 70%)`,
           filter: 'blur(8px)',
           pointerEvents: 'none',
         }}
@@ -97,7 +96,7 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
           marginBottom: 18,
           letterSpacing: '-0.03em',
           fontVariantNumeric: 'tabular-nums',
-          textShadow: '0 0 60px rgba(139,59,255,0.4)',
+          textShadow: '0 0 60px rgba(139, 59, 255,0.4)',
           position: 'relative',
         }}
       >
@@ -124,8 +123,8 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
               width: 22,
               height: 22,
               borderRadius: '50%',
-              background: colors.neon,
-              color: colors.neonOn,
+              background: ACCENT,
+              color: '#0A0A0C',
               fontSize: 14,
               fontWeight: 800,
             }}

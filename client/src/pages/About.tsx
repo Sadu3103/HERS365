@@ -1,19 +1,20 @@
 import { Flame, Shield, Users, Trophy, TrendingUp, Heart } from 'lucide-react';
-import { tokens } from '../lib/tokens';
-import { Card } from '../components/ui';
 
-const { colors, text, type } = tokens;
+const FLAME_C = '#8B3BFF';
+const LINE = 'rgba(255,255,255,0.07)';
+const MUTED = '#8a8a86';
+const DISP = "'Barlow Condensed', sans-serif";
 
 export const About = () => (
   <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 20px 120px' }}>
     <div style={{ marginBottom: 40, textAlign: 'center' }}>
-      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: '0.65rem', fontWeight: type.weight.bold, letterSpacing: '0.12em', textTransform: 'uppercase', color: colors.accent }}>
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: FLAME_C }}>
         <Flame size={13} /> OUR STORY
       </div>
-      <h1 style={{ fontFamily: type.font.display, fontSize: 'clamp(2.2rem, 6vw, 3.2rem)', fontWeight: type.weight.bold, textTransform: 'uppercase', letterSpacing: '-0.02em', margin: '0 0 16px', lineHeight: 1 }}>
+      <h1 style={{ fontFamily: DISP, fontSize: 'clamp(2.2rem, 6vw, 3.2rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.02em', margin: '0 0 16px', lineHeight: 1 }}>
         Built for the Girls Who Run.
       </h1>
-      <p style={{ color: text.secondary, fontSize: '0.92rem', maxWidth: 520, margin: '0 auto', lineHeight: 1.7 }}>
+      <p style={{ color: MUTED, fontSize: '0.92rem', maxWidth: 520, margin: '0 auto', lineHeight: 1.7 }}>
         HERS365 is the first digital platform built exclusively for girls in flag football. We exist to give young athletes the tools, visibility, and community they deserve — and to connect them with the opportunities that were never built for them before.
       </p>
     </div>
@@ -25,11 +26,11 @@ export const About = () => (
         { icon: <TrendingUp size={22} />, stat: '3,200+', label: 'Rankings Tracked' },
         { icon: <Shield size={22} />, stat: '100%', label: 'Safe & COPPA Compliant' },
       ].map((s) => (
-        <Card key={s.label} style={{ padding: '22px 20px', textAlign: 'center' }}>
-          <div style={{ color: colors.accent, marginBottom: 10, display: 'flex', justifyContent: 'center' }}>{s.icon}</div>
-          <div style={{ fontFamily: type.font.display, fontSize: '2rem', fontWeight: type.weight.bold, color: text.primary, letterSpacing: '-0.02em', lineHeight: 1 }}>{s.stat}</div>
-          <div style={{ fontSize: '0.65rem', color: text.secondary, fontWeight: type.weight.bold, letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 6 }}>{s.label}</div>
-        </Card>
+        <div key={s.label} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 14, padding: '22px 20px', textAlign: 'center' }}>
+          <div style={{ color: FLAME_C, marginBottom: 10, display: 'flex', justifyContent: 'center' }}>{s.icon}</div>
+          <div style={{ fontFamily: DISP, fontSize: '2rem', fontWeight: 900, color: '#f4f4f2', letterSpacing: '-0.02em', lineHeight: 1 }}>{s.stat}</div>
+          <div style={{ fontSize: '0.65rem', color: MUTED, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 6 }}>{s.label}</div>
+        </div>
       ))}
     </div>
 
@@ -39,13 +40,13 @@ export const About = () => (
         { icon: <Shield size={18} />, title: 'Safety First, Always', body: "Every feature we build passes a safeguarding review. Coach-to-athlete communication is gated through parents. Your data is yours. We comply with COPPA and FERPA and we'll never compromise on the safety of our athletes." },
         { icon: <TrendingUp size={18} />, title: "What's Next", body: "We're expanding to all 50 states. We're adding real-time GameDay scoring. We're partnering with college programs to bring verified recruiting pipelines to every athlete — regardless of their school or zip code." },
       ].map((s) => (
-        <Card key={s.title} style={{ padding: '22px 24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, color: colors.accent }}>
+        <div key={s.title} style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${LINE}`, borderRadius: 14, padding: '22px 24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, color: FLAME_C }}>
             {s.icon}
-            <span style={{ fontFamily: type.font.display, fontSize: '1.1rem', fontWeight: type.weight.bold, textTransform: 'uppercase', letterSpacing: '-0.01em', color: text.primary }}>{s.title}</span>
+            <span style={{ fontFamily: DISP, fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '-0.01em', color: '#f4f4f2' }}>{s.title}</span>
           </div>
-          <p style={{ color: text.secondary, fontSize: '0.88rem', margin: 0, lineHeight: 1.65 }}>{s.body}</p>
-        </Card>
+          <p style={{ color: MUTED, fontSize: '0.88rem', margin: 0, lineHeight: 1.65 }}>{s.body}</p>
+        </div>
       ))}
     </div>
   </div>

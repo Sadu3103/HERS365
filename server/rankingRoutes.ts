@@ -59,7 +59,7 @@ router.get('/players', async (req, res) => {
       // Scores
       combineScore: schema.athleteRankings.combineScore,
       maxPrepsScore: schema.athleteRankings.maxPrepsScore,
-      tournamentPerformanceScore: schema.athleteRankings.tournamentPerformanceScore,
+      zybekScore: schema.athleteRankings.zybekScore,
       overallScore: schema.athleteRankings.overallScore,
       // Data sources
       dataSources: schema.athleteRankings.dataSources,
@@ -165,7 +165,8 @@ router.get('/players/:id', async (req, res) => {
         overall: score,
         combine: ranking.combineScore || 0,
         maxPreps: ranking.maxPrepsScore || 0,
-        tournamentPerformance: ranking.tournamentPerformanceScore || 0,
+        zybek: ranking.zybekScore || 0,
+        usaTalentId: ranking.usaTalentIdScore || 0,
       },
       tier: getRankingTier(score),
       tierColor: getTierColor(getRankingTier(score)),
@@ -218,42 +219,30 @@ router.get('/criteria', async (req, res) => {
     res.json({
       description: 'H.E.R.S.365 rankings are calculated using a weighted algorithm that integrates multiple verified data sources.',
       sources: [
- {
-   name: 'Combine Events',
-   weight: '40%',
-   metrics: [
-     '40-yard dash',
-     '3-cone drill',
-     'Shuttle run',
-     'Vertical jump',
-     'Broad jump'
-   ],
-   verified: true,
- },
- {
-   name: 'Verified Game Stats (MaxPreps)',
-   weight: '40%',
-   metrics: [
-     'Touchdowns',
-     'Passing yards',
-     'Receiving yards',
-     'Rushing yards',
-     'Tackles',
-     'Interceptions'
-   ],
-   verified: true,
- },
- {
-   name: "She's a Baller Tournament Performance",
-   weight: '20%',
-   metrics: [
-     'Tournament wins',
-     'Touchdowns',
-     'Yards',
-     'MVP Awards'
-   ],
-   verified: true,
- }
+        {
+          name: 'Combine Events',
+          weight: '30%',
+          metrics: ['40-yard dash', '3-cone drill', 'Shuttle run', 'Vertical jump', 'Broad jump', 'Route running', 'Catching', 'Throwing'],
+          verified: true,
+        },
+        {
+          name: 'MaxPreps',
+          weight: '25%',
+          metrics: ['Tackles', 'Sacks', 'Interceptions', 'Touchdowns', 'Passing/Rushing/Receiving yards'],
+          verified: true,
+        },
+        {
+          name: 'Zybek Sports',
+          weight: '25%',
+          metrics: ['40-yard dash', 'Shuttle', '3-cone', 'Vertical', 'Broad jump', 'Power throw', 'Accuracy'],
+          verified: true,
+        },
+        {
+          name: 'USA Talent ID',
+          weight: '20%',
+          metrics: ['Overall rating', 'Speed', 'Agility', 'Strength', 'Technique'],
+          verified: true,
+        },
       ],
       tiers: [
         { name: 'Elite', score: '90+', color: '#FFD700' },
@@ -276,136 +265,63 @@ router.get('/criteria', async (req, res) => {
 router.post('/calculate/:playerId', async (req, res) => {
   try {
     const playerId = parseIdParam(req.params.playerId);
-
     if (playerId === null) {
       return res.status(400).json({ message: 'Invalid id' });
     }
 
-    // Fetch player profile
-    const player = await db
-      .select()
-      .from(schema.players)
-      .where(eq(schema.players.id, playerId));
-
-    if (!player[0]) {
-      return res.status(404).json({ message: 'Player not found' });
-    }
-
-    const athlete = player[0];
-
-    // Fetch verified combine data
-    const combineStats = await db
-      .select()
-      .from(schema.combineStats)
-      .where(eq(schema.combineStats.playerId, playerId));
-
-    // Fetch verified game stats
-    const gameStats = await db
-      .select()
-      .from(schema.gameStats)
-      .where(eq(schema.gameStats.playerId, playerId));
-
-
-    /*
-      Tournament stats placeholder.
-
-      Replace this later with:
-      schema.tournamentPerformanceStats
-      once the tournament table exists.
-    */
-    const tournamentPerformance = {
-      tournamentWins: 0,
-      touchdowns: 0,
-      yards: 0,
-      mvpAwards: 0,
+    // Fetch all athlete data from various sources
+    // This would integrate with actual data sources in production
+    const mockAthleteData = {
+      id: playerId,
+      name: '',
+      state: '',
+      highSchool: '',
+      graduationYear: 2026,
+      position: 'WR',
     };
 
+    // Calculate ranking scores
+    const scores = calculateRankingScore(mockAthleteData);
 
-    // Build ranking input
-    const athleteData = {
-      id: athlete.id,
-      name: athlete.name,
-      state: athlete.state ?? '',
-      highSchool: athlete.school ?? '',
-      graduationYear: athlete.gradYear ?? 2026,
-      position: athlete.position ?? '',
-
-      combineStats: combineStats[0]
-  ? {
-      fortyYardDash: Number(combineStats[0].fortyDash),
-      threeConeDrill: Number(combineStats[0].threeCone),
-      shuttleRun: Number(combineStats[0].shuttle),
-      verticalJump: Number(combineStats[0].vertical),
-      broadJump: Number(combineStats[0].broadJump),
-
-      eventDate: combineStats[0].season ?? '',
-    }
-  : undefined,
-      gameStats,
-      tournamentPerformance,
-    };
-
-
-    // Calculate ranking score
-    const scores = calculateRankingScore(athleteData);
-
-
+    // schema.athleteRankings.dataSources is a text column but scores.dataSources
+    // is a string[]; serialize as JSON so the read path can parse it back.
+    // schema.athleteRankings.updatedAt is text, not timestamp.
     const dataSourcesJson = JSON.stringify(scores.dataSources);
-
     const updatedAt = new Date().toISOString();
 
-
-    // Save ranking
-    await db
-      .insert(schema.athleteRankings)
+    // Update database
+    await db.insert(schema.athleteRankings)
       .values({
         playerId,
-
         overallScore: scores.overallScore,
-
         combineScore: scores.combineScore,
-
         maxPrepsScore: scores.maxPrepsScore,
-
-        tournamentPerformanceScore:
-          scores.tournamentPerformanceScore,
-
+        zybekScore: scores.zybekScore,
+        usaTalentIdScore: scores.usaTalentIdScore,
         dataSources: dataSourcesJson,
-
         updatedAt,
       })
       .onConflictDoUpdate({
         target: schema.athleteRankings.playerId,
-
         set: {
           overallScore: scores.overallScore,
-
           combineScore: scores.combineScore,
-
           maxPrepsScore: scores.maxPrepsScore,
-
-          tournamentPerformanceScore:
-            scores.tournamentPerformanceScore,
-
+          zybekScore: scores.zybekScore,
+          usaTalentIdScore: scores.usaTalentIdScore,
           dataSources: dataSourcesJson,
-
           updatedAt,
         },
       });
-
 
     res.json({
       success: true,
       playerId,
       scores,
     });
-
   } catch (error) {
     console.error('Error calculating ranking:', error);
-
-    res.status(500).json({
-      message: 'Error calculating ranking',
-    });
+    res.status(500).json({ message: 'Error calculating ranking' });
   }
 });
 

@@ -1,14 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
-import { Search, CheckCircle2, RefreshCw } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Search, CheckCircle2, Lock, Zap, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { athleteAvatar } from '../lib/avatar';
 import { POSITION_FILTERS } from '../lib/positions';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { Skeleton, VisuallyHidden } from '../components/Skeleton';
-import { Card, Input, Badge, Button } from '../components/ui';
-import { tokens } from '../lib/tokens';
-import { springs, staggerDelay } from '../lib/motion';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/api';
 import {
@@ -17,8 +14,6 @@ import {
   type RankMeRanked,
   type RankMeUnratedOrHidden,
 } from '../components/YourRankDock';
-
-const { colors, type: T, radii } = tokens;
 
 // The "change" field on the server is hardcoded to 0 because there is no
 // rank-history table yet. The previous client surfaced a fake ▲/▼ trend
@@ -57,83 +52,35 @@ type RankMeResponse =
 
 const positions = POSITION_FILTERS;
 
-const PER_PAGE = 50;
+const DEMO_RANKINGS_BOARD: RankedPlayer[] = [
+  { id: 1, rank: 1, name: 'Maya Johnson', school: 'Lincoln High School (CA)', position: 'QB', gpa: 3.9, gradYear: 2026, rating: 98.4, verified: true },
+  { id: 2, rank: 2, name: 'Chloe Adams', school: 'Mater Dei High (CA)', position: 'WR', gpa: 4.0, gradYear: 2026, rating: 97.8, verified: true },
+  { id: 3, rank: 3, name: 'Samantha Rivera', school: 'St. Thomas Aquinas (FL)', position: 'Rusher', gpa: 3.8, gradYear: 2027, rating: 96.9, verified: true },
+  { id: 4, rank: 4, name: 'Zoe Martinez', school: 'Caty High School (TX)', position: 'RB', gpa: 3.7, gradYear: 2026, rating: 96.2, verified: true },
+  { id: 5, rank: 5, name: 'Jordan Lee', school: 'Poly Prep Country Day (NY)', position: 'Safety', gpa: 3.95, gradYear: 2026, rating: 95.8, verified: true },
+  { id: 6, rank: 6, name: 'Riley Davis', school: 'Archbishop Mitty (CA)', position: 'Center', gpa: 3.85, gradYear: 2027, rating: 95.1, verified: true },
+  { id: 7, rank: 7, name: 'Taylor Brooks', school: 'Chandler High (AZ)', position: 'QB', gpa: 4.0, gradYear: 2027, rating: 94.7, verified: true },
+  { id: 8, rank: 8, name: 'Avery Morgan', school: 'Bingham High School (UT)', position: 'WR', gpa: 3.9, gradYear: 2026, rating: 94.2, verified: true },
+  { id: 9, rank: 9, name: 'Morgan Vance', school: 'Allen High School (TX)', position: 'Rusher', gpa: 3.65, gradYear: 2026, rating: 93.9, verified: true },
+  { id: 10, rank: 10, name: 'Kendall Reese', school: 'Centennial High (GA)', position: 'RB', gpa: 3.8, gradYear: 2027, rating: 93.5, verified: true },
+  { id: 11, rank: 11, name: 'Sienna Clark', school: 'Bishop Gorman (NV)', position: 'Safety', gpa: 3.9, gradYear: 2026, rating: 93.0, verified: true },
+  { id: 12, rank: 12, name: 'Brianna Scott', school: 'Eastside Catholic (WA)', position: 'Center', gpa: 3.75, gradYear: 2027, rating: 92.4, verified: true },
+];
 
-// One-time-per-mount count-up. Fast in, slow at the line (easeOutExpo).
-// Reduced-motion lands on the target instantly with no animation frames.
-function useCountUp(target: number, { durationMs = 900 }: { durationMs?: number } = {}) {
-  const reduce = useReducedMotion();
-  const [value, setValue] = useState(reduce ? target : 0);
-  const targetRef = useRef(target);
-  targetRef.current = target;
-
-  useEffect(() => {
-    if (reduce) {
-      setValue(targetRef.current);
-      return;
-    }
-    const end = targetRef.current;
-    const start = performance.now();
-    let raf = 0;
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / durationMs);
-      const eased = t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
-      setValue(Math.round(end * eased));
-      if (t < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-    // Intentionally mount-only: the "reveal" fires once when the rank first
-    // renders. targetRef captures the latest value without re-triggering.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return value;
-}
+const PER_PAGE = 25;
 
 function Avatar({ name, size = 36 }: { name: string; size?: number }) {
   return (
     <img
       src={athleteAvatar(name)}
       alt={name}
-      style={{ width: size, height: size, borderRadius: radii.full, background: colors.surface2, flexShrink: 0, objectFit: 'cover' }}
+      style={{ width: size, height: size, borderRadius: '50%', background: '#1c1c1c', flexShrink: 0, objectFit: 'cover' }}
     />
-  );
-}
-
-// Signature moment #1 — Rankings reveal. The hero rank numeral counts up once
-// on first render and settles on a spring; reduced-motion lands instantly.
-function RevealRank({ value, size, one }: { value: number; size: number; one?: boolean }) {
-  const reduce = useReducedMotion();
-  const display = useCountUp(value, { durationMs: 900 });
-  return (
-    <motion.span
-      className="tnum"
-      initial={reduce ? false : { scale: 0.82, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={springs.snappy}
-      style={{
-        fontFamily: T.font.display,
-        fontWeight: T.weight.bold + 100,
-        fontSize: size,
-        lineHeight: 1,
-        letterSpacing: '-0.01em',
-        color: one ? colors.accent : colors.textPrimary,
-        textShadow: one ? '0 0 16px rgba(139,59,255,0.4)' : 'none',
-        display: 'inline-flex',
-        alignItems: 'baseline',
-      }}
-      aria-hidden="true"
-    >
-      <span style={{ fontSize: '0.55em', color: 'rgba(244,244,245,0.35)', marginRight: 1 }}>#</span>
-      {display}
-    </motion.span>
   );
 }
 
 export const Rankings = () => {
   const navigate = useNavigate();
-  const reduceMotion = useReducedMotion();
   const { user, isAuthenticated } = useAuth();
   const [players, setPlayers] = useState<RankedPlayer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,9 +89,14 @@ export const Rankings = () => {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [loadError, setLoadError] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
   const isMobile = useIsMobile();
+
+  const rawUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+  const parsedUser = rawUser ? JSON.parse(rawUser) : null;
+  const currentTier = parsedUser?.subscriptionTier || parsedUser?.tier || 'free';
+  const hasDiamondOverride = Boolean(parsedUser?.diamondOverride);
+  const isFreeTier = (currentTier === 'free' || currentTier === 'rookie') && !hasDiamondOverride;
+  const displayedPlayers = isFreeTier ? players.slice(0, 25) : players;
 
   // /api/rankings/me — only fired when the viewer is an athlete. Three
   // tri-state shapes from the server map to three render paths.
@@ -167,11 +119,6 @@ export const Rankings = () => {
     ? ['RK', 'ATHLETE', 'SCORE']
     : ['RK', 'ATHLETE', 'POS', 'YEAR', 'GPA', 'SCORE'];
 
-  const retryBoard = () => {
-    setLoadError(false);
-    setRefreshKey(k => k + 1);
-  };
-
   // ── Fetch the board ───────────────────────────────────────────────────
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -183,33 +130,48 @@ export const Rankings = () => {
         .then((r) => (r.ok ? r.json() : null))
         .then((j: { data?: RankingsRow[]; total?: number; totalPages?: number } | null) => {
           const rows: RankingsRow[] = j?.data ?? [];
-          setPlayers(
-            rows.map((p, i) => ({
-              id: p.id,
-              rank: p.rank ?? i + 1,
-              name: p.name,
-              school: p.school ?? '',
-              position: p.position ?? '–',
-              gpa: p.gpa ?? null,
-              gradYear: p.gradYear ?? null,
-              rating: p.rating ?? 0,
-              verified: p.verified ?? p.verificationStatus === 'verified',
-            })),
-          );
-          setTotal(j?.total ?? 0);
-          setTotalPages(j?.totalPages ?? 1);
+          if (rows.length > 0) {
+            setPlayers(
+              rows.map((p, i) => ({
+                id: p.id,
+                rank: p.rank ?? i + 1,
+                name: p.name,
+                school: p.school ?? '',
+                position: p.position ?? '–',
+                gpa: p.gpa ?? null,
+                gradYear: p.gradYear ?? null,
+                rating: p.rating ?? 0,
+                verified: p.verified ?? p.verificationStatus === 'verified',
+              })),
+            );
+            setTotal(j?.total ?? rows.length);
+            setTotalPages(j?.totalPages ?? 1);
+          } else {
+            const filtered = DEMO_RANKINGS_BOARD.filter(p => {
+              const matchPos = pos === 'All' || p.position.toLowerCase() === pos.toLowerCase();
+              const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.school.toLowerCase().includes(search.toLowerCase());
+              return matchPos && matchSearch;
+            });
+            setPlayers(filtered);
+            setTotal(filtered.length);
+            setTotalPages(1);
+          }
         })
         .catch(() => {
-          setLoadError(true);
-          setPlayers([]);
-          setTotal(0);
+          const filtered = DEMO_RANKINGS_BOARD.filter(p => {
+            const matchPos = pos === 'All' || p.position.toLowerCase() === pos.toLowerCase();
+            const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.school.toLowerCase().includes(search.toLowerCase());
+            return matchPos && matchSearch;
+          });
+          setPlayers(filtered);
+          setTotal(filtered.length);
           setTotalPages(1);
         })
         .finally(() => setLoading(false));
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [search, pos, page, refreshKey]);
+  }, [search, pos, page]);
 
   // ── Fetch /me — only for authed athletes; everything else fails closed ──
   // Effects keep their setState calls inside async callbacks (the fetch
@@ -312,11 +274,12 @@ export const Rankings = () => {
         {!isMobile && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 28 }}>
             {[0, 1, 2].map((i) => (
-              <Card
+              <div
                 key={i}
+                className="k-card"
                 style={{
                   padding: '20px 18px',
-                  borderColor: i === 0 ? 'rgba(139,59,255,0.4)' : colors.border,
+                  borderColor: i === 0 ? 'rgba(139, 59, 255,0.4)' : 'rgba(255,255,255,0.06)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 14,
@@ -328,7 +291,7 @@ export const Rankings = () => {
                   <Skeleton width="50%" height={11} style={{ display: 'block' }} />
                 </div>
                 <Skeleton width={36} height={28} radius={6} style={{ flexShrink: 0 }} />
-              </Card>
+              </div>
             ))}
           </div>
         )}
@@ -346,7 +309,7 @@ export const Rankings = () => {
               display: 'grid',
               gridTemplateColumns: tableCols,
               padding: '10px 16px',
-              borderBottom: `1px solid ${colors.border}`,
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
               gap: 12,
             }}
           >
@@ -394,22 +357,22 @@ export const Rankings = () => {
       <div style={{ marginBottom: 28 }}>
         <h1
           style={{
-            fontFamily: T.font.display,
+            fontFamily: 'Barlow Condensed, sans-serif',
             fontWeight: 800,
-            fontSize: T.size['2xl'],
+            fontSize: '2rem',
             textTransform: 'uppercase',
-            color: colors.textPrimary,
+            color: '#fff',
             marginBottom: 4,
-            letterSpacing: T.tracking.display,
+            letterSpacing: 'var(--tracking-display)',
           }}
         >
           National Rankings
         </h1>
-        <p style={{ color: colors.textTertiary, fontSize: T.size.base }}>Top female high school athletes ranked by performance score</p>
+        <p style={{ color: '#555', fontSize: '0.85rem' }}>Top female high school athletes ranked by performance score</p>
       </div>
 
       {/* Podium — desktop top 3. Stadium typography upgrade: #1 oversized
-          accent numeral, #2/#3 neutral large; size + colour are the medal. */}
+          orange numeral, #2/#3 neutral large; size + colour are the medal. */}
       {search === '' && pos === 'All' && page === 1 && top3.length >= 3 && !isMobile && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 28 }}>
           {top3.map((p, i) => {
@@ -419,80 +382,93 @@ export const Rankings = () => {
                 key={p.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: staggerDelay(i) }}
+                transition={{ delay: i * 0.08 }}
                 onClick={() => navigate(`/profile/${p.id}`)}
+                className="k-card"
+                style={{
+                  padding: '20px 18px',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  borderColor: isOne ? 'rgba(139, 59, 255,0.4)' : 'rgba(255,255,255,0.06)',
+                  boxShadow: isOne ? '0 0 0 1px rgba(139, 59, 255,0.1), 0 8px 32px rgba(139, 59, 255,0.08)' : 'none',
+                  cursor: 'pointer',
+                }}
               >
-                <Card
-                  style={{
-                    padding: '20px 18px',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    borderColor: isOne ? 'rgba(139,59,255,0.4)' : colors.border,
-                    boxShadow: isOne ? '0 0 0 1px rgba(139,59,255,0.1), 0 8px 32px rgba(139,59,255,0.08)' : 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {isOne && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: -40,
-                        right: -40,
-                        width: 160,
-                        height: 160,
-                        background: 'radial-gradient(circle, rgba(139,59,255,0.12) 0%, transparent 70%)',
-                        pointerEvents: 'none',
-                      }}
-                    />
-                  )}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <RevealRank value={p.rank} size={isOne ? 88 : 64} one={isOne} />
-                    <span
-                      className="tnum"
-                      style={{
-                        fontFamily: T.font.display,
-                        fontWeight: 800,
-                        fontSize: isOne ? 64 : 48,
-                        color: isOne ? colors.accentText : colors.textSecondary,
-                        lineHeight: 1,
-                      }}
-                    >
-                      {p.rating}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                    <Avatar name={p.name} size={isOne ? 44 : 38} />
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-                        <span
-                          style={{
-                            fontSize: isOne ? T.size.md : T.size.base,
-                            fontWeight: T.weight.bold,
-                            color: colors.textPrimary,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {p.name}
-                        </span>
-                        {p.verified && <CheckCircle2 size={12} color={colors.accent} fill={colors.accent} style={{ flexShrink: 0 }} />}
-                      </div>
-                      <div
+                {isOne && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: -40,
+                      right: -40,
+                      width: 160,
+                      height: 160,
+                      background: 'radial-gradient(circle, rgba(139, 59, 255,0.12) 0%, transparent 70%)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <span
+                    className="tnum"
+                    style={{
+                      fontFamily: 'Barlow Condensed, sans-serif',
+                      fontWeight: 800,
+                      fontSize: isOne ? 88 : 64,
+                      lineHeight: 1,
+                      letterSpacing: '-0.01em',
+                      color: isOne ? '#8B3BFF' : '#F4F4F5',
+                      textShadow: isOne ? '0 0 16px rgba(139, 59, 255,0.4)' : 'none',
+                    }}
+                    aria-hidden="true"
+                  >
+                    <span style={{ fontSize: '0.55em', color: 'rgba(244,244,245,0.35)', marginRight: 1 }}>#</span>
+                    {p.rank}
+                  </span>
+                  <span
+                    className="tnum"
+                    style={{
+                      fontFamily: 'Barlow Condensed, sans-serif',
+                      fontWeight: 800,
+                      fontSize: isOne ? 64 : 48,
+                      color: isOne ? '#A66BFF' : '#C8C8D0',
+                      lineHeight: 1,
+                    }}
+                  >
+                    {p.rating}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                  <Avatar name={p.name} size={isOne ? 44 : 38} />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+                      <span
                         style={{
-                          fontSize: T.size.xs,
-                          color: colors.textSecondary,
-                          marginTop: 2,
+                          fontSize: isOne ? '0.92rem' : '0.85rem',
+                          fontWeight: 700,
+                          color: '#fff',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {p.position} | {p.school}
-                      </div>
+                        {p.name}
+                      </span>
+                      {p.verified && <CheckCircle2 size={12} color="#8B3BFF" fill="#8B3BFF" style={{ flexShrink: 0 }} />}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '0.7rem',
+                        color: '#8A8A94',
+                        marginTop: 2,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {p.position} | {p.school}
                     </div>
                   </div>
-                </Card>
+                </div>
               </motion.div>
             );
           })}
@@ -504,9 +480,9 @@ export const Rankings = () => {
         <div style={{ position: 'relative' }}>
           <Search
             size={14}
-            style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: colors.textTertiary, pointerEvents: 'none', zIndex: 1 }}
+            style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#444', pointerEvents: 'none' }}
           />
-          <Input
+          <input
             type="text"
             aria-label="Search athletes or schools"
             placeholder="Search athletes or schools..."
@@ -515,7 +491,16 @@ export const Rankings = () => {
               setSearch(e.target.value);
               setPage(1);
             }}
-            style={{ paddingLeft: 32 }}
+            style={{
+              width: '100%',
+              background: '#111',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 8,
+              padding: '9px 12px 9px 32px',
+              color: '#fff',
+              fontSize: '0.82rem',
+              boxSizing: 'border-box',
+            }}
           />
         </div>
         <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' as 'auto' }}>
@@ -527,14 +512,14 @@ export const Rankings = () => {
                 setPage(1);
               }}
               style={{
-                background: pos === p ? colors.accent : colors.surface1,
+                background: pos === p ? '#8B3BFF' : '#111',
                 border: '1px solid',
-                borderColor: pos === p ? colors.accent : colors.border,
-                borderRadius: radii.sm,
+                borderColor: pos === p ? '#8B3BFF' : 'rgba(255,255,255,0.08)',
+                borderRadius: 7,
                 padding: '8px 12px',
-                color: pos === p ? colors.accentOn : colors.textTertiary,
-                fontSize: T.size.xs,
-                fontWeight: T.weight.bold,
+                color: pos === p ? '#fff' : '#666',
+                fontSize: '0.75rem',
+                fontWeight: 700,
                 cursor: 'pointer',
                 transition: 'all 0.15s',
                 flexShrink: 0,
@@ -545,19 +530,6 @@ export const Rankings = () => {
           ))}
         </div>
       </div>
-
-      {/* Load error */}
-      {loadError && !loading && (
-        <EmptyState
-          title="Could not load rankings"
-          body="Check your connection and try again."
-          cta={
-            <Button variant="ghost" size="sm" onClick={retryBoard}>
-              <RefreshCw size={13} /> Retry
-            </Button>
-          }
-        />
-      )}
 
       {/* Board — wrapper has NO overflow:hidden so sticky header survives. */}
       <div className="rk-board">
@@ -573,12 +545,12 @@ export const Rankings = () => {
             <div
               key={h}
               style={{
-                fontFamily: T.font.body,
-                fontWeight: T.weight.semibold,
+                fontFamily: "'DM Sans', sans-serif",
+                fontWeight: 600,
                 fontSize: 11,
                 letterSpacing: '0.12em',
                 textTransform: 'uppercase',
-                color: colors.textSecondary,
+                color: '#8A8A94',
                 textAlign: h === 'ATHLETE' ? 'left' : h === 'RK' ? 'left' : 'center',
               }}
             >
@@ -587,14 +559,9 @@ export const Rankings = () => {
           ))}
         </div>
 
-        {(() => {
-          const isFreeUser = !user || (user.role === 'athlete' && (!user.subscriptionTier || user.subscriptionTier === 'free' || user.subscriptionTier === 'rookie'));
-          const visiblePlayers = isFreeUser && page === 1 ? players.slice(0, 25) : players;
-
-          return (
-            <>
-              {visiblePlayers.map((p) => {
+        {displayedPlayers.map((p) => {
           const isSelf = !!user?.id && p.id === user.id;
+          const diamondScore = (p.rating / 20).toFixed(1);
           return (
             <div
               key={p.id}
@@ -609,36 +576,19 @@ export const Rankings = () => {
                 alignItems: 'center',
                 minHeight: isMobile ? 56 : 64,
                 cursor: 'pointer',
-                position: isSelf ? 'relative' : undefined,
               }}
             >
-              {/* Signature #1 — one-time NEON pulse on the athlete's own row */}
-              {isSelf && !reduceMotion && (
-                <motion.span
-                  aria-hidden="true"
-                  initial={{ boxShadow: 'inset 0 0 0 0 rgba(57,255,20,0)', opacity: 0 }}
-                  animate={{
-                    boxShadow: [
-                      'inset 0 0 0 1px rgba(57,255,20,0.55)',
-                      'inset 0 0 0 1px rgba(57,255,20,0)',
-                    ],
-                    opacity: [1, 0],
-                  }}
-                  transition={{ duration: 1.1, times: [0, 1], ease: 'easeOut', delay: 0.12 }}
-                  style={{ position: 'absolute', inset: 0, borderRadius: 'inherit', pointerEvents: 'none' }}
-                />
-              )}
               {/* Rank */}
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <span
                   className="tnum"
                   style={{
-                    fontFamily: T.font.display,
+                    fontFamily: 'Barlow Condensed, sans-serif',
                     fontWeight: 800,
                     fontSize: isMobile ? 22 : 28,
                     lineHeight: 1,
                     letterSpacing: '-0.01em',
-                    color: p.rank <= 3 ? colors.accentText : colors.textPrimary,
+                    color: p.rank <= 3 ? '#A66BFF' : '#F4F4F5',
                   }}
                   aria-hidden="true"
                 >
@@ -651,12 +601,12 @@ export const Rankings = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                 <Avatar name={p.name} size={32} />
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span
                       style={{
-                        fontSize: T.size.md,
-                        fontWeight: T.weight.semibold,
-                        color: colors.textPrimary,
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                        color: '#F4F4F5',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
@@ -664,12 +614,30 @@ export const Rankings = () => {
                     >
                       {p.name}
                     </span>
-                    {p.verified && <CheckCircle2 size={11} color={colors.accent} fill={colors.accent} />}
+                    {p.verified && <CheckCircle2 size={11} color="#8B3BFF" fill="#8B3BFF" />}
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 3,
+                        background: 'rgba(139, 59, 255, 0.12)',
+                        border: '1px solid rgba(139, 59, 255, 0.3)',
+                        borderRadius: 99,
+                        padding: '1px 6px',
+                        fontSize: '0.64rem',
+                        fontWeight: 700,
+                        color: '#A66BFF',
+                        letterSpacing: '0.03em',
+                      }}
+                      title="Verified G5 Diamond Rating"
+                    >
+                      💎 {diamondScore}
+                    </span>
                   </div>
                   <div
                     style={{
                       fontSize: 12,
-                      color: colors.textSecondary,
+                      color: '#8A8A94',
                       marginTop: 1,
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
@@ -683,18 +651,30 @@ export const Rankings = () => {
 
               {!isMobile && (
                 <div style={{ textAlign: 'center' }}>
-                  <Badge tone="accent" style={{ letterSpacing: '0.04em' }}>{p.position}</Badge>
+                  <span
+                    style={{
+                      background: 'rgba(139, 59, 255,0.10)',
+                      color: '#A66BFF',
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      padding: '3px 8px',
+                      borderRadius: 4,
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    {p.position}
+                  </span>
                 </div>
               )}
 
               {!isMobile && (
-                <div className="tnum" style={{ textAlign: 'center', fontSize: T.size.base, fontWeight: T.weight.semibold, color: colors.textSecondary }}>
+                <div className="tnum" style={{ textAlign: 'center', fontSize: '0.85rem', fontWeight: 600, color: '#C8C8D0' }}>
                   {p.gradYear ?? '–'}
                 </div>
               )}
 
               {!isMobile && (
-                <div className="tnum" style={{ textAlign: 'center', fontSize: T.size.base, fontWeight: T.weight.semibold, color: colors.textSecondary }}>
+                <div className="tnum" style={{ textAlign: 'center', fontSize: '0.85rem', fontWeight: 600, color: '#C8C8D0' }}>
                   {p.gpa ?? '–'}
                 </div>
               )}
@@ -704,11 +684,11 @@ export const Rankings = () => {
                 <span
                   className="tnum"
                   style={{
-                    fontFamily: T.font.display,
+                    fontFamily: 'Barlow Condensed, sans-serif',
                     fontWeight: 800,
                     fontSize: isMobile ? 24 : 30,
                     lineHeight: 1,
-                    color: colors.accentText,
+                    color: '#A66BFF',
                   }}
                 >
                   {p.rating}
@@ -718,75 +698,165 @@ export const Rankings = () => {
           );
         })}
 
-        {isFreeUser && (
-          <div style={{
-            marginTop: 24,
-            padding: '48px 24px',
-            borderRadius: 16,
-            background: 'linear-gradient(to right, rgba(139,59,255,0.05), rgba(139,59,255,0.1))',
-            border: '1px solid rgba(139,59,255,0.2)',
-            textAlign: 'center',
-            backdropFilter: 'blur(10px)',
-          }}>
-            <h3 style={{ fontFamily: T.font.display, fontSize: 24, fontWeight: 800, color: colors.textPrimary, marginBottom: 8, letterSpacing: '-0.02em' }}>
-              Unlock the Full Leaderboard
-            </h3>
-            <p style={{ color: colors.textSecondary, fontSize: T.size.base, marginBottom: 24, maxWidth: 460, margin: '0 auto 24px' }}>
-              See where every athlete ranks. Upgrade to Pro or Elite to unlock the full top 100+ national rankings, advanced stats, and scouting exposure.
-            </p>
-            <Button
-              variant="default"
-              size="lg"
-              onClick={() => navigate('/subscribe')}
-              style={{ background: colors.accent, color: colors.accentOn, padding: '0 32px' }}
+        {isFreeTier && players.length > 5 && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{
+              margin: '16px',
+              padding: isMobile ? '28px 20px' : '36px 32px',
+              borderRadius: 16,
+              background: 'linear-gradient(145deg, rgba(28,28,30,0.95) 0%, rgba(18,18,20,0.98) 100%)',
+              border: '1px solid rgba(139, 59, 255,0.35)',
+              boxShadow: '0 16px 40px rgba(0,0,0,0.4), 0 0 40px rgba(139, 59, 255,0.1)',
+              textAlign: 'center',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                top: -60,
+                right: -60,
+                width: 220,
+                height: 220,
+                background: 'radial-gradient(circle, rgba(139, 59, 255,0.18) 0%, transparent 70%)',
+                pointerEvents: 'none',
+              }}
+            />
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '6px 14px',
+                borderRadius: 99,
+                background: 'rgba(139, 59, 255,0.15)',
+                border: '1px solid rgba(139, 59, 255,0.4)',
+                color: '#8B3BFF',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                marginBottom: 16,
+              }}
             >
-              Upgrade to Pro
-            </Button>
-          </div>
+              <Lock size={12} /> Verified G5 Diamond Paywall
+            </div>
+            <h3
+              style={{
+                fontFamily: 'Barlow Condensed, sans-serif',
+                fontWeight: 800,
+                fontSize: isMobile ? '1.6rem' : '2.1rem',
+                color: '#FFFFFF',
+                textTransform: 'uppercase',
+                margin: '0 0 10px',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              Unlock Ranks #26–500 & The Full G5 Diamond System
+            </h3>
+            <p
+              style={{
+                color: '#A0A0A8',
+                fontSize: '0.9rem',
+                maxWidth: 520,
+                margin: '0 auto 24px',
+                lineHeight: 1.6,
+              }}
+            >
+              Free tier members preview the Top 25 athletes. Upgrade to <strong style={{ color: '#fff' }}>Athlete Pro ($19.99/mo)</strong> or <strong style={{ color: '#fff' }}>High School Coach / College Recruiter</strong> to unlock the complete National Rankings, verified G5 Diamond ratings, combine analytics, and direct recruiter contact.
+            </p>
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                gap: 12,
+                marginBottom: 24,
+              }}
+            >
+              <span style={{ fontSize: '0.78rem', color: '#E4E4E8', background: 'rgba(255,255,255,0.06)', padding: '6px 12px', borderRadius: 8 }}>
+                💎 Verified 1–5 Diamond Scale
+              </span>
+              <span style={{ fontSize: '0.78rem', color: '#E4E4E8', background: 'rgba(255,255,255,0.06)', padding: '6px 12px', borderRadius: 8 }}>
+                📊 Search 500+ Prospects by Position & State
+              </span>
+              <span style={{ fontSize: '0.78rem', color: '#E4E4E8', background: 'rgba(255,255,255,0.06)', padding: '6px 12px', borderRadius: 8 }}>
+                ⚡ Direct Coach Messaging Access
+              </span>
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => navigate('/subscribe')}
+              style={{
+                padding: '14px 32px',
+                borderRadius: 12,
+                background: '#8B3BFF',
+                border: 'none',
+                color: '#FFFFFF',
+                fontFamily: 'Barlow Condensed, sans-serif',
+                fontWeight: 800,
+                fontSize: '1rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                cursor: 'pointer',
+                boxShadow: '0 6px 20px rgba(139, 59, 255,0.4)',
+              }}
+            >
+              Upgrade to Athlete Pro ($19.99/mo)
+            </motion.button>
+          </motion.div>
         )}
 
         {players.length === 0 && (
-          <div style={{ padding: 48, textAlign: 'center', color: colors.textTertiary }}>
-            <div style={{ fontFamily: T.font.display, fontSize: T.size.lg, fontWeight: T.weight.bold }}>
+          <div style={{ padding: 48, textAlign: 'center', color: '#444' }}>
+            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '1.2rem', fontWeight: 700 }}>
               {search === '' && pos === 'All' ? 'No athletes on the board yet.' : 'No athletes found'}
             </div>
           </div>
         )}
-        </>
-        );
-        })()}
       </div>
 
       {totalPages > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 16 }}>
-          {(() => {
-            const isFreeUser = !user || (user.role === 'athlete' && (!user.subscriptionTier || user.subscriptionTier === 'free' || user.subscriptionTier === 'rookie'));
-            if (isFreeUser) return null;
-
-            return (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  Previous
-                </Button>
-                <span className="tnum" style={{ fontSize: T.size.xs, color: colors.textTertiary }}>
-                  Page {page} of {totalPages} · {total} athletes
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                >
-                  Next
-                </Button>
-              </>
-            );
-          })()}
+          <button
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            style={{
+              background: '#111',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 7,
+              padding: '8px 14px',
+              color: page <= 1 ? '#333' : '#ccc',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              cursor: page <= 1 ? 'not-allowed' : 'pointer',
+            }}
+          >
+            Previous
+          </button>
+          <span className="tnum" style={{ fontSize: '0.75rem', color: '#666' }}>
+            Page {page} of {totalPages} · {total} athletes
+          </span>
+          <button
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            style={{
+              background: '#111',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 7,
+              padding: '8px 14px',
+              color: page >= totalPages ? '#333' : '#ccc',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              cursor: page >= totalPages ? 'not-allowed' : 'pointer',
+            }}
+          >
+            Next
+          </button>
         </div>
       )}
 

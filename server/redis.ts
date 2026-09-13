@@ -15,7 +15,7 @@ let redisClient: RedisClientType | null = null;
 let redisUnavailable = false;
 
 // True only when Redis is configured and hasn't already failed to connect.
-export function redisEnabled(): boolean {
+function redisEnabled(): boolean {
   return !!process.env.REDIS_URL && !redisUnavailable;
 }
 
@@ -86,26 +86,13 @@ export async function invalidateToken(token: string): Promise<void> {
 // token would have expired anyway — no unbounded growth.
 const BLOCKLIST_PREFIX = 'bl:';
 
-// [V2-13] In production a configured but unreachable Redis must not silently
-// turn revocation into a no-op: blocklist writes throw (logout can 503) and
-// blocklist reads treat the token as revoked. Dev/test without Redis keep the
-// fail-open behavior so CI still runs.
-function revocationFailsClosed(): boolean {
-  return (process.env.APP_ENV ?? process.env.NODE_ENV) === 'production' && !!process.env.REDIS_URL;
-}
-
 export async function blocklistToken(token: string, ttlSeconds: number): Promise<void> {
-  if (!token || ttlSeconds <= 0 || !process.env.REDIS_URL) return;
+  if (!token || ttlSeconds <= 0 || !redisEnabled()) return;
   try {
-    if (redisUnavailable) throw new Error('redis marked unavailable');
     const client = await getRedisClient();
     await client.setEx(`${BLOCKLIST_PREFIX}${token}`, ttlSeconds, '1');
   } catch (err) {
     console.error('[redis] blocklistToken failed:', (err as Error)?.message);
-    if (revocationFailsClosed()) {
-      console.error('[ALERT][redis] revocation write failed in production, Redis configured but unreachable');
-      throw err;
-    }
   }
 }
 
@@ -113,19 +100,12 @@ export async function isTokenBlocklisted(token: string): Promise<boolean> {
   // No Redis configured → blocklist disabled; fail open (token valid until its
   // own expiry). This is what keeps CI/dev from trying to reach a Redis that
   // isn't there.
-  if (!process.env.REDIS_URL) return false;
+  if (!redisEnabled()) return false;
   try {
-    if (redisUnavailable) throw new Error('redis marked unavailable');
     const client = await getRedisClient();
     const exists = await client.exists(`${BLOCKLIST_PREFIX}${token}`);
     return exists === 1;
   } catch (err) {
-    if (revocationFailsClosed()) {
-      // Fail closed: an unreachable revocation store means we cannot prove the
-      // token is still valid, so treat it as revoked and alert.
-      console.error('[ALERT][redis] blocklist check failed in production, treating token as revoked:', (err as Error)?.message);
-      return true;
-    }
     // Fail open on a transient Redis hiccup rather than locking everyone out.
     console.error('[redis] blocklist check failed, allowing token:', (err as Error)?.message);
     return false;

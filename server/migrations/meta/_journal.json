@@ -64,55 +64,6 @@
       "when": 1782519665305,
       "tag": "0008_dark_hellcat",
       "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1783224774862,
-      "tag": "0009_guardian_gate",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "7",
-      "when": 1783224774863,
-      "tag": "0010_refresh_token_family",
-      "breakpoints": true
-    },
-    {
-      "idx": 11,
-      "version": "7",
-      "when": 1783742400000,
-      "tag": "0011_parent_stat_submissions",
-      "breakpoints": true
-    },
-    {
-      "idx": 12,
-      "version": "7",
-      "when": 1783828800000,
-      "tag": "0012_player_status_fields",
-      "breakpoints": true
-    },
-    {
-      "idx": 13,
-      "version": "7",
-      "when": 1783915200000,
-      "tag": "0013_parent_stat_submissions_missing_cols",
-      "breakpoints": true
-    },
-    {
-      "idx": 14,
-      "version": "7",
-      "when": 1783915300000,
-      "tag": "0014_schema_drift_repair",
-      "breakpoints": true
-    },
-    {
-      "idx": 15,
-      "version": "7",
-      "when": 1787761795422,
-      "tag": "0015_square_satana",
-      "breakpoints": true
     }
   ]
 }

@@ -245,6 +245,7 @@ export interface ScoutingBoardItem {
   id: number;
   playerId: number;
   tier: 'top-target' | 'watching' | 'offered';
+  notes?: string;
   savedAt: string;
   player?: PlayerSearchResult;
 }

@@ -7,35 +7,28 @@ export default {
   theme: {
     extend: {
       colors: {
-        accent: {
-          50:  '#F5EEFF',
-          100: '#E6D6FF',
-          200: '#D5BCFF',
-          300: '#C4A3FF',
-          400: '#A66BFF',
-          500: '#8B3BFF',
-          600: '#7526E8',
-          700: '#5E1BC2',
-          800: '#471399',
-          900: '#320D70',
-        },
-        pink: {
-          300: '#FF6FB3',
-          500: '#FF2E93',
-        },
-        neon: {
-          500: '#39FF14',
+        coral: {
+          50:  '#fff2ee',
+          100: '#ffd9cc',
+          200: '#ffb399',
+          300: '#ff8c66',
+          400: '#ff6633',
+          500: '#ff5a2d',
+          600: '#e64a1f',
+          700: '#cc3a12',
+          800: '#992b0d',
+          900: '#661c08',
         },
         surface: {
-          DEFAULT: '#0A0A0C',
-          card:    '#121216',
-          hover:   '#1A1A20',
-          border:  '#2A2A32',
+          DEFAULT: '#111111',
+          card:    '#161616',
+          hover:   '#1c1c1c',
+          border:  'rgba(255,255,255,0.06)',
         },
         ink: {
-          DEFAULT: '#F5F5F7',
-          muted:   '#A0A0AB',
-          faint:   '#808089',
+          DEFAULT: '#ffffff',
+          muted:   '#999999',
+          faint:   '#555555',
         },
       },
       fontFamily: {

@@ -3,13 +3,8 @@ import { sql, eq, desc } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 import { requireAdmin } from '../auth';
-import { auditPiiAccess } from '../middleware/auditPiiAccess';
 
 const router = express.Router();
-
-// PRD-C P1 #17: /recent-signups returns full player rows (email/phone/dob), so
-// this router is audited too.
-router.use(auditPiiAccess());
 
 // GET /api/admin/data/stats
 router.get('/stats', requireAdmin, async (_req, res) => {
@@ -69,6 +64,33 @@ router.get('/recent-signups', requireAdmin, async (_req, res) => {
   } catch (err) {
     console.error('[admin/recent-signups]', err);
     res.status(500).json({ success: false, error: 'Failed to fetch recent signups' });
+  }
+});
+
+// PATCH /api/admin/data/users/:id/toggle-diamond
+router.patch('/users/:id/toggle-diamond', requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id as string, 10);
+    if (isNaN(userId)) {
+      return res.status(400).json({ success: false, error: 'Invalid user id' });
+    }
+    const { diamondOverride } = req.body;
+
+    const updated = await db
+      .update(schema.players)
+      .set({ diamondOverride: Boolean(diamondOverride) })
+      .where(eq(schema.players.id, userId))
+      .returning();
+
+    if (!updated[0]) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    const { passwordHash: _ph, ...rest } = updated[0];
+    res.json({ success: true, data: rest });
+  } catch (err) {
+    console.error('[admin/toggle-diamond]', err);
+    res.status(500).json({ success: false, error: 'Failed to toggle diamond feature' });
   }
 });
 

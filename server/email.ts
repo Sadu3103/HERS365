@@ -1,6 +1,17 @@
-// Email service for password resets, guardian consent, and notifications.
-// Production sends through Resend's REST API. Dev/test without RESEND_API_KEY
-// use a local mock so offline tests stay fast.
+// Email service for password resets, notifications, etc.
+// Uses Resend (resend.com) - free tier available
+
+class MockResend {
+  emails = {
+    send: async (data: any) => {
+      console.warn(`[email] DEV MODE — email to ${data.to} (${data.subject}) was not sent. Set RESEND_API_KEY for real delivery.`);
+      return { id: `mock_${Date.now()}` };
+    }
+  };
+  constructor(_apiKey: string) {}
+}
+
+const resend = new MockResend(process.env.RESEND_API_KEY || '');
 
 interface EmailOptions {
   to: string;
@@ -9,42 +20,10 @@ interface EmailOptions {
   from?: string;
 }
 
-function explicitNonProd(): boolean {
-  const env = process.env.APP_ENV ?? process.env.NODE_ENV;
-  return env === 'development' || env === 'test';
-}
-
-async function sendViaResend(data: Required<EmailOptions>) {
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(`Resend send failed (${response.status}): ${JSON.stringify(body)}`);
-  }
-  return body;
-}
-
 export async function sendEmail({ to, subject, html, from }: EmailOptions) {
-  const sender = from || process.env.EMAIL_FROM || 'HERS365 <noreply@hers365.com>';
-
   try {
-    if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY.includes('re_demo_')) {
-      if (!process.env.RESEND_API_KEY && !explicitNonProd()) {
-        throw new Error('RESEND_API_KEY is required for email delivery outside development/test');
-      }
-      console.warn(`[email] MOCK MODE — email to ${to} (${subject}) was not sent. Set a real RESEND_API_KEY for delivery.`);
-      return { success: true, data: { id: `mock_${Date.now()}` } };
-    }
-
-    const result = await sendViaResend({
-      from: sender,
+    const result = await resend.emails.send({
+      from: from || 'noreply@hers365.com',
       to,
       subject,
       html,
@@ -85,12 +64,12 @@ export async function sendVerificationEmail(to: string, token: string) {
     subject: 'Confirm your H.E.R.S.365 email',
     html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0f0f0f; padding: 32px; border-radius: 12px;">
-        <h1 style="color: #A66BFF; font-size: 24px; margin-bottom: 8px;">H.E.R.S.365</h1>
+        <h1 style="color: #ff6b35; font-size: 24px; margin-bottom: 8px;">H.E.R.S.365</h1>
         <h2 style="color: #ffffff; font-size: 20px; margin-bottom: 16px;">Confirm your email address</h2>
         <p style="color: #aaaaaa; margin-bottom: 24px;">
           One more step — confirm your email so coaches can find you in search.
         </p>
-        <a href="${verifyUrl}" style="display: inline-block; background: #8B3BFF; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; margin-bottom: 24px;">
+        <a href="${verifyUrl}" style="display: inline-block; background: #ff6b35; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; margin-bottom: 24px;">
           Confirm Email
         </a>
         <p style="color: #666666; font-size: 12px; margin-top: 24px;">
@@ -116,94 +95,6 @@ export async function sendWelcomeEmail(to: string, name: string) {
           <li>🏋️ Personalized training plans</li>
         </ul>
         <p>Let's get started!</p>
-      </div>
-    `,
-  });
-}
-export async function sendNewsletterConfirm(to: string, name: string | null, confirmUrl: string) {
-  const greeting = name ? `Hi ${name},` : 'Hi,';
-  return sendEmail({
-    to,
-    subject: 'Confirm your H.E.R.S.365 updates',
-    html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0f0f0f; padding: 32px; border-radius: 12px;">
-        <h1 style="color: #A66BFF; font-size: 24px; margin-bottom: 8px;">H.E.R.S.365</h1>
-        <h2 style="color: #ffffff; font-size: 20px; margin-bottom: 16px;">One quick confirmation</h2>
-        <p style="color: #aaaaaa; margin-bottom: 16px;">${greeting}</p>
-        <p style="color: #aaaaaa; margin-bottom: 16px;">
-          You (or someone using this email address) asked for updates about H.E.R.S.365,
-          the safe online community for girls who play flag football, where parents stay
-          in control and all coach contact is gated.
-        </p>
-        <p style="color: #aaaaaa; margin-bottom: 24px;">
-          Click below to confirm. If you do not confirm, we will not send you anything else —
-          this is the only email you will get.
-        </p>
-        <a href="${confirmUrl}" style="display: inline-block; background: #8B3BFF; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; margin-bottom: 24px;">
-          Yes, keep me posted
-        </a>
-        <p style="color: #666666; font-size: 12px; margin-top: 24px;">
-          Did not sign up? Just delete this email and you will never hear from us.
-        </p>
-      </div>
-    `,
-  });
-}
-
-export async function sendNewsletterWelcome(to: string, name: string | null) {
-  const greeting = name ? `Thanks, ${name}.` : 'Thanks.';
-  return sendEmail({
-    to,
-    subject: "You're on the H.E.R.S.365 list",
-    html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0f0f0f; padding: 32px; border-radius: 12px;">
-        <h1 style="color: #A66BFF; font-size: 24px; margin-bottom: 8px;">H.E.R.S.365</h1>
-        <h2 style="color: #ffffff; font-size: 20px; margin-bottom: 16px;">You're confirmed</h2>
-        <p style="color: #aaaaaa; margin-bottom: 16px;">${greeting} You are on the list.</p>
-        <p style="color: #aaaaaa; margin-bottom: 16px;">
-          We are building a safe place for girls who play flag football to build their
-          profiles, connect, and get seen — with parents in control of every coach contact.
-        </p>
-        <p style="color: #aaaaaa; margin-bottom: 24px;">
-          We will only email when there is real news: launch dates, early access, and
-          things worth a parent's time. No spam, ever, and every email has an
-          unsubscribe link.
-        </p>
-        <p style="color: #666666; font-size: 12px; margin-top: 24px;">
-          Changed your mind? Use the unsubscribe link in any email we send.
-        </p>
-      </div>
-    `,
-  });
-}
-
-export async function sendGuardianConsentEmail(
-  to: string,
-  opts: { childName: string; code: string; linkUrl: string; expiresMinutes: number },
-) {
-  const { childName, code, linkUrl, expiresMinutes } = opts;
-  return sendEmail({
-    to,
-    subject: `${childName} asked to join H.E.R.S.365 — your approval is needed`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0f0f0f; padding: 32px; border-radius: 12px;">
-        <h1 style="color: #A66BFF; font-size: 24px; margin-bottom: 8px;">H.E.R.S.365</h1>
-        <h2 style="color: #ffffff; font-size: 20px; margin-bottom: 16px;">Your approval is needed</h2>
-        <p style="color: #aaaaaa; margin-bottom: 16px;">
-          ${childName} asked to join HERS365, a safe community for girls who play flag football.
-          Her account stays paused until you approve it.
-        </p>
-        <p style="color: #aaaaaa; margin-bottom: 8px;">Open your single-use approval link and enter this code:</p>
-        <p style="color: #ffffff; font-size: 28px; letter-spacing: 4px; font-weight: bold; margin: 16px 0;">${code}</p>
-        <a href="${linkUrl}" style="display: inline-block; background: #8B3BFF; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; margin-bottom: 24px;">
-          Review and approve
-        </a>
-        <p style="color: #aaaaaa; margin-bottom: 16px;">
-          By entering this code you are approving your child joining HERS365 and creating your parent account.
-        </p>
-        <p style="color: #666666; font-size: 12px; margin-top: 24px;">
-          The code and link expire in ${expiresMinutes} minutes and work once. If you did not expect this, ignore this email and nothing happens.
-        </p>
       </div>
     `,
   });

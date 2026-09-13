@@ -15,9 +15,6 @@ vi.mock('../cloud-storage', () => ({
   getSignedUploadUrl: vi.fn(async (key: string, contentType: string, expiresIn: number) =>
     `https://signed.test.local/${key}?ct=${encodeURIComponent(contentType)}&exp=${expiresIn}`,
   ),
-  getSignedDownloadUrl: vi.fn(async (key: string) =>
-    `https://signed.test.local/${key}?X-Amz-Expires=900&X-Amz-Signature=stub`,
-  ),
 }));
 
 const app = createApp();
@@ -77,7 +74,7 @@ describe('POST /api/upload/presign', () => {
       .set('Authorization', `Bearer ${tokenFor(a, 'athlete')}`)
       .send({ filename: 'cute-pic.JPG', contentType: 'image/jpeg' });
     expect(res.status).toBe(200);
-    expect(res.body.key).toMatch(/^profile-photos\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg$/);
+    expect(res.body.key).toMatch(/^profile-photos\/\d+-[a-z0-9]+\.jpg$/);
     expect(res.body.uploadUrl).toContain('https://signed.test.local/');
     expect(res.body.publicUrl).toContain(res.body.key);
     expect(vi.mocked(getSignedUploadUrl)).toHaveBeenCalledTimes(1);
@@ -156,7 +153,7 @@ describe('POST /api/upload/video/presign', () => {
         .set('Authorization', `Bearer ${tokenFor(a, 'athlete')}`)
         .send({ filename: `clip.${ext}`, contentType, size: 1024 });
       expect(res.status).toBe(200);
-      expect(res.body.key).toMatch(new RegExp(`^videos/[0-9a-f-]{36}\\.${ext}$`));
+      expect(res.body.key).toMatch(new RegExp(`^videos/\\d+-[a-z0-9]+\\.${ext}$`));
       expect(res.body.uploadUrl).toContain('https://signed.test.local/');
       expect(res.body.publicUrl).toContain(res.body.key);
     }

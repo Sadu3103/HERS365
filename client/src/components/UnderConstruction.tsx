@@ -14,14 +14,14 @@ export const UnderConstruction: React.FC<UnderConstructionProps> = ({ pageName }
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', damping: 12 }}
-        className="w-24 h-24 bg-accent-500/10 rounded-3xl flex items-center justify-center mb-8 border border-accent-500/20 shadow-lg shadow-accent-500/10"
+        className="w-24 h-24 bg-coral-500/10 rounded-3xl flex items-center justify-center mb-8 border border-coral-500/20 shadow-lg shadow-coral-500/10"
       >
-        <Construction size={48} className="text-accent-500 animate-bounce" />
+        <Construction size={48} className="text-coral-500 animate-bounce" />
       </motion.div>
 
       <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-4">
         {pageName} <br />
-        <span className="bg-gradient-to-r from-accent-400 to-accent-600 bg-clip-text text-transparent italic">Under Construction</span>
+        <span className="bg-gradient-to-r from-coral-400 to-coral-600 bg-clip-text text-transparent italic">Under Construction</span>
       </h2>
       
       <p className="text-ink-muted max-w-md mx-auto mb-10 font-medium leading-relaxed">
@@ -30,7 +30,7 @@ export const UnderConstruction: React.FC<UnderConstructionProps> = ({ pageName }
 
       <div className="flex gap-4">
         <Link to="/">
-          <button className="flex items-center gap-2 px-6 py-3 bg-accent-500 hover:bg-accent-600 text-white rounded-xl font-black uppercase tracking-widest transition-all shadow-lg shadow-accent-500/20">
+          <button className="flex items-center gap-2 px-6 py-3 bg-coral-500 hover:bg-coral-600 text-white rounded-xl font-black uppercase tracking-widest transition-all shadow-lg shadow-coral-500/20">
             <Home size={18} />
             Back to Feed
           </button>
@@ -45,7 +45,7 @@ export const UnderConstruction: React.FC<UnderConstructionProps> = ({ pageName }
       </div>
 
       {/* Decorative background elements */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent-500/5 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-coral-500/5 rounded-full blur-[100px] pointer-events-none" />
     </div>
   );
 };

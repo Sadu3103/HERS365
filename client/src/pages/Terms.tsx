@@ -1,8 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { tokens } from '../lib/tokens';
 
-const { colors, text, type } = tokens;
+const FLAME = '#8B3BFF';
+const INK = '#0a0a0a';
+const INK_2 = '#111111';
+const LINE = 'rgba(255,255,255,0.07)';
+const MUTED = '#8a8a86';
+const MUTED_2 = '#5a5a56';
+const DISP = "'Barlow Condensed', sans-serif";
 
 const EFFECTIVE_DATE = 'June 1, 2026';
 
@@ -58,7 +63,7 @@ const sections: Section[] = [
     content: (
       <span>
         Your use of the Service is governed by our{' '}
-        <Link to="/privacy" style={{ color: colors.accent, textDecoration: 'none', fontWeight: type.weight.semibold }}>Privacy Policy</Link>
+        <Link to="/privacy" style={{ color: FLAME, textDecoration: 'none', fontWeight: 600 }}>Privacy Policy</Link>
         , which is incorporated into these Terms by reference. By using the Service, you consent to the data practices described in the Privacy Policy.
       </span>
     ),
@@ -92,7 +97,7 @@ const sections: Section[] = [
     content: (
       <span>
         Questions about these Terms? Contact us at{' '}
-        <a href="mailto:legal@hers365.com" style={{ color: colors.accent, textDecoration: 'none' }}>legal@hers365.com</a>
+        <a href="mailto:legal@hers365.com" style={{ color: FLAME, textDecoration: 'none' }}>legal@hers365.com</a>
         {' '}or write to HERS365, Inc., Los Angeles, CA.
       </span>
     ),
@@ -100,32 +105,32 @@ const sections: Section[] = [
 ];
 
 export const Terms = () => (
-  <div style={{ background: colors.surface0, minHeight: '100vh', color: text.primary, fontFamily: type.font.body }}>
+  <div style={{ background: INK, minHeight: '100vh', color: '#f4f4f2', fontFamily: "'DM Sans', sans-serif" }}>
     {/* Top bar */}
-    <div style={{ borderBottom: `1px solid ${colors.border}`, padding: '18px 28px', background: colors.surface1, position: 'sticky', top: 0, zIndex: 10, backdropFilter: 'blur(12px)' }}>
+    <div style={{ borderBottom: `1px solid ${LINE}`, padding: '18px 28px', background: INK_2, position: 'sticky', top: 0, zIndex: 10, backdropFilter: 'blur(12px)' }}>
       <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Link to="/" style={{ fontFamily: type.font.display, fontWeight: type.weight.bold, fontSize: '1.3rem', letterSpacing: '.04em', textDecoration: 'none', color: text.primary, textTransform: 'uppercase' }}>
-          HERS<b style={{ color: colors.accent }}>365</b>
+        <Link to="/" style={{ fontFamily: DISP, fontWeight: 900, fontSize: '1.3rem', letterSpacing: '.04em', textDecoration: 'none', color: '#f4f4f2', textTransform: 'uppercase' }}>
+          HERS<b style={{ color: FLAME }}>365</b>
         </Link>
-        <div style={{ color: text.secondary, fontSize: '.8rem' }}>Effective {EFFECTIVE_DATE}</div>
+        <div style={{ color: MUTED, fontSize: '.8rem' }}>Effective {EFFECTIVE_DATE}</div>
       </div>
     </div>
 
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '48px 28px 80px' }}>
       {/* Header */}
       <div style={{ marginBottom: 48 }}>
-        <div style={{ fontFamily: type.font.display, fontWeight: type.weight.bold, letterSpacing: '.2em', fontSize: '.78rem', color: colors.accent, textTransform: 'uppercase', marginBottom: 12 }}>
+        <div style={{ fontFamily: DISP, fontWeight: 700, letterSpacing: '.2em', fontSize: '.78rem', color: FLAME, textTransform: 'uppercase', marginBottom: 12 }}>
           Legal
         </div>
-        <h1 style={{ fontFamily: type.font.display, fontWeight: type.weight.bold, textTransform: 'uppercase', fontSize: 'clamp(2.4rem,5vw,3.4rem)', lineHeight: 0.92, margin: '0 0 18px' }}>
+        <h1 style={{ fontFamily: DISP, fontWeight: 900, textTransform: 'uppercase', fontSize: 'clamp(2.4rem,5vw,3.4rem)', lineHeight: 0.92, margin: '0 0 18px' }}>
           Terms of Service
         </h1>
-        <p style={{ color: text.secondary, fontSize: '1rem', lineHeight: 1.7, margin: 0 }}>
+        <p style={{ color: MUTED, fontSize: '1rem', lineHeight: 1.7, margin: 0 }}>
           These Terms of Service govern your use of the HERS365 platform. Please read them carefully. For athletes under 18, a parent or guardian must review and accept these terms.
         </p>
-        <div style={{ display: 'flex', gap: 16, marginTop: 20, flexWrap: 'wrap', fontSize: '.8rem', color: text.tertiary }}>
-          <Link to="/privacy" style={{ color: colors.accent, textDecoration: 'none', fontWeight: type.weight.semibold }}>Privacy Policy →</Link>
-          <a href="mailto:legal@hers365.com" style={{ color: text.secondary, textDecoration: 'none' }}>legal@hers365.com</a>
+        <div style={{ display: 'flex', gap: 16, marginTop: 20, flexWrap: 'wrap', fontSize: '.8rem', color: MUTED_2 }}>
+          <Link to="/privacy" style={{ color: FLAME, textDecoration: 'none', fontWeight: 600 }}>Privacy Policy →</Link>
+          <a href="mailto:legal@hers365.com" style={{ color: MUTED, textDecoration: 'none' }}>legal@hers365.com</a>
         </div>
       </div>
 
@@ -135,23 +140,23 @@ export const Terms = () => (
           <div
             key={s.title}
             style={{
-              borderTop: `1px solid ${colors.border}`,
+              borderTop: `1px solid ${LINE}`,
               paddingTop: 28, paddingBottom: 28,
             }}
           >
             <h2 style={{
-              fontFamily: type.font.display, fontWeight: type.weight.bold, textTransform: 'uppercase',
-              fontSize: '1.22rem', letterSpacing: '.04em', margin: '0 0 12px', color: text.primary,
+              fontFamily: DISP, fontWeight: 800, textTransform: 'uppercase',
+              fontSize: '1.22rem', letterSpacing: '.04em', margin: '0 0 12px', color: '#f4f4f2',
               lineHeight: 1.1,
             }}>
               {s.title}
             </h2>
-            <div style={{ color: text.secondary, fontSize: '.95rem', lineHeight: 1.75 }}>
+            <div style={{ color: MUTED, fontSize: '.95rem', lineHeight: 1.75 }}>
               {s.content}
             </div>
           </div>
         ))}
-        <div style={{ borderTop: `1px solid ${colors.border}`, paddingTop: 28, color: text.tertiary, fontSize: '.82rem' }}>
+        <div style={{ borderTop: `1px solid ${LINE}`, paddingTop: 28, color: MUTED_2, fontSize: '.82rem' }}>
           Last updated: {EFFECTIVE_DATE} · HERS365, Inc. · All rights reserved.
         </div>
       </div>

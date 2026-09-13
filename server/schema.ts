@@ -25,6 +25,7 @@ export const players = pgTable('players', {
   collegeOffers: jsonb('college_offers'),
   verificationStatus: text('verification_status').default('unverified'),
   subscriptionTier: text('subscription_tier').default('free'),
+  diamondOverride: boolean('diamond_override').default(false),
   privacySetting: text('privacy_setting').default('public'),
   segment: text('segment').default('high_school'), // youth, high_school, college, elite
   skillTier: text('skill_tier').default('beginner'), // beginner, intermediate, advanced, elite
@@ -46,14 +47,6 @@ export const players = pgTable('players', {
   // Defaults true so existing users are grandfathered. New registrations set this
   // false explicitly and must verify before appearing in coach search.
   emailVerified: boolean('email_verified').notNull().default(true),
-  // Guardian gate: 'pending_guardian' | 'active' | 'deactivated'. New signups fail
-  // closed as pending; a DB trigger blocks activation without verified consent.
-  status: text('status').notNull().default('pending_guardian'),
-  activatedAt: timestamp('activated_at'),
-  deactivatedAt: timestamp('deactivated_at'),
-  // Opaque token returned to the girl's client so the pending screen can advance
-  // without exposing playerId.
-  pendingToken: text('pending_token').unique(),
   createdAt: timestamp('created_at').default(sql`now()`),
 });
 
@@ -106,7 +99,11 @@ export const combineStats = pgTable('combine_stats', {
 export const gameStats = pgTable('game_stats', {
   id: serial('id').primaryKey(),
   playerId: integer('player_id').references(() => players.id),
+  submittedByParentId: integer('submitted_by_parent_id').references(() => parents.id),
   gameId: integer('game_id'),
+  season: text('season'),
+  school: text('school'),
+  maxPrepsUrl: text('max_preps_url'),
   passingAttempts: integer('passing_attempts'),
   passingCompletions: integer('passing_completions'),
   passingYards: integer('passing_yards'),
@@ -125,49 +122,16 @@ export const gameStats = pgTable('game_stats', {
   interceptionsCaught: integer('interceptions_caught'),
   passBreakups: integer('pass_breakups'),
   defensiveTds: integer('defensive_tds'),
+  // Stat Verification Layer (Pending -> Under Review -> Verified / Rejected / Needs More Evidence)
+  verificationStatus: text('verification_status').default('pending'), // 'pending' | 'under_review' | 'verified' | 'rejected' | 'needs_more_evidence'
+  verifiedAt: timestamp('verified_at'),
+  verifiedBy: text('verified_by'), // Moderator ID or 'Automated MaxPreps Reference Match'
+  verificationMethod: text('verification_method'), // 'Moderator Review', 'Automated MaxPreps Match', 'OCR Sheet Match', 'Game Film'
+  verificationNote: text('verification_note'),
+  confidenceScore: doublePrecision('confidence_score'),
+  createdAt: timestamp('created_at').default(sql`now()`),
 });
 
-export const parentStatSubmissions = pgTable('parent_stat_submissions', {
-  id: serial('id').primaryKey(),
-  parentId: integer('parent_id').references(() => parents.id),
-  playerId: integer('player_id').references(() => players.id),
-
-  athleteEmail: text('athlete_email'),
-  athleteName: text('athlete_name').notNull(),
-  athleteDob: timestamp('athlete_dob'),
-  gradYear: integer('grad_year'),
-  position: text('position'),
-  state: text('state'),
-  division: text('division'),
-  school: text('school'),
-
-  season: text('season'),
-  passingTds: integer('passing_tds'),
-  rushingTds: integer('rushing_tds'),
-  receivingTds: integer('receiving_tds'),
-  defensiveTds: integer('defensive_tds'),
-  sacks: doublePrecision('sacks'),
-  flagPulls: integer('flag_pulls'),
-  interceptions: integer('interceptions'),
-  passingYards: integer('passing_yards'),
-  rushingYards: integer('rushing_yards'),
-  receivingYards: integer('receiving_yards'),
-  hersRating: doublePrecision('hers_rating'),
-
-  fortyYardDash: doublePrecision('forty_yard_dash'),
-  verticalJump: doublePrecision('vertical_jump'),
-  shuttle5105: doublePrecision('shuttle_5_10_5'),
-  broadJump: doublePrecision('broad_jump'),
-
-  maxPrepsUrl: text('max_preps_url'),
-  source: text('source').default('parent_portal'),
-  notes: text('notes'),
-  adminNotes: text('admin_notes'),
-  status: text('status').notNull().default('pending'),
-  submittedAt: timestamp('submitted_at').default(sql`now()`),
-  reviewedAt: timestamp('reviewed_at'),
-  reviewedBy: integer('reviewed_by'),
-});
 
 export const badges = pgTable('badges', {
   id: serial('id').primaryKey(),
@@ -286,40 +250,6 @@ export const playerHighlights = pgTable('player_highlights', {
   createdAt: timestamp('created_at').default(sql`now()`),
 });
 
-// Background FFmpeg processing jobs
-export const videoJobs = pgTable('video_jobs', {
-  id: serial('id').primaryKey(),
-
-  playerId: integer('player_id')
-    .notNull()
-    .references(() => players.id),
-
-  // Permanent S3 keys—not temporary signed URLs
-  sourceKey: text('source_key').notNull(),
-  outputKey: text('output_key'),
-  thumbnailKey: text('thumbnail_key'),
-
-
-  targetType: text('target_type').notNull(),
-  targetId: integer('target_id').notNull(),
-
-  // Expected shape: { start?: number, end?: number }
-  clipSettings: jsonb('clip_settings'),
-
-  // pending | processing | completed | failed
-  status: text('status').notNull().default('pending'),
-
-  attempts: integer('attempts').notNull().default(0),
-  maxAttempts: integer('max_attempts').notNull().default(3),
-
-  error: text('error'),
-  lockedAt: timestamp('locked_at'),
-  processedAt: timestamp('processed_at'),
-
-  createdAt: timestamp('created_at').notNull().default(sql`now()`),
-  updatedAt: timestamp('updated_at').notNull().default(sql`now()`),
-});
-
 // Parents table - for parent accounts who can manage their children's profiles and payments
 export const parents = pgTable('parents', {
   id: serial('id').primaryKey(),
@@ -331,9 +261,6 @@ export const parents = pgTable('parents', {
   // defaults, etc.). Server-backed replacement for the local useState
   // toggles that lived in ParentHub and ParentDashboard.
   preferences: jsonb('preferences').default(sql`'{}'::jsonb`),
-  emailVerified: boolean('email_verified').notNull().default(false),
-  phoneVerified: boolean('phone_verified').notNull().default(false),
-  phoneE164: text('phone_e164'), // normalized; `phone` stays as display
   createdAt: timestamp('created_at').default(sql`now()`),
 });
 
@@ -343,123 +270,6 @@ export const parentChildRelations = pgTable('parent_child_relations', {
   parentId: integer('parent_id').references(() => parents.id),
   playerId: integer('player_id').references(() => players.id),
   relationship: text('relationship'), // 'mother', 'father', 'guardian', etc.
-  isPrimary: boolean('is_primary').default(false),
-  status: text('status').notNull().default('pending'), // pending | verified | active | revoked
-  consentId: integer('consent_id').references(() => guardianConsents.id),
-  verifiedAt: timestamp('verified_at'),
-  revokedAt: timestamp('revoked_at'),
-  createdAt: timestamp('created_at').default(sql`now()`),
-});
-
-
-
-// Real backing for ConsentRecord. Rows are never deleted; revocation is an
-// UPDATE to revoked_at (enforced by a DB trigger).
-export const guardianConsents = pgTable('guardian_consents', {
-  id: serial('id').primaryKey(),
-  parentId: integer('parent_id').references(() => parents.id),
-  playerId: integer('player_id').references(() => players.id),
-  consentType: text('consent_type').notNull(),
-  framework: text('framework').notNull(),
-  consented: boolean('consented').notNull(),
-  consentVersion: text('consent_version').notNull(),
-  consentText: text('consent_text').notNull(),
-  method: text('method'),
-  grantedAt: timestamp('granted_at').default(sql`now()`),
-  revokedAt: timestamp('revoked_at'),
-  expiresAt: timestamp('expires_at'),
-  grantedBy: text('granted_by'),
-  ipAddress: text('ip_address'),
-  userAgent: text('user_agent'),
-  withdrawalReason: text('withdrawal_reason'),
-  metadata: jsonb('metadata').default(sql`'{}'::jsonb`),
-});
-
-// Durable, peppered verification codes — replaces the in memory Maps.
-export const guardianVerificationCodes = pgTable('guardian_verification_codes', {
-  id: serial('id').primaryKey(),
-  parentId: integer('parent_id').references(() => parents.id),
-  playerId: integer('player_id').references(() => players.id),
-  relationId: integer('relation_id').references(() => parentChildRelations.id),
-  channel: text('channel').notNull(), // email | sms
-  destination: text('destination').notNull(),
-  codeHash: text('code_hash').notNull(), // keyed HMAC over CODE_PEPPER, never plaintext
-  linkToken: text('link_token').unique(),
-  purpose: text('purpose').notNull(), // link_consent | email_verify | phone_verify | password_reset
-  attempts: integer('attempts').notNull().default(0),
-  maxAttempts: integer('max_attempts').notNull().default(5),
-  expiresAt: timestamp('expires_at').notNull(),
-  consumedAt: timestamp('consumed_at'),
-  used: boolean('used').notNull().default(false),
-  metadata: jsonb('metadata').default(sql`'{}'::jsonb`),
-  createdAt: timestamp('created_at').default(sql`now()`),
-});
-
-// Tracks the state of a single passwordless login attempt. The girl enters her
-// email, a one-time code is issued to her guardian (via issueCode, purpose
-// 'login_approval')
-export const loginRequests = pgTable('login_requests', {
-  id: serial('id').primaryKey(),
-  playerId: integer('player_id').references(() => players.id).notNull(),
-  parentId: integer('parent_id').references(() => parents.id),
-  relationId: integer('relation_id').references(() => parentChildRelations.id),
-  verificationCodeId: integer('verification_code_id').references(() => guardianVerificationCodes.id),
-  status: text('status').notNull().default('pending'), // pending | approved | denied | expired
-  ipAddress: text('ip_address'),
-  userAgent: text('user_agent'),
-  requestedAt: timestamp('requested_at').notNull().default(sql`now()`),
-  approvedAt: timestamp('approved_at'),
-  expiresAt: timestamp('expires_at').notNull(),
-});
-
-// Append only, tamper evident (row_hash chains over prev_hash). Never UPDATE or
-// DELETE — enforced by DB trigger + REVOKE in migration 0009.
-export const consentAuditLog = pgTable('consent_audit_log', {
-  id: serial('id').primaryKey(),
-  consentId: integer('consent_id').references(() => guardianConsents.id),
-  parentId: integer('parent_id'),
-  playerId: integer('player_id'),
-  action: text('action').notNull(),
-  actorType: text('actor_type'),
-  actorId: integer('actor_id'),
-  ipAddress: text('ip_address'),
-  userAgent: text('user_agent'),
-  detail: jsonb('detail').default(sql`'{}'::jsonb`),
-  prevHash: text('prev_hash'),
-  rowHash: text('row_hash'),
-  createdAt: timestamp('created_at').default(sql`now()`),
-});
-
-// Append only, same immutability protection as consent_audit_log.
-export const adminAccessLog = pgTable('admin_access_log', {
-  id: serial('id').primaryKey(),
-  adminId: integer('admin_id').references(() => adminUsers.id),
-  action: text('action').notNull(), // pii_read | bulk_read | export
-  subjectType: text('subject_type'),
-  subjectId: integer('subject_id'),
-  fields: text('fields'),
-  count: integer('count'),
-  ipAddress: text('ip_address'),
-  userAgent: text('user_agent'),
-  prevHash: text('prev_hash'),
-  rowHash: text('row_hash'),
-  createdAt: timestamp('created_at').default(sql`now()`),
-});
-
-// Double opt in: rows start pending and only become subscribed after the
-// confirm link is clicked.
-export const newsletterSubscribers = pgTable('newsletter_subscribers', {
-  id: serial('id').primaryKey(),
-  email: text('email').notNull().unique(),
-  name: text('name'),
-  source: text('source'), // signup | footer | landing | coming_soon
-  status: text('status').notNull().default('pending'), // pending | subscribed | unsubscribed | bounced
-  parentId: integer('parent_id').references(() => parents.id),
-  confirmToken: text('confirm_token').unique(),
-  confirmedAt: timestamp('confirmed_at'),
-  consentAt: timestamp('consent_at').default(sql`now()`),
-  unsubscribedAt: timestamp('unsubscribed_at'),
-  unsubscribeToken: text('unsubscribe_token').unique(),
   createdAt: timestamp('created_at').default(sql`now()`),
 });
 
@@ -703,7 +513,6 @@ export const athleteRankings = pgTable('athlete_rankings', {
   maxPrepsScore: doublePrecision('max_preps_score'),
   zybekScore: doublePrecision('zybek_score'),
   usaTalentIdScore: doublePrecision('usa_talent_id_score'),
-  tournamentPerformanceScore: doublePrecision('tournament_performance_score'),
   // Data source tracking
   dataSources: text('data_sources'),
   // Last update from each source
@@ -970,7 +779,6 @@ export const refreshTokens = pgTable('refresh_tokens', {
   userId: integer('user_id').notNull(), // Can reference players, parents, coaches, or admin_users
   userType: text('user_type').notNull(), // 'athlete', 'parent', 'coach', 'admin'
   tokenHash: text('token_hash').notNull().unique(), // Hashed refresh token
-  familyId: text('family_id'), // rotation family; reuse of a consumed token revokes the whole family
   deviceFingerprint: text('device_fingerprint'), // Browser/device identifier
   ipAddress: text('ip_address'),
   userAgent: text('user_agent'),

@@ -22,5 +22,3 @@ graphify-out/
 # prevent future debug/fix script commits
 debug*.js
 fix-*.js
-.env.production
-.env.*

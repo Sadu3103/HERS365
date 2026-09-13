@@ -3,7 +3,6 @@ import { desc, eq } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../schema';
 import { requireAuth, type TokenPayload } from '../auth';
-import { requireActivated } from '../middleware/requireActivated';
 
 const router = express.Router();
 
@@ -37,7 +36,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/stories — athlete submits commitment story (auth required, goes to pending review)
-router.post('/', requireAuth, requireActivated, async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   try {
     const athleteId = Number(authUser(req)?.id);
     const { athleteName, position, commitmentSchool, commitmentDivision, gradYear, storyText, imageUrl, tags } = req.body;

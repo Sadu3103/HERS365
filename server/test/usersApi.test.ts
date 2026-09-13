@@ -53,7 +53,7 @@ describe('GET /api/users/profile', () => {
   it('returns 404 when the token references a user id that does not exist in the role table', async () => {
     await makeAthlete();
     // Token claims coach role + an id that isn't in the coaches table.
-    const ghost = tokenFor({ id: 999999 }, 'coach');
+    const ghost = tokenFor({ id: 999999, email: 'ghost@test.local', name: 'ghost' }, 'coach');
     const res = await request(app)
       .get('/api/users/profile')
       .set('Authorization', `Bearer ${ghost}`);

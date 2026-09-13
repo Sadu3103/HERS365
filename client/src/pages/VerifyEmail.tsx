@@ -2,8 +2,13 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { apiFetch, errorMessage } from '../lib/api';
-import { Button } from '../components/ui';
-import { colors, type as t, radii } from '../lib/tokens';
+
+const FLAME = '#8B3BFF';
+const INK   = '#0a0a0a';
+const TEXT  = '#f4f4f2';
+const MUTED = '#9a9a96';
+const DISP  = "'Barlow Condensed', sans-serif";
+const BODY  = "'DM Sans', sans-serif";
 
 export function VerifyEmail() {
   const [params] = useSearchParams();
@@ -33,46 +38,58 @@ export function VerifyEmail() {
 
   return (
     <div style={{
-      display: 'flex', minHeight: '100vh', background: colors.surface0,
-      color: colors.textPrimary, fontFamily: t.font.body,
+      display: 'flex', minHeight: '100vh', background: INK,
+      color: TEXT, fontFamily: BODY,
       alignItems: 'center', justifyContent: 'center',
     }}>
       <div style={{
         maxWidth: 440, width: '100%', margin: '0 24px',
         background: 'rgba(255,255,255,0.03)',
         border: '1px solid rgba(255,255,255,0.07)',
-        borderRadius: radii.lg, padding: '40px 36px', textAlign: 'center',
+        borderRadius: 20, padding: '40px 36px', textAlign: 'center',
       }}>
-        <div style={{ fontFamily: t.font.display, fontSize: 28, fontWeight: 700, letterSpacing: 1, color: colors.accent, marginBottom: 28 }}>
+        <div style={{ fontFamily: DISP, fontSize: 28, fontWeight: 700, letterSpacing: 1, color: FLAME, marginBottom: 28 }}>
           H.E.R.S.365
         </div>
 
         {status === 'loading' && (
           <>
-            <Loader2 size={40} style={{ color: colors.accent, margin: '0 auto 16px', display: 'block', animation: 'spin 1s linear infinite' }} />
-            <p style={{ color: colors.textSecondary, fontSize: 15 }}>Verifying your email...</p>
+            <Loader2 size={40} style={{ color: FLAME, margin: '0 auto 16px', display: 'block', animation: 'spin 1s linear infinite' }} />
+            <p style={{ color: MUTED, fontSize: 15 }}>Verifying your email...</p>
           </>
         )}
 
         {status === 'success' && (
           <>
-            <CheckCircle size={48} style={{ color: colors.success, margin: '0 auto 16px', display: 'block' }} />
+            <CheckCircle size={48} style={{ color: '#22c55e', margin: '0 auto 16px', display: 'block' }} />
             <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 10px' }}>You're verified</h1>
-            <p style={{ color: colors.textSecondary, fontSize: 15, margin: '0 0 28px' }}>{message}</p>
-            <Button size="lg" onClick={() => navigate('/')} style={{ width: '100%' }}>
+            <p style={{ color: MUTED, fontSize: 15, margin: '0 0 28px' }}>{message}</p>
+            <button
+              onClick={() => navigate('/')}
+              style={{
+                background: FLAME, color: '#fff', border: 'none', borderRadius: 10,
+                padding: '12px 28px', fontSize: 15, fontWeight: 600, cursor: 'pointer', width: '100%',
+              }}
+            >
               Go to my profile
-            </Button>
+            </button>
           </>
         )}
 
         {status === 'error' && (
           <>
-            <XCircle size={48} style={{ color: colors.danger, margin: '0 auto 16px', display: 'block' }} />
+            <XCircle size={48} style={{ color: '#ef4444', margin: '0 auto 16px', display: 'block' }} />
             <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 10px' }}>Verification failed</h1>
-            <p style={{ color: colors.textSecondary, fontSize: 15, margin: '0 0 28px' }}>{message}</p>
-            <Button variant="ghost" size="lg" onClick={() => navigate('/auth')} style={{ width: '100%' }}>
+            <p style={{ color: MUTED, fontSize: 15, margin: '0 0 28px' }}>{message}</p>
+            <button
+              onClick={() => navigate('/auth')}
+              style={{
+                background: 'rgba(255,255,255,0.06)', color: TEXT, border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 10, padding: '12px 28px', fontSize: 15, fontWeight: 600, cursor: 'pointer', width: '100%',
+              }}
+            >
               Back to sign in
-            </Button>
+            </button>
           </>
         )}
       </div>

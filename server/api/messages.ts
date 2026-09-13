@@ -4,7 +4,6 @@ import { db } from '../db';
 import * as schema from '../schema';
 import { requireAuth } from '../auth';
 import { requireVerifiedCoach } from '../middleware/requireVerifiedCoach';
-import { requireActivated } from '../middleware/requireActivated';
 import { validateBody, validateParams } from '../middleware/validate';
 import {
   sendMessageBody,
@@ -24,8 +23,6 @@ router.use(requireAuth);
 // Coaches must be verified before sending, listing threads, or reading messages.
 // Athletes and parents pass through unaffected.
 router.use(requireVerifiedCoach);
-// Pending/deactivated athletes cannot act even with a valid token.
-router.use(requireActivated);
 
 // Soft-delete: exclude messages whose deleted_at is set from all read paths.
 const notDeleted = isNull(schema.messages.deletedAt);

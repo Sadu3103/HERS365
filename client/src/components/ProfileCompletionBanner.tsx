@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronRight, X, Zap } from 'lucide-react';
 import { useProfileCompletion } from '../hooks/useProfileCompletion';
 import { useAuth } from '../context/AuthContext';
-import { colors, radii } from '../lib/tokens';
+
+const FLAME = '#8B3BFF';
 
 export function ProfileCompletionBanner() {
   const { user } = useAuth();
@@ -26,26 +27,26 @@ export function ProfileCompletionBanner() {
         style={{ overflow: 'hidden' }}
       >
         <div style={{
-          background: `linear-gradient(90deg, rgba(139,59,255,0.12) 0%, rgba(139,59,255,0.06) 100%)`,
-          borderBottom: '1px solid rgba(139,59,255,0.2)',
+          background: `linear-gradient(90deg, rgba(139, 59, 255,0.12) 0%, rgba(139, 59, 255,0.06) 100%)`,
+          borderBottom: '1px solid rgba(139, 59, 255,0.2)',
           padding: '10px 20px',
           display: 'flex',
           alignItems: 'center',
           gap: 12,
         }}>
-          <Zap size={14} color={colors.accent} style={{ flexShrink: 0 }} />
+          <Zap size={14} color={FLAME} style={{ flexShrink: 0 }} />
 
           {/* Progress bar */}
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: radii.full, overflow: 'hidden' }}>
+            <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 99, overflow: 'hidden' }}>
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${pct}%` }}
                 transition={{ duration: 0.6, ease: 'easeOut' }}
-                style={{ height: '100%', background: colors.accent, borderRadius: radii.full }}
+                style={{ height: '100%', background: FLAME, borderRadius: 99 }}
               />
             </div>
-            <span style={{ fontSize: '0.65rem', fontWeight: 800, color: colors.accent, whiteSpace: 'nowrap' }}>{pct}%</span>
+            <span style={{ fontSize: '0.65rem', fontWeight: 800, color: FLAME, whiteSpace: 'nowrap' }}>{pct}%</span>
             <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap', display: 'none' }} className="desktop-only">
               {doneCount}/{total} steps
             </span>
@@ -57,9 +58,9 @@ export function ProfileCompletionBanner() {
               onClick={() => navigate(nextStep.path)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 5,
-                padding: '5px 12px', borderRadius: radii.full,
-                background: colors.accent, border: 'none',
-                color: colors.accentOn, fontSize: '0.7rem', fontWeight: 700,
+                padding: '5px 12px', borderRadius: 99,
+                background: FLAME, border: 'none',
+                color: '#fff', fontSize: '0.7rem', fontWeight: 700,
                 cursor: 'pointer', flexShrink: 0,
               }}
             >

@@ -3,7 +3,6 @@ import { useParams, Link } from 'react-router-dom';
 import { Eye, Heart, MessageSquare, Award, Star, Users, MapPin, GraduationCap, Ruler, Weight, Target } from 'lucide-react';
 import type { PlayerProfile } from '../../types';
 import { useNotifications } from '../../context/NotificationContext';
-import { Button } from '../../components/ui';
 
 export function CoachPlayerProfile() {
   const { id } = useParams<{ id: string }>();
@@ -94,25 +93,25 @@ export function CoachPlayerProfile() {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
-        className={`w-5 h-5 ${i < stars ? 'text-yellow-400 fill-current' : 'text-ink-faint'}`}
+        className={`w-5 h-5 ${i < stars ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
       />
     ));
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-surface text-ink flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-500"></div>
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
   if (!player) {
     return (
-      <div className="min-h-screen bg-surface text-ink flex items-center justify-center">
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
         <div className="text-center">
-          <h1 className="font-display uppercase tracking-tight text-2xl font-bold text-ink mb-4">Player Not Found</h1>
-          <Link to="/coach/search" className="text-accent-400 hover:text-accent-300">
+          <h1 className="text-2xl font-bold text-white mb-4">Player Not Found</h1>
+          <Link to="/coach/search" className="text-blue-400 hover:text-blue-300">
             Back to Search
           </Link>
         </div>
@@ -129,14 +128,14 @@ export function CoachPlayerProfile() {
   ];
 
   return (
-    <div className="min-h-screen bg-surface text-ink">
+    <div className="min-h-screen bg-gray-900 text-white">
       {/* Header */}
-      <div className="bg-surface-card border-b border-surface-border">
+      <div className="bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center gap-4">
             <Link
               to="/coach/search"
-              className="text-ink-muted hover:text-ink transition-colors"
+              className="text-gray-400 hover:text-white transition-colors"
             >
               ← Back to Search
             </Link>
@@ -146,22 +145,22 @@ export function CoachPlayerProfile() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Player Header */}
-        <div className="bg-surface-card border border-surface-border rounded-lg p-8 mb-8">
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-8 mb-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="flex items-center gap-6">
-              <div className="w-24 h-24 bg-surface-hover rounded-full flex items-center justify-center">
-                <Users className="w-12 h-12 text-ink-muted" />
+              <div className="w-24 h-24 bg-gray-700 rounded-full flex items-center justify-center">
+                <Users className="w-12 h-12 text-gray-400" />
               </div>
 
               <div>
                 <div className="flex items-center gap-3 mb-2">
-                  <h1 className="font-display uppercase tracking-tight text-3xl font-bold text-ink">{player.name}</h1>
+                  <h1 className="text-3xl font-bold text-white">{player.name}</h1>
                   {player.verified && (
-                    <Award className="w-6 h-6 text-accent-400" />
+                    <Award className="w-6 h-6 text-blue-400" />
                   )}
                 </div>
 
-                <div className="flex items-center gap-6 text-ink-muted mb-3">
+                <div className="flex items-center gap-6 text-gray-400 mb-3">
                   <span className="flex items-center gap-2">
                     <Users className="w-4 h-4" />
                     {player.position}
@@ -187,19 +186,25 @@ export function CoachPlayerProfile() {
             </div>
 
             <div className="flex gap-3">
-              <Button
-                variant={isSaved ? 'danger' : 'ghost'}
+              <button
                 onClick={toggleSavePlayer}
-                className="gap-2"
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  isSaved
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                }`}
               >
                 <Heart className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
                 {isSaved ? 'Saved' : 'Save Player'}
-              </Button>
+              </button>
 
-              <Button onClick={sendMessage} className="gap-2">
+              <button
+                onClick={sendMessage}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
                 <MessageSquare className="w-4 h-4" />
                 Contact Player
-              </Button>
+              </button>
             </div>
           </div>
         </div>
@@ -210,10 +215,10 @@ export function CoachPlayerProfile() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 min-h-[44px] rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/50 focus-visible:ring-offset-2 ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                 activeTab === tab.id
-                  ? 'bg-accent-500 text-white'
-                  : 'bg-surface-card text-ink-muted hover:bg-surface-hover'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
               }`}
             >
               <tab.icon className="w-4 h-4" />
@@ -223,66 +228,66 @@ export function CoachPlayerProfile() {
         </div>
 
         {/* Tab Content */}
-        <div className="bg-surface-card border border-surface-border rounded-lg p-8">
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-8">
           {activeTab === 'overview' && (
             <div className="space-y-6">
               <div>
-                <h3 className="font-display uppercase tracking-tight text-xl font-semibold text-ink mb-4">Quick Stats</h3>
+                <h3 className="text-xl font-semibold text-white mb-4">Quick Stats</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-surface-hover rounded-lg p-4">
+                  <div className="bg-gray-700 rounded-lg p-4">
                     <div className="text-2xl font-bold text-green-400 mb-1">{player.breakoutScore}</div>
-                    <div className="text-ink-muted">Breakout Score</div>
+                    <div className="text-gray-400">Breakout Score</div>
                   </div>
-                  <div className="bg-surface-hover rounded-lg p-4">
+                  <div className="bg-gray-700 rounded-lg p-4">
                     <div className="text-2xl font-bold text-yellow-400 mb-1">{player.nilPoints.toLocaleString()}</div>
-                    <div className="text-ink-muted">NIL Points</div>
+                    <div className="text-gray-400">NIL Points</div>
                   </div>
-                  <div className="bg-surface-hover rounded-lg p-4">
-                    <div className="text-2xl font-bold text-accent-400 mb-1">{player.offers.length}</div>
-                    <div className="text-ink-muted">Offers Received</div>
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <div className="text-2xl font-bold text-blue-400 mb-1">{player.offers.length}</div>
+                    <div className="text-gray-400">Offers Received</div>
                   </div>
                 </div>
               </div>
 
               <div>
-                <h3 className="font-display uppercase tracking-tight text-xl font-semibold text-ink mb-4">Physical Profile</h3>
+                <h3 className="text-xl font-semibold text-white mb-4">Physical Profile</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-surface-hover rounded-lg p-4">
+                  <div className="bg-gray-700 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <Ruler className="w-5 h-5 text-ink-muted" />
-                      <span className="text-ink-muted">Height</span>
+                      <Ruler className="w-5 h-5 text-gray-400" />
+                      <span className="text-gray-400">Height</span>
                     </div>
-                    <div className="text-xl font-semibold text-ink">{player.height}</div>
+                    <div className="text-xl font-semibold text-white">{player.height}</div>
                   </div>
-                  <div className="bg-surface-hover rounded-lg p-4">
+                  <div className="bg-gray-700 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <Weight className="w-5 h-5 text-ink-muted" />
-                      <span className="text-ink-muted">Weight</span>
+                      <Weight className="w-5 h-5 text-gray-400" />
+                      <span className="text-gray-400">Weight</span>
                     </div>
-                    <div className="text-xl font-semibold text-ink">{player.weight} lbs</div>
+                    <div className="text-xl font-semibold text-white">{player.weight} lbs</div>
                   </div>
-                  <div className="bg-surface-hover rounded-lg p-4">
+                  <div className="bg-gray-700 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <Users className="w-5 h-5 text-ink-muted" />
-                      <span className="text-ink-muted">Archetype</span>
+                      <Users className="w-5 h-5 text-gray-400" />
+                      <span className="text-gray-400">Archetype</span>
                     </div>
-                    <div className="text-xl font-semibold text-ink">{player.archetype}</div>
+                    <div className="text-xl font-semibold text-white">{player.archetype}</div>
                   </div>
                 </div>
               </div>
 
               <div>
-                <h3 className="font-display uppercase tracking-tight text-xl font-semibold text-ink mb-4">College Offers</h3>
+                <h3 className="text-xl font-semibold text-white mb-4">College Offers</h3>
                 {player.offers.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {player.offers.map((offer, index) => (
-                      <span key={index} className="bg-accent-500 text-white px-3 py-1 rounded-full text-sm">
+                      <span key={index} className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm">
                         {offer}
                       </span>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-ink-muted">No offers yet</p>
+                  <p className="text-gray-400">No offers yet</p>
                 )}
               </div>
             </div>
@@ -290,22 +295,22 @@ export function CoachPlayerProfile() {
 
           {activeTab === 'stats' && (
             <div>
-              <h3 className="font-display uppercase tracking-tight text-xl font-semibold text-ink mb-6">Season Statistics</h3>
+              <h3 className="text-xl font-semibold text-white mb-6">Season Statistics</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="border-b border-surface-border">
-                      <th className="pb-3 text-ink-muted font-medium">Category</th>
-                      <th className="pb-3 text-ink-muted font-medium">Stat</th>
-                      <th className="pb-3 text-ink-muted font-medium">Value</th>
+                    <tr className="border-b border-gray-700">
+                      <th className="pb-3 text-gray-400 font-medium">Category</th>
+                      <th className="pb-3 text-gray-400 font-medium">Stat</th>
+                      <th className="pb-3 text-gray-400 font-medium">Value</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-surface-border">
+                  <tbody className="divide-y divide-gray-700">
                     {player.stats && Object.entries(player.stats).map(([key, value]) => (
                       <tr key={key} className="py-3">
-                        <td className="py-3 text-ink capitalize">{key.replace(/([A-Z])/g, ' $1')}</td>
-                        <td className="py-3 text-ink-muted">{key}</td>
-                        <td className="py-3 text-ink font-semibold">{value || 'N/A'}</td>
+                        <td className="py-3 text-white capitalize">{key.replace(/([A-Z])/g, ' $1')}</td>
+                        <td className="py-3 text-gray-400">{key}</td>
+                        <td className="py-3 text-white font-semibold">{value || 'N/A'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -316,12 +321,12 @@ export function CoachPlayerProfile() {
 
           {activeTab === 'measurements' && (
             <div>
-              <h3 className="font-display uppercase tracking-tight text-xl font-semibold text-ink mb-6">Combine Measurements</h3>
+              <h3 className="text-xl font-semibold text-white mb-6">Combine Measurements</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {player.combineStats && Object.entries(player.combineStats).map(([key, value]) => (
-                  <div key={key} className="bg-surface-hover rounded-lg p-4">
-                    <div className="text-ink-muted mb-1 capitalize">{key.replace(/([A-Z])/g, ' $1')}</div>
-                    <div className="text-xl font-semibold text-ink">{value || 'N/A'}</div>
+                  <div key={key} className="bg-gray-700 rounded-lg p-4">
+                    <div className="text-gray-400 mb-1 capitalize">{key.replace(/([A-Z])/g, ' $1')}</div>
+                    <div className="text-xl font-semibold text-white">{value || 'N/A'}</div>
                   </div>
                 ))}
               </div>
@@ -330,20 +335,20 @@ export function CoachPlayerProfile() {
 
           {activeTab === 'highlights' && (
             <div>
-              <h3 className="font-display uppercase tracking-tight text-xl font-semibold text-ink mb-6">Highlight Videos</h3>
+              <h3 className="text-xl font-semibold text-white mb-6">Highlight Videos</h3>
               {player.highlights.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {player.highlights.map((highlight, index) => (
-                    <div key={index} className="bg-surface-hover rounded-lg overflow-hidden">
-                      <div className="aspect-video bg-surface flex items-center justify-center">
-                        <div className="text-center text-ink">
+                    <div key={index} className="bg-gray-700 rounded-lg overflow-hidden">
+                      <div className="aspect-video bg-gray-600 flex items-center justify-center">
+                        <div className="text-center text-white">
                           <Award className="w-12 h-12 mx-auto mb-2 opacity-50" />
                           <p className="text-sm">Video Preview</p>
                         </div>
                       </div>
                       <div className="p-4">
-                        <h4 className="text-ink font-medium mb-2">{highlight.title}</h4>
-                        <p className="text-ink-muted text-sm">
+                        <h4 className="text-white font-medium mb-2">{highlight.title}</h4>
+                        <p className="text-gray-400 text-sm">
                           {highlight.locked ? 'Premium Content - Contact Required' : 'Available to Coaches'}
                         </p>
                       </div>
@@ -351,7 +356,7 @@ export function CoachPlayerProfile() {
                   ))}
                 </div>
               ) : (
-                <p className="text-ink-muted">No highlights available</p>
+                <p className="text-gray-400">No highlights available</p>
               )}
             </div>
           )}
@@ -359,26 +364,26 @@ export function CoachPlayerProfile() {
           {activeTab === 'academic' && (
             <div className="space-y-6">
               <div>
-                <h3 className="font-display uppercase tracking-tight text-xl font-semibold text-ink mb-4">Academic Profile</h3>
+                <h3 className="text-xl font-semibold text-white mb-4">Academic Profile</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-surface-hover rounded-lg p-4">
-                    <div className="text-ink-muted mb-1">GPA</div>
-                    <div className="text-2xl font-semibold text-ink">{player.academicProfile.gpa}</div>
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <div className="text-gray-400 mb-1">GPA</div>
+                    <div className="text-2xl font-semibold text-white">{player.academicProfile.gpa}</div>
                   </div>
-                  <div className="bg-surface-hover rounded-lg p-4">
-                    <div className="text-ink-muted mb-1">Intended Major</div>
-                    <div className="text-xl font-semibold text-ink">{player.academicProfile.major}</div>
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <div className="text-gray-400 mb-1">Intended Major</div>
+                    <div className="text-xl font-semibold text-white">{player.academicProfile.major}</div>
                   </div>
                   {player.academicProfile.act && (
-                    <div className="bg-surface-hover rounded-lg p-4">
-                      <div className="text-ink-muted mb-1">ACT Score</div>
-                      <div className="text-2xl font-semibold text-ink">{player.academicProfile.act}</div>
+                    <div className="bg-gray-700 rounded-lg p-4">
+                      <div className="text-gray-400 mb-1">ACT Score</div>
+                      <div className="text-2xl font-semibold text-white">{player.academicProfile.act}</div>
                     </div>
                   )}
                   {player.academicProfile.sat && (
-                    <div className="bg-surface-hover rounded-lg p-4">
-                      <div className="text-ink-muted mb-1">SAT Score</div>
-                      <div className="text-2xl font-semibold text-ink">{player.academicProfile.sat}</div>
+                    <div className="bg-gray-700 rounded-lg p-4">
+                      <div className="text-gray-400 mb-1">SAT Score</div>
+                      <div className="text-2xl font-semibold text-white">{player.academicProfile.sat}</div>
                     </div>
                   )}
                 </div>

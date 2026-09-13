@@ -155,7 +155,7 @@ describe('PUT /api/athletes/:id', () => {
     // exercises the post-update empty-result branch.
     const a = await makeAthlete();
     const fakeId = 999999;
-    const ghost = tokenFor({ id: fakeId }, 'athlete');
+    const ghost = tokenFor({ id: fakeId, email: a.email, name: a.name }, 'athlete');
     const res = await request(app)
       .put(`/api/athletes/${fakeId}`)
       .set('Authorization', `Bearer ${ghost}`)

@@ -1,5 +1,4 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { colors } from '../lib/tokens';
 
 // Per-field caps mirror the server-side allow-list in server/api/errors.ts so
 // nothing oversized is sent over the wire either. The boundary is the last
@@ -106,8 +105,8 @@ export default class GlobalErrorBoundary extends Component<Props, State> {
         role="alert"
         style={{
           minHeight: '100vh',
-          background: colors.surface0,
-          color: colors.textPrimary,
+          background: '#0a0a0a',
+          color: '#f4f4f2',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -117,7 +116,7 @@ export default class GlobalErrorBoundary extends Component<Props, State> {
       >
         <div
           style={{
-            background: colors.surface1,
+            background: '#111',
             border: '1px solid rgba(255,255,255,0.08)',
             borderRadius: 16,
             padding: '36px 32px',
@@ -135,7 +134,7 @@ export default class GlobalErrorBoundary extends Component<Props, State> {
               textTransform: 'uppercase',
               letterSpacing: '0.02em',
               margin: '0 0 10px',
-              color: colors.textPrimary,
+              color: '#f4f4f2',
             }}
           >
             Something went wrong
@@ -143,7 +142,7 @@ export default class GlobalErrorBoundary extends Component<Props, State> {
           <p
             style={{
               fontSize: '0.92rem',
-              color: colors.textSecondary,
+              color: '#9a9a96',
               margin: '0 0 24px',
               lineHeight: 1.5,
             }}
@@ -154,8 +153,8 @@ export default class GlobalErrorBoundary extends Component<Props, State> {
             type="button"
             onClick={this.handleReload}
             style={{
-              background: colors.accent,
-              color: colors.surface0,
+              background: '#8B3BFF',
+              color: '#0a0a0c',
               border: 'none',
               borderRadius: 10,
               padding: '11px 24px',
@@ -165,7 +164,7 @@ export default class GlobalErrorBoundary extends Component<Props, State> {
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
               cursor: 'pointer',
-              boxShadow: '0 6px 22px rgba(139,59,255,.32)',
+              boxShadow: '0 6px 22px rgba(139, 59, 255,.32)',
             }}
           >
             Reload

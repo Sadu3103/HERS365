@@ -8,12 +8,7 @@ import {
   Target,
   Award,
   Heart,
-  BarChart3,
-  CalendarClock,
 } from 'lucide-react';
-import { Button, Card, EmptyState } from '../../components/ui';
-import { StatCardSkeleton, CardSkeleton } from '../../components/ui';
-import { colors, type as t } from '../../lib/tokens';
 
 type CoachAnalyticsResponse = {
   boardCount: number;
@@ -46,23 +41,6 @@ async function fetchCoachAnalytics(): Promise<CoachAnalyticsResponse> {
   return res.json();
 }
 
-const displayHeading = {
-  fontFamily: t.font.display,
-  fontWeight: t.weight.bold,
-  textTransform: 'uppercase' as const,
-  letterSpacing: t.tracking.h2,
-};
-
-const metricNumeral = {
-  fontFamily: t.font.display,
-  fontWeight: t.weight.bold,
-  fontSize: t.size['3xl'],
-  lineHeight: 1,
-  color: colors.textPrimary,
-};
-
-const rankTones = [colors.accent, colors.pink, colors.neon];
-
 export function CoachAnalytics() {
   const {
     data: analytics,
@@ -77,22 +55,26 @@ export function CoachAnalytics() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen" style={{ background: colors.surface0, color: colors.textPrimary }}>
-        <div style={{ background: colors.surface1, borderBottom: `1px solid ${colors.border}` }}>
+      <div className="min-h-screen bg-gray-900 text-white">
+        <div className="bg-gray-800 border-b border-gray-700">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="h-8 w-64 rounded animate-pulse" style={{ background: colors.surface2 }} />
-            <div className="h-4 w-80 rounded mt-3 animate-pulse" style={{ background: colors.surface2 }} />
+            <div className="h-8 w-64 bg-gray-700 rounded animate-pulse" />
+            <div className="h-4 w-80 bg-gray-700 rounded mt-3 animate-pulse" />
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {Array.from({ length: 4 }).map((_, i) => (
-              <StatCardSkeleton key={i} />
+              <div key={i} className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+                <div className="h-4 w-24 bg-gray-700 rounded animate-pulse" />
+                <div className="h-8 w-16 bg-gray-700 rounded mt-3 animate-pulse" />
+                <div className="h-3 w-32 bg-gray-700 rounded mt-3 animate-pulse" />
+              </div>
             ))}
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {Array.from({ length: 2 }).map((_, i) => (
-              <CardSkeleton key={i} />
+              <div key={i} className="bg-gray-800 border border-gray-700 rounded-lg p-6 h-64 animate-pulse" />
             ))}
           </div>
         </div>
@@ -102,12 +84,14 @@ export function CoachAnalytics() {
 
   if (isError || !analytics) {
     return (
-      <div
-        className="min-h-screen flex flex-col items-center justify-center gap-4"
-        style={{ background: colors.surface0, color: colors.textPrimary }}
-      >
-        <p style={{ color: colors.textSecondary }}>Could not load analytics data.</p>
-        <Button onClick={() => refetch()}>Retry</Button>
+      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center gap-4">
+        <p className="text-gray-400">Could not load analytics data.</p>
+        <button
+          onClick={() => refetch()}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -125,20 +109,19 @@ export function CoachAnalytics() {
   }));
 
   return (
-    <div className="min-h-screen" style={{ background: colors.surface0, color: colors.textPrimary }}>
+    <div className="min-h-screen bg-gray-900 text-white">
       {/* Header */}
-      <div style={{ background: colors.surface1, borderBottom: `1px solid ${colors.border}` }}>
+      <div className="bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl" style={{ ...displayHeading, color: colors.textPrimary }}>
-                Analytics Dashboard
-              </h1>
-              <p className="mt-2" style={{ color: colors.textSecondary }}>
-                Track your recruiting performance and insights
-              </p>
+              <h1 className="text-3xl font-bold text-white">Analytics Dashboard</h1>
+              <p className="text-gray-400 mt-2">Track your recruiting performance and insights</p>
             </div>
-            <Link to="/coach/search" className="k-btn k-btn-primary">
+            <Link
+              to="/coach/search"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            >
               Continue Recruiting
             </Link>
           </div>
@@ -147,223 +130,187 @@ export function CoachAnalytics() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {!hasAnyActivity && (
-          <Card className="p-6 mb-8 text-center">
-            <p style={{ color: colors.textPrimary, fontWeight: t.weight.medium }}>No recruiting activity yet</p>
-            <p className="text-sm mt-1" style={{ color: colors.textTertiary }}>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-8 text-center">
+            <p className="text-gray-300 font-medium">No recruiting activity yet</p>
+            <p className="text-gray-500 text-sm mt-1">
               Start searching for players and saving prospects to your board to see analytics here.
             </p>
-          </Card>
+          </div>
         )}
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="p-6">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium" style={{ color: colors.textSecondary }}>Board Size</p>
-                <p style={metricNumeral}>{analytics.boardCount}</p>
-                <p className="text-xs mt-1" style={{ color: colors.textTertiary }}>prospects on your board</p>
+                <p className="text-sm font-medium text-gray-400">Board Size</p>
+                <p className="text-2xl font-bold text-white">{analytics.boardCount}</p>
+                <p className="text-xs text-gray-500 mt-1">prospects on your board</p>
               </div>
-              <Heart className="w-8 h-8" style={{ color: colors.pink }} />
+              <Heart className="w-8 h-8 text-red-400" />
             </div>
-          </Card>
+          </div>
 
-          <Card className="p-6">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium" style={{ color: colors.textSecondary }}>Players Viewed</p>
-                <p style={metricNumeral}>{analytics.totalPlayersViewed}</p>
-                <p className="text-xs mt-1" style={{ color: colors.textTertiary }}>profile views</p>
+                <p className="text-sm font-medium text-gray-400">Players Viewed</p>
+                <p className="text-2xl font-bold text-white">{analytics.totalPlayersViewed}</p>
+                <p className="text-xs text-gray-500 mt-1">profile views</p>
               </div>
-              <Eye className="w-8 h-8" style={{ color: colors.accent }} />
+              <Eye className="w-8 h-8 text-blue-400" />
             </div>
-          </Card>
+          </div>
 
-          <Card className="p-6">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium" style={{ color: colors.textSecondary }}>Messages Sent</p>
-                <p style={metricNumeral}>{analytics.messagesSent}</p>
-                <p className="text-xs mt-1" style={{ color: colors.textTertiary }}>messages sent total</p>
+                <p className="text-sm font-medium text-gray-400">Messages Sent</p>
+                <p className="text-2xl font-bold text-white">{analytics.messagesSent}</p>
+                <p className="text-xs text-gray-500 mt-1">messages sent total</p>
               </div>
-              <MessageSquare className="w-8 h-8" style={{ color: colors.neon }} />
+              <MessageSquare className="w-8 h-8 text-green-400" />
             </div>
-          </Card>
+          </div>
 
-          <Card className="p-6">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium" style={{ color: colors.textSecondary }}>Conversion Rate</p>
-                <p style={metricNumeral}>{analytics.boardConversionRate}%</p>
-                <p className="text-xs mt-1" style={{ color: colors.textTertiary }}>board to contact rate</p>
+                <p className="text-sm font-medium text-gray-400">Conversion Rate</p>
+                <p className="text-2xl font-bold text-white">{analytics.boardConversionRate}%</p>
+                <p className="text-xs text-gray-500 mt-1">board to contact rate</p>
               </div>
-              <Target className="w-8 h-8" style={{ color: colors.accent }} />
+              <Target className="w-8 h-8 text-yellow-400" />
             </div>
-          </Card>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Recruiting Pipeline */}
-          <Card className="p-6">
-            <h3 className="text-lg mb-6" style={{ ...displayHeading, color: colors.textPrimary }}>Recruiting Pipeline</h3>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-white mb-6">Recruiting Pipeline</h3>
             <div className="space-y-4">
-              <div
-                className="flex items-center justify-between p-4 rounded-lg"
-                style={{ background: colors.surface2 }}
-              >
+              <div className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <Users className="w-5 h-5" style={{ color: colors.textSecondary }} />
-                  <span style={{ color: colors.textPrimary }}>Prospects</span>
+                  <Users className="w-5 h-5 text-gray-400" />
+                  <span className="text-white">Prospects</span>
                 </div>
-                <span className="text-xl" style={{ ...displayHeading, color: colors.accent }}>{analytics.recruitingPipeline.prospects}</span>
+                <span className="text-xl font-bold text-white">{analytics.recruitingPipeline.prospects}</span>
               </div>
 
-              <div
-                className="flex items-center justify-between p-4 rounded-lg"
-                style={{ background: colors.surface2 }}
-              >
+              <div className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <MessageSquare className="w-5 h-5" style={{ color: colors.accent }} />
-                  <span style={{ color: colors.textPrimary }}>Contacted</span>
+                  <MessageSquare className="w-5 h-5 text-blue-400" />
+                  <span className="text-white">Contacted</span>
                 </div>
-                <span className="text-xl" style={{ ...displayHeading, color: colors.accent }}>{analytics.recruitingPipeline.contacted}</span>
+                <span className="text-xl font-bold text-white">{analytics.recruitingPipeline.contacted}</span>
               </div>
 
-              <div
-                className="flex items-center justify-between p-4 rounded-lg"
-                style={{ background: colors.surface2 }}
-              >
+              <div className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <Award className="w-5 h-5" style={{ color: colors.pink }} />
-                  <span style={{ color: colors.textPrimary }}>Offered</span>
+                  <Award className="w-5 h-5 text-yellow-400" />
+                  <span className="text-white">Offered</span>
                 </div>
-                <span className="text-xl" style={{ ...displayHeading, color: colors.accent }}>{analytics.recruitingPipeline.offered}</span>
+                <span className="text-xl font-bold text-white">{analytics.recruitingPipeline.offered}</span>
               </div>
 
-              <div
-                className="flex items-center justify-between p-4 rounded-lg"
-                style={{ background: colors.surface2 }}
-              >
+              <div className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <Target className="w-5 h-5" style={{ color: colors.neon }} />
-                  <span style={{ color: colors.textPrimary }}>Committed</span>
+                  <Target className="w-5 h-5 text-green-400" />
+                  <span className="text-white">Committed</span>
                 </div>
-                <span className="text-xl" style={{ ...displayHeading, color: colors.accent }}>{analytics.recruitingPipeline.committed}</span>
+                <span className="text-xl font-bold text-white">{analytics.recruitingPipeline.committed}</span>
               </div>
             </div>
-          </Card>
+          </div>
 
           {/* Top Recruiting States */}
-          <Card className="p-6">
-            <h3 className="text-lg mb-6" style={{ ...displayHeading, color: colors.textPrimary }}>Top Recruiting States</h3>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-white mb-6">Top Recruiting States</h3>
             {topRecruitingStates.length === 0 ? (
-              <EmptyState
-                className="py-8"
-                icon={<MapPin className="w-10 h-10" />}
-                title="No state data yet"
-                body="Save prospects to your board and their home states will rank here."
-              />
+              <p className="text-gray-500 text-sm">No state data yet.</p>
             ) : (
               <div className="space-y-3">
-                {topRecruitingStates.map((state, index) => {
-                  const tone = rankTones[index] ?? colors.textTertiary;
-                  return (
-                    <div key={state.state} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
-                          style={{
-                            background: `${tone}1A`,
-                            color: tone,
-                            border: `1px solid ${tone}33`,
-                          }}
-                        >
-                          {index + 1}
-                        </div>
-                        <MapPin className="w-4 h-4" style={{ color: colors.textSecondary }} />
-                        <span style={{ color: colors.textPrimary }}>{state.state}</span>
+                {topRecruitingStates.map((state, index) => (
+                  <div key={state.state} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                        index === 0 ? 'bg-gold text-black' :
+                        index === 1 ? 'bg-gray-400 text-black' :
+                        index === 2 ? 'bg-orange-600 text-white' :
+                        'bg-gray-600 text-white'
+                      }`}>
+                        {index + 1}
                       </div>
-                      <div className="text-right">
-                        <span className="font-semibold" style={{ color: colors.textPrimary }}>{state.players}</span>
-                        <span className="text-sm ml-2" style={{ color: colors.textSecondary }}>({state.percentage}%)</span>
-                      </div>
+                      <MapPin className="w-4 h-4 text-gray-400" />
+                      <span className="text-white">{state.state}</span>
                     </div>
-                  );
-                })}
+                    <div className="text-right">
+                      <span className="text-white font-semibold">{state.players}</span>
+                      <span className="text-gray-400 text-sm ml-2">({state.percentage}%)</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
-          </Card>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Weekly Activity */}
-          <Card className="p-6">
-            <h3 className="text-lg mb-6" style={{ ...displayHeading, color: colors.textPrimary }}>Weekly Activity</h3>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-white mb-6">Weekly Activity</h3>
             {analytics.weeklyActivity.length === 0 ? (
-              <EmptyState
-                className="py-8"
-                icon={<CalendarClock className="w-10 h-10" />}
-                title="No weekly activity yet"
-                body="Your searches, views, and saves from the past week will chart here."
-              />
+              <p className="text-gray-500 text-sm">No weekly activity recorded yet.</p>
             ) : (
               <div className="space-y-3">
                 {analytics.weeklyActivity.map((day) => (
-                  <div
-                    key={day.day}
-                    className="flex items-center justify-between p-3 rounded-lg"
-                    style={{ background: colors.surface2 }}
-                  >
-                    <span className="font-medium w-12" style={{ color: colors.textPrimary }}>{day.day}</span>
+                  <div key={day.day} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                    <span className="text-white font-medium w-12">{day.day}</span>
                     <div className="flex gap-4 text-sm">
                       <div className="text-center">
-                        <div className="font-semibold" style={{ color: colors.accent }}>{day.searches}</div>
-                        <div style={{ color: colors.textSecondary }}>searches</div>
+                        <div className="text-blue-400 font-semibold">{day.searches}</div>
+                        <div className="text-gray-400">searches</div>
                       </div>
                       <div className="text-center">
-                        <div className="font-semibold" style={{ color: colors.neon }}>{day.views}</div>
-                        <div style={{ color: colors.textSecondary }}>views</div>
+                        <div className="text-green-400 font-semibold">{day.views}</div>
+                        <div className="text-gray-400">views</div>
                       </div>
                       <div className="text-center">
-                        <div className="font-semibold" style={{ color: colors.pink }}>{day.saves}</div>
-                        <div style={{ color: colors.textSecondary }}>saves</div>
+                        <div className="text-red-400 font-semibold">{day.saves}</div>
+                        <div className="text-gray-400">saves</div>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-          </Card>
+          </div>
 
           {/* Position Breakdown */}
-          <Card className="p-6">
-            <h3 className="text-lg mb-6" style={{ ...displayHeading, color: colors.textPrimary }}>Board Position Breakdown</h3>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-white mb-6">Board Position Breakdown</h3>
             {analytics.positionBreakdown.length === 0 ? (
-              <EmptyState
-                className="py-8"
-                icon={<BarChart3 className="w-10 h-10" />}
-                title="No board positions yet"
-                body="Add players to your board and the position mix will break down here."
-              />
+              <p className="text-gray-500 text-sm">No board positions saved yet.</p>
             ) : (
               <div className="space-y-4">
                 {analytics.positionBreakdown.map((pos) => (
                   <div key={pos.position} className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span style={{ color: colors.textPrimary }}>{pos.position}</span>
-                      <span style={{ color: colors.textSecondary }}>{pos.count} players ({pos.percentage}%)</span>
+                      <span className="text-white">{pos.position}</span>
+                      <span className="text-gray-400">{pos.count} players ({pos.percentage}%)</span>
                     </div>
-                    <div className="w-full rounded-full h-2" style={{ background: colors.surface2 }}>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
                       <div
-                        className="h-2 rounded-full"
-                        style={{ width: `${pos.percentage}%`, background: colors.accent }}
+                        className="bg-blue-600 h-2 rounded-full"
+                        style={{ width: `${pos.percentage}%` }}
                       ></div>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-          </Card>
+          </div>
         </div>
 
       </div>

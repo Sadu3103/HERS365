@@ -11,13 +11,8 @@ import { withoutPasswordHash } from './lib/playerPrivacy';
 import { clampIntQuery } from './lib/queryParam';
 import { parseIdParam } from './lib/parseIdParam';
 import { fetchAndExtract, getAIClient } from './lib/scraper';
-import { auditPiiAccess } from './middleware/auditPiiAccess';
 
 const router = express.Router();
-
-// PRD-C P1 #17: log every admin read that returns minor PII. Router-level so
-// no handler can ship PII without a hash-chained admin_access_log entry.
-router.use(auditPiiAccess());
 
 // ----------------------
 // DASHBOARD STATS
@@ -190,6 +185,30 @@ router.patch('/users/:id/subscription', requireAdmin, async (req: Request, res: 
 
     const updated = await db.update(schema.players)
       .set({ subscriptionTier: tier })
+      .where(eq(schema.players.id, userId))
+      .returning();
+
+    if (!updated[0]) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(withoutPasswordHash(updated[0]));
+  } catch (err: any) {
+    next(err);
+  }
+});
+
+// PATCH /admin/users/:id/toggle-diamond - Admin Manual Override for Diamond features
+router.patch('/users/:id/toggle-diamond', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = parseIdParam(req.params.id);
+    if (userId === null) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
+    const { diamondOverride } = req.body;
+
+    const updated = await db.update(schema.players)
+      .set({ diamondOverride: Boolean(diamondOverride) })
       .where(eq(schema.players.id, userId))
       .returning();
 
@@ -923,175 +942,6 @@ router.delete('/scholarships/:id', requireAdmin, async (req: Request, res: Respo
     await db.delete(schema.scholarships).where(eq(schema.scholarships.id, id));
     res.json({ success: true });
   } catch (err) { next(err); }
-});
-
-// GET /admin/parent-stat-submissions — List all parent stat submissions for verification
-router.get('/parent-stat-submissions', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const statusQuery = req.query.status as string | undefined;
-    let query = db.select().from(schema.parentStatSubmissions);
-    if (statusQuery && statusQuery !== 'all') {
-      const rows = await db
-        .select()
-        .from(schema.parentStatSubmissions)
-        .where(eq(schema.parentStatSubmissions.status, statusQuery))
-        .orderBy(desc(schema.parentStatSubmissions.submittedAt));
-      return res.json({ success: true, data: rows });
-    }
-    const rows = await db
-      .select()
-      .from(schema.parentStatSubmissions)
-      .orderBy(desc(schema.parentStatSubmissions.submittedAt));
-    res.json({ success: true, data: rows });
-  } catch (err) {
-    console.error('[admin/parent-stat-submissions GET]', err);
-    res.status(500).json({ success: false, error: 'Failed to fetch parent stat submissions' });
-  }
-});
-
-// PATCH /admin/parent-stat-submissions/:id — Verify, approve, or reject a stat submission and sync to athlete
-router.patch('/parent-stat-submissions/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const id = parseIdParam(req.params.id);
-    if (id === null) return res.status(400).json({ success: false, error: 'Invalid id' });
-
-    const [sub] = await db
-      .select()
-      .from(schema.parentStatSubmissions)
-      .where(eq(schema.parentStatSubmissions.id, id))
-      .limit(1);
-    if (!sub) return res.status(404).json({ success: false, error: 'Submission not found' });
-
-    const body = req.body ?? {};
-    let nextStatus = body.status ?? body.verificationStatus ?? body.action;
-    if (nextStatus === 'approve' || nextStatus === 'verify') nextStatus = 'verified';
-    if (nextStatus === 'reject') nextStatus = 'rejected';
-    if (!nextStatus || !['verified', 'rejected', 'pending'].includes(nextStatus)) {
-      return res.status(400).json({ success: false, error: 'status must be verified, rejected, or pending' });
-    }
-
-    const adminNotes = body.adminNotes ?? body.notes ?? sub.adminNotes ?? null;
-    const adminUser = (req as any).user;
-    const reviewedBy = adminUser?.userId ? Number(adminUser.userId) : sub.reviewedBy;
-    const reviewedAt = new Date();
-
-    const [updated] = await db
-      .update(schema.parentStatSubmissions)
-      .set({
-        status: nextStatus,
-        adminNotes,
-        reviewedBy,
-        reviewedAt,
-      })
-      .where(eq(schema.parentStatSubmissions.id, id))
-      .returning();
-
-    // If verified, sync verified stats into gameStats and combineStats and mark athlete verified
-    if (nextStatus === 'verified' && sub.playerId != null) {
-      const playerId = sub.playerId;
-
-      // 1. Mark athlete as verified
-      const [player] = await db.select().from(schema.players).where(eq(schema.players.id, playerId)).limit(1);
-      if (player) {
-        const nextPrefs = { ...((player.preferences as Record<string, unknown> | null) ?? {}) };
-        if (sub.maxPrepsUrl) nextPrefs.maxPrepsUrl = sub.maxPrepsUrl;
-        if (sub.school && !player.school) await db.update(schema.players).set({ school: sub.school }).where(eq(schema.players.id, playerId));
-        await db
-          .update(schema.players)
-          .set({
-            verificationStatus: 'verified',
-            preferences: nextPrefs,
-          })
-          .where(eq(schema.players.id, playerId));
-      }
-
-      // 2. Sync gameStats
-      const passTds = sub.passingTds ?? null;
-      const rushTds = sub.rushingTds ?? null;
-      const recTds = sub.receivingTds ?? null;
-      const defTds = sub.defensiveTds ?? null;
-      const passYds = sub.passingYards ?? null;
-      const rushYds = sub.rushingYards ?? null;
-      const recYds = sub.receivingYards ?? null;
-      const flags = sub.flagPulls ?? null;
-      const ints = sub.interceptions ?? null;
-
-      const hasGameData = passTds != null || rushTds != null || recTds != null || defTds != null ||
-        passYds != null || rushYds != null || recYds != null || flags != null || ints != null;
-
-      if (hasGameData) {
-        const existingStats = await db.select().from(schema.gameStats).where(eq(schema.gameStats.playerId, playerId)).limit(1);
-        if (existingStats.length > 0) {
-          const ex = existingStats[0];
-          await db
-            .update(schema.gameStats)
-            .set({
-              passingTds: passTds ?? ex.passingTds,
-              rushingTds: rushTds ?? ex.rushingTds,
-              receivingTds: recTds ?? ex.receivingTds,
-              defensiveTds: defTds ?? ex.defensiveTds,
-              passingYards: passYds ?? ex.passingYards,
-              rushingYards: rushYds ?? ex.rushingYards,
-              receivingYards: recYds ?? ex.receivingYards,
-              flagPulls: flags ?? ex.flagPulls,
-              interceptionsCaught: ints ?? ex.interceptionsCaught,
-            })
-            .where(eq(schema.gameStats.id, ex.id));
-        } else {
-          await db.insert(schema.gameStats).values({
-            playerId,
-            passingTds: passTds ?? 0,
-            rushingTds: rushTds ?? 0,
-            receivingTds: recTds ?? 0,
-            defensiveTds: defTds ?? 0,
-            passingYards: passYds ?? 0,
-            rushingYards: rushYds ?? 0,
-            receivingYards: recYds ?? 0,
-            flagPulls: flags ?? 0,
-            interceptionsCaught: ints ?? 0,
-          });
-        }
-      }
-
-      // 3. Sync combineStats
-      const hasCombineData = sub.fortyYardDash != null || sub.verticalJump != null || sub.shuttle5105 != null || sub.broadJump != null;
-      if (hasCombineData) {
-        const existingCombine = await db.select().from(schema.combineStats).where(eq(schema.combineStats.playerId, playerId)).limit(1);
-        const fDash = sub.fortyYardDash != null ? String(sub.fortyYardDash) : null;
-        const vJump = sub.verticalJump != null ? String(sub.verticalJump) : null;
-        const s5105 = sub.shuttle5105 != null ? String(sub.shuttle5105) : null;
-        const bJump = sub.broadJump != null ? String(sub.broadJump) : null;
-
-        if (existingCombine.length > 0) {
-          const exC = existingCombine[0];
-          await db
-            .update(schema.combineStats)
-            .set({
-              fortyDash: fDash ?? exC.fortyDash,
-              vertical: vJump ?? exC.vertical,
-              shuttle: s5105 ?? exC.shuttle,
-              broadJump: bJump ?? exC.broadJump,
-              season: sub.season ?? exC.season,
-            })
-            .where(eq(schema.combineStats.id, exC.id));
-        } else {
-          await db.insert(schema.combineStats).values({
-            playerId,
-            season: sub.season ?? '2026',
-            fortyDash: fDash,
-            vertical: vJump,
-            shuttle: s5105,
-            broadJump: bJump,
-          });
-        }
-      }
-    }
-
-    res.json({ success: true, data: updated });
-  } catch (err) {
-    console.error('[admin/parent-stat-submissions PATCH]', err);
-    res.status(500).json({ success: false, error: 'Failed to verify stat submission' });
-  }
 });
 
 export default router;

@@ -14,18 +14,16 @@ import { makeAthlete } from './helpers/fixtures';
 // the error and enumeration-safety branches only.
 //
 // IMPORTANT: server/emailAuthRoutes.ts registers a rate limiter on /register
-// with max=5 per hour per IP. The counter is module-scoped, so beforeEach
-// resets it (via _emailAuthLimitersForTests.register) for every loopback key,
-// giving each test a fresh budget. Duplicate-detection and unhappy-login
-// coverage still seed users via the db helper rather than a real /register.
+// with max=5 per hour per IP. Counter is module-scoped and persists across
+// tests in the same file. We budget exactly 5 /register POSTs across this
+// file's lifetime; duplicate-detection and unhappy-login coverage seed users
+// via the db helper instead of consuming additional register slots.
 //
 // Mocking ../email keeps tests offline AND lets us capture the reset token
 // that the route would otherwise only deliver via email. vi.mock is hoisted
 // above the static imports so the route picks up the stubbed module.
 vi.mock('../email', () => ({
-  sendGuardianConsentEmail: vi.fn(async () => ({ success: true })),
   sendPasswordResetEmail: vi.fn(async () => undefined),
-  sendVerificationEmail: vi.fn(async () => undefined),
   sendEmail: vi.fn(async () => undefined),
 }));
 
@@ -41,7 +39,6 @@ beforeEach(async () => {
   await resetDb();
   vi.mocked(sendPasswordResetEmail).mockClear();
   for (const key of LOOPBACK_KEYS) {
-    _emailAuthLimitersForTests.register.resetKey(key);
     _emailAuthLimitersForTests.login.resetKey(key);
     _emailAuthLimitersForTests.passwordReset.resetKey(key);
   }
@@ -80,56 +77,20 @@ describe('POST /api/auth/email/register — error paths', () => {
     expect(res.body.error).toMatch(/at least 8/i);
   });
 
-  it('responds to a duplicate email exactly like a fresh signup — no enumeration', async () => {
+  it('returns 409 when the email is already registered', async () => {
     // Seed an athlete with the same email via the db helper (no /register
     // call) so the duplicate-detection branch is exercised without burning
-    // an extra rate-limit slot.
+    // a rate-limit slot.
     const existing = await makeAthlete({ email: 'duplicate-email@test.local' });
     expect(existing.email).toBe('duplicate-email@test.local');
 
+    // Send a valid adult DOB so the request clears the athlete age gate and
+    // reaches the duplicate-detection branch this test is asserting.
     const res = await request(app)
       .post('/api/auth/email/register')
-      .send({ email: 'duplicate-email@test.local', password: 'Password1', dob: '2000-01-01', guardianEmail: 'dup-guardian@family.local' });
-    // Same status and shape as a real pending signup, so a probe cannot tell
-    // which emails exist. The real owner is notified via a reset-style email.
-    expect(res.status).toBe(202);
-    expect(res.body.status).toBe('pending_guardian');
-    expect(res.body.pendingToken).toBeTypeOf('string');
-    expect(res.body.guardianEmailMasked).toBeTypeOf('string');
-    expect(res.body).not.toHaveProperty('error');
-    expect(vi.mocked(sendPasswordResetEmail)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(sendPasswordResetEmail).mock.calls[0][0]).toBe('duplicate-email@test.local');
-  });
-
-  it('returns the identical bad-DOB rejection for an existing AND a non-existing email — no enumeration oracle', async () => {
-    // A DOB that fails the age gate (under 13) must be rejected BEFORE the
-    // existing-email branch runs, so a probe cannot tell "email exists" (early
-    // 202) apart from "email is new" (createPendingAthlete's 400). Both must be
-    // an indistinguishable 400.
-    await makeAthlete({ email: 'oracle-existing@test.local' });
-
-    const underage = new Date();
-    underage.setFullYear(underage.getFullYear() - 8);
-    const badDob = underage.toISOString().slice(0, 10);
-
-    const existingRes = await request(app)
-      .post('/api/auth/email/register')
-      .send({ email: 'oracle-existing@test.local', password: 'Password1', dob: badDob, guardianEmail: 'oracle-guardian@family.local' });
-    const ghostRes = await request(app)
-      .post('/api/auth/email/register')
-      .send({ email: 'oracle-ghost@test.local', password: 'Password1', dob: badDob, guardianEmail: 'oracle-guardian@family.local' });
-
-    // Same status and same body: the existing account is not distinguishable
-    // from a fresh one for a bad-DOB input.
-    expect(existingRes.status).toBe(400);
-    expect(ghostRes.status).toBe(400);
-    expect(existingRes.body).toEqual(ghostRes.body);
-    expect(existingRes.body.error).toMatch(/under 13/i);
-    // The early existing-email path must not have fired: no reset notice, no
-    // pending token leaked for a rejected signup.
-    expect(vi.mocked(sendPasswordResetEmail)).not.toHaveBeenCalled();
-    expect(existingRes.body).not.toHaveProperty('pendingToken');
-    expect(existingRes.body).not.toHaveProperty('status');
+      .send({ email: 'duplicate-email@test.local', password: 'Password1', dob: '2000-01-01' });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/already exists/i);
   });
 });
 

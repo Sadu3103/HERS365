@@ -9,9 +9,6 @@ process.env.DB_POOL_MIN = '1';
 // existing register round-trip tests exercise the enabled flow. Tests that
 // assert the closed behavior flip this locally and restore it.
 process.env.REGISTRATION_ENABLED = 'true';
-// Media upload defaults to CLOSED; keep it OPEN for the suite so the existing
-// presign tests exercise the enabled flow. uploadGate tests flip this locally.
-process.env.MEDIA_UPLOAD_ENABLED = 'true';
 // Stripe keys must be present at module-import time so paymentRoutes can build
 // its Stripe client. The values are dummies — the real Stripe SDK only makes
 // network calls when a handler explicitly invokes it, and the tests that touch

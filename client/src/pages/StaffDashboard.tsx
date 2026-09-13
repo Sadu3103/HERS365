@@ -2,9 +2,12 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Users, TrendingUp, MessageSquare, CreditCard, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { colors, type as t, radii } from '../lib/tokens';
 
+const FLAME = '#8B3BFF';
 const LINE = 'rgba(255,255,255,0.07)';
+const MUTED = '#8a8a86';
+const MUTED_2 = '#5a5a56';
+const DISP = "'Barlow Condensed', sans-serif";
 
 type Stats = {
   totalAthletes: number;
@@ -44,25 +47,25 @@ export const StaffDashboard = () => {
           label: 'Athletes',
           val: stats.totalAthletes,
           icon: <Users size={18} />,
-          color: colors.accent,
+          color: FLAME,
         },
         {
           label: 'Signups This Week',
           val: stats.newSignupsThisWeek,
           icon: <TrendingUp size={18} />,
-          color: colors.accentText,
+          color: '#60a5fa',
         },
         {
           label: 'Messages Today',
           val: stats.messagesToday,
           icon: <MessageSquare size={18} />,
-          color: colors.pink,
+          color: '#a78bfa',
         },
         {
           label: 'Active Subscriptions',
           val: stats.activeSubscriptions,
           icon: <CreditCard size={18} />,
-          color: colors.success,
+          color: '#4ade80',
         },
       ]
     : [];
@@ -80,14 +83,14 @@ export const StaffDashboard = () => {
             fontWeight: 800,
             letterSpacing: '0.12em',
             textTransform: 'uppercase',
-            color: colors.accent,
+            color: FLAME,
           }}
         >
           <Users size={13} /> STAFF PORTAL
         </div>
         <h1
           style={{
-            fontFamily: t.font.display,
+            fontFamily: DISP,
             fontSize: '2.2rem',
             fontWeight: 900,
             textTransform: 'uppercase',
@@ -98,7 +101,7 @@ export const StaffDashboard = () => {
         >
           Staff Dashboard
         </h1>
-        <p style={{ color: colors.textSecondary, fontSize: '0.82rem', margin: 0 }}>
+        <p style={{ color: MUTED, fontSize: '0.82rem', margin: 0 }}>
           Platform overview and quick navigation.
         </p>
       </div>
@@ -107,28 +110,28 @@ export const StaffDashboard = () => {
         style={{
           background: 'rgba(255,255,255,0.03)',
           border: `1px solid ${LINE}`,
-          borderRadius: radii.sm,
+          borderRadius: 10,
           padding: '10px 14px',
           fontSize: '0.75rem',
-          color: colors.textTertiary,
+          color: MUTED_2,
           marginBottom: 28,
           display: 'flex',
           alignItems: 'center',
           gap: 8,
         }}
       >
-        <span style={{ color: colors.accent, fontWeight: 700 }}>Read-only staff view.</span> You can view
+        <span style={{ color: FLAME, fontWeight: 700 }}>Read-only staff view.</span> You can view
         platform metrics but cannot modify data from this dashboard.
       </div>
 
       {error && (
         <div
           style={{
-            background: 'rgba(255,90,90,0.08)',
-            border: '1px solid rgba(255,90,90,0.25)',
-            borderRadius: radii.sm,
+            background: 'rgba(239,68,68,0.08)',
+            border: '1px solid rgba(239,68,68,0.25)',
+            borderRadius: 10,
             padding: '12px 16px',
-            color: colors.dangerText,
+            color: '#f87171',
             fontSize: '0.82rem',
             marginBottom: 24,
           }}
@@ -138,7 +141,7 @@ export const StaffDashboard = () => {
       )}
 
       {!stats && !error && (
-        <div style={{ color: colors.textTertiary, fontSize: '0.85rem', padding: '24px' }}>Loading stats...</div>
+        <div style={{ color: MUTED_2, fontSize: '0.85rem', padding: '24px' }}>Loading stats...</div>
       )}
 
       {stats && (
@@ -156,20 +159,20 @@ export const StaffDashboard = () => {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               style={{
-                background: colors.surface1,
+                background: '#111111',
                 border: `1px solid ${LINE}`,
-                borderRadius: radii.md,
+                borderRadius: 14,
                 padding: '18px 16px',
               }}
             >
               <div style={{ color: c.color, marginBottom: 8 }}>{c.icon}</div>
               <div
                 style={{
-                  fontFamily: t.font.display,
+                  fontFamily: DISP,
                   fontSize: '2rem',
                   fontWeight: 900,
                   lineHeight: 1,
-                  color: colors.textPrimary,
+                  color: '#f4f4f2',
                 }}
               >
                 {c.val.toLocaleString()}
@@ -177,7 +180,7 @@ export const StaffDashboard = () => {
               <div
                 style={{
                   fontSize: '0.65rem',
-                  color: colors.textSecondary,
+                  color: MUTED,
                   fontWeight: 700,
                   textTransform: 'uppercase',
                   letterSpacing: '0.08em',
@@ -198,7 +201,7 @@ export const StaffDashboard = () => {
             fontWeight: 800,
             letterSpacing: '0.1em',
             textTransform: 'uppercase',
-            color: colors.textSecondary,
+            color: MUTED,
             marginBottom: 12,
           }}
         >
@@ -214,9 +217,9 @@ export const StaffDashboard = () => {
               <motion.div
                 whileHover={{ x: 2 }}
                 style={{
-                  background: colors.surface1,
+                  background: '#111111',
                   border: `1px solid ${LINE}`,
-                  borderRadius: radii.md,
+                  borderRadius: 12,
                   padding: '14px 16px',
                   display: 'flex',
                   alignItems: 'center',
@@ -225,12 +228,12 @@ export const StaffDashboard = () => {
                 }}
               >
                 <div>
-                  <div style={{ fontSize: '0.88rem', fontWeight: 700, color: colors.textPrimary, marginBottom: 2 }}>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#f4f4f2', marginBottom: 2 }}>
                     {a.label}
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: colors.textTertiary }}>{a.desc}</div>
+                  <div style={{ fontSize: '0.72rem', color: MUTED_2 }}>{a.desc}</div>
                 </div>
-                <ExternalLink size={14} color={colors.textTertiary} />
+                <ExternalLink size={14} color={MUTED_2} />
               </motion.div>
             </Link>
           ))}

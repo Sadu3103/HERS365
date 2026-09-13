@@ -3,11 +3,6 @@ name: CI
 on:
   pull_request:
     branches: [main]
-  # Without this, nothing ever verified main after a merge. main was failing
-  # npm ci and carrying a corrupt drizzle snapshot chain for weeks with every
-  # PR still reporting green.
-  push:
-    branches: [main]
 
 jobs:
   client:

@@ -18,13 +18,23 @@ import {
   Trophy,
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
-import { colors, type as t, radii } from '../lib/tokens';
-import { springs, easing } from '../lib/motion';
-import { Badge, Stat } from '../components/ui';
-import { INK, INK_2, INK_3, LINE, LINE_2, reveal, glowBlob, kicker, disp } from '../lib/theme';
-
-const DISP = t.font.display;
-const BODY = t.font.body;
+import {
+  FLAME,
+  FLAME_SOFT,
+  INK,
+  INK_2,
+  INK_3,
+  LINE,
+  LINE_2,
+  MUTED,
+  MUTED_2,
+  DISP,
+  BODY,
+  reveal,
+  glowBlob,
+  kicker,
+  disp,
+} from '../lib/theme';
 
 interface PostData {
   id: number;
@@ -76,11 +86,11 @@ function CountPulse({ value, active }: { value: string; active?: boolean }) {
         initial={{ y: 8, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: -8, opacity: 0 }}
-        transition={{ duration: 0.22, ease: easing.standard }}
+        transition={{ duration: 0.22, ease: [0.2, 0.8, 0.2, 1] }}
         style={{
           fontFamily: DISP,
           fontWeight: 800,
-          fontSize: t.size.base,
+          fontSize: '.82rem',
           letterSpacing: '.1em',
           display: 'inline-block',
         }}
@@ -135,21 +145,21 @@ const PostCard = ({
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.15 }}
-      transition={{ duration: 0.6, delay: Math.min(index * 0.06, 0.3), ease: easing.standard }}
+      transition={{ duration: 0.6, delay: Math.min(index * 0.06, 0.3), ease: [0.2, 0.8, 0.2, 1] }}
       onClick={() => onPostClick(post.id)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
         position: 'relative',
         background: `linear-gradient(165deg, ${INK_3}, ${INK_2})`,
-        border: `1px solid ${hovered ? 'rgba(139,59,255,0.34)' : LINE}`,
-        borderRadius: radii.xl,
+        border: `1px solid ${hovered ? 'rgba(139, 59, 255,0.34)' : LINE}`,
+        borderRadius: 22,
         marginBottom: 22,
         cursor: 'pointer',
         overflow: 'hidden',
         transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
         boxShadow: hovered
-          ? '0 22px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(139,59,255,0.12)'
+          ? '0 22px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(139, 59, 255,0.12)'
           : '0 12px 34px rgba(0,0,0,0.4)',
         transition: 'transform .3s cubic-bezier(0.2,0.8,0.2,1), border-color .3s, box-shadow .3s',
       }}
@@ -162,7 +172,7 @@ const PostCard = ({
           left: 0,
           right: 0,
           height: 2,
-          background: `linear-gradient(90deg, transparent, ${colors.accent}, ${colors.accentHover}, transparent)`,
+          background: `linear-gradient(90deg, transparent, ${FLAME}, ${FLAME_SOFT}, transparent)`,
           opacity: hovered ? 0.9 : 0,
           transition: 'opacity .3s',
           pointerEvents: 'none',
@@ -195,10 +205,10 @@ const PostCard = ({
                 position: 'relative',
                 width: 48,
                 height: 48,
-                borderRadius: radii.full,
+                borderRadius: '50%',
                 flexShrink: 0,
                 padding: 2,
-                background: `conic-gradient(from 140deg, ${colors.accent}, ${colors.accentHover}, ${colors.accent})`,
+                background: `conic-gradient(from 140deg, ${FLAME}, ${FLAME_SOFT}, ${FLAME})`,
                 display: 'block',
               }}
             >
@@ -209,14 +219,14 @@ const PostCard = ({
                   justifyContent: 'center',
                   width: '100%',
                   height: '100%',
-                  borderRadius: radii.full,
+                  borderRadius: '50%',
                   overflow: 'hidden',
                   background: INK,
                   border: `2px solid ${INK}`,
                   fontFamily: DISP,
                   fontWeight: 900,
-                  fontSize: t.size.md,
-                  color: colors.accentHover,
+                  fontSize: '1rem',
+                  color: FLAME_SOFT,
                   letterSpacing: '.02em',
                 }}
               >
@@ -238,8 +248,8 @@ const PostCard = ({
                   style={{
                     ...disp,
                     fontWeight: 800,
-                    fontSize: t.size.md,
-                    color: colors.textPrimary,
+                    fontSize: '1.02rem',
+                    color: '#f4f4f2',
                     letterSpacing: '.02em',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
@@ -248,39 +258,44 @@ const PostCard = ({
                 >
                   {post.user.name}
                 </span>
-                <BadgeCheck size={15} style={{ color: colors.accent, flexShrink: 0 }} fill="rgba(139,59,255,0.16)" />
+                <BadgeCheck size={15} style={{ color: FLAME, flexShrink: 0 }} fill="rgba(139, 59, 255,0.16)" />
                 {/* rating chip */}
-                <Badge
-                  tone="accent"
+                <span
                   style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
                     gap: 3,
-                    borderRadius: radii.full,
+                    padding: '2px 7px',
+                    borderRadius: 9999,
+                    background: 'rgba(139, 59, 255,0.12)',
+                    border: '1px solid rgba(139, 59, 255,0.28)',
                     fontFamily: DISP,
                     fontWeight: 900,
+                    fontSize: '.64rem',
                     letterSpacing: '.08em',
-                    color: colors.accentHover,
+                    color: FLAME_SOFT,
                     flexShrink: 0,
                   }}
                 >
-                  <Flame size={10} style={{ color: colors.accent }} fill={colors.accent} />
+                  <Flame size={10} style={{ color: FLAME }} fill={FLAME} />
                   {rating}
-                </Badge>
+                </span>
               </span>
               <span
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: 5,
-                  fontSize: t.size.xs,
+                  fontSize: '.68rem',
                   fontWeight: 700,
                   letterSpacing: '.16em',
                   textTransform: 'uppercase',
-                  color: colors.textTertiary,
+                  color: MUTED_2,
                   marginTop: 3,
                   fontFamily: DISP,
                 }}
               >
-                <Clock size={11} style={{ color: colors.textTertiary }} />
+                <Clock size={11} style={{ color: MUTED_2 }} />
                 {post.time}
               </span>
             </span>
@@ -299,15 +314,15 @@ const PostCard = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                borderRadius: radii.md,
+                borderRadius: 12,
                 background: menuOpen ? 'rgba(255,255,255,0.06)' : 'transparent',
                 border: 'none',
-                color: menuOpen ? colors.textPrimary : colors.textSecondary,
+                color: menuOpen ? '#f4f4f2' : MUTED,
                 cursor: 'pointer',
                 transition: 'all .2s',
               }}
-              onMouseEnter={e => { e.currentTarget.style.color = colors.textPrimary; e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
-              onMouseLeave={e => { if (!menuOpen) { e.currentTarget.style.color = colors.textSecondary; e.currentTarget.style.background = 'transparent'; } }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#f4f4f2'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
+              onMouseLeave={e => { if (!menuOpen) { e.currentTarget.style.color = MUTED; e.currentTarget.style.background = 'transparent'; } }}
             >
               <MoreHorizontal size={20} />
             </button>
@@ -319,7 +334,7 @@ const PostCard = ({
                   initial={{ opacity: 0, y: -8, scale: 0.96 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -8, scale: 0.96 }}
-                  transition={{ duration: 0.16, ease: easing.standard }}
+                  transition={{ duration: 0.16, ease: [0.2, 0.8, 0.2, 1] }}
                   style={{
                     position: 'absolute',
                     top: '100%',
@@ -330,7 +345,7 @@ const PostCard = ({
                     backdropFilter: 'blur(18px)',
                     WebkitBackdropFilter: 'blur(18px)',
                     border: `1px solid ${LINE_2}`,
-                    borderRadius: radii.lg,
+                    borderRadius: 16,
                     boxShadow: '0 24px 60px rgba(0,0,0,0.7)',
                     zIndex: 50,
                     overflow: 'hidden',
@@ -374,23 +389,23 @@ const PostCard = ({
                         alignItems: 'center',
                         gap: 11,
                         padding: '11px 12px',
-                        borderRadius: radii.md,
+                        borderRadius: 11,
                         border: 'none',
                         background: 'transparent',
-                        color: danger ? colors.pink : colors.textSecondary,
-                        fontSize: t.size.sm,
+                        color: danger ? '#f87171' : MUTED,
+                        fontSize: '.86rem',
                         fontWeight: 600,
                         fontFamily: BODY,
                         cursor: 'pointer',
                         transition: 'background .15s, color .15s',
                       }}
                       onMouseEnter={e => {
-                        e.currentTarget.style.background = danger ? 'rgba(255,46,147,0.1)' : 'rgba(255,255,255,0.05)';
-                        e.currentTarget.style.color = danger ? colors.pinkText : colors.textPrimary;
+                        e.currentTarget.style.background = danger ? 'rgba(248,113,113,0.1)' : 'rgba(255,255,255,0.05)';
+                        e.currentTarget.style.color = danger ? '#fca5a5' : '#f4f4f2';
                       }}
                       onMouseLeave={e => {
                         e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = danger ? colors.pink : colors.textSecondary;
+                        e.currentTarget.style.color = danger ? '#f87171' : MUTED;
                       }}
                     >
                       <Icon size={16} />
@@ -406,9 +421,9 @@ const PostCard = ({
         {/* ── Post text ── */}
         <p
           style={{
-            color: colors.textSecondary,
+            color: '#d8d8d4',
             margin: '0 0 16px',
-            fontSize: t.size.md,
+            fontSize: '1rem',
             lineHeight: 1.62,
             fontFamily: BODY,
           }}
@@ -421,9 +436,9 @@ const PostCard = ({
           <div
             style={{
               position: 'relative',
-              borderRadius: radii.lg,
+              borderRadius: 16,
               overflow: 'hidden',
-              border: `1px solid ${hovered ? 'rgba(139,59,255,0.3)' : LINE}`,
+              border: `1px solid ${hovered ? 'rgba(139, 59, 255,0.3)' : LINE}`,
               marginBottom: 16,
               aspectRatio: '16 / 9',
               background: `radial-gradient(120% 120% at 30% 10%, ${INK_3}, ${INK} 70%)`,
@@ -438,8 +453,8 @@ const PostCard = ({
                 opacity: 0.5,
                 backgroundImage: `linear-gradient(${LINE} 1px,transparent 1px),linear-gradient(90deg,${LINE} 1px,transparent 1px)`,
                 backgroundSize: '40px 40px',
-                maskImage: 'radial-gradient(circle at 50% 50%,black,transparent 75%)',
-                WebkitMaskImage: 'radial-gradient(circle at 50% 50%,black,transparent 75%)',
+                maskImage: 'radial-gradient(circle at 50% 50%,#000,transparent 75%)',
+                WebkitMaskImage: 'radial-gradient(circle at 50% 50%,#000,transparent 75%)',
                 pointerEvents: 'none',
               }}
             />
@@ -456,20 +471,20 @@ const PostCard = ({
                 alignItems: 'center',
                 gap: 5,
                 padding: '4px 9px',
-                borderRadius: radii.full,
+                borderRadius: 9999,
                 background: 'rgba(10,10,10,0.6)',
                 backdropFilter: 'blur(8px)',
                 WebkitBackdropFilter: 'blur(8px)',
                 border: `1px solid ${LINE_2}`,
                 fontFamily: DISP,
                 fontWeight: 800,
-                fontSize: t.size.xs,
+                fontSize: '.6rem',
                 letterSpacing: '.16em',
                 textTransform: 'uppercase',
-                color: colors.textPrimary,
+                color: '#f4f4f2',
               }}
             >
-              <Flame size={11} style={{ color: colors.accent }} fill={colors.accent} />
+              <Flame size={11} style={{ color: FLAME }} fill={FLAME} />
               Highlight Reel
             </span>
 
@@ -496,19 +511,19 @@ const PostCard = ({
                 style={{
                   width: 64,
                   height: 64,
-                  borderRadius: radii.full,
+                  borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  background: `radial-gradient(circle, ${colors.accent}, rgb(94,27,194))`,
+                  background: `radial-gradient(circle, ${FLAME}, #cc3a12)`,
                   boxShadow: hovered
-                    ? '0 0 0 10px rgba(139,59,255,0.12), 0 14px 34px rgba(139,59,255,0.5)'
-                    : '0 10px 26px rgba(139,59,255,0.4)',
+                    ? '0 0 0 10px rgba(139, 59, 255,0.12), 0 14px 34px rgba(139, 59, 255,0.5)'
+                    : '0 10px 26px rgba(139, 59, 255,0.4)',
                   transform: hovered ? 'scale(1.1)' : 'scale(1)',
                   transition: 'transform .3s cubic-bezier(0.2,0.8,0.2,1), box-shadow .3s',
                 }}
               >
-                <Play size={26} color={colors.accentOn} fill={colors.accentOn} style={{ marginLeft: 3 }} />
+                <Play size={26} color="#fff" fill="#fff" style={{ marginLeft: 3 }} />
               </span>
             </button>
 
@@ -519,15 +534,15 @@ const PostCard = ({
                 bottom: 12,
                 right: 12,
                 padding: '3px 8px',
-                borderRadius: radii.sm,
+                borderRadius: 7,
                 background: 'rgba(10,10,10,0.7)',
                 backdropFilter: 'blur(8px)',
                 WebkitBackdropFilter: 'blur(8px)',
                 fontFamily: DISP,
                 fontWeight: 700,
-                fontSize: t.size.xs,
+                fontSize: '.66rem',
                 letterSpacing: '.06em',
-                color: colors.textSecondary,
+                color: MUTED,
               }}
             >
               0:42
@@ -550,7 +565,32 @@ const PostCard = ({
               { k: 'VERTICAL', v: '24"' },
               { k: 'CATCHES', v: '7' },
             ].map(s => (
-              <Stat key={s.k} label={s.k} value={s.v} />
+              <div
+                key={s.k}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 12,
+                  background: 'rgba(255,255,255,0.02)',
+                  border: `1px solid ${LINE}`,
+                }}
+              >
+                <div style={{ fontFamily: DISP, fontWeight: 900, fontSize: '1.25rem', color: '#f4f4f2', lineHeight: 1 }}>
+                  {s.v}
+                </div>
+                <div
+                  style={{
+                    fontFamily: DISP,
+                    fontWeight: 700,
+                    fontSize: '.58rem',
+                    letterSpacing: '.14em',
+                    textTransform: 'uppercase',
+                    color: MUTED_2,
+                    marginTop: 5,
+                  }}
+                >
+                  {s.k}
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -578,24 +618,24 @@ const PostCard = ({
               gap: 8,
               minHeight: 40,
               padding: '0 12px',
-              borderRadius: radii.md,
+              borderRadius: 11,
               border: 'none',
-              background: post.isLiked ? 'rgba(139,59,255,0.12)' : 'transparent',
-              color: post.isLiked ? colors.accent : colors.textSecondary,
+              background: post.isLiked ? 'rgba(139, 59, 255,0.12)' : 'transparent',
+              color: post.isLiked ? FLAME : MUTED,
               cursor: 'pointer',
               transition: 'background .2s, color .2s',
             }}
-            onMouseEnter={e => { if (!post.isLiked) e.currentTarget.style.color = colors.accentHover; }}
-            onMouseLeave={e => { if (!post.isLiked) e.currentTarget.style.color = colors.textSecondary; }}
+            onMouseEnter={e => { if (!post.isLiked) e.currentTarget.style.color = FLAME_SOFT; }}
+            onMouseLeave={e => { if (!post.isLiked) e.currentTarget.style.color = MUTED; }}
           >
             <motion.span
               key={String(post.isLiked)}
               initial={{ scale: 0.6 }}
               animate={{ scale: post.isLiked ? [1, 1.35, 1] : 1 }}
-              transition={{ duration: 0.32, ease: easing.standard }}
+              transition={{ duration: 0.32, ease: [0.2, 0.8, 0.2, 1] }}
               style={{ display: 'flex' }}
             >
-              <Heart size={18} fill={post.isLiked ? colors.accent : 'transparent'} />
+              <Heart size={18} fill={post.isLiked ? FLAME : 'transparent'} />
             </motion.span>
             <CountPulse value={post.likes} active={post.isLiked} />
           </button>
@@ -613,15 +653,15 @@ const PostCard = ({
               gap: 8,
               minHeight: 40,
               padding: '0 12px',
-              borderRadius: radii.md,
+              borderRadius: 11,
               border: 'none',
               background: 'transparent',
-              color: colors.textSecondary,
+              color: MUTED,
               cursor: 'pointer',
               transition: 'color .2s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.color = colors.textPrimary; }}
-            onMouseLeave={e => { e.currentTarget.style.color = colors.textSecondary; }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#f4f4f2'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = MUTED; }}
           >
             <MessageCircle size={18} />
             <CountPulse value={post.comments} />
@@ -640,16 +680,16 @@ const PostCard = ({
               gap: 8,
               minHeight: 40,
               padding: '0 12px',
-              borderRadius: radii.md,
+              borderRadius: 11,
               border: 'none',
               background: 'transparent',
-              color: colors.textSecondary,
+              color: MUTED,
               cursor: 'pointer',
               marginLeft: 'auto',
               transition: 'color .2s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.color = colors.textPrimary; }}
-            onMouseLeave={e => { e.currentTarget.style.color = colors.textSecondary; }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#f4f4f2'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = MUTED; }}
           >
             <Share2 size={18} />
           </button>
@@ -709,14 +749,54 @@ function fmtCount(n: number): string {
   return String(n);
 }
 
+const DEMO_POSTS: PostData[] = [
+  {
+    id: 1,
+    user: { name: 'Maya Johnson', avatar: null },
+    time: '2h ago',
+    content: 'Just wrapped up film study and throwing drills ahead of the weekend showcase. Feeling sharper than ever! #HERS365 #QB1',
+    likes: '142',
+    comments: '18',
+    highlights: true,
+    isLiked: false,
+  },
+  {
+    id: 2,
+    user: { name: 'Chloe Adams', avatar: null },
+    time: '5h ago',
+    content: 'Official combine numbers clocked in today! 40-yard dash: 4.49s. Thank you to my coaches and teammates pushing me every day.',
+    likes: '289',
+    comments: '34',
+    highlights: false,
+    isLiked: false,
+  },
+  {
+    id: 3,
+    user: { name: 'Samantha Rivera', avatar: null },
+    time: '1d ago',
+    content: 'Blessed to announce I have received an official offer to play Flag Football at the collegiate level! #Recruiting #FlagFootball',
+    likes: '512',
+    comments: '67',
+    highlights: true,
+    isLiked: false,
+  }
+];
+
+const DEMO_TOP_ATHLETES: RankedAthlete[] = [
+  { id: 1, rank: 1, name: 'Maya Johnson', school: 'Lincoln High School (CA)', position: 'QB', rating: 98.4 },
+  { id: 2, rank: 2, name: 'Chloe Adams', school: 'Mater Dei High (CA)', position: 'WR', rating: 97.8 },
+  { id: 3, rank: 3, name: 'Samantha Rivera', school: 'St. Thomas Aquinas (FL)', position: 'Rusher', rating: 96.9 },
+  { id: 4, rank: 4, name: 'Zoe Martinez', school: 'Caty High School (TX)', position: 'RB', rating: 96.2 },
+];
+
 export const Feed = () => {
   const navigate = useNavigate();
   const { showNotification } = useNotifications();
   const [feedType, setFeedType] = useState<'recent' | 'trending'>('recent');
-  const [posts, setPosts] = useState<PostData[]>([]);
+  const [posts, setPosts] = useState<PostData[]>(DEMO_POSTS);
   const [isLoading, setIsLoading] = useState(true);
-  const [athleteCount, setAthleteCount] = useState<number | null>(null);
-  const [topAthletes, setTopAthletes] = useState<RankedAthlete[]>([]);
+  const [athleteCount, setAthleteCount] = useState<number | null>(142);
+  const [topAthletes, setTopAthletes] = useState<RankedAthlete[]>(DEMO_TOP_ATHLETES);
   const [topLoading, setTopLoading] = useState(true);
 
   useEffect(() => {
@@ -725,20 +805,26 @@ export const Feed = () => {
       .then(r => r.json())
       .then((data: PostApiRow[]) => {
         const rows = Array.isArray(data) ? data : [];
-        const mapped: PostData[] = rows.map((p) => ({
-          id: p.id,
-          user: { name: p.playerName || 'Athlete', avatar: null },
-          time: p.createdAt ? timeAgo(p.createdAt) : '',
-          content: p.content || '',
-          image: p.mediaType === 'image' ? p.mediaUrl : undefined,
-          likes: fmtCount(p.likes ?? 0),
-          comments: fmtCount(p.comments ?? 0),
-          highlights: p.mediaType === 'video' || p.category === 'game',
-          isLiked: false,
-        }));
-        setPosts(mapped);
+        if (rows.length > 0) {
+          const mapped: PostData[] = rows.map((p) => ({
+            id: p.id,
+            user: { name: p.playerName || 'Athlete', avatar: null },
+            time: p.createdAt ? timeAgo(p.createdAt) : '',
+            content: p.content || '',
+            image: p.mediaType === 'image' ? p.mediaUrl : undefined,
+            likes: fmtCount(p.likes ?? 0),
+            comments: fmtCount(p.comments ?? 0),
+            highlights: p.mediaType === 'video' || p.category === 'game',
+            isLiked: false,
+          }));
+          setPosts(mapped);
+        } else {
+          setPosts(DEMO_POSTS);
+        }
       })
-      .catch(() => {})
+      .catch(() => {
+        setPosts(DEMO_POSTS);
+      })
       .finally(() => setIsLoading(false));
     return () => ctrl.abort();
   }, []);
@@ -748,7 +834,7 @@ export const Feed = () => {
       .then(r => r.json())
       .then((res: AthletesResponse) => {
         const list = Array.isArray(res?.data) ? res.data : [];
-        setAthleteCount(list.length);
+        if (list.length > 0) setAthleteCount(list.length);
       })
       .catch(() => {});
   }, []);
@@ -758,9 +844,15 @@ export const Feed = () => {
       .then(r => r.json())
       .then((data: RankedAthlete[] | RankingsResponse | null) => {
         const rows = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
-        setTopAthletes(rows.slice(0, 4));
+        if (rows.length > 0) {
+          setTopAthletes(rows.slice(0, 4));
+        } else {
+          setTopAthletes(DEMO_TOP_ATHLETES);
+        }
       })
-      .catch(() => {})
+      .catch(() => {
+        setTopAthletes(DEMO_TOP_ATHLETES);
+      })
       .finally(() => setTopLoading(false));
   }, []);
 
@@ -824,7 +916,7 @@ export const Feed = () => {
         maxWidth: 1060,
         margin: '0 auto',
         padding: '24px 24px 64px',
-        color: colors.textPrimary,
+        color: '#f4f4f2',
         fontFamily: BODY,
         display: 'flex',
         gap: 32,
@@ -855,15 +947,15 @@ export const Feed = () => {
             margin: 0,
           }}
         >
-          THE <span style={{ color: colors.accent }}>GRID</span>
+          THE <span style={{ color: FLAME }}>GRID</span>
         </h1>
-        <p style={{ color: colors.textSecondary, fontSize: t.size.md, margin: '10px 0 0', maxWidth: 460, lineHeight: 1.5 }}>
+        <p style={{ color: MUTED, fontSize: '.98rem', margin: '10px 0 0', maxWidth: 460, lineHeight: 1.5 }}>
           Every rep, every offer, every breakout moment — straight from the athletes on the rise.
         </p>
         {athleteCount !== null && (
           <p style={{
-            color: colors.accentHover,
-            fontSize: t.size.sm,
+            color: FLAME_SOFT,
+            fontSize: '.78rem',
             fontFamily: DISP,
             fontWeight: 700,
             letterSpacing: '.12em',
@@ -915,19 +1007,19 @@ export const Feed = () => {
               style={{
                 width: 64,
                 height: 64,
-                borderRadius: radii.full,
+                borderRadius: '50%',
                 border: `2px dashed ${LINE_2}`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: colors.accent,
-                fontSize: t.size.xl,
+                color: FLAME,
+                fontSize: '1.6rem',
                 fontFamily: DISP,
                 fontWeight: 400,
                 lineHeight: 1,
                 transition: 'border-color .2s, color .2s',
               }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = colors.accent; }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = FLAME; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = LINE_2; }}
             >
               +
@@ -936,10 +1028,10 @@ export const Feed = () => {
               style={{
                 fontFamily: DISP,
                 fontWeight: 700,
-                fontSize: t.size.xs,
+                fontSize: '.66rem',
                 letterSpacing: '.1em',
                 textTransform: 'uppercase',
-                color: colors.textSecondary,
+                color: MUTED,
               }}
             >
               You
@@ -952,7 +1044,7 @@ export const Feed = () => {
               initial={{ opacity: 0, scale: 0.85 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: Math.min(i * 0.04, 0.25), ease: easing.standard }}
+              transition={{ duration: 0.4, delay: Math.min(i * 0.04, 0.25), ease: [0.2, 0.8, 0.2, 1] }}
               onClick={() => handleUserClick(a.name)}
               aria-label={`View ${a.name}`}
               style={{
@@ -975,11 +1067,11 @@ export const Feed = () => {
                   style={{
                     width: 64,
                     height: 64,
-                    borderRadius: radii.full,
+                    borderRadius: '50%',
                     padding: 2.5,
-                    background: `conic-gradient(from 120deg, ${colors.accent}, ${colors.accentHover}, ${colors.accent})`,
+                    background: `conic-gradient(from 120deg, ${FLAME}, ${FLAME_SOFT}, ${FLAME})`,
                     display: 'block',
-                    boxShadow: '0 6px 18px rgba(139,59,255,0.28)',
+                    boxShadow: '0 6px 18px rgba(139, 59, 255,0.28)',
                   }}
                 >
                   <span
@@ -987,7 +1079,7 @@ export const Feed = () => {
                       display: 'block',
                       width: '100%',
                       height: '100%',
-                      borderRadius: radii.full,
+                      borderRadius: '50%',
                       overflow: 'hidden',
                       border: `2px solid ${INK}`,
                       background: INK_3,
@@ -1010,16 +1102,16 @@ export const Feed = () => {
                     minWidth: 22,
                     height: 22,
                     padding: '0 4px',
-                    borderRadius: radii.full,
+                    borderRadius: 9999,
                     background: INK,
-                    border: `1.5px solid ${colors.accent}`,
+                    border: `1.5px solid ${FLAME}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontFamily: DISP,
                     fontWeight: 900,
-                    fontSize: t.size.xs,
-                    color: colors.accentHover,
+                    fontSize: '.62rem',
+                    color: FLAME_SOFT,
                     letterSpacing: '.02em',
                   }}
                 >
@@ -1034,8 +1126,8 @@ export const Feed = () => {
                       right: 2,
                       width: 12,
                       height: 12,
-                      borderRadius: radii.full,
-                      background: colors.success,
+                      borderRadius: '50%',
+                      background: '#4ade80',
                       border: `2px solid ${INK}`,
                     }}
                   />
@@ -1045,10 +1137,10 @@ export const Feed = () => {
                 style={{
                   fontFamily: DISP,
                   fontWeight: 700,
-                  fontSize: t.size.xs,
+                  fontSize: '.66rem',
                   letterSpacing: '.06em',
                   textTransform: 'uppercase',
-                  color: colors.textSecondary,
+                  color: MUTED,
                   whiteSpace: 'nowrap',
                   maxWidth: 72,
                   overflow: 'hidden',
@@ -1076,7 +1168,7 @@ export const Feed = () => {
           marginBottom: 20,
         }}
       >
-        <h2 style={{ ...disp, fontWeight: 900, fontSize: t.size.xl, color: colors.textPrimary, margin: 0 }}>
+        <h2 style={{ ...disp, fontWeight: 900, fontSize: '1.3rem', color: '#f4f4f2', margin: 0 }}>
           Latest Drops
         </h2>
         <div
@@ -1084,7 +1176,7 @@ export const Feed = () => {
             display: 'flex',
             gap: 4,
             padding: 4,
-            borderRadius: radii.full,
+            borderRadius: 9999,
             background: INK_3,
             border: `1px solid ${LINE}`,
           }}
@@ -1102,14 +1194,14 @@ export const Feed = () => {
                   gap: 6,
                   minHeight: 36,
                   padding: '0 14px',
-                  borderRadius: radii.full,
+                  borderRadius: 9999,
                   border: 'none',
                   cursor: 'pointer',
                   background: 'transparent',
-                  color: active ? colors.accentOn : colors.textSecondary,
+                  color: active ? '#fff' : MUTED,
                   fontFamily: DISP,
                   fontWeight: 800,
-                  fontSize: t.size.xs,
+                  fontSize: '.72rem',
                   letterSpacing: '.12em',
                   textTransform: 'uppercase',
                   transition: 'color .2s',
@@ -1118,13 +1210,13 @@ export const Feed = () => {
                 {active && (
                   <motion.span
                     layoutId="feed-tab-pill"
-                    transition={springs.snappy}
+                    transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                     style={{
                       position: 'absolute',
                       inset: 0,
-                      borderRadius: radii.full,
-                      background: colors.accent,
-                      boxShadow: '0 4px 14px rgba(139,59,255,0.34)',
+                      borderRadius: 9999,
+                      background: FLAME,
+                      boxShadow: '0 4px 14px rgba(139, 59, 255,0.34)',
                       zIndex: 0,
                     }}
                   />
@@ -1142,16 +1234,16 @@ export const Feed = () => {
         {isLoading && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {[1, 2, 3].map(n => (
-              <div key={n} style={{ background: INK_2, border: `1px solid ${LINE}`, borderRadius: radii.md, padding: 20 }}>
+              <div key={n} style={{ background: '#111', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, padding: 20 }}>
                 <div style={{ display: 'flex', gap: 12, marginBottom: 14, alignItems: 'center' }}>
-                  <div style={{ width: 36, height: 36, borderRadius: radii.full, background: 'rgba(255,255,255,0.06)' }} />
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
                   <div>
-                    <div style={{ width: 120, height: 11, borderRadius: radii.sm, background: 'rgba(255,255,255,0.07)', marginBottom: 6 }} />
-                    <div style={{ width: 60, height: 9, borderRadius: radii.sm, background: 'rgba(255,255,255,0.04)' }} />
+                    <div style={{ width: 120, height: 11, borderRadius: 6, background: 'rgba(255,255,255,0.07)', marginBottom: 6 }} />
+                    <div style={{ width: 60, height: 9, borderRadius: 6, background: 'rgba(255,255,255,0.04)' }} />
                   </div>
                 </div>
-                <div style={{ width: '90%', height: 11, borderRadius: radii.sm, background: 'rgba(255,255,255,0.06)', marginBottom: 8 }} />
-                <div style={{ width: '70%', height: 11, borderRadius: radii.sm, background: 'rgba(255,255,255,0.04)' }} />
+                <div style={{ width: '90%', height: 11, borderRadius: 6, background: 'rgba(255,255,255,0.06)', marginBottom: 8 }} />
+                <div style={{ width: '70%', height: 11, borderRadius: 6, background: 'rgba(255,255,255,0.04)' }} />
               </div>
             ))}
           </div>
@@ -1177,13 +1269,13 @@ export const Feed = () => {
             style={{ textAlign: 'center', padding: '72px 20px 40px' }}
           >
             <div style={{
-              fontFamily: DISP, fontWeight: 800, fontSize: t.size['2xl'],
+              fontFamily: DISP, fontWeight: 800, fontSize: '1.5rem',
               textTransform: 'uppercase', letterSpacing: '.02em',
-              color: colors.textPrimary, marginBottom: 10,
+              color: '#f4f4f2', marginBottom: 10,
             }}>
               The grid is quiet
             </div>
-            <div style={{ fontSize: t.size.base, color: colors.textSecondary, maxWidth: 340, margin: '0 auto', lineHeight: 1.5 }}>
+            <div style={{ fontSize: '.88rem', color: MUTED, maxWidth: 340, margin: '0 auto', lineHeight: 1.5 }}>
               No highlights have dropped yet. Post your first rep and get on the board.
             </div>
           </motion.div>
@@ -1198,7 +1290,7 @@ export const Feed = () => {
             alignItems: 'center',
             gap: 14,
             margin: '8px 0 0',
-            color: colors.textTertiary,
+            color: MUTED_2,
           }}
         >
           <span style={{ flex: 1, height: 1, background: LINE }} />
@@ -1206,7 +1298,7 @@ export const Feed = () => {
             style={{
               fontFamily: DISP,
               fontWeight: 700,
-              fontSize: t.size.xs,
+              fontSize: '.66rem',
               letterSpacing: '.2em',
               textTransform: 'uppercase',
               whiteSpace: 'nowrap',
@@ -1249,7 +1341,7 @@ export const Feed = () => {
           style={{
             background: `linear-gradient(165deg, ${INK_3}, ${INK_2})`,
             border: `1px solid ${LINE}`,
-            borderRadius: radii.lg,
+            borderRadius: 18,
             padding: 20,
           }}
         >
@@ -1259,14 +1351,14 @@ export const Feed = () => {
             gap: 8,
             marginBottom: 16,
           }}>
-            <Trophy size={15} style={{ color: colors.accent }} />
+            <Trophy size={15} style={{ color: FLAME }} />
             <span style={{
               fontFamily: DISP,
               fontWeight: 900,
-              fontSize: t.size.xs,
+              fontSize: '.72rem',
               letterSpacing: '.14em',
               textTransform: 'uppercase',
-              color: colors.accentHover,
+              color: FLAME_SOFT,
             }}>
               Top Athletes
             </span>
@@ -1276,10 +1368,10 @@ export const Feed = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {[1, 2, 3, 4].map(n => (
                 <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 24, height: 24, borderRadius: radii.full, background: 'rgba(255,255,255,0.06)', flexShrink: 0 }} />
+                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', flexShrink: 0 }} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ width: '60%', height: 10, borderRadius: radii.sm, background: 'rgba(255,255,255,0.07)', marginBottom: 5 }} />
-                    <div style={{ width: '40%', height: 8, borderRadius: radii.sm, background: 'rgba(255,255,255,0.04)' }} />
+                    <div style={{ width: '60%', height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.07)', marginBottom: 5 }} />
+                    <div style={{ width: '40%', height: 8, borderRadius: 5, background: 'rgba(255,255,255,0.04)' }} />
                   </div>
                 </div>
               ))}
@@ -1287,7 +1379,7 @@ export const Feed = () => {
           )}
 
           {!topLoading && topAthletes.length === 0 && (
-            <p style={{ fontSize: t.size.base, color: colors.textSecondary, margin: 0, lineHeight: 1.5 }}>
+            <p style={{ fontSize: '.8rem', color: MUTED, margin: 0, lineHeight: 1.5 }}>
               Rankings coming soon — check back once athletes are rated.
             </p>
           )}
@@ -1312,8 +1404,8 @@ export const Feed = () => {
               <span style={{
                 fontFamily: DISP,
                 fontWeight: 900,
-                fontSize: t.size.sm,
-                color: i === 0 ? colors.accent : colors.textTertiary,
+                fontSize: '.72rem',
+                color: i === 0 ? FLAME : MUTED_2,
                 width: 18,
                 flexShrink: 0,
                 letterSpacing: '.04em',
@@ -1323,8 +1415,8 @@ export const Feed = () => {
               <span style={{
                 width: 32,
                 height: 32,
-                borderRadius: radii.full,
-                background: `conic-gradient(from 120deg, ${colors.accent}, ${colors.accentHover}, ${colors.accent})`,
+                borderRadius: '50%',
+                background: `conic-gradient(from 120deg, ${FLAME}, ${FLAME_SOFT}, ${FLAME})`,
                 padding: 2,
                 flexShrink: 0,
                 display: 'block',
@@ -1335,13 +1427,13 @@ export const Feed = () => {
                   justifyContent: 'center',
                   width: '100%',
                   height: '100%',
-                  borderRadius: radii.full,
+                  borderRadius: '50%',
                   background: INK,
                   overflow: 'hidden',
                   fontFamily: DISP,
                   fontWeight: 900,
-                  fontSize: t.size.xs,
-                  color: colors.accentHover,
+                  fontSize: '.6rem',
+                  color: FLAME_SOFT,
                 }}>
                   {initials(a.name ?? '')}
                 </span>
@@ -1351,8 +1443,8 @@ export const Feed = () => {
                   display: 'block',
                   fontFamily: DISP,
                   fontWeight: 800,
-                  fontSize: t.size.base,
-                  color: colors.textPrimary,
+                  fontSize: '.82rem',
+                  color: '#f4f4f2',
                   letterSpacing: '.02em',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
@@ -1363,8 +1455,8 @@ export const Feed = () => {
                 {(a.position || a.school) && (
                   <span style={{
                     display: 'block',
-                    fontSize: t.size.xs,
-                    color: colors.textTertiary,
+                    fontSize: '.66rem',
+                    color: MUTED_2,
                     fontFamily: DISP,
                     fontWeight: 700,
                     letterSpacing: '.08em',
@@ -1378,21 +1470,24 @@ export const Feed = () => {
                 )}
               </span>
               {(a.rating ?? a.score) !== undefined && (
-                <Badge
-                  tone="accent"
-                  style={{
-                    gap: 3,
-                    borderRadius: radii.full,
-                    fontFamily: DISP,
-                    fontWeight: 900,
-                    letterSpacing: '.06em',
-                    color: colors.accentHover,
-                    flexShrink: 0,
-                  }}
-                >
-                  <Flame size={9} style={{ color: colors.accent }} fill={colors.accent} />
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  padding: '2px 6px',
+                  borderRadius: 9999,
+                  background: 'rgba(139, 59, 255,0.12)',
+                  border: '1px solid rgba(139, 59, 255,0.28)',
+                  fontFamily: DISP,
+                  fontWeight: 900,
+                  fontSize: '.62rem',
+                  letterSpacing: '.06em',
+                  color: FLAME_SOFT,
+                  flexShrink: 0,
+                }}>
+                  <Flame size={9} style={{ color: FLAME }} fill={FLAME} />
                   {a.rating ?? a.score}
-                </Badge>
+                </span>
               )}
             </button>
           ))}

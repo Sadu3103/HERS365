@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, TrendingUp, Trophy, Users, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
-import { EmptyState, Input, Button } from '../components/ui';
-import { colors, type as t, radii } from '../lib/tokens';
+import { Search, TrendingUp, Trophy, Users, ChevronDown, ChevronUp } from 'lucide-react';
 
-const DISP = t.font.display;
-const LINE = colors.border;
+const FLAME = '#8B3BFF';
+const LINE = 'rgba(255,255,255,0.07)';
+const MUTED = '#8a8a86';
+const MUTED_2 = '#5a5a56';
+const DISP = "'Barlow Condensed', sans-serif";
 
 type MPPlayer = {
   maxprepsId?: string;
@@ -34,8 +35,6 @@ const STATES = ['', 'CA', 'TX', 'FL', 'OH', 'GA', 'AZ', 'WA', 'CO', 'NY', 'NC'];
 const CATS = ['passing', 'rushing', 'receiving', 'touchdowns', 'interceptions'];
 
 type Tab = 'search' | 'leaders' | 'rankings';
-
-const fieldLabel = { fontSize: t.size.xs, fontWeight: t.weight.bold, letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: colors.textTertiary, marginBottom: 6 };
 
 export const MaxPrepsLookup = () => {
   const [tab, setTab] = useState<Tab>('leaders');
@@ -119,26 +118,16 @@ export const MaxPrepsLookup = () => {
     return parts.join(' · ') || 'No stats available';
   };
 
-  const rankRow = (label: React.ReactNode, sub: React.ReactNode, right: React.ReactNode, index: number, key: React.Key) => (
-    <div key={key} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: radii.md, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
-      <div style={{ width: 28, height: 28, borderRadius: '50%', background: index < 3 ? `${colors.accent}22` : 'rgba(255,255,255,0.05)', border: `1px solid ${index < 3 ? colors.accent : LINE}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: DISP, fontWeight: 900, fontSize: t.size.md, color: index < 3 ? colors.accentText : colors.textSecondary }}>
-        {label}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>{sub}</div>
-      {right}
-    </div>
-  );
-
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 20px 120px' }}>
       <div style={{ marginBottom: 28 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontSize: t.size.xs, fontWeight: t.weight.bold, letterSpacing: '0.12em', textTransform: 'uppercase', color: colors.accentText }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: FLAME }}>
           <Trophy size={13} /> MAXPREPS
         </div>
-        <h1 style={{ fontFamily: DISP, fontSize: t.size['3xl'], fontWeight: 900, textTransform: 'uppercase', letterSpacing: t.tracking.h2, margin: '0 0 8px', lineHeight: 1 }}>
+        <h1 style={{ fontFamily: DISP, fontSize: '2.4rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.02em', margin: '0 0 8px', lineHeight: 1 }}>
           Girls Flag Football Stats
         </h1>
-        <p style={{ color: colors.textSecondary, fontSize: t.size.base, margin: 0 }}>Live data from MaxPreps — national stat leaders, team rankings, and player lookup.</p>
+        <p style={{ color: MUTED, fontSize: '0.85rem', margin: 0 }}>Live data from MaxPreps — national stat leaders, team rankings, and player lookup.</p>
       </div>
 
       {/* Tabs */}
@@ -147,13 +136,13 @@ export const MaxPrepsLookup = () => {
           { id: 'leaders', label: 'Stat Leaders', icon: <TrendingUp size={13} /> },
           { id: 'rankings', label: 'Team Rankings', icon: <Trophy size={13} /> },
           { id: 'search', label: 'Player Search', icon: <Search size={13} /> },
-        ] as { id: Tab; label: string; icon: React.ReactNode }[]).map((tb) => (
-          <motion.button key={tb.id} whileTap={{ scale: 0.95 }} onClick={() => setTab(tb.id)} style={{
-            padding: '8px 14px', borderRadius: radii.full, border: 'none', cursor: 'pointer',
-            background: tab === tb.id ? colors.accent : 'rgba(255,255,255,0.05)',
-            color: tab === tb.id ? colors.accentOn : colors.textSecondary,
-            fontSize: t.size.sm, fontWeight: t.weight.bold, display: 'flex', alignItems: 'center', gap: 5,
-          }}>{tb.icon}{tb.label}</motion.button>
+        ] as { id: Tab; label: string; icon: React.ReactNode }[]).map((t) => (
+          <motion.button key={t.id} whileTap={{ scale: 0.95 }} onClick={() => setTab(t.id)} style={{
+            padding: '8px 14px', borderRadius: 99, border: 'none', cursor: 'pointer',
+            background: tab === t.id ? FLAME : 'rgba(255,255,255,0.05)',
+            color: tab === t.id ? '#fff' : MUTED,
+            fontSize: '0.72rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5,
+          }}>{t.icon}{t.label}</motion.button>
         ))}
       </div>
 
@@ -163,51 +152,47 @@ export const MaxPrepsLookup = () => {
           <motion.div key="leaders" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
             <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
               <div>
-                <div style={fieldLabel}>Category</div>
-                <select className="k-input" value={leaderCat} onChange={(e) => { setLeaderCat(e.target.value); setLeadersLoaded(false); }} style={{ padding: '8px 12px', fontSize: t.size.base }}>
+                <div style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED_2, marginBottom: 6 }}>Category</div>
+                <select className="k-input" value={leaderCat} onChange={(e) => { setLeaderCat(e.target.value); setLeadersLoaded(false); }} style={{ padding: '8px 12px', fontSize: '0.8rem' }}>
                   {CATS.map((c) => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
                 </select>
               </div>
               <div>
-                <div style={fieldLabel}>State</div>
-                <select className="k-input" value={leaderState} onChange={(e) => { setLeaderState(e.target.value); setLeadersLoaded(false); }} style={{ padding: '8px 12px', fontSize: t.size.base }}>
+                <div style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED_2, marginBottom: 6 }}>State</div>
+                <select className="k-input" value={leaderState} onChange={(e) => { setLeaderState(e.target.value); setLeadersLoaded(false); }} style={{ padding: '8px 12px', fontSize: '0.8rem' }}>
                   <option value="">National</option>
                   {STATES.filter(Boolean).map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
-              <motion.span whileTap={{ scale: 0.95 }}>
-                <Button onClick={fetchLeaders} loading={loadingLeaders} disabled={loadingLeaders}>
-                  {loadingLeaders ? 'Loading…' : 'Load Leaders'}
-                </Button>
-              </motion.span>
+              <motion.button whileTap={{ scale: 0.95 }} onClick={fetchLeaders} disabled={loadingLeaders} style={{ padding: '9px 18px', background: FLAME, color: '#fff', border: 'none', borderRadius: 8, fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-end' }}>
+                {loadingLeaders ? 'Loading…' : 'Load Leaders'}
+              </motion.button>
             </div>
             {leadersLoaded && (
               leaders.length === 0 ? (
-                <EmptyState
-                  icon={<BarChart3 className="w-10 h-10" />}
-                  title="No data available"
-                  body="MaxPreps may not have current season data for this filter. Try a different category or state."
-                />
+                <div style={{ textAlign: 'center', padding: '32px', color: MUTED_2, fontSize: '0.85rem' }}>No data available — MaxPreps may not have current season data for this filter.</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {leaders.map((p, i) => rankRow(
-                    i + 1,
-                    <>
-                      <div style={{ fontWeight: t.weight.bold, fontSize: t.size.md, color: colors.textPrimary, marginBottom: 2 }}>{p.name}</div>
-                      <div style={{ fontSize: t.size.sm, color: colors.textSecondary }}>{p.school}{p.state ? ` · ${p.state}` : ''}</div>
-                    </>,
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontFamily: DISP, fontSize: t.size.md, fontWeight: 900, color: colors.accentText }}>{statLine(p).split(' · ')[0]}</div>
-                      <div style={{ fontSize: t.size.xs, color: colors.textTertiary }}>{statLine(p).split(' · ').slice(1).join(' · ')}</div>
-                    </div>,
-                    i,
-                    i,
+                  {leaders.map((p, i) => (
+                    <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: i < 3 ? `${FLAME}22` : 'rgba(255,255,255,0.05)', border: `1px solid ${i < 3 ? FLAME : LINE}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: DISP, fontWeight: 900, fontSize: '0.85rem', color: i < 3 ? FLAME : MUTED }}>
+                        {i + 1}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#f4f4f2', marginBottom: 2 }}>{p.name}</div>
+                        <div style={{ fontSize: '0.72rem', color: MUTED }}>{p.school}{p.state ? ` · ${p.state}` : ''}</div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div style={{ fontFamily: DISP, fontSize: '1rem', fontWeight: 900, color: FLAME }}>{statLine(p).split(' · ')[0]}</div>
+                        <div style={{ fontSize: '0.65rem', color: MUTED_2 }}>{statLine(p).split(' · ').slice(1).join(' · ')}</div>
+                      </div>
+                    </div>
                   ))}
                 </div>
               )
             )}
             {!leadersLoaded && !loadingLeaders && (
-              <div style={{ textAlign: 'center', padding: '32px', color: colors.textTertiary, fontSize: t.size.base, border: `1px dashed ${LINE}`, borderRadius: radii.lg }}>
+              <div style={{ textAlign: 'center', padding: '32px', color: MUTED_2, fontSize: '0.85rem', border: `1px dashed ${LINE}`, borderRadius: 14 }}>
                 Select a category and tap "Load Leaders"
               </div>
             )}
@@ -219,41 +204,41 @@ export const MaxPrepsLookup = () => {
           <motion.div key="rankings" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
             <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
               <div>
-                <div style={fieldLabel}>State</div>
-                <select className="k-input" value={rankState} onChange={(e) => { setRankState(e.target.value); setTeamsLoaded(false); }} style={{ padding: '8px 12px', fontSize: t.size.base }}>
+                <div style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED_2, marginBottom: 6 }}>State</div>
+                <select className="k-input" value={rankState} onChange={(e) => { setRankState(e.target.value); setTeamsLoaded(false); }} style={{ padding: '8px 12px', fontSize: '0.8rem' }}>
                   {STATES.filter(Boolean).map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
-              <motion.span whileTap={{ scale: 0.95 }}>
-                <Button onClick={fetchRankings} loading={loadingTeams} disabled={loadingTeams}>
-                  {loadingTeams ? 'Loading…' : 'Load Rankings'}
-                </Button>
-              </motion.span>
+              <motion.button whileTap={{ scale: 0.95 }} onClick={fetchRankings} disabled={loadingTeams} style={{ padding: '9px 18px', background: FLAME, color: '#fff', border: 'none', borderRadius: 8, fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-end' }}>
+                {loadingTeams ? 'Loading…' : 'Load Rankings'}
+              </motion.button>
             </div>
             {teamsLoaded && (
               teams.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '32px', color: colors.textTertiary, fontSize: t.size.base }}>No rankings available for {rankState}.</div>
+                <div style={{ textAlign: 'center', padding: '32px', color: MUTED_2, fontSize: '0.85rem' }}>No rankings available for {rankState}.</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {teams.map((tm, i) => rankRow(
-                    tm.rank ?? i + 1,
-                    <>
-                      <div style={{ fontWeight: t.weight.bold, fontSize: t.size.md, color: colors.textPrimary }}>{tm.name}</div>
-                      <div style={{ fontSize: t.size.sm, color: colors.textSecondary }}>{tm.state}</div>
-                    </>,
-                    (tm.wins !== undefined || tm.losses !== undefined) ? (
-                      <div style={{ fontFamily: DISP, fontSize: t.size.lg, fontWeight: 900, color: colors.textPrimary }}>
-                        {tm.wins ?? 0}–{tm.losses ?? 0}
+                  {teams.map((t, i) => (
+                    <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: i < 3 ? `${FLAME}22` : 'rgba(255,255,255,0.05)', border: `1px solid ${i < 3 ? FLAME : LINE}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: DISP, fontWeight: 900, fontSize: '0.85rem', color: i < 3 ? FLAME : MUTED }}>
+                        {t.rank ?? i + 1}
                       </div>
-                    ) : null,
-                    i,
-                    i,
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#f4f4f2' }}>{t.name}</div>
+                        <div style={{ fontSize: '0.72rem', color: MUTED }}>{t.state}</div>
+                      </div>
+                      {(t.wins !== undefined || t.losses !== undefined) && (
+                        <div style={{ fontFamily: DISP, fontSize: '1.1rem', fontWeight: 900, color: '#f4f4f2' }}>
+                          {t.wins ?? 0}–{t.losses ?? 0}
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               )
             )}
             {!teamsLoaded && !loadingTeams && (
-              <div style={{ textAlign: 'center', padding: '32px', color: colors.textTertiary, fontSize: t.size.base, border: `1px dashed ${LINE}`, borderRadius: radii.lg }}>
+              <div style={{ textAlign: 'center', padding: '32px', color: MUTED_2, fontSize: '0.85rem', border: `1px dashed ${LINE}`, borderRadius: 14 }}>
                 Select a state and tap "Load Rankings"
               </div>
             )}
@@ -265,49 +250,47 @@ export const MaxPrepsLookup = () => {
           <motion.div key="search" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
             <form onSubmit={searchPlayers} style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
               <div style={{ flex: 2, minWidth: 180 }}>
-                <div style={fieldLabel}>Player Name</div>
-                <Input value={searchName} onChange={(e) => setSearchName(e.target.value)} placeholder="First or last name..." />
+                <div style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED_2, marginBottom: 6 }}>Player Name</div>
+                <input className="k-input" value={searchName} onChange={(e) => setSearchName(e.target.value)} placeholder="First or last name..." style={{ width: '100%', padding: '9px 12px' }} />
               </div>
               <div>
-                <div style={fieldLabel}>State</div>
-                <select className="k-input" value={searchState} onChange={(e) => setSearchState(e.target.value)} style={{ padding: '9px 12px', fontSize: t.size.base }}>
+                <div style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED_2, marginBottom: 6 }}>State</div>
+                <select className="k-input" value={searchState} onChange={(e) => setSearchState(e.target.value)} style={{ padding: '9px 12px', fontSize: '0.8rem' }}>
                   <option value="">Any</option>
                   {STATES.filter(Boolean).map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
-              <motion.span whileTap={{ scale: 0.95 }}>
-                <Button type="submit" loading={searching} disabled={searching}>
-                  <Search size={14} />{searching ? 'Searching…' : 'Search'}
-                </Button>
-              </motion.span>
+              <motion.button whileTap={{ scale: 0.95 }} type="submit" disabled={searching} style={{ padding: '9px 18px', background: FLAME, color: '#fff', border: 'none', borderRadius: 8, fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, alignSelf: 'flex-end' }}>
+                <Search size={14} />{searching ? 'Searching…' : 'Search'}
+              </motion.button>
             </form>
             {searchResults.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ fontSize: t.size.sm, color: colors.textSecondary, marginBottom: 4 }}><Users size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 5 }} />{searchResults.length} result{searchResults.length !== 1 ? 's' : ''}</div>
+                <div style={{ fontSize: '0.72rem', color: MUTED, marginBottom: 4 }}><Users size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 5 }} />{searchResults.length} result{searchResults.length !== 1 ? 's' : ''}</div>
                 {searchResults.map((p, i) => {
                   const key = p.maxprepsId || `${p.name}-${i}`;
                   const isOpen = expanded === key;
                   return (
-                    <div key={key} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${isOpen ? `${colors.accent}40` : LINE}`, borderRadius: radii.md, overflow: 'hidden', transition: 'border-color 0.2s' }}>
+                    <div key={key} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${isOpen ? `${FLAME}40` : LINE}`, borderRadius: 12, overflow: 'hidden', transition: 'border-color 0.2s' }}>
                       <button onClick={() => setExpanded(isOpen ? null : key)} style={{ width: '100%', padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}>
                         <div style={{ flex: 1, textAlign: 'left' }}>
-                          <div style={{ fontWeight: t.weight.bold, fontSize: t.size.md, color: colors.textPrimary }}>{p.name}</div>
-                          <div style={{ fontSize: t.size.sm, color: colors.textSecondary }}>{p.school}{p.state ? ` · ${p.state}` : ''}</div>
+                          <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#f4f4f2' }}>{p.name}</div>
+                          <div style={{ fontSize: '0.72rem', color: MUTED }}>{p.school}{p.state ? ` · ${p.state}` : ''}</div>
                         </div>
-                        {isOpen ? <ChevronUp size={15} color={colors.accent} /> : <ChevronDown size={15} color={colors.textTertiary} />}
+                        {isOpen ? <ChevronUp size={15} color={FLAME} /> : <ChevronDown size={15} color={MUTED_2} />}
                       </button>
                       <AnimatePresence>
                         {isOpen && (
                           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }} style={{ overflow: 'hidden' }}>
                             <div style={{ padding: '0 16px 14px', display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                               {Object.entries(p.stats).filter(([, v]) => v !== undefined && v !== null).map(([k, v]) => (
-                                <div key={k} style={{ background: `${colors.accent}14`, border: `1px solid ${colors.accent}30`, borderRadius: radii.sm, padding: '6px 12px', textAlign: 'center' }}>
-                                  <div style={{ fontFamily: DISP, fontSize: t.size.lg, fontWeight: 900, color: colors.accentText }}>{v as number}</div>
-                                  <div style={{ fontSize: t.size.xs, color: colors.textSecondary, fontWeight: t.weight.bold, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{k.replace(/([A-Z])/g, ' $1').trim()}</div>
+                                <div key={k} style={{ background: 'rgba(139, 59, 255,0.08)', border: `1px solid ${FLAME}30`, borderRadius: 8, padding: '6px 12px', textAlign: 'center' }}>
+                                  <div style={{ fontFamily: DISP, fontSize: '1.1rem', fontWeight: 900, color: FLAME }}>{v as number}</div>
+                                  <div style={{ fontSize: '0.6rem', color: MUTED, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{k.replace(/([A-Z])/g, ' $1').trim()}</div>
                                 </div>
                               ))}
                               {Object.values(p.stats).every((v) => !v) && (
-                                <div style={{ color: colors.textTertiary, fontSize: t.size.base }}>No detailed stats on MaxPreps for this player.</div>
+                                <div style={{ color: MUTED_2, fontSize: '0.82rem' }}>No detailed stats on MaxPreps for this player.</div>
                               )}
                             </div>
                           </motion.div>
@@ -319,7 +302,7 @@ export const MaxPrepsLookup = () => {
               </div>
             )}
             {searchResults.length === 0 && !searching && searchName && (
-              <div style={{ textAlign: 'center', padding: '32px', color: colors.textTertiary, fontSize: t.size.base }}>No players found for "{searchName}".</div>
+              <div style={{ textAlign: 'center', padding: '32px', color: MUTED_2, fontSize: '0.85rem' }}>No players found for "{searchName}".</div>
             )}
           </motion.div>
         )}

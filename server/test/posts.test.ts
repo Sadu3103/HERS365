@@ -1,4 +1,4 @@
-import { afterEach, describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import { eq } from 'drizzle-orm';
 import { createApp } from '../app';
@@ -9,9 +9,6 @@ import { makeAthlete, tokenFor } from './helpers/fixtures';
 
 const app = createApp();
 beforeEach(resetDb);
-afterEach(() => {
-  process.env.MEDIA_UPLOAD_ENABLED = 'true';
-});
 
 async function seedPost(playerId: number, overrides: Partial<typeof schema.posts.$inferInsert> = {}) {
   const [row] = await db.insert(schema.posts).values({
@@ -96,32 +93,6 @@ describe('POST /api/posts', () => {
       .from(schema.players)
       .where(eq(schema.players.id, athlete.id));
     expect(after.nilPoints).toBe(startPoints + 10);
-  });
-
-  it('blocks mediaUrl writes when media upload is closed', async () => {
-    process.env.MEDIA_UPLOAD_ENABLED = 'false';
-    const athlete = await makeAthlete();
-
-    const res = await request(app)
-      .post('/api/posts')
-      .set('Authorization', `Bearer ${tokenFor(athlete, 'athlete')}`)
-      .send({ content: 'media bypass', mediaUrl: 'https://cdn/example.mp4', mediaType: 'video' });
-
-    expect(res.status).toBe(403);
-    expect(res.body.code).toBe('MEDIA_UPLOAD_DISABLED');
-  });
-
-  it('blocks profileImage writes when media upload is closed', async () => {
-    process.env.MEDIA_UPLOAD_ENABLED = 'false';
-    const athlete = await makeAthlete();
-
-    const res = await request(app)
-      .put('/api/profile')
-      .set('Authorization', `Bearer ${tokenFor(athlete, 'athlete')}`)
-      .send({ profileImage: 'https://cdn/avatar.jpg' });
-
-    expect(res.status).toBe(403);
-    expect(res.body.code).toBe('MEDIA_UPLOAD_DISABLED');
   });
 
   it('always attributes a new post to the JWT user, even if the body lies about playerId', async () => {

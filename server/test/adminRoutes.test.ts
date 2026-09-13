@@ -19,7 +19,7 @@ beforeEach(resetDb);
 function adminToken() {
   // signToken accepts the admin role directly; admin endpoints only check
   // role === 'admin' and don't look the user up in any users table.
-  return signToken({ userId: 1, role: 'admin' });
+  return signToken({ userId: 1, email: 'admin@test.local', role: 'admin', name: 'Admin' });
 }
 
 describe('requireAdmin gate (shared across admin endpoints)', () => {

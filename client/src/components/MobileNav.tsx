@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { colors, radii } from '../lib/tokens';
 
 interface NavItem {
   icon: React.ElementType;
@@ -26,8 +25,8 @@ interface MobileNavProps {
 }
 
 const defaultAccent: AccentTheme = {
-  color: colors.accent,
-  bg: 'rgba(139,59,255,0.1)',
+  color: '#8B3BFF',
+  bg: 'rgba(139,59,255,0.12)',
   border: 'rgba(139,59,255,0.3)',
 };
 
@@ -73,7 +72,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({
               bottom: 0,
               width: 280,
               maxWidth: '85vw',
-              background: colors.surface1,
+              background: '#111',
               borderRight: '1px solid rgba(255,255,255,0.06)',
               zIndex: 50,
               display: 'flex',
@@ -96,7 +95,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({
                 fontSize: '1.4rem',
                 letterSpacing: '0.04em',
                 textTransform: 'uppercase',
-                color: colors.textPrimary,
+                color: '#fff',
               }}>
                 {title}
               </span>
@@ -107,14 +106,11 @@ export const MobileNav: React.FC<MobileNavProps> = ({
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: colors.textTertiary,
+                  color: '#666',
                   cursor: 'pointer',
-                  minWidth: 44,
-                  minHeight: 44,
-                  marginRight: -10,
+                  padding: 4,
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
                 }}
               >
                 <X size={20} aria-hidden="true" />
@@ -140,15 +136,13 @@ export const MobileNav: React.FC<MobileNavProps> = ({
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       padding: '12px 14px',
-                      minHeight: 44,
-                      boxSizing: 'border-box',
-                      borderRadius: radii.md,
+                      borderRadius: 10,
                       textDecoration: 'none',
                       fontSize: '0.82rem',
                       fontWeight: 700,
                       letterSpacing: '0.04em',
                       textTransform: 'uppercase',
-                      color: active ? accent.color : colors.textSecondary,
+                      color: active ? accent.color : '#aaa',
                       background: active ? accent.bg : 'transparent',
                       border: `1px solid ${active ? accent.border : 'transparent'}`,
                       transition: 'all 0.15s',
@@ -162,7 +156,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({
                       <div style={{
                         minWidth: 18,
                         height: 18,
-                        borderRadius: radii.full,
+                        borderRadius: 9999,
                         background: accent.color,
                         display: 'flex',
                         alignItems: 'center',
@@ -170,7 +164,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({
                         padding: '0 5px',
                         flexShrink: 0,
                       }}>
-                        <span style={{ fontSize: '0.6rem', fontWeight: 800, color: colors.textPrimary }}>{badge}</span>
+                        <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#fff' }}>{badge}</span>
                       </div>
                     )}
                   </Link>

@@ -3,10 +3,7 @@ import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import { createApp } from '../app';
 import { resetDb } from './helpers/db';
-import { makeAthlete, makeCoach, tokenFor, activateAthlete } from './helpers/fixtures';
-import { db } from '../db';
-import * as schema from '../schema';
-import { eq } from 'drizzle-orm';
+import { makeAthlete, makeCoach, tokenFor } from './helpers/fixtures';
 
 const app = createApp();
 beforeEach(resetDb);
@@ -56,26 +53,17 @@ describe('JWT gates', () => {
 });
 
 describe('register / login round trip', () => {
-  it('registers an athlete as pending_guardian, logs in, and never leaks passwordHash', async () => {
+  it('registers an athlete, logs in, and never leaks passwordHash', async () => {
     const reg = await request(app).post('/api/auth/register').send({
       email: 'newathlete@test.local',
       password: 'Str0ng-pass!',
       name: 'New Athlete',
       role: 'athlete',
       dob: '2008-04-12',
-      guardianEmail: 'guardian@family.local',
     });
-    expect(reg.status).toBe(202);
-    expect(reg.body.status).toBe('pending_guardian');
-    expect(reg.body.pendingToken).toBeTypeOf('string');
-    expect(reg.body.guardianEmailMasked).toBe('g***n@f***.local');
-    expect(reg.body.token).toBeUndefined();
+    expect([200, 201]).toContain(reg.status);
     expect(JSON.stringify(reg.body)).not.toContain('passwordHash');
     expect(JSON.stringify(reg.body)).not.toContain('password_hash');
-
-    const [pending] = await db.select({ id: schema.players.id }).from(schema.players)
-      .where(eq(schema.players.email, 'newathlete@test.local')).limit(1);
-    await activateAthlete(pending.id);
 
     const login = await request(app).post('/api/auth/login').send({
       email: 'newathlete@test.local',
@@ -100,7 +88,6 @@ describe('register / login round trip', () => {
   it('rejects login with a wrong password', async () => {
     await request(app).post('/api/auth/register').send({
       email: 'a2@test.local', password: 'Right-pass-1', name: 'A2', role: 'athlete', dob: '2008-04-12',
-      guardianEmail: 'guardian-a2@family.local',
     });
     const res = await request(app).post('/api/auth/login').send({
       email: 'a2@test.local', password: 'Wrong-pass-1',
@@ -131,17 +118,14 @@ describe('register hardening: role allowlist + parent gate', () => {
     expect(res.body.error).toContain('parent');
   });
 
-  it('accepts an under-18 athlete once a guardian email is supplied — pending, no token', async () => {
+  it('accepts an under-18 athlete once a parent email is supplied', async () => {
     const res = await request(app).post('/api/auth/register').send({
       email: 'minor2@test.local', password: 'Str0ng-pass!', name: 'Minor Two',
       role: 'athlete', dob: '2011-01-01', parentEmail: 'guardian@test.local',
     });
-    expect(res.status).toBe(202);
-    expect(res.body.status).toBe('pending_guardian');
-    expect(res.body.pendingToken).toBeTypeOf('string');
-    expect(res.body.token).toBeUndefined();
+    expect([200, 201]).toContain(res.status);
+    expect(res.body.token).toBeTruthy();
   });
-
 });
 
 // The email/password register endpoint always creates an athlete, so it must
@@ -152,7 +136,6 @@ describe('email/password register: shared athlete gate', () => {
   it('rejects an under-13 dob (COPPA)', async () => {
     const res = await request(app).post('/api/auth/email/register').send({
       email: 'coppa@test.local', password: 'Str0ng-pass!', name: 'Too Young', dob: '2016-01-01',
-      guardianEmail: 'guardian@family.local',
     });
     expect(res.status).toBe(400);
     expect(res.body.error).toContain('under 13');
@@ -171,31 +154,26 @@ describe('email/password register: shared athlete gate', () => {
   it('rejects a missing dob', async () => {
     const res = await request(app).post('/api/auth/email/register').send({
       email: 'nodob@test.local', password: 'Str0ng-pass!', name: 'No Dob',
-      guardianEmail: 'guardian@family.local',
     });
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('Date of birth is required for athlete accounts');
     expect(res.body.token).toBeUndefined();
   });
 
-  it('accepts an adult dob with a guardian email — pending, no token', async () => {
+  it('accepts an adult dob and returns a token', async () => {
     const res = await request(app).post('/api/auth/email/register').send({
       email: 'eadult@test.local', password: 'Str0ng-pass!', name: 'E Adult', dob: '2000-01-01',
-      guardianEmail: 'eadult-guardian@family.local',
     });
-    expect(res.status).toBe(202);
-    expect(res.body.status).toBe('pending_guardian');
-    expect(res.body.pendingToken).toBeTypeOf('string');
-    expect(res.body.token).toBeUndefined();
+    expect(res.status).toBe(201);
+    expect(res.body.token).toBeTruthy();
   });
 
-  it('accepts an under-18 dob once a parent email is supplied — pending, no token', async () => {
+  it('accepts an under-18 dob once a parent email is supplied', async () => {
     const res = await request(app).post('/api/auth/email/register').send({
       email: 'eminor2@test.local', password: 'Str0ng-pass!', name: 'E Minor Two',
       dob: '2011-01-01', parentEmail: 'guardian@test.local',
     });
-    expect(res.status).toBe(202);
-    expect(res.body.status).toBe('pending_guardian');
-    expect(res.body.token).toBeUndefined();
+    expect(res.status).toBe(201);
+    expect(res.body.token).toBeTruthy();
   });
 });

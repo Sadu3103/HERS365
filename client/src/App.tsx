@@ -4,7 +4,7 @@ import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 // opposite of the win this PR is going for.
 import { Layout } from './components/Layout';
 import { CoachLayout } from './components/CoachLayout';
-import { ParentLayout } from './components/ParentLayout';
+import { LandingPage } from './pages/LandingPage';
 import { Auth } from './pages/Auth';
 
 // Every other route is split into its own chunk so a first-time visitor on
@@ -33,7 +33,6 @@ const Teams = lazyNamed(() => import('./pages/Teams'), 'Teams');
 const ForgotPassword = lazyNamed(() => import('./pages/ForgotPassword'), 'ForgotPassword');
 const ResetPassword = lazyNamed(() => import('./pages/ResetPassword'), 'ResetPassword');
 const VerifyEmail = lazyNamed(() => import('./pages/VerifyEmail'), 'VerifyEmail');
-const GuardianVerify = lazyNamed(() => import('./pages/GuardianVerify'), 'GuardianVerify');
 const Subscription = lazyNamed(() => import('./pages/Subscription'), 'Subscription');
 const Audit = lazyNamed(() => import('./pages/Audit'), 'Audit');
 const Privacy = lazyNamed(() => import('./pages/Privacy'), 'Privacy');
@@ -45,7 +44,6 @@ const Terms = lazyNamed(() => import('./pages/Terms'), 'Terms');
 const FAQ = lazyNamed(() => import('./pages/FAQ'), 'FAQ');
 const Help = lazyNamed(() => import('./pages/Help'), 'Help');
 const ThankYou = lazyNamed(() => import('./pages/ThankYou'), 'ThankYou');
-const Hub = lazyNamed(() => import('./pages/Hub'), 'Hub');
 const Explore = lazyNamed(() => import('./pages/Explore'), 'Explore');
 const Events = lazyNamed(() => import('./pages/Events'), 'Events');
 const Drills = lazyNamed(() => import('./pages/Drills'), 'Drills');
@@ -54,8 +52,6 @@ const Reels = lazyNamed(() => import('./pages/Reels'), 'Reels');
 const VideoStudio = lazyNamed(() => import('./pages/VideoStudio'), 'VideoStudio');
 const Settings = lazyNamed(() => import('./pages/Settings'), 'Settings');
 const Messages = lazyNamed(() => import('./pages/Messages'), 'Messages');
-const PerformanceAnalytics = lazyNamed(() => import('./pages/Analytics'), 'Analytics');
-const CollegeFit = lazyNamed(() => import('./pages/CollegeFit'), 'CollegeFit');
 const MaxPrepsLookup = lazyNamed(() => import('./pages/MaxPrepsLookup'), 'MaxPrepsLookup');
 const CollegeFitCalculator = lazyNamed(() => import('./pages/CollegeFitCalculator'), 'CollegeFitCalculator');
 const CollegeFlagFootball = lazyNamed(() => import('./pages/CollegeFlagFootball'), 'CollegeFlagFootball');
@@ -71,6 +67,7 @@ const StaticPageLayout = lazyNamed(() => import('./pages/StaticPageLayout'), 'St
 const NotFound = lazyNamed(() => import('./pages/NotFound'), 'NotFound');
 const Onboarding = lazyNamed(() => import('./pages/Onboarding'), 'Onboarding');
 
+const CoachLogin = lazyNamed(() => import('./pages/coach/CoachLogin'), 'CoachLogin');
 const CoachDashboard = lazyNamed(() => import('./pages/coach/CoachDashboard'), 'CoachDashboard');
 const CoachPlayerSearch = lazyNamed(() => import('./pages/coach/CoachPlayerSearch'), 'CoachPlayerSearch');
 const CoachScoutingBoard = lazyNamed(() => import('./pages/coach/CoachScoutingBoard'), 'CoachScoutingBoard');
@@ -78,11 +75,11 @@ const CoachMessages = lazyNamed(() => import('./pages/coach/CoachMessages'), 'Co
 const CoachRoster = lazyNamed(() => import('./pages/coach/CoachRoster'), 'CoachRoster');
 const CoachPlayerProfile = lazyNamed(() => import('./pages/coach/CoachPlayerProfile'), 'CoachPlayerProfile');
 const CoachAnalytics = lazyNamed(() => import('./pages/coach/CoachAnalytics'), 'CoachAnalytics');
+const CoachSignup = lazyNamed(() => import('./pages/coach/CoachSignup'), 'CoachSignup');
 const CoachSettings = lazyNamed(() => import('./pages/coach/CoachSettings'), 'CoachSettings');
-const CoachProfile = lazyNamed(() => import('./pages/coach/CoachProfile'), 'CoachProfile');
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { NotificationProvider } from './context/NotificationContext';
 import { AuthProvider } from './context/AuthContext';
 import { Capacitor } from '@capacitor/core';
@@ -155,55 +152,19 @@ function AthleteRouteGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Role guard for parent / admin / staff routes. Auth resolves synchronously
-// from localStorage before children render so protected content never
-// flashes for unauthenticated or wrong-role users.
-function RoleRouteGuard({ roles, loginPath, children }: {
-  roles: string[]; loginPath: string; children: React.ReactNode;
-}) {
-  const navigate = useNavigate();
-  const token = localStorage.getItem('token');
-  const userStr = localStorage.getItem('user');
-
-  let isAuthorized = false;
-  if (token && userStr) {
-    try {
-      const user = JSON.parse(userStr);
-      isAuthorized = roles.includes(user.role);
-    } catch {
-      isAuthorized = false;
-    }
-  }
-
-  useEffect(() => {
-    if (!isAuthorized) navigate(loginPath);
-  }, [navigate, isAuthorized, loginPath]);
-
-  if (!isAuthorized) return null;
-  return <>{children}</>;
-}
-
 // Simple role-based guard for coach routes.
 // Auth is resolved synchronously before any children render so protected
 // content (athlete PII, scouting data) never flashes for unauthenticated users.
 function CoachRouteGuard({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
-  // Coaches sign in through /auth now, which writes the unified token/user
-  // keys. Fall back to those so a session created after the coach login page
-  // was removed still resolves, and backfill the coach keys the portal's
-  // fetches read.
-  const token = localStorage.getItem('coachToken') || localStorage.getItem('token');
-  const userStr = localStorage.getItem('coachUser') || localStorage.getItem('user');
+  const token = localStorage.getItem('coachToken');
+  const userStr = localStorage.getItem('coachUser');
 
   let isAuthorized = false;
   if (token && userStr) {
     try {
       const user = JSON.parse(userStr);
       isAuthorized = user.role === 'coach' || user.role === 'admin';
-      if (isAuthorized && !localStorage.getItem('coachToken')) {
-        localStorage.setItem('coachToken', token);
-        localStorage.setItem('coachUser', userStr);
-      }
     } catch {
       isAuthorized = false;
     }
@@ -211,7 +172,7 @@ function CoachRouteGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isAuthorized) {
-      navigate('/auth?role=coach');
+      navigate('/coach/login');
     }
   }, [navigate, isAuthorized]);
 
@@ -239,7 +200,6 @@ function App() {
     (async () => {
       const { StatusBar, Style } = await import('@capacitor/status-bar');
       const { Keyboard, KeyboardResize } = await import('@capacitor/keyboard');
-      const { SplashScreen } = await import('@capacitor/splash-screen');
 
       await StatusBar.setStyle({ style: Style.Dark });
       if (Capacitor.getPlatform() === 'ios') {
@@ -252,8 +212,6 @@ function App() {
         if (!canGoBack) CapApp.minimizeApp();
         else window.history.back();
       });
-
-      await SplashScreen.hide().catch(() => {});
 
       cleanup = () => { backListener.remove(); };
     })();
@@ -278,9 +236,6 @@ function App() {
           <Routes>
             <Route element={<Layout />}>
               <Route path="/feed" element={<AthleteRouteGuard><Feed /></AthleteRouteGuard>} />
-              <Route path="/college-fit" element={<AthleteRouteGuard><CollegeFit /></AthleteRouteGuard>} />
-              <Route path="/analytics" element={<AthleteRouteGuard><PerformanceAnalytics /></AthleteRouteGuard>} />
-              <Route path="/messages" element={<AthleteRouteGuard><Messages /></AthleteRouteGuard>} />
               <Route path="/rankings" element={<Rankings />} />
               <Route path="/profile" element={<AthleteRouteGuard><Profile /></AthleteRouteGuard>} />
               <Route path="/profile/:id" element={<PlayerProfile />} />
@@ -298,7 +253,6 @@ function App() {
               <Route path="/faq" element={<FAQ />} />
               <Route path="/help" element={<Help />} />
               <Route path="/thank-you" element={<ThankYou />} />
-              <Route path="/hub" element={<Hub />} />
               <Route path="/explore" element={<Explore />} />
               <Route path="/events" element={<Events />} />
               <Route path="/drills" element={<Drills />} />
@@ -314,40 +268,29 @@ function App() {
               <Route path="/squads" element={<SquadFinder />} />
               <Route path="/teams/find" element={<TeamFinder />} />
               <Route path="/scholarships" element={<ScholarshipTracker />} />
-              <Route path="/admin" element={<RoleRouteGuard roles={['admin']} loginPath="/admin/login"><AdminDashboard /></RoleRouteGuard>} />
+              <Route path="/parent" element={<ParentDashboard />} />
+              <Route path="/parent/dashboard" element={<ParentDashboard />} />
+              <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/login" element={<AdminLogin />} />
-              <Route path="/staff" element={<RoleRouteGuard roles={['admin', 'staff']} loginPath="/admin/login"><StaffDashboard /></RoleRouteGuard>} />
+              <Route path="/staff" element={<StaffDashboard />} />
               <Route path="/static/:slug" element={<StaticPageLayout />} />
               <Route path="*" element={<NotFound />} />
             </Route>
 
-            {/* Parent shell — its own top bar, no athlete sidebar or tabs */}
-            <Route element={<RoleRouteGuard roles={['parent']} loginPath="/auth?role=parent"><ParentLayout /></RoleRouteGuard>}>
-              <Route path="/parent" element={<ParentDashboard />} />
-              <Route path="/parent/dashboard" element={<ParentDashboard />} />
-            </Route>
-
             {/* Standalone full-page routes (no nav shell) */}
-            <Route path="/" element={<Navigate to="/auth" replace />} />
-            <Route path="/landing" element={<Navigate to="/auth" replace />} />
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/landing" element={<LandingPage />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/login" element={<Navigate to="/auth?tab=login" replace />} />
-            <Route path="/signin" element={<Navigate to="/auth?tab=login" replace />} />
-            <Route path="/signup" element={<Navigate to="/auth?tab=signup" replace />} />
-            <Route path="/register" element={<Navigate to="/auth?tab=signup" replace />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
-            {/* Guardian approval — public and unconditional: a guardian must be
-                able to activate a pending athlete even while signup is gated. */}
-            <Route path="/guardian-verify" element={<GuardianVerify />} />
 
             {/* Athlete onboarding (full-screen, no nav chrome) */}
             <Route path="/onboarding" element={<Onboarding />} />
 
             {/* Coach Portal Routes */}
-            <Route path="/coach/login" element={<Navigate to="/auth" replace />} />
-            <Route path="/coach/signup" element={<Navigate to="/auth" replace />} />
+            <Route path="/coach/login" element={<CoachLogin />} />
+            <Route path="/coach/signup" element={<CoachSignup />} />
             <Route element={<CoachRouteGuard><CoachLayout /></CoachRouteGuard>}>
               <Route path="/coach" element={<CoachDashboard />} />
               <Route path="/coach/dashboard" element={<CoachDashboard />} />
@@ -356,9 +299,8 @@ function App() {
               <Route path="/coach/analytics" element={<CoachAnalytics />} />
               <Route path="/coach/messages" element={<CoachMessages />} />
               <Route path="/coach/roster" element={<CoachRoster />} />
-              <Route path="/coach/settings" element={<CoachSettings />} />
-              <Route path="/coach/profile" element={<CoachProfile />} />
               <Route path="/coach/player/:id" element={<CoachPlayerProfile />} />
+              <Route path="/coach/settings" element={<CoachSettings />} />
             </Route>
           </Routes>
           </Suspense>

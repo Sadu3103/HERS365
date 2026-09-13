@@ -68,7 +68,7 @@ function PhotoUploadCard({
     <div className="bg-surface-card border border-surface-border rounded-3xl backdrop-blur-xl p-6">
       <h3 className="text-xl font-bold text-white mb-6 uppercase tracking-tight">Profile Picture</h3>
       <div className="flex items-center gap-6">
-        <div className="relative w-24 h-24 rounded-2xl bg-gradient-to-br from-accent-500 to-green-500 p-1">
+        <div className="relative w-24 h-24 rounded-2xl bg-gradient-to-br from-coral-500 to-green-500 p-1">
           <div className="w-full h-full rounded-[14px] bg-surface-card overflow-hidden">
             <img
               src={currentSrc}
@@ -94,7 +94,7 @@ function PhotoUploadCard({
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={uploading}
-            className="inline-flex items-center gap-2 bg-accent-500 hover:bg-accent-600 disabled:opacity-60 text-white px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wider transition"
+            className="inline-flex items-center gap-2 bg-coral-500 hover:bg-coral-600 disabled:opacity-60 text-white px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-wider transition"
           >
             {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
             {uploading ? 'Uploading…' : profile?.profileImage ? 'Change Photo' : 'Upload Photo'}
@@ -238,12 +238,8 @@ export const Settings = () => {
         phone: data?.phone || '',
       });
       setPrivacySetting(data?.privacySetting || 'public');
-    } catch (err: any) {
-      if (err?.status === 403) {
-        setProfileError('Your account is pending guardian approval. Please check your email for the approval link, or contact support@hers365.com if you need help.');
-      } else {
-        setProfileError(errorMessage(err, 'Failed to load profile'));
-      }
+    } catch (err) {
+      setProfileError(errorMessage(err, 'Failed to load profile'));
     } finally {
       setProfileLoading(false);
     }
@@ -368,7 +364,7 @@ export const Settings = () => {
     if (profileLoading) {
       return (
         <div className="flex items-center justify-center py-24">
-          <Loader2 size={36} className="text-accent-500 animate-spin" />
+          <Loader2 size={36} className="text-coral-500 animate-spin" />
         </div>
       );
     }
@@ -377,7 +373,7 @@ export const Settings = () => {
         <div className="bg-surface-card border border-red-500/30 rounded-3xl p-8 text-center">
           <AlertCircle size={36} className="text-red-400 mx-auto mb-3" />
           <p className="text-red-400 font-bold">{profileError}</p>
-          <button onClick={fetchProfile} className="mt-4 px-6 py-2 bg-accent-500 text-white rounded-lg font-bold uppercase tracking-widest text-sm">Retry</button>
+          <button onClick={fetchProfile} className="mt-4 px-6 py-2 bg-coral-500 text-white rounded-lg font-bold uppercase tracking-widest text-sm">Retry</button>
         </div>
       );
     }
@@ -396,7 +392,7 @@ export const Settings = () => {
                 type="text"
                 value={form.name}
                 onChange={e => handleFormChange('name', e.target.value)}
-                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-accent-500"
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
               />
             </div>
             <div className="md:col-span-2">
@@ -414,7 +410,7 @@ export const Settings = () => {
                 type="tel"
                 value={form.phone}
                 onChange={e => handleFormChange('phone', e.target.value)}
-                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-accent-500"
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
                 placeholder="e.g. 555.867.5309"
               />
             </div>
@@ -424,7 +420,7 @@ export const Settings = () => {
                 rows={4}
                 value={form.bio}
                 onChange={e => handleFormChange('bio', e.target.value)}
-                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-accent-500 resize-none"
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500 resize-none"
               />
             </div>
           </div>
@@ -440,7 +436,7 @@ export const Settings = () => {
                 type="text"
                 value={form.sport}
                 onChange={e => handleFormChange('sport', e.target.value)}
-                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-accent-500"
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
                 placeholder="e.g. Flag Football"
               />
             </div>
@@ -450,7 +446,7 @@ export const Settings = () => {
                 type="text"
                 value={form.position}
                 onChange={e => handleFormChange('position', e.target.value)}
-                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-accent-500"
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
                 placeholder="e.g. Quarterback"
               />
             </div>
@@ -460,7 +456,7 @@ export const Settings = () => {
                 type="text"
                 value={form.school}
                 onChange={e => handleFormChange('school', e.target.value)}
-                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-accent-500"
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
               />
             </div>
             <div>
@@ -469,7 +465,7 @@ export const Settings = () => {
                 type="text"
                 value={form.gradYear}
                 onChange={e => handleFormChange('gradYear', e.target.value)}
-                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-accent-500"
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
                 placeholder="e.g. 2026"
               />
             </div>
@@ -479,7 +475,7 @@ export const Settings = () => {
                 type="text"
                 value={form.gpa}
                 onChange={e => handleFormChange('gpa', e.target.value)}
-                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-accent-500"
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
                 placeholder="e.g. 3.8"
               />
             </div>
@@ -489,7 +485,7 @@ export const Settings = () => {
                 type="text"
                 value={form.state}
                 onChange={e => handleFormChange('state', e.target.value)}
-                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-accent-500"
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
                 placeholder="e.g. CA"
               />
             </div>
@@ -499,7 +495,7 @@ export const Settings = () => {
                 type="text"
                 value={form.city}
                 onChange={e => handleFormChange('city', e.target.value)}
-                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-accent-500"
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
               />
             </div>
             <div>
@@ -508,7 +504,7 @@ export const Settings = () => {
                 type="text"
                 value={form.zipCode}
                 onChange={e => handleFormChange('zipCode', e.target.value)}
-                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-accent-500"
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
               />
             </div>
             <div>
@@ -517,7 +513,7 @@ export const Settings = () => {
                 type="number"
                 value={form.heightIn}
                 onChange={e => handleFormChange('heightIn', e.target.value)}
-                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-accent-500"
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
                 placeholder="e.g. 68 (for 5'8&quot;)"
               />
             </div>
@@ -527,7 +523,7 @@ export const Settings = () => {
                 type="number"
                 value={form.weightLbs}
                 onChange={e => handleFormChange('weightLbs', e.target.value)}
-                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-accent-500"
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
                 placeholder="e.g. 145"
               />
             </div>
@@ -537,7 +533,7 @@ export const Settings = () => {
                 rows={3}
                 value={form.achievements}
                 onChange={e => handleFormChange('achievements', e.target.value)}
-                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-accent-500 resize-none"
+                className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500 resize-none"
                 placeholder="List your key achievements..."
               />
             </div>
@@ -560,7 +556,7 @@ export const Settings = () => {
                 ? 'bg-green-500 text-white'
                 : saveStatus === 'error'
                 ? 'bg-red-500 text-white'
-                : 'bg-accent-500 hover:bg-accent-600 text-white'
+                : 'bg-coral-500 hover:bg-coral-600 text-white'
             }`}
           >
             {saveStatus === 'saving' ? (
@@ -603,7 +599,7 @@ export const Settings = () => {
                   onChange={(e) => setNotifications((prev: typeof notifications) => ({ ...prev, [item.key]: e.target.checked }))}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-surface-hover peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent-500/25 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-500"></div>
+                <div className="w-11 h-6 bg-surface-hover peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-coral-500/25 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-coral-500"></div>
               </label>
             </div>
           ))}
@@ -619,7 +615,7 @@ export const Settings = () => {
               type="time"
               value={notifications.quietStart}
               onChange={e => setNotifications((prev: typeof notifications) => ({ ...prev, quietStart: e.target.value }))}
-              className="bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-accent-500"
+              className="bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
             />
           </div>
           <div>
@@ -628,7 +624,7 @@ export const Settings = () => {
               type="time"
               value={notifications.quietEnd}
               onChange={e => setNotifications((prev: typeof notifications) => ({ ...prev, quietEnd: e.target.value }))}
-              className="bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-accent-500"
+              className="bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
             />
           </div>
         </div>
@@ -638,7 +634,7 @@ export const Settings = () => {
         <button
           onClick={handleSaveNotifications}
           disabled={notifSaving}
-          className={`flex items-center gap-2 px-8 py-4 rounded-xl font-bold uppercase tracking-widest transition-colors ${notifSaved ? 'bg-green-500 text-white' : 'bg-accent-500 hover:bg-accent-600 text-white'}`}
+          className={`flex items-center gap-2 px-8 py-4 rounded-xl font-bold uppercase tracking-widest transition-colors ${notifSaved ? 'bg-green-500 text-white' : 'bg-coral-500 hover:bg-coral-600 text-white'}`}
         >
           {notifSaving ? <Loader2 size={18} className="animate-spin" /> : notifSaved ? <CheckCircle size={18} /> : <Save size={18} />}
           {notifSaving ? 'Saving…' : notifSaved ? 'Saved!' : 'Save Preferences'}
@@ -661,7 +657,7 @@ export const Settings = () => {
             <select
               value={privacySetting}
               onChange={e => setPrivacySetting(e.target.value)}
-              className="bg-surface-hover border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-accent-500"
+              className="bg-surface-hover border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-coral-500"
             >
               <option value="public">Public</option>
               <option value="friends">Friends Only</option>
@@ -695,10 +691,10 @@ export const Settings = () => {
           <input type="password" placeholder="Confirm new password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required minLength={8} className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white" />
           {passwordMsg && <p className={`text-sm ${passwordMsg === 'Password updated.' ? 'text-green-400' : 'text-red-400'}`}>{passwordMsg}</p>}
           <div className="flex gap-3 items-center">
-            <button type="submit" disabled={passwordSaving} className="px-6 py-3 bg-accent-500 hover:bg-accent-600 text-white rounded-lg font-bold uppercase tracking-widest text-sm">
+            <button type="submit" disabled={passwordSaving} className="px-6 py-3 bg-coral-500 hover:bg-coral-600 text-white rounded-lg font-bold uppercase tracking-widest text-sm">
               {passwordSaving ? 'Saving…' : 'Update Password'}
             </button>
-            <button type="button" onClick={() => navigate('/forgot-password')} className="text-sm text-ink-muted hover:text-accent-500">Forgot password?</button>
+            <button type="button" onClick={() => navigate('/forgot-password')} className="text-sm text-ink-muted hover:text-coral-500">Forgot password?</button>
           </div>
         </form>
       </div>
@@ -716,7 +712,7 @@ export const Settings = () => {
               ? 'bg-green-500 text-white'
               : privacySaveStatus === 'error'
               ? 'bg-red-500 text-white'
-              : 'bg-accent-500 hover:bg-accent-600 text-white'
+              : 'bg-coral-500 hover:bg-coral-600 text-white'
           }`}
         >
           {privacySaveStatus === 'saving' ? <Loader2 size={18} className="animate-spin" /> : privacySaveStatus === 'saved' ? <CheckCircle size={18} /> : <Save size={18} />}
@@ -739,7 +735,7 @@ export const Settings = () => {
               onClick={() => setAppearance((prev: typeof appearance) => ({ ...prev, theme: themeName }))}
               className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
                 appearance.theme === themeName
-                  ? 'border-accent-500 bg-accent-500/10'
+                  ? 'border-coral-500 bg-coral-500/10'
                   : 'border-white/10 hover:border-white/20'
               }`}
             >
@@ -760,7 +756,7 @@ export const Settings = () => {
             <select
               value={appearance.language}
               onChange={e => setAppearance((prev: typeof appearance) => ({ ...prev, language: e.target.value }))}
-              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-accent-500"
+              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
             >
               <option>English (US)</option>
               <option>English (UK)</option>
@@ -773,7 +769,7 @@ export const Settings = () => {
             <select
               value={appearance.timezone}
               onChange={e => setAppearance((prev: typeof appearance) => ({ ...prev, timezone: e.target.value }))}
-              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-accent-500"
+              className="w-full bg-surface-card border border-white/10 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-coral-500"
             >
               <option>Pacific Time (PT)</option>
               <option>Eastern Time (ET)</option>
@@ -787,7 +783,7 @@ export const Settings = () => {
       <div className="flex justify-end">
         <button
           onClick={handleSaveAppearance}
-          className={`flex items-center gap-2 px-8 py-4 rounded-xl font-bold uppercase tracking-widest transition-colors ${appearanceSaved ? 'bg-green-500 text-white' : 'bg-accent-500 hover:bg-accent-600 text-white'}`}
+          className={`flex items-center gap-2 px-8 py-4 rounded-xl font-bold uppercase tracking-widest transition-colors ${appearanceSaved ? 'bg-green-500 text-white' : 'bg-coral-500 hover:bg-coral-600 text-white'}`}
         >
           {appearanceSaved ? <CheckCircle size={18} /> : <Save size={18} />}
           {appearanceSaved ? 'Saved!' : 'Save Preferences'}
@@ -803,7 +799,7 @@ export const Settings = () => {
 
     const tier = profile?.subscriptionTier || 'free';
     const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1);
-    const tierColor = tier === 'premium' ? 'bg-accent-500' : tier === 'elite' ? 'bg-yellow-500' : 'bg-surface-hover';
+    const tierColor = tier === 'premium' ? 'bg-coral-500' : tier === 'elite' ? 'bg-yellow-500' : 'bg-surface-hover';
 
     const vStatus = profile?.verificationStatus || 'unverified';
     const isVerified = vStatus === 'verified';
@@ -930,7 +926,7 @@ export const Settings = () => {
                 onClick={() => setActiveTab(section.id)}
                 className={`w-full flex items-center gap-4 p-4 rounded-xl text-left transition-all ${
                   activeTab === section.id
-                    ? 'bg-accent-500 text-white'
+                    ? 'bg-coral-500 text-white'
                     : 'text-ink-muted hover:text-white hover:bg-white/5'
                 }`}
               >

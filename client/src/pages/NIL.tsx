@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DollarSign, Star, TrendingUp, Package, CheckCircle2, ChevronRight, XCircle } from 'lucide-react';
 import { UpgradeGate } from '../components/UpgradeGate';
-import { colors, type as t, radii } from '../lib/tokens';
-import { Badge, Button } from '../components/ui';
 
-const DISP = t.font.display;
+const LINE = 'rgba(255,255,255,0.07)';
+const MUTED = '#8a8a86';
+const MUTED_2 = '#5a5a56';
+const PURPLE = '#a78bfa';
+const DISP = "'Barlow Condensed', sans-serif";
 
 type Deal = {
   id: number;
@@ -53,13 +55,9 @@ export const NIL = () => {
   const handleApply = async (opportunityId: number) => {
     setApplying(prev => ({ ...prev, [opportunityId]: true }));
     try {
-      const token = localStorage.getItem('token');
       const res = await fetch('/api/nil/apply', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ opportunityId }),
       });
       const data = await res.json();
@@ -78,18 +76,18 @@ export const NIL = () => {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: '80px 20px', textAlign: 'center', color: colors.textSecondary }}>
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '80px 20px', textAlign: 'center', color: MUTED }}>
         <DollarSign size={32} style={{ marginBottom: 12, opacity: 0.35 }} />
-        <p style={{ fontSize: t.size.md, margin: 0 }}>Loading opportunities...</p>
+        <p style={{ fontSize: '0.88rem', margin: 0 }}>Loading opportunities...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: '80px 20px', textAlign: 'center', color: colors.dangerText }}>
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '80px 20px', textAlign: 'center', color: '#f87171' }}>
         <XCircle size={32} style={{ marginBottom: 12, opacity: 0.6 }} />
-        <p style={{ fontSize: t.size.md, margin: 0 }}>{error}</p>
+        <p style={{ fontSize: '0.88rem', margin: 0 }}>{error}</p>
       </div>
     );
   }
@@ -98,13 +96,13 @@ export const NIL = () => {
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 20px 120px' }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontSize: t.size.xs, fontWeight: t.weight.bold, letterSpacing: '0.12em', textTransform: 'uppercase', color: colors.accent }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: PURPLE }}>
           <DollarSign size={13} /> NIL MARKETPLACE
         </div>
-        <h1 style={{ fontFamily: DISP, fontSize: t.size['3xl'], fontWeight: t.weight.bold, textTransform: 'uppercase', letterSpacing: '-0.02em', margin: '0 0 8px', lineHeight: 1 }}>
+        <h1 style={{ fontFamily: DISP, fontSize: '2.4rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.02em', margin: '0 0 8px', lineHeight: 1 }}>
           Name. Image. Likeness.
         </h1>
-        <p style={{ color: colors.textSecondary, fontSize: t.size.base, margin: 0 }}>Brand partnerships built for flag football athletes. Get paid to be you.</p>
+        <p style={{ color: MUTED, fontSize: '0.85rem', margin: 0 }}>Brand partnerships built for flag football athletes. Get paid to be you.</p>
       </div>
 
       {/* Elite gate — wraps the entire deal marketplace */}
@@ -116,10 +114,10 @@ export const NIL = () => {
             { icon: <Package size={16} />, val: applied.length, label: 'Applied deals' },
             { icon: <TrendingUp size={16} />, val: deals.length, label: 'Open opportunities' },
           ].map((s) => (
-            <div key={s.label} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${colors.border}`, borderRadius: radii.md, padding: '14px 14px', textAlign: 'center' }}>
-              <div style={{ color: colors.accent, marginBottom: 5, display: 'flex', justifyContent: 'center' }}>{s.icon}</div>
-              <div style={{ fontFamily: DISP, fontSize: t.size.xl, fontWeight: t.weight.bold, color: colors.textPrimary, lineHeight: 1 }}>{s.val}</div>
-              <div style={{ fontSize: t.size.xs, color: colors.textSecondary, fontWeight: t.weight.bold, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>{s.label}</div>
+            <div key={s.label} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 12, padding: '14px 14px', textAlign: 'center' }}>
+              <div style={{ color: PURPLE, marginBottom: 5, display: 'flex', justifyContent: 'center' }}>{s.icon}</div>
+              <div style={{ fontFamily: DISP, fontSize: '1.6rem', fontWeight: 900, color: '#f4f4f2', lineHeight: 1 }}>{s.val}</div>
+              <div style={{ fontSize: '0.62rem', color: MUTED, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -133,25 +131,27 @@ export const NIL = () => {
                 key={deal.id}
                 whileHover={{ x: 3 }}
                 onClick={() => setSelected(deal)}
-                style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${colors.border}`, borderRadius: radii.lg, padding: '14px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14 }}
+                style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 14, padding: '14px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14 }}
               >
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                    <div style={{ fontWeight: t.weight.bold, fontSize: t.size.md, color: colors.textPrimary }}>{deal.brandName}</div>
-                    {isApplied && <Badge tone="pink">APPLIED</Badge>}
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#f4f4f2' }}>{deal.brandName}</div>
+                    {isApplied && (
+                      <span style={{ padding: '2px 7px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 99, fontSize: '0.6rem', fontWeight: 700, color: '#f59e0b' }}>APPLIED</span>
+                    )}
                   </div>
                   {deal.deliverables && (
-                    <div style={{ fontSize: t.size.sm, color: colors.textSecondary }}>{deal.deliverables}</div>
+                    <div style={{ fontSize: '0.72rem', color: MUTED }}>{deal.deliverables}</div>
                   )}
                   {deal.requirements && (
-                    <div style={{ fontSize: t.size.xs, color: colors.textTertiary, marginTop: 3 }}>{deal.requirements}</div>
+                    <div style={{ fontSize: '0.68rem', color: MUTED_2, marginTop: 3 }}>{deal.requirements}</div>
                   )}
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   {deal.estimatedEarnings != null && (
-                    <div style={{ fontFamily: DISP, fontSize: t.size.lg, fontWeight: t.weight.bold, color: colors.success }}>${deal.estimatedEarnings.toLocaleString()}</div>
+                    <div style={{ fontFamily: DISP, fontSize: '1.2rem', fontWeight: 900, color: '#4ade80' }}>${deal.estimatedEarnings.toLocaleString()}</div>
                   )}
-                  <ChevronRight size={14} color={colors.textTertiary} style={{ marginTop: 4 }} />
+                  <ChevronRight size={14} color={MUTED_2} style={{ marginTop: 4 }} />
                 </div>
               </motion.div>
             );
@@ -159,9 +159,9 @@ export const NIL = () => {
         </div>
 
         {deals.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textTertiary }}>
+          <div style={{ textAlign: 'center', padding: '48px 0', color: MUTED_2 }}>
             <DollarSign size={32} style={{ marginBottom: 12, opacity: 0.35 }} />
-            <p style={{ fontSize: t.size.md, margin: 0 }}>No opportunities available right now.</p>
+            <p style={{ fontSize: '0.88rem', margin: 0 }}>No opportunities available right now.</p>
           </div>
         )}
       </UpgradeGate>
@@ -170,42 +170,39 @@ export const NIL = () => {
       <AnimatePresence>
         {selected && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelected(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 50, display: 'flex', alignItems: 'flex-end' }}>
-            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 28, stiffness: 300 }} onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 720, margin: '0 auto', background: colors.surface2, borderRadius: '18px 18px 0 0', padding: '24px 24px 40px', border: `1px solid ${colors.border}` }}>
-              <div style={{ width: 36, height: 4, background: colors.border, borderRadius: radii.full, margin: '0 auto 20px' }} />
+            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 28, stiffness: 300 }} onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 720, margin: '0 auto', background: '#161616', borderRadius: '18px 18px 0 0', padding: '24px 24px 40px', border: `1px solid ${LINE}` }}>
+              <div style={{ width: 36, height: 4, background: LINE, borderRadius: 99, margin: '0 auto 20px' }} />
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
                 <div>
-                  <div style={{ fontFamily: DISP, fontSize: t.size.xl, fontWeight: t.weight.bold, textTransform: 'uppercase', letterSpacing: '-0.01em' }}>{selected.brandName}</div>
+                  <div style={{ fontFamily: DISP, fontSize: '1.4rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em' }}>{selected.brandName}</div>
                 </div>
                 {selected.estimatedEarnings != null && (
-                  <div style={{ fontFamily: DISP, fontSize: t.size.xl, fontWeight: t.weight.bold, color: colors.success }}>${selected.estimatedEarnings.toLocaleString()}</div>
+                  <div style={{ fontFamily: DISP, fontSize: '1.6rem', fontWeight: 900, color: '#4ade80' }}>${selected.estimatedEarnings.toLocaleString()}</div>
                 )}
               </div>
               {selected.deliverables && (
                 <div style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: t.size.xs, fontWeight: t.weight.bold, letterSpacing: '0.1em', textTransform: 'uppercase', color: colors.textTertiary, marginBottom: 5 }}>Deliverables</div>
-                  <div style={{ fontSize: t.size.md, color: colors.textSecondary }}>{selected.deliverables}</div>
+                  <div style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED_2, marginBottom: 5 }}>Deliverables</div>
+                  <div style={{ fontSize: '0.88rem', color: '#d4d4d0' }}>{selected.deliverables}</div>
                 </div>
               )}
               {selected.requirements && (
                 <div style={{ marginBottom: 24 }}>
-                  <div style={{ fontSize: t.size.xs, fontWeight: t.weight.bold, letterSpacing: '0.1em', textTransform: 'uppercase', color: colors.textTertiary, marginBottom: 5 }}>Requirements</div>
-                  <div style={{ fontSize: t.size.md, color: colors.textSecondary }}>{selected.requirements}</div>
+                  <div style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED_2, marginBottom: 5 }}>Requirements</div>
+                  <div style={{ fontSize: '0.88rem', color: '#d4d4d0' }}>{selected.requirements}</div>
                 </div>
               )}
               {isElite && !applied.includes(selected.id) && (
-                <Button
-                  className="w-full"
-                  size="lg"
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
                   onClick={() => handleApply(selected.id)}
-                  loading={applying[selected.id]}
                   disabled={applying[selected.id]}
-                  style={{ fontFamily: DISP, letterSpacing: '0.06em', textTransform: 'uppercase' }}
-                >
+                  style={{ width: '100%', padding: '14px', background: PURPLE, color: '#fff', border: 'none', borderRadius: 12, fontFamily: DISP, fontWeight: 800, fontSize: '0.95rem', letterSpacing: '0.06em', textTransform: 'uppercase', cursor: applying[selected.id] ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: applying[selected.id] ? 0.6 : 1 }}>
                   <Star size={16} /> {applying[selected.id] ? 'Submitting...' : 'Express Interest'}
-                </Button>
+                </motion.button>
               )}
               {applied.includes(selected.id) && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: `${colors.success}14`, border: `1px solid ${colors.success}33`, borderRadius: radii.md, color: colors.success, fontSize: t.size.base, fontWeight: t.weight.bold }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 12, color: '#4ade80', fontSize: '0.85rem', fontWeight: 700 }}>
                   <CheckCircle2 size={16} /> Application Submitted
                 </div>
               )}

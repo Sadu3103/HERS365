@@ -2,14 +2,13 @@ import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutGrid, Trophy, User, Dumbbell, Search,
-  Settings, MessageSquare, Plus, LogOut, Compass
+  Settings, MessageSquare, Plus, LogOut, Zap, Menu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { variants } from '../lib/motion';
-import { colors, radii } from '../lib/tokens';
 import { BottomTabBar } from './BottomTabBar';
 import { NotificationBell } from './NotificationBell';
+import { MobileBurgerMenu } from './MobileBurgerMenu';
 import { ProfileCompletionBanner } from './ProfileCompletionBanner';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/api';
@@ -25,18 +24,29 @@ const nav: NavItem[] = [
   { icon: LayoutGrid,    label: 'THE GRID',   path: '/feed' },
   { icon: Trophy,        label: 'RANKINGS',   path: '/rankings' },
   { icon: User,          label: 'MY PROFILE', path: '/profile' },
-  { icon: Compass,       label: 'THE HUB',    path: '/hub' },
   { icon: Dumbbell,      label: 'TRAINING',   path: '/training' },
   { icon: Search,        label: 'RECRUITING', path: '/recruiting' },
   { icon: MessageSquare, label: 'MESSAGES',   path: '/messages' },
+  { icon: Zap,           label: 'UPGRADE / PRO', path: '/subscribe' },
 ];
 
-const pageTransition = variants.pageTransition;
+const pageTransition = {
+  initial: { opacity: 0, y: 10, scale: 0.992 },
+  animate: { opacity: 1, y: 0, scale: 1 },
+  exit:    { opacity: 0, y: -4, scale: 1.004 },
+  transition: {
+    type: 'spring' as const,
+    stiffness: 420,
+    damping: 34,
+    mass: 0.8,
+  },
+};
 
 export const Layout = () => {
   const location  = useLocation();
   const navigate  = useNavigate();
   const [mode, setMode] = useState<'athlete' | 'coach'>('athlete');
+  const [isBurgerOpen, setIsBurgerOpen] = useState(false);
 
   const { user, logout } = useAuth();
 
@@ -62,43 +72,19 @@ export const Layout = () => {
   const unreadMessages = unread?.data?.totalUnread ?? 0;
   const p = profile?.data ?? {};
 
-  // If a parent or coach lands on a public route using <Layout /> (e.g. /hub, /rankings),
-  // they should have a way back to their dashboard, not the athlete nav.
-  if (user?.role === 'parent') {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: colors.surface0, color: colors.textPrimary }}>
-        <header style={{ height: 56, display: 'flex', alignItems: 'center', padding: '0 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(10,10,10,0.84)', position: 'sticky', top: 0, zIndex: 30 }}>
-          <Link to="/parent/dashboard" style={{ color: colors.accent, fontWeight: 700, textDecoration: 'none', fontSize: '0.85rem', letterSpacing: '0.05em' }}>&larr; RETURN TO PARENT DASHBOARD</Link>
-        </header>
-        <main style={{ flex: 1 }}><Outlet /></main>
-      </div>
-    );
-  }
-  
-  if (user?.role === 'coach' || user?.role === 'admin' || user?.role === 'staff') {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: colors.surface0, color: colors.textPrimary }}>
-        <header style={{ height: 56, display: 'flex', alignItems: 'center', padding: '0 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(10,10,10,0.84)', position: 'sticky', top: 0, zIndex: 30 }}>
-          <Link to="/coach/dashboard" style={{ color: colors.accent, fontWeight: 700, textDecoration: 'none', fontSize: '0.85rem', letterSpacing: '0.05em' }}>&larr; RETURN TO COACH DASHBOARD</Link>
-        </header>
-        <main style={{ flex: 1 }}><Outlet /></main>
-      </div>
-    );
-  }
-
   // Logged-out visitors land here on public pages (rankings, about, privacy,
   // the 404 catch-all, etc.). Render marketing chrome, not the athlete app
   // shell — a signed-out user should never see "SIGN OUT" or a profile card.
   if (!user) {
     const pubLink: React.CSSProperties = {
-      color: colors.textTertiary, fontWeight: 600, fontSize: '0.84rem',
+      color: '#8a8a86', fontWeight: 600, fontSize: '0.84rem',
       textDecoration: 'none', letterSpacing: '0.01em',
     };
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: colors.surface0, color: colors.textPrimary }}>
-        <a href="#main-content" className="skip-link">Skip to content</a>
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#0a0a0a', color: '#fff' }}>
         <header style={{
-          height: 56, display: 'flex', alignItems: 'center', padding: '0 20px',
+          minHeight: 56, display: 'flex', alignItems: 'center', padding: '0 20px',
+          paddingTop: 'var(--sat, 0px)',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
           background: 'rgba(10,10,10,0.84)',
           backdropFilter: 'blur(20px) saturate(1.5)',
@@ -109,15 +95,15 @@ export const Layout = () => {
             <span style={{
               fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 900,
               fontSize: '1.35rem', letterSpacing: '0.04em',
-              textTransform: 'uppercase', color: colors.textPrimary,
+              textTransform: 'uppercase', color: '#fff',
             }}>
-              HERS<span style={{ color: colors.accent }}>365</span>
+              HERS<span style={{ color: '#8B3BFF' }}>365</span>
             </span>
           </Link>
 
           <nav className="hidden md:flex" style={{ marginLeft: 28, gap: 26, alignItems: 'center' }}>
             <Link to="/rankings" style={pubLink}>Rankings</Link>
-            <Link to="/auth?role=coach" style={pubLink}>For Coaches</Link>
+            <Link to="/coach/login" style={pubLink}>For Coaches</Link>
             <Link to="/about" style={pubLink}>About</Link>
           </nav>
 
@@ -126,14 +112,14 @@ export const Layout = () => {
             <Link
               to="/auth?tab=signup"
               className="k-btn k-btn-primary"
-              style={{ padding: '8px 18px', borderRadius: radii.full, fontSize: '0.8rem', textDecoration: 'none' }}
+              style={{ padding: '8px 18px', borderRadius: 9999, fontSize: '0.8rem', textDecoration: 'none' }}
             >
-              Get Started
+              Get Recruited
             </Link>
           </div>
         </header>
 
-        <main id="main-content" style={{ flex: 1 }}>
+        <main style={{ flex: 1 }}>
           <AnimatePresence mode="wait">
             <motion.div key={location.pathname} {...pageTransition}>
               <Outlet />
@@ -145,8 +131,7 @@ export const Layout = () => {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: colors.surface0, color: colors.textPrimary, overflow: 'hidden' }}>
-      <a href="#main-content" className="skip-link">Skip to content</a>
+    <div style={{ display: 'flex', height: '100vh', background: '#0a0a0a', color: '#fff', overflow: 'hidden' }}>
 
       {/* ─── Desktop Sidebar ─── */}
       <aside
@@ -156,7 +141,7 @@ export const Layout = () => {
           flexShrink: 0,
           flexDirection: 'column',
           padding: '28px 16px',
-          background: colors.surface0,
+          background: '#0a0a0a',
           borderRight: '1px solid rgba(255,255,255,0.05)',
         }}
       >
@@ -168,17 +153,17 @@ export const Layout = () => {
             fontSize: '1.6rem',
             letterSpacing: '0.04em',
             textTransform: 'uppercase',
-            color: colors.textPrimary,
+            color: '#fff',
           }}>
-            HERS<span style={{ color: colors.accent }}>365</span>
+            HERS<span style={{ color: '#8B3BFF' }}>365</span>
           </span>
         </div>
 
         {/* ATHLETE / COACH switch */}
         <div style={{
           display: 'flex',
-          background: colors.surface2,
-          borderRadius: radii.full,
+          background: '#161616',
+          borderRadius: 9999,
           padding: 3,
           marginBottom: 32,
         }}>
@@ -186,9 +171,9 @@ export const Layout = () => {
             whileTap={{ scale: 0.95 }}
             onClick={() => setMode('athlete')}
             style={{
-              flex: 1, padding: '6px 0', borderRadius: radii.full,
-              background: mode === 'athlete' ? colors.accent : 'transparent',
-              color: mode === 'athlete' ? colors.textPrimary : colors.textTertiary,
+              flex: 1, padding: '6px 0', borderRadius: 9999,
+              background: mode === 'athlete' ? '#8B3BFF' : 'transparent',
+              color: mode === 'athlete' ? '#fff' : '#555',
               fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em',
               textTransform: 'uppercase', border: 'none', cursor: 'pointer',
               transition: 'background 0.2s, color 0.2s',
@@ -199,14 +184,12 @@ export const Layout = () => {
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => {
-              const stored = localStorage.getItem('coachUser') || localStorage.getItem('user');
-              let isCoach = false;
-              try { const u = JSON.parse(stored || '{}'); isCoach = u.role === 'coach' || u.role === 'admin'; } catch { isCoach = false; }
-              navigate(isCoach ? '/coach/dashboard' : '/auth?role=coach');
+              const hasCoach = localStorage.getItem('coachToken');
+              navigate(hasCoach ? '/coach/dashboard' : '/coach/login');
             }}
             style={{
-              flex: 1, padding: '6px 0', borderRadius: radii.full,
-              background: 'transparent', color: colors.textTertiary,
+              flex: 1, padding: '6px 0', borderRadius: 9999,
+              background: 'transparent', color: '#555',
               fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em',
               textTransform: 'uppercase', border: 'none', cursor: 'pointer',
               transition: 'background 0.2s, color 0.2s',
@@ -222,24 +205,24 @@ export const Layout = () => {
             const active = location.pathname === path;
             const badge = path === '/messages' && unreadMessages > 0 ? unreadMessages : undefined;
             return (
-              <motion.div key={path} whileTap={{ scale: 0.97 }} style={{ borderRadius: radii.sm }}>
+              <motion.div key={path} whileTap={{ scale: 0.97 }} style={{ borderRadius: 9 }}>
                 <Link
                   to={path}
                   className={`nav-item${active ? ' nav-active' : ''}`}
                   style={{ justifyContent: 'space-between', fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.04em' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <Icon size={17} color={active ? colors.accent : undefined} />
+                    <Icon size={17} color={active ? '#8B3BFF' : undefined} />
                     {label}
                   </div>
                   {badge && (
                     <div style={{
-                      minWidth: 18, height: 18, borderRadius: radii.full,
-                      background: colors.accent,
+                      minWidth: 18, height: 18, borderRadius: 9999,
+                      background: '#8B3BFF',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       padding: '0 5px', flexShrink: 0,
                     }}>
-                      <span style={{ fontSize: '0.6rem', fontWeight: 800, color: colors.textPrimary }}>{badge}</span>
+                      <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#fff' }}>{badge}</span>
                     </div>
                   )}
                 </Link>
@@ -250,7 +233,7 @@ export const Layout = () => {
 
         {/* Bottom: settings + profile card */}
         <div style={{ paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <motion.div whileTap={{ scale: 0.97 }} style={{ borderRadius: radii.sm }}>
+          <motion.div whileTap={{ scale: 0.97 }} style={{ borderRadius: 9 }}>
             <Link
               to="/settings"
               className={`nav-item${location.pathname === '/settings' ? ' nav-active' : ''}`}
@@ -266,13 +249,13 @@ export const Layout = () => {
             onClick={handleSignOut}
             style={{
               display: 'flex', alignItems: 'center', gap: 10,
-              padding: '10px 12px', borderRadius: radii.sm,
+              padding: '10px 12px', borderRadius: 9,
               background: 'transparent', border: 'none',
-              color: colors.textTertiary, cursor: 'pointer', width: '100%',
+              color: '#777', cursor: 'pointer', width: '100%',
               fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.04em',
             }}
-            onMouseEnter={e => { e.currentTarget.style.color = colors.accent; }}
-            onMouseLeave={e => { e.currentTarget.style.color = colors.textTertiary; }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#8B3BFF'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#777'; }}
           >
             <LogOut size={17} />
             SIGN OUT
@@ -283,7 +266,7 @@ export const Layout = () => {
             onClick={() => navigate('/profile')}
             style={{
               display: 'flex', alignItems: 'center', gap: 10,
-              padding: '10px 12px', borderRadius: radii.md,
+              padding: '10px 12px', borderRadius: 10,
               background: 'rgba(255,255,255,0.03)',
               border: '1px solid rgba(255,255,255,0.07)',
               cursor: 'pointer', marginTop: 10,
@@ -292,7 +275,7 @@ export const Layout = () => {
             }}
             onMouseEnter={e => {
               (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.06)';
-              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(139,59,255,0.2)';
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(139, 59, 255,0.2)';
             }}
             onMouseLeave={e => {
               (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.03)';
@@ -303,23 +286,23 @@ export const Layout = () => {
               <img
                 src={p.profileImage || athleteAvatar(user?.name ?? 'You')}
                 alt={user?.name ?? 'Profile'}
-                style={{ width: 32, height: 32, borderRadius: '50%', background: colors.surface2, border: '1.5px solid rgba(139,59,255,0.4)', objectFit: 'cover' }}
+                style={{ width: 32, height: 32, borderRadius: '50%', background: '#1c1c1c', border: '1.5px solid rgba(139, 59, 255,0.4)', objectFit: 'cover' }}
               />
               <div style={{
                 position: 'absolute', bottom: 0, right: 0,
                 width: 8, height: 8, borderRadius: '50%',
-                background: colors.success, border: `1.5px solid ${colors.surface0}`,
+                background: '#4ade80', border: '1.5px solid #0a0a0a',
               }} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '0.83rem', fontWeight: 600, color: colors.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: '0.83rem', fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {user?.name ?? 'Your Profile'}
               </div>
-              <div style={{ fontSize: '0.68rem', color: colors.textTertiary, marginTop: 1 }}>
+              <div style={{ fontSize: '0.68rem', color: '#555', marginTop: 1 }}>
                 {[p.position, p.gradYear].filter(Boolean).join(' | ') || 'Complete your profile'}
               </div>
             </div>
-            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '0.9rem', color: colors.accent, flexShrink: 0 }}>
+            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '0.9rem', color: '#8B3BFF', flexShrink: 0 }}>
               {p.g5Rating ?? '—'}
             </div>
           </motion.button>
@@ -331,9 +314,10 @@ export const Layout = () => {
 
         {/* Header — frosted glass */}
         <header style={{
-          height: 56,
+          minHeight: 56,
+          paddingTop: 'var(--sat, 0px)',
           display: 'flex', alignItems: 'center',
-          padding: '0 20px',
+          paddingLeft: 20, paddingRight: 20,
           borderBottom: '1px solid rgba(255,255,255,0.06)',
           background: 'rgba(10,10,10,0.84)',
           backdropFilter: 'blur(20px) saturate(1.5)',
@@ -350,30 +334,30 @@ export const Layout = () => {
               fontSize: '1.35rem',
               letterSpacing: '0.04em',
               textTransform: 'uppercase',
-              color: colors.textPrimary,
+              color: '#fff',
             }}>
-              HERS<span style={{ color: colors.accent }}>365</span>
+              HERS<span style={{ color: '#8B3BFF' }}>365</span>
             </span>
           </div>
 
           {/* Search — desktop only */}
           <div className="hidden md:block" style={{ flex: 1, position: 'relative', maxWidth: 500 }}>
-            <Search size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: colors.textTertiary, pointerEvents: 'none' }} />
+            <Search size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#555', pointerEvents: 'none' }} />
             <input
               type="text"
               placeholder="Search athletes, drills, schools..."
               style={{
                 width: '100%',
-                background: colors.surface2,
+                background: '#161616',
                 border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: radii.full,
+                borderRadius: 9999,
                 padding: '7px 18px 7px 38px',
                 fontSize: '0.8rem',
-                color: colors.textPrimary,
+                color: '#fff',
                 outline: 'none',
                 transition: 'border-color 0.18s',
               }}
-              onFocus={e => (e.target.style.borderColor = 'rgba(139,59,255,0.4)')}
+              onFocus={e => (e.target.style.borderColor = 'rgba(139, 59, 255,0.4)')}
               onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.08)')}
             />
           </div>
@@ -381,32 +365,53 @@ export const Layout = () => {
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <NotificationBell />
 
+            {/* Mobile Burger Menu Button */}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setIsBurgerOpen(true)}
+              className="flex md:hidden"
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                cursor: 'pointer',
+              }}
+            >
+              <Menu size={19} />
+            </motion.button>
+
             {/* POST HIGHLIGHT — desktop only */}
             <motion.button
               whileTap={{ scale: 0.94 }}
               onClick={() => navigate('/training')}
               className="k-btn k-btn-primary hidden md:flex"
-              style={{ padding: '7px 16px', borderRadius: radii.full }}
+              style={{ padding: '7px 16px', borderRadius: 9999 }}
             >
               <Plus size={14} />
               POST HIGHLIGHT
             </motion.button>
 
-            {/* Avatar */}
+            {/* Avatar — desktop only */}
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={() => navigate('/profile')}
-              aria-label="Your profile"
+              className="hidden md:block"
               style={{
-                width: 44, height: 44, borderRadius: '50%',
-                background: `linear-gradient(135deg, ${colors.accent}, ${colors.accentText})`,
-                border: '2px solid rgba(139,59,255,0.5)',
+                width: 32, height: 32, borderRadius: '50%',
+                background: 'linear-gradient(135deg, #8B3BFF, #FF2E93)',
+                border: '2px solid rgba(139, 59, 255,0.5)',
                 cursor: 'pointer', flexShrink: 0, padding: 0,
                 transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
               }}
               whileHover={{
-                boxShadow: '0 0 0 3px rgba(139,59,255,0.2)',
-                borderColor: colors.accent,
+                boxShadow: '0 0 0 3px rgba(139, 59, 255,0.2)',
+                borderColor: '#8B3BFF',
               }}
             />
           </div>
@@ -415,7 +420,6 @@ export const Layout = () => {
         <ProfileCompletionBanner />
         {/* Page Content */}
         <main
-          id="main-content"
           className="main-scroll"
           style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}
         >
@@ -432,7 +436,14 @@ export const Layout = () => {
         </main>
       </div>
 
-      {/* Mobile bottom tab bar */}
+      {/* Mobile Burger Slide-out Menu */}
+      <MobileBurgerMenu
+        isOpen={isBurgerOpen}
+        onClose={() => setIsBurgerOpen(false)}
+        unreadMessages={unreadMessages}
+      />
+
+      {/* Mobile bottom tab bar (5 tabs) */}
       <BottomTabBar unreadMessages={unreadMessages} />
     </div>
   );

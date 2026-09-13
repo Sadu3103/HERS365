@@ -1,19 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../app';
 import { resetDb } from './helpers/db';
 import { makeAthlete } from './helpers/fixtures';
-
-// Mocking ../email keeps the newsletter subscribe path offline (no SMTP).
-vi.mock('../email', () => ({
-  sendGuardianConsentEmail: vi.fn(async () => ({ success: true })),
-  sendEmail: vi.fn().mockResolvedValue(undefined),
-  sendPasswordResetEmail: vi.fn().mockResolvedValue(undefined),
-  sendVerificationEmail: vi.fn().mockResolvedValue(undefined),
-  sendWelcomeEmail: vi.fn().mockResolvedValue(undefined),
-  sendNewsletterConfirm: vi.fn().mockResolvedValue(undefined),
-  sendNewsletterWelcome: vi.fn().mockResolvedValue(undefined),
-}));
 
 // Registration kill switch. setup.ts sets REGISTRATION_ENABLED='true' for the
 // suite, so each case flips it to closed locally and restores it in finally.
@@ -66,46 +55,6 @@ describe('registration kill switch (closed)', () => {
       });
       expect(res.status).toBe(200);
       expect(res.body.token).toBeTruthy();
-    } finally {
-      process.env.REGISTRATION_ENABLED = prev;
-    }
-  });
-});
-
-describe('newsletter stays open while registration is closed', () => {
-  it('200s POST /api/newsletter/subscribe with { ok: true }', async () => {
-    const prev = process.env.REGISTRATION_ENABLED;
-    process.env.REGISTRATION_ENABLED = 'false';
-    try {
-      const res = await request(app).post('/api/newsletter/subscribe').send({
-        email: 'newsletter-closed@test.local', name: 'News Closed', source: 'coming_soon',
-      });
-      expect(res.status).toBe(200);
-      expect(res.body).toEqual({ ok: true });
-    } finally {
-      process.env.REGISTRATION_ENABLED = prev;
-    }
-  });
-
-  it('200s GET /api/newsletter/confirm even with an invalid token', async () => {
-    const prev = process.env.REGISTRATION_ENABLED;
-    process.env.REGISTRATION_ENABLED = 'false';
-    try {
-      const res = await request(app).get('/api/newsletter/confirm?token=not-a-real-token');
-      expect(res.status).toBe(200);
-      expect(res.status).not.toBe(403);
-    } finally {
-      process.env.REGISTRATION_ENABLED = prev;
-    }
-  });
-
-  it('200s GET /api/newsletter/unsubscribe even with an invalid token', async () => {
-    const prev = process.env.REGISTRATION_ENABLED;
-    process.env.REGISTRATION_ENABLED = 'false';
-    try {
-      const res = await request(app).get('/api/newsletter/unsubscribe?token=not-a-real-token');
-      expect(res.status).toBe(200);
-      expect(res.status).not.toBe(403);
     } finally {
       process.env.REGISTRATION_ENABLED = prev;
     }

@@ -5,15 +5,13 @@ import * as ai from './ai';
 import * as mp from './maxpreps';
 import { eq, desc, sql, and } from 'drizzle-orm';
 import { requireAuth, requireAdmin, optionalAuth, type TokenPayload } from './auth';
-import { requireActivated } from './middleware/requireActivated';
 
 const router = express.Router();
 
 import { publicPlayerView, selfPlayerView } from './lib/playerPrivacy';
 import { parseIdParam } from './lib/parseIdParam';
+import { clampIntQuery } from './lib/queryParam';
 import { recordCoachEvent } from './lib/coachEvents';
-import { isMediaUploadEnabled } from './lib/mediaUpload';
-import { publicAthleteDiscoveryEnabled } from './lib/publicExposure';
 
 // requireAuth attaches the token payload to req.user, but Express's Request
 // type doesn't know about it. Read it through here for typed access.
@@ -57,9 +55,9 @@ router.get('/player-subscription/:playerId', requireAuth, async (req: Request, r
   try {
     const pId = parseIdParam(req.params.playerId);
     if (pId === null) return res.status(400).json({ error: 'Invalid id' });
-    const viewer = authUser(req);
-    if (viewer?.role === 'athlete' && pId !== viewer?.id) {
-      return res.status(403).json({ error: 'Unauthorized to view this subscription' });
+    const u = authUser(req);
+    if (u?.userId !== pId && u?.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden' });
     }
     const subscription = await db.select()
       .from(schema.playerSubscriptions)
@@ -68,8 +66,8 @@ router.get('/player-subscription/:playerId', requireAuth, async (req: Request, r
     const subPlanId = subscription[0].planId;
     const plan = subPlanId != null
       ? await db.select()
-        .from(schema.subscriptionPlans)
-        .where(eq(schema.subscriptionPlans.id, subPlanId))
+          .from(schema.subscriptionPlans)
+          .where(eq(schema.subscriptionPlans.id, subPlanId))
       : [];
     res.json({ ...subscription[0], plan: plan[0] || null });
   } catch (err: any) {
@@ -79,22 +77,35 @@ router.get('/player-subscription/:playerId', requireAuth, async (req: Request, r
 
 router.post('/player-subscription', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Subscription state is financial state. It must be written by the Stripe
-    // checkout/webhook flow, not by a client-supplied planId or subscription id.
-    return res.status(410).json({ error: 'Use Stripe checkout to change subscriptions.' });
+    const { playerId, planId, stripeSubscriptionId } = req.body;
+    if (!playerId || !planId) {
+      return res.status(400).json({ error: 'PlayerId and planId are required' });
+    }
+    if (authUser(req)!.userId !== playerId) return res.status(403).json({ error: 'Forbidden' });
+    const existing = await db.select()
+      .from(schema.playerSubscriptions)
+      .where(eq(schema.playerSubscriptions.playerId, playerId));
+    if (existing.length > 0) {
+      const updated = await db.update(schema.playerSubscriptions)
+        .set({ planId, stripeSubscriptionId, status: 'active' })
+        .where(eq(schema.playerSubscriptions.playerId, playerId))
+        .returning();
+      return res.json(updated[0]);
+    }
+    const newSub = await db.insert(schema.playerSubscriptions)
+      .values({ playerId, planId, stripeSubscriptionId, status: 'active' })
+      .returning();
+    const plan = await db.select().from(schema.subscriptionPlans).where(eq(schema.subscriptionPlans.id, planId));
+    if (plan.length > 0) {
+      await db.update(schema.players)
+        .set({ subscriptionTier: plan[0].tierLevel })
+        .where(eq(schema.players.id, playerId));
+    }
+    res.json(newSub[0]);
   } catch (err: any) {
     next(err);
   }
 });
-
-function mediaWritesAllowed(res: Response): boolean {
-  if (isMediaUploadEnabled()) return true;
-  res.status(403).json({
-    code: 'MEDIA_UPLOAD_DISABLED',
-    error: 'Photo and video uploads are not available yet.',
-  });
-  return false;
-}
 
 // CURRENT USER PROFILE
 router.get('/profile', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
@@ -106,7 +117,7 @@ router.get('/profile', requireAuth, async (req: Request, res: Response, next: Ne
   }
 });
 
-router.put('/profile', requireAuth, requireActivated, async (req: Request, res: Response, next: NextFunction) => {
+router.put('/profile', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, bio, position, school, state, gradYear, heightIn, weightLbs, phone, profileImage } = req.body;
     const updates: Record<string, any> = {};
@@ -119,10 +130,9 @@ router.put('/profile', requireAuth, requireActivated, async (req: Request, res: 
     if (heightIn !== undefined) updates.heightIn = heightIn === '' ? null : Number(heightIn);
     if (weightLbs !== undefined) updates.weightLbs = weightLbs === '' ? null : Number(weightLbs);
     if (phone !== undefined) updates.phone = phone || null;
-    if (profileImage !== undefined) {
-      if (profileImage && !mediaWritesAllowed(res)) return;
-      updates.profileImage = profileImage || null;
-    }
+    // Custom profile photo URL. Client uploads to /api/upload/presign first,
+    // then sends the resulting publicUrl here.
+    if (profileImage !== undefined) updates.profileImage = profileImage || null;
     const updated = await db.update(schema.players).set(updates).where(eq(schema.players.id, authUser(req)!.userId)).returning();
     res.json(stripPlayer(updated[0]));
   } catch (err: any) {
@@ -140,125 +150,29 @@ router.get('/profile/stats', requireAuth, async (req: Request, res: Response, ne
   }
 });
 
-// Parent Stat Submissions
-router.post(
-  '/parent/stats/submit',
-  requireAuth,
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const parentId = authUser(req)!.userId;
-
-      const {
-        playerId,
-
-        // Athlete identity
-        athleteEmail,
-        athleteName,
-        athleteDob,
-        gradYear,
-        position,
-        state,
-        division,
-        school,
-
-        // Season
-        season,
-
-        // Stats
-        passingTds,
-        rushingTds,
-        receivingTds,
-        defensiveTds,
-        sacks,
-        hersRating,
-        flagPulls,
-        interceptions,
-        passingYards,
-        receivingYards,
-        rushingYards,
-
-        // Combine
-        fortyYardDash,
-        verticalJump,
-        shuttle5105,
-        broadJump,
-
-        // Verification
-        notes,
-        maxPrepsUrl,
-      } = req.body;
-
-      if (!playerId) {
-        return res.status(400).json({
-          error: 'playerId is required',
-        });
-      }
-
-      const submission = await db
-        .insert(schema.parentStatSubmissions)
-        .values({
-          parentId,
-          playerId,
-
-          athleteEmail,
-          athleteName,
-          athleteDob,
-          gradYear,
-          position,
-          state,
-          division,
-          school,
-
-          season,
-
-          passingTds,
-          rushingTds,
-          receivingTds,
-          defensiveTds,
-          sacks,
-          hersRating,
-          flagPulls,
-          interceptions,
-          passingYards,
-          rushingYards,
-          receivingYards,
-
-          fortyYardDash,
-          verticalJump,
-          shuttle5105,
-          broadJump,
-
-          maxPrepsUrl,
-          source: 'parent_portal',
-          notes,
-          status: 'pending',
-        })
-        .returning();
-
-      res.json(submission[0]);
-    } catch (err: any) {
-      next(err);
-    }
-  }
-);
-
 // PLAYERS & TEAMS
 router.get('/players', optionalAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (!authUser(req) && !publicAthleteDiscoveryEnabled()) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
-    const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
+    const limit = clampIntQuery(req.query.limit, { default: 20, min: 1, max: 100 });
+    const offset = clampIntQuery(req.query.offset, { default: 0, min: 0, max: 100000 });
 
-    const allPlayers = await db.select().from(schema.players).limit(limit).offset(offset);
-    // Coach discoverability: a coach listing athletes must not see those a
-    // parent hid (mirrors the /api/coach/players/search filter). Non-coach
-    // callers still get the full public directory.
-    const visible = authUser(req)?.role === 'coach'
-      ? allPlayers.filter(p => ((p.preferences ?? {}) as Record<string, unknown>).coachDiscoverable !== false)
-      : allPlayers;
-    res.json(visible.map(publicPlayer));
+    const conditions = [];
+    const u = authUser(req);
+    if (u?.role !== 'admin') {
+      conditions.push(sql`${schema.players.privacySetting} != 'private'`);
+    }
+    if (u?.role === 'coach' || !u) {
+      conditions.push(sql`coalesce(${schema.players.preferences}->>'coachDiscoverable', 'true') != 'false'`);
+    }
+
+    const rows = await db
+      .select()
+      .from(schema.players)
+      .where(conditions.length ? and(...conditions) : undefined)
+      .limit(limit)
+      .offset(offset);
+
+    res.json(rows.map(publicPlayer));
   } catch (err: any) {
     next(err);
   }
@@ -268,9 +182,6 @@ router.get('/players/:id', optionalAuth, async (req: Request, res: Response, nex
   try {
     const pId = parseIdParam(req.params.id);
     if (pId === null) return res.status(400).json({ error: 'Invalid id' });
-    if (!authUser(req) && !publicAthleteDiscoveryEnabled()) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
     const player = await db.select().from(schema.players).where(eq(schema.players.id, pId));
     const row = player[0];
     const viewer = authUser(req);
@@ -297,9 +208,6 @@ router.get('/players/:id/stats', optionalAuth, async (req: Request, res: Respons
   try {
     const pId = parseIdParam(req.params.id);
     if (pId === null) return res.status(400).json({ error: 'Invalid id' });
-    if (!authUser(req) && !publicAthleteDiscoveryEnabled()) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
     // Coach discoverability gate (see /players/:id). A hidden athlete is
     // invisible to coaches here too, so stats cannot leak around the toggle.
     if (authUser(req)?.role === 'coach') {
@@ -344,13 +252,12 @@ router.get('/players/:id/highlights', requireAuth, async (req: Request, res: Res
   }
 });
 
-router.post('/players/:id/highlights', requireAuth, requireActivated, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/players/:id/highlights', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const pId = parseIdParam(req.params.id);
     if (pId === null) return res.status(400).json({ error: 'Invalid id' });
     if (authUser(req)!.userId !== pId) return res.status(403).json({ error: 'Forbidden' });
     const { videoUrl, thumbnailUrl, category, season, annotations, clipSettings } = req.body;
-    if ((videoUrl || thumbnailUrl) && !mediaWritesAllowed(res)) return;
     const newHighlight = await db.insert(schema.playerHighlights).values({
       playerId: pId,
       videoUrl,
@@ -376,11 +283,8 @@ router.get('/teams', async (req: Request, res: Response, next: NextFunction) => 
 });
 
 // SOCIAL FEED
-router.get('/posts', optionalAuth, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/posts', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (!authUser(req) && !publicAthleteDiscoveryEnabled()) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
     const allPosts = await db
       .select({
         id: schema.posts.id,
@@ -408,10 +312,9 @@ router.get('/posts', optionalAuth, async (req: Request, res: Response, next: Nex
   }
 });
 
-router.post('/posts', requireAuth, requireActivated, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/posts', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { content, mediaUrl, mediaType } = req.body;
-    if (mediaUrl && !mediaWritesAllowed(res)) return;
     const newPost = await db.insert(schema.posts).values({
       playerId: authUser(req)!.userId,
       content,
@@ -437,12 +340,10 @@ router.get('/stories', async (req: Request, res: Response, next: NextFunction) =
 });
 
 // AI BOTS & TRAINING
-router.get('/bot/:playerId', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/bot/:playerId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const pId = parseIdParam(req.params.playerId);
     if (pId === null) return res.status(400).json({ error: 'Invalid id' });
-    const viewer = authUser(req)!;
-    if (viewer.role !== 'admin' && viewer.userId !== pId) return res.status(403).json({ error: 'Forbidden' });
     let bots = await db.select().from(schema.aiBots).where(eq(schema.aiBots.playerId, pId));
     if (bots.length === 0) {
       const generated = await ai.generateBotName();
@@ -458,14 +359,10 @@ router.get('/bot/:playerId', requireAuth, async (req: Request, res: Response, ne
   }
 });
 
-router.post('/bot/:botId/chat', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/bot/:botId/chat', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const bId = parseIdParam(req.params.botId);
     if (bId === null) return res.status(400).json({ error: 'Invalid id' });
-    const [bot] = await db.select().from(schema.aiBots).where(eq(schema.aiBots.id, bId)).limit(1);
-    if (!bot) return res.status(404).json({ error: 'Bot not found' });
-    const viewer = authUser(req)!;
-    if (viewer.role !== 'admin' && bot.playerId !== viewer.userId) return res.status(403).json({ error: 'Forbidden' });
     const { message, context } = req.body;
     const reply = await ai.chatBot(bId, [{ role: 'user', content: message }], context);
     res.json({ reply });
@@ -660,94 +557,4 @@ export async function createNotification(
   }
 }
 
-// ─── MESSAGING (Pro/Elite) ────────────────────────────────────────────────────────────
-router.post('/messages', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const pId = authUser(req)!.userId;
-    const { coachId, content } = req.body;
-    
-    // Ensure athlete has pro tier to send messages
-    const [player] = await db.select().from(schema.players).where(eq(schema.players.id, pId)).limit(1);
-    const isPaid = !!player?.subscriptionTier && player.subscriptionTier !== 'free';
-    if (!isPaid) {
-      return res.status(403).json({ error: 'Pro subscription required to message coaches' });
-    }
-
-    // Insert message
-    const [message] = await db.insert(schema.messages).values({
-      coachId,
-      athleteId: pId,
-      senderId: pId,
-      senderType: 'athlete',
-      content,
-    }).returning();
-
-    res.json(message);
-  } catch (err: any) {
-    next(err);
-  }
-});
-
-router.get('/messages', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const pId = authUser(req)!.userId;
-    const [player] = await db.select().from(schema.players).where(eq(schema.players.id, pId)).limit(1);
-    const isPaid = !!player?.subscriptionTier && player.subscriptionTier !== 'free';
-    if (!isPaid) {
-      return res.status(403).json({ error: 'Pro subscription required' });
-    }
-
-    // Get all messages for this athlete
-    const msgs = await db.select().from(schema.messages).where(eq(schema.messages.athleteId, pId));
-    res.json(msgs);
-  } catch (err: any) {
-    next(err);
-  }
-});
-
-// ─── ANALYTICS (Pro/Elite) ────────────────────────────────────────────────────────────
-router.get('/analytics/performance', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const pId = authUser(req)!.userId;
-    const [player] = await db.select().from(schema.players).where(eq(schema.players.id, pId)).limit(1);
-    const isPaid = !!player?.subscriptionTier && player.subscriptionTier !== 'free';
-    if (!isPaid) {
-      return res.status(403).json({ error: 'Pro subscription required' });
-    }
-
-    const stats = await db.select().from(schema.gameStats).where(eq(schema.gameStats.playerId, pId));
-    res.json(stats);
-  } catch (err: any) {
-    next(err);
-  }
-});
-
-// ─── COLLEGE FIT (Pro/Elite) ──────────────────────────────────────────────────────────
-router.get('/college-fit', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const pId = authUser(req)!.userId;
-    const [player] = await db.select().from(schema.players).where(eq(schema.players.id, pId)).limit(1);
-    const isPaid = !!player?.subscriptionTier && player.subscriptionTier !== 'free';
-    if (!isPaid) {
-      return res.status(403).json({ error: 'Pro subscription required' });
-    }
-
-    const allTeams = await db.select().from(schema.teams).where(eq(schema.teams.type, 'college'));
-    
-    const matches = allTeams.map(team => {
-      let score = 50; 
-      if (player.state && team.state && player.state === team.state) score += 20;
-      if (player.g5Rating && player.g5Rating >= 4 && team.division === 'NCAA D1') score += 20;
-      if (player.g5Rating && player.g5Rating <= 3 && (team.division === 'NCAA D2' || team.division === 'NCAA D3')) score += 20;
-      score += Math.floor(Math.random() * 10) - 5;
-      return { ...team, matchScore: Math.min(100, Math.max(0, score)) };
-    }).sort((a, b) => b.matchScore - a.matchScore).slice(0, 20);
-
-    res.json(matches);
-  } catch (err: any) {
-    next(err);
-  }
-});
-
 export default router;
-

@@ -31,7 +31,7 @@ describe('500 error path does not leak internal err.message — email auth', () 
 
     const res = await request(app)
       .post('/api/auth/email/register')
-      .send({ email: `gen-${Date.now()}@test.local`, password: 'Test-pw-123', name: 'Test', dob: '2000-01-01', guardianEmail: 'leak-guardian@family.local' });
+      .send({ email: `gen-${Date.now()}@test.local`, password: 'Test-pw-123', name: 'Test', dob: '2000-01-01' });
 
     expect(res.status).toBe(500);
 

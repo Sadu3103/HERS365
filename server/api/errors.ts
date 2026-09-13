@@ -1,6 +1,5 @@
 import express, { Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
-import { makeLimiterStore } from '../lib/limiterStore';
 
 // Public client-error sink. No auth on purpose — an auth failure is exactly
 // the kind of error we need to see. Mounted before any auth-gated router in
@@ -49,7 +48,6 @@ function sanitize(body: unknown): SanitizedPayload {
 const errorReportLimiter = rateLimit({
   windowMs: 60_000,
   max: 10,
-  store: makeLimiterStore('error-report'),
   standardHeaders: true,
   legacyHeaders: false,
   // Same 200 on rate-limit hits as on success so the client cannot probe the

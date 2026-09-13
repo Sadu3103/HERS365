@@ -1,14 +1,13 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { colors } from '../lib/tokens';
 
 export const NotFound = () => {
   return (
     <div className="min-h-screen bg-surface flex flex-col items-center justify-center px-6 text-center relative overflow-hidden">
       {/* Background glow */}
       <div className="absolute inset-0 pointer-events-none select-none opacity-20">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-accent-500/30 rounded-full blur-[150px]" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-coral-500/30 rounded-full blur-[150px]" />
       </div>
 
       <motion.div
@@ -25,7 +24,7 @@ export const NotFound = () => {
             fontSize: '1.6rem',
             letterSpacing: '0.04em',
             textTransform: 'uppercase',
-            color: colors.accentOn,
+            color: '#fff',
           }}
           className="mb-12"
         >
@@ -33,7 +32,7 @@ export const NotFound = () => {
         </span>
 
         {/* 404 */}
-        <p className="text-8xl md:text-[10rem] font-black tracking-tighter text-accent-500/20 leading-none select-none">
+        <p className="text-8xl md:text-[10rem] font-black tracking-tighter text-coral-500/20 leading-none select-none">
           404
         </p>
 
@@ -46,7 +45,7 @@ export const NotFound = () => {
         </p>
 
         <Link to="/">
-          <button className="inline-flex items-center gap-3 px-8 py-4 bg-accent-500 hover:bg-accent-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-accent-500/30 group">
+          <button className="inline-flex items-center gap-3 px-8 py-4 bg-coral-500 hover:bg-coral-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-coral-500/30 group">
             <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
             Go Home
           </button>

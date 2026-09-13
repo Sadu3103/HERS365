@@ -2,7 +2,7 @@
 // Launch-day seed: replaces placeholder athletes with real CA girls' flag-football
 // profiles and seeds an on-brand feed. Idempotent — safe to re-run.
 // Run against prod with DATABASE_URL set to the production Postgres URL.
-import './load-env';
+import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema';
@@ -13,12 +13,12 @@ import { eq } from 'drizzle-orm';
 const connectionString = process.env.DATABASE_PUBLIC_URL || process.env.DATABASE_URL;
 const pool = new Pool({
   connectionString,
-  ssl: connectionString && !connectionString.includes('localhost') && !connectionString.includes('postgres') ? { rejectUnauthorized: false } : undefined,
+  ssl: connectionString && !connectionString.includes('localhost') ? { rejectUnauthorized: false } : undefined,
 });
 const db = drizzle(pool, { schema });
 
 const ATHLETES = [
-  { name: 'Maya Johnson',    email: 'maya@hers365.com',    position: 'QB',         age: 17, state: 'CA', city: 'Santa Ana',   school: 'Mater Dei HS',          gradYear: 2026, g5Rating: 5, gpa: '3.9', tier: 'elite', archetype: 'Field General',  achievements: '2025 CIF-SS Flag Football Offensive MVP · 2,400 passing yds' },
+  { name: 'Maya Johnson',    email: 'maya.johnson@hers365.app',    position: 'QB',         age: 17, state: 'CA', city: 'Santa Ana',   school: 'Mater Dei HS',          gradYear: 2026, g5Rating: 5, gpa: '3.9', tier: 'elite', archetype: 'Field General',  achievements: '2025 CIF-SS Flag Football Offensive MVP · 2,400 passing yds' },
   { name: 'Sofia Ramirez',   email: 'sofia.ramirez@hers365.app',   position: 'WR',         age: 17, state: 'CA', city: 'Long Beach',   school: 'Long Beach Poly',       gradYear: 2026, g5Rating: 5, gpa: '4.0', tier: 'pro',   archetype: 'Deep Threat',    achievements: 'Section-leading 18 receiving TDs · 1st Team All-League' },
   { name: 'Aaliyah Brooks',  email: 'aaliyah.brooks@hers365.app',  position: 'Safety',     age: 16, state: 'CA', city: 'Corona',       school: 'Centennial HS',         gradYear: 2027, g5Rating: 5, gpa: '3.7', tier: 'pro',   archetype: 'Ball Hawk',      achievements: '9 INTs in 2025 · All-Section defense' },
   { name: 'Isabella Reyes',  email: 'isabella.reyes@hers365.app',  position: 'QB',         age: 16, state: 'CA', city: 'Orange',       school: 'Orange Lutheran',       gradYear: 2027, g5Rating: 5, gpa: '3.8', tier: 'free',  archetype: 'Dual-Threat',    achievements: 'Freshman of the Year · 28 total TDs' },
@@ -73,7 +73,7 @@ async function run() {
       skillTier: a.g5Rating >= 5 ? 'elite' : a.g5Rating >= 4 ? 'advanced' : 'intermediate',
       verificationStatus: 'verified', privacySetting: 'public',
       nilPoints: a.g5Rating * 120, xpPoints: a.g5Rating * 340, level: a.g5Rating,
-      passwordHash: a.email === 'maya@hers365.com' ? '$2b$10$sCsMkTcKmRPRPpBK9VoDbOM6cSVr.H8bK7Xmy2WeewO/C0VkCd3UO' : null,
+      passwordHash: null,
     };
     if (i < ids.length) {
       await db.update(schema.players).set(vals).where(eq(schema.players.id, ids[i]));

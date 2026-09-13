@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Zap } from 'lucide-react';
 import { useDemoLogin, type DemoRole } from '../hooks/useDemoLogin';
 
-type Variant = 'player' | 'coach' | 'parent';
+type Variant = 'player' | 'coach';
 
 interface Props {
   role: DemoRole;
@@ -29,9 +29,9 @@ export const DemoLoginButton: React.FC<Props> = ({ role, variant, onLoadingChang
         type="button"
         onClick={submit}
         disabled={loading}
-        className="w-full py-4 bg-white/5 hover:bg-white/10 border border-accent-500/40 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-2xl font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2"
+        className="w-full py-4 bg-white/5 hover:bg-white/10 border border-coral-500/40 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-2xl font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2"
       >
-        <Zap size={18} className="text-accent-500 fill-current" />
+        <Zap size={18} className="text-coral-500 fill-current" />
         {loading ? 'Entering…' : 'Enter Demo Coach Portal'}
       </button>
     );
@@ -54,11 +54,11 @@ export const DemoLoginButton: React.FC<Props> = ({ role, variant, onLoadingChang
         opacity: loading ? 0.6 : 1,
         transition: 'background .2s, border-color .2s',
       }}
-      onMouseEnter={e => { if (!loading) { e.currentTarget.style.borderColor = 'rgba(139,59,255,0.55)'; e.currentTarget.style.background = 'rgba(139,59,255,0.06)'; } }}
+      onMouseEnter={e => { if (!loading) { e.currentTarget.style.borderColor = 'rgba(139, 59, 255,0.55)'; e.currentTarget.style.background = 'rgba(139, 59, 255,0.06)'; } }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.background = 'transparent'; }}
     >
       <Zap size={15} style={{ color: '#8B3BFF' }} />
-      {loading ? 'Entering Demo…' : (v === 'parent' ? 'Try Demo Parent Account' : 'Try Demo Athlete Account')}
+      {loading ? 'Entering Demo…' : 'Try Demo Athlete Account'}
     </button>
   );
 };

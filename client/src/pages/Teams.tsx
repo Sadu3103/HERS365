@@ -3,10 +3,6 @@ import { motion } from 'framer-motion';
 import { MapPin, ChevronRight, Plus, CheckCircle2, Shield } from 'lucide-react';
 import { athleteAvatar } from '../lib/avatar';
 import { useAuth } from '../context/AuthContext';
-import { colors, type as t, radii } from '../lib/tokens';
-import { Card, Button, Badge } from '../components/ui';
-
-const DISP = t.font.display;
 
 const teams = [
   {
@@ -82,7 +78,7 @@ function Avatar({ name, size = 36 }: { name: string; size?: number }) {
     <img
       src={athleteAvatar(name)}
       alt={name}
-      style={{ width: size, height: size, borderRadius: '50%', background: colors.surface2, flexShrink: 0, objectFit: 'cover' }}
+      style={{ width: size, height: size, borderRadius: '50%', background: '#1c1c1c', flexShrink: 0, objectFit: 'cover' }}
     />
   );
 }
@@ -109,26 +105,31 @@ export const Teams = () => {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
         <div>
-          <h1 style={{ fontFamily: DISP, fontWeight: 800, fontSize: t.size['2xl'], textTransform: 'uppercase', color: colors.textPrimary, marginBottom: 4 }}>
+          <h1 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '2rem', textTransform: 'uppercase', color: '#fff', marginBottom: 4 }}>
             Teams
           </h1>
-          <p style={{ color: colors.textTertiary, fontSize: t.size.base }}>Top-ranked girls flag football programs</p>
+          <p style={{ color: '#555', fontSize: '0.85rem' }}>Top-ranked girls flag football programs</p>
         </div>
-        <Button style={{ letterSpacing: '0.04em' }}>
+        <button style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          background: '#8B3BFF', border: 'none', borderRadius: 8,
+          color: '#fff', fontSize: '0.78rem', fontWeight: 700,
+          padding: '10px 16px', cursor: 'pointer', letterSpacing: '0.04em',
+        }}>
           <Plus size={14} /> CREATE TEAM
-        </Button>
+        </button>
       </div>
 
       {/* Division filter */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
         {divisions.map(d => (
           <button key={d} onClick={() => setDivision(d)} style={{
-            background: division === d ? colors.accent : 'transparent',
+            background: division === d ? '#8B3BFF' : 'transparent',
             border: '1px solid',
-            borderColor: division === d ? colors.accent : 'rgba(255,255,255,0.08)',
-            borderRadius: radii.sm, padding: '7px 16px',
-            color: division === d ? colors.accentOn : colors.textTertiary,
-            fontSize: t.size.sm, fontWeight: t.weight.bold, cursor: 'pointer', transition: 'all 0.15s',
+            borderColor: division === d ? '#8B3BFF' : 'rgba(255,255,255,0.08)',
+            borderRadius: 7, padding: '7px 16px',
+            color: division === d ? '#fff' : '#666',
+            fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s',
           }}>{d}</button>
         ))}
       </div>
@@ -137,35 +138,35 @@ export const Teams = () => {
 
         {/* Team list */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {filtered.map((team, i) => (
-            <motion.div key={team.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-              onClick={() => setSelected(team.id)}
+          {filtered.map((t, i) => (
+            <motion.div key={t.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+              onClick={() => setSelected(t.id)}
               style={{
                 padding: '16px',
-                background: selected === team.id ? `${colors.accent}14` : colors.surface1,
-                border: `1px solid ${selected === team.id ? `${colors.accent}59` : colors.border}`,
-                borderRadius: radii.md, cursor: 'pointer', transition: 'all 0.15s',
+                background: selected === t.id ? 'rgba(139, 59, 255,0.08)' : '#111',
+                border: `1px solid ${selected === t.id ? 'rgba(139, 59, 255,0.35)' : 'rgba(255,255,255,0.06)'}`,
+                borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
               }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                    <span style={{ fontFamily: DISP, fontWeight: 800, fontSize: t.size.md, color: colors.textPrimary }}>{team.name}</span>
-                    {team.ranking <= 3 && <Shield size={12} color={colors.accent} fill={`${colors.accent}33`} />}
+                    <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1rem', color: '#fff' }}>{t.name}</span>
+                    {t.ranking <= 3 && <Shield size={12} color="#8B3BFF" fill="rgba(139, 59, 255,0.2)" />}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <MapPin size={10} color={colors.textTertiary} />
-                    <span style={{ fontSize: t.size.xs, color: colors.textTertiary }}>{team.location}</span>
+                    <MapPin size={10} color="#444" />
+                    <span style={{ fontSize: '0.72rem', color: '#555' }}>{t.location}</span>
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontFamily: DISP, fontWeight: 800, fontSize: t.size.xl, color: colors.accent, lineHeight: 1 }}>#{team.ranking}</div>
-                  <div style={{ fontSize: '0.62rem', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Rank</div>
+                  <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.4rem', color: '#8B3BFF', lineHeight: 1 }}>#{t.ranking}</div>
+                  <div style={{ fontSize: '0.62rem', color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Rank</div>
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${colors.border}`, borderRadius: radii.sm, padding: '2px 8px', fontSize: t.size.xs, color: colors.textSecondary, fontWeight: t.weight.semibold }}>{team.record}</span>
-                <span style={{ fontSize: t.size.xs, color: colors.textTertiary }}>{team.players} players</span>
-                <span style={{ fontSize: t.size.xs, color: colors.textTertiary }}>{team.conference}</span>
+                <span style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 5, padding: '2px 8px', fontSize: '0.7rem', color: '#888', fontWeight: 600 }}>{t.record}</span>
+                <span style={{ fontSize: '0.7rem', color: '#555' }}>{t.players} players</span>
+                <span style={{ fontSize: '0.7rem', color: '#555' }}>{t.conference}</span>
               </div>
             </motion.div>
           ))}
@@ -175,69 +176,69 @@ export const Teams = () => {
         <motion.div key={activeTeam.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
 
           {/* Header card */}
-          <Card style={{ padding: '22px 20px', marginBottom: 14, position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, background: `radial-gradient(circle, ${colors.accent}12 0%, transparent 70%)`, pointerEvents: 'none' }} />
+          <div className="k-card" style={{ padding: '22px 20px', marginBottom: 14, position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, background: 'radial-gradient(circle, rgba(139, 59, 255,0.07) 0%, transparent 70%)', pointerEvents: 'none' }} />
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <h2 style={{ fontFamily: DISP, fontWeight: 800, fontSize: t.size['2xl'], textTransform: 'uppercase', color: colors.textPrimary, lineHeight: 1 }}>{activeTeam.name}</h2>
+                  <h2 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.6rem', textTransform: 'uppercase', color: '#fff', lineHeight: 1 }}>{activeTeam.name}</h2>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                  <span style={{ fontSize: t.size.sm, color: colors.textSecondary }}>{activeTeam.school}</span>
-                  <span style={{ color: colors.textTertiary }}>·</span>
-                  <span style={{ fontSize: t.size.sm, color: colors.textTertiary }}>{activeTeam.conference}</span>
+                  <span style={{ fontSize: '0.78rem', color: '#777' }}>{activeTeam.school}</span>
+                  <span style={{ color: '#333' }}>·</span>
+                  <span style={{ fontSize: '0.78rem', color: '#555' }}>{activeTeam.conference}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <MapPin size={11} color={colors.textTertiary} />
-                  <span style={{ fontSize: t.size.xs, color: colors.textTertiary }}>{activeTeam.location}</span>
+                  <MapPin size={11} color="#444" />
+                  <span style={{ fontSize: '0.72rem', color: '#444' }}>{activeTeam.location}</span>
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontFamily: DISP, fontWeight: 800, fontSize: t.size['4xl'], color: colors.accent, lineHeight: 1 }}>#{activeTeam.ranking}</div>
-                <div style={{ fontSize: '0.62rem', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: '0.1em' }}>National</div>
+                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '3.5rem', color: '#8B3BFF', lineHeight: 1 }}>#{activeTeam.ranking}</div>
+                <div style={{ fontSize: '0.62rem', color: '#444', textTransform: 'uppercase', letterSpacing: '0.1em' }}>National</div>
               </div>
             </div>
 
             {/* Stats row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderTop: `1px solid ${colors.border}`, paddingTop: 16, gap: 0 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 16, gap: 0 }}>
               {[
                 { label: 'Record',  value: activeTeam.record },
                 { label: 'Players', value: activeTeam.players },
                 { label: 'Pts For', value: activeTeam.pointsFor },
                 { label: 'Pts Agn', value: activeTeam.pointsAgainst },
               ].map(({ label, value }, i, arr) => (
-                <div key={label} style={{ textAlign: 'center', borderRight: i < arr.length - 1 ? `1px solid ${colors.border}` : 'none', padding: '0 8px' }}>
-                  <div style={{ fontSize: '0.6rem', fontWeight: t.weight.bold, letterSpacing: '0.1em', textTransform: 'uppercase', color: colors.textTertiary, marginBottom: 4 }}>{label}</div>
-                  <div style={{ fontFamily: DISP, fontWeight: 800, fontSize: t.size.lg, color: colors.textSecondary }}>{value}</div>
+                <div key={label} style={{ textAlign: 'center', borderRight: i < arr.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none', padding: '0 8px' }}>
+                  <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#444', marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.25rem', color: '#ddd' }}>{value}</div>
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
 
           {/* Roster */}
-          <Card style={{ padding: '18px 16px' }}>
+          <div className="k-card" style={{ padding: '18px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <span style={{ fontSize: t.size.xs, fontWeight: t.weight.bold, letterSpacing: '0.12em', textTransform: 'uppercase', color: colors.textTertiary }}>Key Players</span>
-              <button style={{ background: 'none', border: 'none', color: colors.accent, fontSize: t.size.sm, fontWeight: t.weight.bold, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555' }}>Key Players</span>
+              <button style={{ background: 'none', border: 'none', color: '#8B3BFF', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
                 Full Roster <ChevronRight size={13} />
               </button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
               {activeTeam.roster.map((player, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: `1px solid ${colors.border}` }}>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                   <Avatar name={player.name} size={36} />
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <span style={{ fontSize: t.size.base, fontWeight: t.weight.semibold, color: colors.textSecondary }}>{player.name}</span>
-                      {player.verified && <CheckCircle2 size={11} color={colors.accent} fill={colors.accent} />}
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#ddd' }}>{player.name}</span>
+                      {player.verified && <CheckCircle2 size={11} color="#8B3BFF" fill="#8B3BFF" />}
                     </div>
-                    <Badge tone="accent">{player.pos}</Badge>
+                    <span style={{ background: 'rgba(139, 59, 255,0.1)', color: '#8B3BFF', fontSize: '0.63rem', fontWeight: 700, padding: '1px 6px', borderRadius: 4 }}>{player.pos}</span>
                   </div>
-                  <span style={{ fontFamily: DISP, fontWeight: 800, fontSize: t.size.lg, color: colors.accent }}>{player.score}</span>
+                  <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.3rem', color: '#8B3BFF' }}>{player.score}</span>
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
 
         </motion.div>
       </div>

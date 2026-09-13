@@ -4,10 +4,13 @@ import {
   Zap, Target, Clock, ChevronRight, Play, CheckCircle2,
   RotateCcw, Flame, TrendingUp, Award,
 } from 'lucide-react';
-import { colors, type as t, radii } from '../lib/tokens';
-import { Badge, Button } from '../components/ui';
 
-const DISP = t.font.display;
+const FLAME_C = '#8B3BFF';
+const INK_2 = '#111111';
+const LINE = 'rgba(255,255,255,0.07)';
+const MUTED = '#8a8a86';
+const MUTED_2 = '#5a5a56';
+const DISP = "'Barlow Condensed', sans-serif";
 
 type Drill = {
   id: number;
@@ -68,13 +71,23 @@ const DRILLS: Drill[] = [
 
 const CATEGORIES = ['All', 'Speed', 'Agility', 'Route Running', 'Defense', 'Strength'] as const;
 const DIFFICULTIES = ['All', 'Beginner', 'Intermediate', 'Advanced', 'Elite'] as const;
-const DIFF_TONE: Record<string, 'success' | 'neutral' | 'accent' | 'pink'> = {
-  Beginner: 'success', Intermediate: 'neutral', Advanced: 'accent', Elite: 'pink',
+const DIFF_COLOR: Record<string, string> = {
+  Beginner: '#4ade80', Intermediate: '#fbbf24', Advanced: FLAME_C, Elite: '#c084fc',
 };
-const DIFF_CHIP_COLOR: Record<string, string> = {
-  Beginner: colors.success, Intermediate: colors.textSecondary,
-  Advanced: colors.accent, Elite: colors.pink,
-};
+
+function DiffBadge({ level }: { level: string }) {
+  return (
+    <span style={{
+      fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.08em',
+      textTransform: 'uppercase', padding: '2px 8px', borderRadius: 5,
+      background: `${DIFF_COLOR[level]}18`,
+      color: DIFF_COLOR[level],
+      border: `1px solid ${DIFF_COLOR[level]}30`,
+    }}>
+      {level}
+    </span>
+  );
+}
 
 function DrillCard({ drill, onClick }: { drill: Drill; onClick: () => void }) {
   const catIcons: Record<string, React.ReactNode> = {
@@ -93,11 +106,11 @@ function DrillCard({ drill, onClick }: { drill: Drill; onClick: () => void }) {
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
         {/* Icon */}
         <div style={{
-          width: 44, height: 44, borderRadius: radii.md, flexShrink: 0,
-          background: drill.completed ? `${colors.accent}18` : 'rgba(255,255,255,0.04)',
-          border: `1px solid ${drill.completed ? `${colors.accent}40` : colors.border}`,
+          width: 44, height: 44, borderRadius: 11, flexShrink: 0,
+          background: drill.completed ? `${FLAME_C}18` : 'rgba(255,255,255,0.04)',
+          border: `1px solid ${drill.completed ? `${FLAME_C}40` : LINE}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: drill.completed ? colors.accent : colors.textSecondary,
+          color: drill.completed ? FLAME_C : MUTED,
           transition: 'all 0.2s',
         }}>
           {drill.completed
@@ -109,36 +122,36 @@ function DrillCard({ drill, onClick }: { drill: Drill; onClick: () => void }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <span style={{
-              fontFamily: DISP, fontSize: t.size.lg, fontWeight: t.weight.bold,
-              textTransform: 'uppercase', letterSpacing: '-0.01em', color: colors.textPrimary,
+              fontFamily: DISP, fontSize: '1.05rem', fontWeight: 800,
+              textTransform: 'uppercase', letterSpacing: '-0.01em', color: '#f4f4f2',
             }}>
               {drill.name}
             </span>
             {drill.completed && (
-              <span style={{ fontSize: t.size.xs, color: colors.success, fontWeight: t.weight.bold, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: '0.6rem', color: '#4ade80', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                 Done
               </span>
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-            <Badge tone={DIFF_TONE[drill.difficulty]}>{drill.difficulty}</Badge>
-            <span style={{ fontSize: t.size.xs, color: colors.textTertiary, fontWeight: t.weight.semibold, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            <DiffBadge level={drill.difficulty} />
+            <span style={{ fontSize: '0.65rem', color: MUTED_2, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
               {drill.category}
             </span>
           </div>
-          <p style={{ fontSize: t.size.base, color: colors.textSecondary, margin: 0, lineHeight: 1.45 }}>
+          <p style={{ fontSize: '0.8rem', color: MUTED, margin: 0, lineHeight: 1.45 }}>
             {drill.desc}
           </p>
         </div>
 
         {/* Meta */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: colors.textTertiary }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: MUTED_2 }}>
             <Clock size={11} />
-            <span style={{ fontSize: t.size.xs, fontWeight: t.weight.semibold }}>{drill.duration}</span>
+            <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>{drill.duration}</span>
           </div>
-          <div style={{ fontSize: t.size.xs, color: colors.textTertiary, fontWeight: t.weight.semibold }}>{drill.reps}</div>
-          <div style={{ color: colors.accent, display: 'flex', alignItems: 'center', gap: 3 }}>
+          <div style={{ fontSize: '0.68rem', color: MUTED_2, fontWeight: 600 }}>{drill.reps}</div>
+          <div style={{ color: FLAME_C, display: 'flex', alignItems: 'center', gap: 3 }}>
             <ChevronRight size={14} />
           </div>
         </div>
@@ -170,26 +183,26 @@ function DrillDetail({ drill, onClose, onComplete }: {
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 600, margin: '0 auto',
-          background: colors.surface1, borderRadius: '20px 20px 0 0',
-          border: `1px solid ${colors.border}`, borderBottom: 'none',
+          background: INK_2, borderRadius: '20px 20px 0 0',
+          border: `1px solid ${LINE}`, borderBottom: 'none',
           padding: '28px 28px 40px',
           maxHeight: '88vh', overflowY: 'auto',
         }}
       >
         {/* Handle */}
-        <div style={{ width: 40, height: 4, background: 'rgba(255,255,255,0.12)', borderRadius: radii.full, margin: '0 auto 24px' }} />
+        <div style={{ width: 40, height: 4, background: 'rgba(255,255,255,0.12)', borderRadius: 99, margin: '0 auto 24px' }} />
 
         {/* Title */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <h2 style={{ fontFamily: DISP, fontSize: t.size['2xl'], fontWeight: t.weight.bold, textTransform: 'uppercase', margin: 0, letterSpacing: '-0.01em' }}>
+          <h2 style={{ fontFamily: DISP, fontSize: '1.5rem', fontWeight: 900, textTransform: 'uppercase', margin: 0, letterSpacing: '-0.01em' }}>
             {drill.name}
           </h2>
-          {drill.completed && <CheckCircle2 size={20} color={colors.success} />}
+          {drill.completed && <CheckCircle2 size={20} color="#4ade80" />}
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-          <Badge tone={DIFF_TONE[drill.difficulty]}>{drill.difficulty}</Badge>
-          <span style={{ fontSize: t.size.xs, color: colors.textTertiary, fontWeight: t.weight.bold, letterSpacing: '0.08em', textTransform: 'uppercase', alignSelf: 'center' }}>
+          <DiffBadge level={drill.difficulty} />
+          <span style={{ fontSize: '0.65rem', color: MUTED_2, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', alignSelf: 'center' }}>
             {drill.category}
           </span>
         </div>
@@ -201,16 +214,16 @@ function DrillDetail({ drill, onClose, onComplete }: {
             { icon: <RotateCcw size={14} />, label: 'Volume', val: drill.reps },
           ].map((s) => (
             <div key={s.label} style={{
-              flex: 1, background: 'rgba(255,255,255,0.03)', border: `1px solid ${colors.border}`,
-              borderRadius: radii.sm, padding: '12px 14px',
+              flex: 1, background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`,
+              borderRadius: 10, padding: '12px 14px',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: colors.textTertiary, marginBottom: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: MUTED_2, marginBottom: 4 }}>
                 {s.icon}
-                <span style={{ fontSize: t.size.xs, fontWeight: t.weight.bold, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                   {s.label}
                 </span>
               </div>
-              <div style={{ fontFamily: DISP, fontSize: t.size.lg, fontWeight: t.weight.bold, letterSpacing: '-0.01em', color: colors.textPrimary }}>
+              <div style={{ fontFamily: DISP, fontSize: '1.1rem', fontWeight: 800, letterSpacing: '-0.01em', color: '#f4f4f2' }}>
                 {s.val}
               </div>
             </div>
@@ -218,15 +231,15 @@ function DrillDetail({ drill, onClose, onComplete }: {
         </div>
 
         {/* Description */}
-        <p style={{ fontSize: t.size.md, color: colors.textSecondary, lineHeight: 1.6, marginBottom: 24 }}>
+        <p style={{ fontSize: '0.88rem', color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, marginBottom: 24 }}>
           {drill.desc}
         </p>
 
         {/* Coaching cues */}
         <div style={{ marginBottom: 32 }}>
           <div style={{
-            fontSize: t.size.xs, fontWeight: t.weight.bold, letterSpacing: '0.12em',
-            textTransform: 'uppercase', color: colors.textTertiary, marginBottom: 14,
+            fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.12em',
+            textTransform: 'uppercase', color: MUTED_2, marginBottom: 14,
           }}>
             Coaching Cues
           </div>
@@ -239,20 +252,20 @@ function DrillDetail({ drill, onClose, onComplete }: {
                 transition={{ delay: i * 0.08, type: 'spring', stiffness: 400, damping: 28 }}
                 style={{
                   display: 'flex', alignItems: 'flex-start', gap: 12,
-                  padding: '10px 14px', borderRadius: radii.sm,
-                  background: 'rgba(255,255,255,0.02)', border: `1px solid ${colors.border}`,
+                  padding: '10px 14px', borderRadius: 9,
+                  background: 'rgba(255,255,255,0.02)', border: `1px solid ${LINE}`,
                 }}
               >
                 <div style={{
                   width: 22, height: 22, borderRadius: '50%',
-                  background: `${colors.accent}18`, border: `1px solid ${colors.accent}40`,
+                  background: `${FLAME_C}18`, border: `1px solid ${FLAME_C}40`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   flexShrink: 0,
-                  fontFamily: DISP, fontSize: t.size.base, fontWeight: t.weight.bold, color: colors.accent,
+                  fontFamily: DISP, fontSize: '0.8rem', fontWeight: 800, color: FLAME_C,
                 }}>
                   {i + 1}
                 </div>
-                <span style={{ fontSize: t.size.md, color: colors.textSecondary, lineHeight: 1.45 }}>
+                <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.75)', lineHeight: 1.45 }}>
                   {cue}
                 </span>
               </motion.div>
@@ -262,31 +275,22 @@ function DrillDetail({ drill, onClose, onComplete }: {
 
         {/* CTA */}
         <div style={{ display: 'flex', gap: 12 }}>
-          {drill.completed ? (
-            <Button
-              variant="ghost"
-              size="lg"
-              className="flex-1"
-              style={{
-                background: `${colors.success}1f`,
-                border: `1px solid ${colors.success}40`,
-                color: colors.success,
-                fontFamily: DISP, textTransform: 'uppercase', letterSpacing: '0.06em',
-                cursor: 'default',
-              }}
-            >
-              <CheckCircle2 size={17} /> Completed
-            </Button>
-          ) : (
-            <Button
-              size="lg"
-              className="flex-1"
-              onClick={onComplete}
-              style={{ fontFamily: DISP, textTransform: 'uppercase', letterSpacing: '0.06em' }}
-            >
-              <Play size={17} /> Start Drill
-            </Button>
-          )}
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={drill.completed ? undefined : onComplete}
+            style={{
+              flex: 1, padding: '13px 20px', borderRadius: 10,
+              background: drill.completed ? 'rgba(74,222,128,0.12)' : FLAME_C,
+              border: drill.completed ? '1px solid rgba(74,222,128,0.25)' : 'none',
+              color: drill.completed ? '#4ade80' : '#fff',
+              fontFamily: DISP, fontSize: '1rem', fontWeight: 900,
+              textTransform: 'uppercase', letterSpacing: '0.06em',
+              cursor: drill.completed ? 'default' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
+          >
+            {drill.completed ? <><CheckCircle2 size={17} /> Completed</> : <><Play size={17} /> Start Drill</>}
+          </motion.button>
         </div>
       </motion.div>
     </motion.div>
@@ -319,45 +323,45 @@ export const Drills = () => {
       <div style={{ marginBottom: 28 }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6,
-          fontSize: t.size.xs, fontWeight: t.weight.bold, letterSpacing: '0.12em',
-          textTransform: 'uppercase', color: colors.accent,
+          fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.12em',
+          textTransform: 'uppercase', color: FLAME_C,
         }}>
           <Flame size={13} />
           TRAINING DRILLS
         </div>
         <h1 style={{
-          fontFamily: DISP, fontSize: 'clamp(2rem, 5vw, 2.8rem)', fontWeight: t.weight.bold,
+          fontFamily: DISP, fontSize: 'clamp(2rem, 5vw, 2.8rem)', fontWeight: 900,
           textTransform: 'uppercase', letterSpacing: '-0.02em', margin: '0 0 10px',
           lineHeight: 1,
         }}>
           Get To Work.
         </h1>
-        <p style={{ color: colors.textSecondary, fontSize: t.size.md, margin: 0, lineHeight: 1.5 }}>
+        <p style={{ color: MUTED, fontSize: '0.88rem', margin: 0, lineHeight: 1.5 }}>
           Position-specific drills built for girls flag football. Every rep tracked.
         </p>
       </div>
 
       {/* Progress bar */}
       <div style={{
-        background: colors.surface1, border: `1px solid ${colors.border}`,
-        borderRadius: radii.md, padding: '16px 18px', marginBottom: 24,
+        background: INK_2, border: `1px solid ${LINE}`,
+        borderRadius: 12, padding: '16px 18px', marginBottom: 24,
         display: 'flex', alignItems: 'center', gap: 16,
       }}>
         <div style={{
-          width: 44, height: 44, borderRadius: radii.md,
-          background: completedCount > 0 ? `${colors.accent}18` : 'rgba(255,255,255,0.04)',
-          border: `1px solid ${completedCount > 0 ? `${colors.accent}40` : colors.border}`,
+          width: 44, height: 44, borderRadius: 11,
+          background: completedCount > 0 ? `${FLAME_C}18` : 'rgba(255,255,255,0.04)',
+          border: `1px solid ${completedCount > 0 ? `${FLAME_C}40` : LINE}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0,
         }}>
-          <Award size={20} color={completedCount > 0 ? colors.accent : colors.textSecondary} />
+          <Award size={20} color={completedCount > 0 ? FLAME_C : MUTED} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontSize: t.size.base, fontWeight: t.weight.bold, color: colors.textPrimary }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#f4f4f2' }}>
               Today's Progress
             </span>
-            <span style={{ fontSize: t.size.base, color: colors.accent, fontWeight: t.weight.bold }}>
+            <span style={{ fontSize: '0.75rem', color: FLAME_C, fontWeight: 800 }}>
               {completedCount} / {drills.length} drills · {streakXP} XP
             </span>
           </div>
@@ -379,10 +383,10 @@ export const Drills = () => {
             whileTap={{ scale: 0.94 }}
             onClick={() => setCatFilter(c)}
             style={{
-              padding: '6px 14px', borderRadius: radii.pill, border: 'none',
-              background: catFilter === c ? colors.accent : 'rgba(255,255,255,0.05)',
-              color: catFilter === c ? colors.accentOn : colors.textSecondary,
-              fontSize: t.size.sm, fontWeight: t.weight.bold, letterSpacing: '0.04em',
+              padding: '6px 14px', borderRadius: 99, border: 'none',
+              background: catFilter === c ? FLAME_C : 'rgba(255,255,255,0.05)',
+              color: catFilter === c ? '#fff' : MUTED,
+              fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.04em',
               cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
               transition: 'background 0.15s, color 0.15s',
             }}
@@ -400,10 +404,10 @@ export const Drills = () => {
             whileTap={{ scale: 0.94 }}
             onClick={() => setDiffFilter(d)}
             style={{
-              padding: '5px 12px', borderRadius: radii.pill, border: 'none',
-              background: diffFilter === d ? (DIFF_CHIP_COLOR[d] || colors.accent) : 'rgba(255,255,255,0.04)',
-              color: diffFilter === d ? colors.surface0 : colors.textTertiary,
-              fontSize: t.size.xs, fontWeight: t.weight.bold, letterSpacing: '0.05em',
+              padding: '5px 12px', borderRadius: 99, border: 'none',
+              background: diffFilter === d ? (DIFF_COLOR[d] || FLAME_C) : 'rgba(255,255,255,0.04)',
+              color: diffFilter === d ? '#fff' : MUTED_2,
+              fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.05em',
               cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
               transition: 'background 0.15s, color 0.15s',
             }}
@@ -416,9 +420,9 @@ export const Drills = () => {
       {/* Drill list */}
       <div>
         {filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '48px 0', color: colors.textTertiary }}>
+          <div style={{ textAlign: 'center', padding: '48px 0', color: MUTED_2 }}>
             <Target size={32} style={{ marginBottom: 12, opacity: 0.4 }} />
-            <p style={{ fontSize: t.size.md, margin: 0 }}>No drills match those filters.</p>
+            <p style={{ fontSize: '0.88rem', margin: 0 }}>No drills match those filters.</p>
           </div>
         ) : (
           filtered.map((drill) => (

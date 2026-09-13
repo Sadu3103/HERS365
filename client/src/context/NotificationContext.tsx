@@ -54,13 +54,13 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                 <div className={`absolute inset-0 opacity-10 blur-2xl -z-10 ${
                   n.type === 'success' ? 'bg-green-500' :
                   n.type === 'error' ? 'bg-red-500' :
-                  'bg-accent-500'
+                  'bg-coral-500'
                 }`} />
 
                 <div className={`p-2 rounded-xl flex-shrink-0 ${
                   n.type === 'success' ? 'bg-green-500/20 text-green-500' :
                   n.type === 'error' ? 'bg-red-500/20 text-red-400' :
-                  'bg-accent-500/20 text-accent-400'
+                  'bg-coral-500/20 text-coral-400'
                 }`}>
                   {n.type === 'success' && <CheckCircle size={20} />}
                   {n.type === 'error' && <AlertCircle size={20} />}
@@ -90,7 +90,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                   className={`absolute bottom-0 left-0 h-0.5 ${
                     n.type === 'success' ? 'bg-green-500' :
                     n.type === 'error' ? 'bg-red-500' :
-                    'bg-accent-500'
+                    'bg-coral-500'
                   }`}
                 />
               </div>

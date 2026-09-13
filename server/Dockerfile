@@ -1,10 +1,10 @@
 # tsx runtime: compiled dist/ can't run under plain node (extension-less ESM
 # imports), so ship source and run through tsx like `npm start` does locally.
-FROM node:22-slim
+FROM node:20-slim
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm install --no-audit --no-fund
+RUN npm ci
 
 COPY . .
 

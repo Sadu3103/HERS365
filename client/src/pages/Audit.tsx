@@ -1,10 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, CheckCircle2, AlertCircle, Clock, DollarSign, Eye } from 'lucide-react';
-import { colors, type as t, radii } from '../lib/tokens';
-import { Card, Badge } from '../components/ui';
-
-const DISP = t.font.display;
 
 const nilDeals = [
   { id: 1, brand: 'Under Armour',   type: 'Apparel',     value: '$2,400/yr',  status: 'approved', date: '2025-03-15', disclosure: true  },
@@ -22,13 +18,11 @@ const requirements = [
   { label: 'GameTime App FTC disclosure tag', done: false },
 ];
 
-type StatusTone = 'success' | 'pink' | 'accent' | 'danger';
-
-const statusConfig: Record<string, { tone: StatusTone; label: string }> = {
-  approved: { tone: 'success', label: 'Approved' },
-  pending:  { tone: 'pink',    label: 'Pending'  },
-  review:   { tone: 'accent',  label: 'Review'   },
-  rejected: { tone: 'danger',  label: 'Rejected' },
+const statusColor: Record<string, { bg: string; text: string; label: string }> = {
+  approved: { bg: 'rgba(74,222,128,0.1)',   text: '#4ade80', label: 'Approved'  },
+  pending:  { bg: 'rgba(251,191,36,0.1)',   text: '#fbbf24', label: 'Pending'   },
+  review:   { bg: 'rgba(139, 59, 255,0.1)',    text: '#8B3BFF', label: 'Review'    },
+  rejected: { bg: 'rgba(248,113,113,0.1)',  text: '#f87171', label: 'Rejected'  },
 };
 
 export const Audit = () => {
@@ -44,54 +38,53 @@ export const Audit = () => {
     <div style={{ padding: '24px', maxWidth: 1000, margin: '0 auto' }}>
 
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontFamily: DISP, fontWeight: 800, fontSize: t.size['2xl'], textTransform: 'uppercase', color: colors.textPrimary, marginBottom: 4 }}>
+        <h1 style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '2rem', textTransform: 'uppercase', color: '#fff', marginBottom: 4 }}>
           NIL Compliance
         </h1>
-        <p style={{ color: colors.textTertiary, fontSize: t.size.base }}>Track your Name, Image & Likeness deals and eligibility status</p>
+        <p style={{ color: '#555', fontSize: '0.85rem' }}>Track your Name, Image & Likeness deals and eligibility status</p>
       </div>
 
       {/* Score cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
         {[
-          { label: 'COMPLIANCE',  value: `${compliancePct}%`,   sub: `${doneCount}/${requirements.length} items`, icon: Shield,     accent: compliancePct === 100 ? colors.success : colors.accent },
-          { label: 'ACTIVE DEALS', value: approvedCount,         sub: 'Approved',                                 icon: CheckCircle2, accent: colors.success },
-          { label: 'PENDING',     value: pendingCount,           sub: 'Needs action',                             icon: Clock,      accent: colors.pink },
-          { label: 'UNDER REVIEW', value: reviewCount,           sub: 'In progress',                              icon: Eye,        accent: colors.accent },
+          { label: 'COMPLIANCE',  value: `${compliancePct}%`,   sub: `${doneCount}/${requirements.length} items`, icon: Shield,     accent: compliancePct === 100 ? '#4ade80' : '#8B3BFF' },
+          { label: 'ACTIVE DEALS', value: approvedCount,         sub: 'Approved',                                 icon: CheckCircle2, accent: '#4ade80' },
+          { label: 'PENDING',     value: pendingCount,           sub: 'Needs action',                             icon: Clock,      accent: '#fbbf24' },
+          { label: 'UNDER REVIEW', value: reviewCount,           sub: 'In progress',                              icon: Eye,        accent: '#8B3BFF' },
         ].map(({ label, value, sub, icon: Icon, accent }) => (
-          <motion.div key={label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-            <Card style={{ padding: '16px 18px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: '0.6rem', fontWeight: t.weight.bold, letterSpacing: '0.12em', textTransform: 'uppercase', color: colors.textTertiary }}>{label}</span>
-                <Icon size={14} color={accent} />
-              </div>
-              <div style={{ fontFamily: DISP, fontWeight: 800, fontSize: t.size['2xl'], color: accent, lineHeight: 1, marginBottom: 4 }}>{value}</div>
-              <div style={{ fontSize: t.size.xs, color: colors.textTertiary }}>{sub}</div>
-            </Card>
+          <motion.div key={label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            className="k-card" style={{ padding: '16px 18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555' }}>{label}</span>
+              <Icon size={14} color={accent} />
+            </div>
+            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1.6rem', color: accent, lineHeight: 1, marginBottom: 4 }}>{value}</div>
+            <div style={{ fontSize: '0.7rem', color: '#444' }}>{sub}</div>
           </motion.div>
         ))}
       </div>
 
       {/* Compliance bar */}
-      <Card style={{ padding: '16px 20px', marginBottom: 20 }}>
+      <div className="k-card" style={{ padding: '16px 20px', marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-          <span style={{ fontSize: t.size.sm, fontWeight: t.weight.semibold, color: colors.textSecondary }}>Overall Compliance Score</span>
-          <span style={{ fontFamily: DISP, fontWeight: 800, fontSize: t.size.md, color: compliancePct >= 80 ? colors.success : colors.accent }}>{compliancePct}%</span>
+          <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#ccc' }}>Overall Compliance Score</span>
+          <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '1rem', color: compliancePct >= 80 ? '#4ade80' : '#8B3BFF' }}>{compliancePct}%</span>
         </div>
         <div className="k-progress-track" style={{ height: 8 }}>
-          <div className="k-progress-fill" style={{ width: `${compliancePct}%`, background: compliancePct >= 80 ? colors.success : colors.accent }} />
+          <div className="k-progress-fill" style={{ width: `${compliancePct}%`, background: compliancePct >= 80 ? '#4ade80' : '#8B3BFF' }} />
         </div>
-      </Card>
+      </div>
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
         {(['nil', 'checklist'] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)} style={{
-            background: activeTab === tab ? colors.accent : 'transparent',
+            background: activeTab === tab ? '#8B3BFF' : 'transparent',
             border: '1px solid',
-            borderColor: activeTab === tab ? colors.accent : 'rgba(255,255,255,0.08)',
-            borderRadius: radii.sm, padding: '7px 16px',
-            color: activeTab === tab ? colors.accentOn : colors.textTertiary,
-            fontSize: t.size.sm, fontWeight: t.weight.bold, cursor: 'pointer', transition: 'all 0.15s',
+            borderColor: activeTab === tab ? '#8B3BFF' : 'rgba(255,255,255,0.08)',
+            borderRadius: 7, padding: '7px 16px',
+            color: activeTab === tab ? '#fff' : '#666',
+            fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s',
           }}>
             {tab === 'nil' ? 'NIL Deals' : 'Checklist'}
           </button>
@@ -101,76 +94,74 @@ export const Audit = () => {
       <motion.div key={activeTab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }}>
 
         {activeTab === 'nil' && (
-          <Card style={{ overflow: 'hidden', padding: 0 }}>
+          <div className="k-card" style={{ overflow: 'hidden' }}>
             <div style={{
               display: 'grid', gridTemplateColumns: '1fr 100px 100px 90px 90px',
-              padding: '10px 16px', borderBottom: `1px solid ${colors.border}`,
+              padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)',
             }}>
               {['BRAND / TYPE', 'VALUE', 'STATUS', 'DATE', 'DISCLOSE'].map(h => (
-                <div key={h} style={{ fontSize: '0.6rem', fontWeight: t.weight.bold, letterSpacing: '0.1em', textTransform: 'uppercase', color: colors.textTertiary }}>{h}</div>
+                <div key={h} style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#444' }}>{h}</div>
               ))}
             </div>
             {nilDeals.map((deal, i) => {
-              const s = statusConfig[deal.status];
+              const s = statusColor[deal.status];
               return (
                 <motion.div key={deal.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}
                   style={{
                     display: 'grid', gridTemplateColumns: '1fr 100px 100px 90px 90px',
                     padding: '13px 16px', alignItems: 'center',
-                    borderBottom: `1px solid ${colors.border}`,
+                    borderBottom: '1px solid rgba(255,255,255,0.04)',
                     transition: 'background 0.15s',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = colors.surface2)}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#161616')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: radii.sm, background: colors.surface2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <DollarSign size={14} color={colors.accent} />
+                      <div style={{ width: 32, height: 32, borderRadius: 8, background: '#1c1c1c', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <DollarSign size={14} color="#8B3BFF" />
                       </div>
                       <div>
-                        <div style={{ fontSize: t.size.base, fontWeight: t.weight.semibold, color: colors.textSecondary }}>{deal.brand}</div>
-                        <div style={{ fontSize: t.size.xs, color: colors.textTertiary }}>{deal.type}</div>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#ddd' }}>{deal.brand}</div>
+                        <div style={{ fontSize: '0.68rem', color: '#555' }}>{deal.type}</div>
                       </div>
                     </div>
                   </div>
-                  <div style={{ fontSize: t.size.base, fontWeight: t.weight.semibold, color: colors.textSecondary }}>{deal.value}</div>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#ccc' }}>{deal.value}</div>
                   <div>
-                    <Badge tone={s.tone}>{s.label}</Badge>
+                    <span style={{ background: s.bg, color: s.text, fontSize: '0.65rem', fontWeight: 700, padding: '3px 8px', borderRadius: 5 }}>{s.label}</span>
                   </div>
-                  <div style={{ fontSize: t.size.xs, color: colors.textTertiary }}>{deal.date}</div>
+                  <div style={{ fontSize: '0.72rem', color: '#555' }}>{deal.date}</div>
                   <div>
                     {deal.disclosure
-                      ? <CheckCircle2 size={15} color={colors.success} fill={colors.success} />
-                      : <AlertCircle size={15} color={colors.pink} />
+                      ? <CheckCircle2 size={15} color="#4ade80" fill="#4ade80" />
+                      : <AlertCircle size={15} color="#fbbf24" />
                     }
                   </div>
                 </motion.div>
               );
             })}
-          </Card>
+          </div>
         )}
 
         {activeTab === 'checklist' && (
-          <Card style={{ padding: '18px 16px' }}>
-            <div style={{ fontSize: t.size.xs, fontWeight: t.weight.bold, letterSpacing: '0.12em', textTransform: 'uppercase', color: colors.textTertiary, marginBottom: 16 }}>Compliance Checklist</div>
+          <div className="k-card" style={{ padding: '18px 16px' }}>
+            <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#555', marginBottom: 16 }}>Compliance Checklist</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
               {requirements.map((req, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: `1px solid ${colors.border}` }}>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                   {req.done
-                    ? <CheckCircle2 size={16} color={colors.success} fill={colors.success} style={{ flexShrink: 0 }} />
-                    : <AlertCircle  size={16} color={colors.pink} style={{ flexShrink: 0 }} />
+                    ? <CheckCircle2 size={16} color="#4ade80" fill="#4ade80" style={{ flexShrink: 0 }} />
+                    : <AlertCircle  size={16} color="#fbbf24" style={{ flexShrink: 0 }} />
                   }
-                  <span style={{ fontSize: t.size.base, color: req.done ? colors.textTertiary : colors.textSecondary, fontWeight: t.weight.medium, textDecoration: req.done ? 'line-through' : 'none' }}>{req.label}</span>
+                  <span style={{ fontSize: '0.85rem', color: req.done ? '#666' : '#ccc', fontWeight: 500, textDecoration: req.done ? 'line-through' : 'none' }}>{req.label}</span>
                   {!req.done && (
-                    <span style={{ marginLeft: 'auto' }}>
-                      <Badge tone="pink">ACTION NEEDED</Badge>
-                    </span>
+                    <span style={{ marginLeft: 'auto', background: 'rgba(251,191,36,0.1)', color: '#fbbf24', fontSize: '0.63rem', fontWeight: 700, padding: '2px 7px', borderRadius: 4 }}>ACTION NEEDED</span>
                   )}
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
         )}
 
       </motion.div>

@@ -12,9 +12,7 @@ import { makeAthlete } from './helpers/fixtures';
 // every request) and reset the limiter store between tests so cases stay
 // deterministic without any sleep / fake-timer juggling.
 vi.mock('../email', () => ({
-  sendGuardianConsentEmail: vi.fn(async () => ({ success: true })),
   sendPasswordResetEmail: vi.fn(async () => undefined),
-  sendVerificationEmail: vi.fn(async () => undefined),
   sendEmail: vi.fn(async () => undefined),
 }));
 
@@ -22,7 +20,6 @@ const app = createApp();
 
 const LOGIN_MAX = 3;
 const RESET_MAX = 2;
-const VERIFY_MAX = 2;
 const ORIGINAL_ENV = { ...process.env };
 
 // supertest goes over loopback; reset every known representation of it so
@@ -33,14 +30,12 @@ function resetLimiters() {
   for (const key of LOOPBACK_KEYS) {
     _emailAuthLimitersForTests.login.resetKey(key);
     _emailAuthLimitersForTests.passwordReset.resetKey(key);
-    _emailAuthLimitersForTests.verifyEmail.resetKey(key);
   }
 }
 
 beforeEach(async () => {
   process.env.LOGIN_RATE_LIMIT_MAX = String(LOGIN_MAX);
   process.env.PASSWORD_RESET_RATE_LIMIT_MAX = String(RESET_MAX);
-  process.env.VERIFY_EMAIL_RATE_LIMIT_MAX = String(VERIFY_MAX);
   await resetDb();
   resetLimiters();
 });
@@ -178,23 +173,5 @@ describe('throttle on POST /api/auth/email/reset-password', () => {
       .post('/api/auth/email/reset-password')
       .send({ token: 'whatever', password: 'Brand-new-pw1' });
     expect(throttled.status).toBe(429);
-  });
-});
-
-describe('throttle on POST /api/auth/email/verify-email', () => {
-  it(`returns 429 once a caller exceeds ${VERIFY_MAX} verification attempts in the window`, async () => {
-    for (let i = 0; i < VERIFY_MAX; i++) {
-      const res = await request(app)
-        .post('/api/auth/email/verify-email')
-        .send({ token: `bogus-${i}` });
-      // Bogus tokens 400, but every request still counts toward the limiter.
-      expect(res.status).toBe(400);
-    }
-
-    const throttled = await request(app)
-      .post('/api/auth/email/verify-email')
-      .send({ token: 'one-too-many' });
-    expect(throttled.status).toBe(429);
-    expect(throttled.body.error).toMatch(/too many/i);
   });
 });

@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-export type DemoRole = 'player' | 'coach' | 'parent';
+export type DemoRole = 'player' | 'coach';
 
 // Hardcoded seeded demo accounts. The SERVER also gates these emails behind
 // DEMO_ENABLED + non-production NODE_ENV, so a leaked client build cannot
@@ -10,7 +10,6 @@ export type DemoRole = 'player' | 'coach' | 'parent';
 const DEMO_CREDS: Record<DemoRole, { email: string; password: string }> = {
   player: { email: 'maya@hers365.com', password: 'hers365' },
   coach:  { email: 'coach@hers365.com', password: 'hers365' },
-  parent: { email: 'parent@hers365.com', password: 'hers365' },
 };
 
 // Pure gate, fail-closed, POSITIVE non-prod assertion (mirrors server).
@@ -55,10 +54,7 @@ export function useDemoLogin(role: DemoRole) {
       if (role === 'coach') {
         if (data.token) localStorage.setItem('coachToken', data.token);
         if (data.user) localStorage.setItem('coachUser', JSON.stringify(data.user));
-        navigate('/coach/dashboard');
-      } else if (role === 'parent') {
-        if (data.token && data.user) login(data.token, data.user);
-        navigate('/parent/dashboard');
+        navigate('/coach');
       } else {
         if (data.token && data.user) login(data.token, data.user);
         navigate('/feed');

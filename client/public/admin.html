@@ -135,7 +135,7 @@
   </div>
 
   <footer>
-    Live checks hit the real services: the web app on Vercel and the API on Railway. Secrets cannot be read from a browser, so the API's <code>/health</code> route reports which integrations are configured, and a live database check confirms Postgres. Use the <code>CONFIG</code> block only to force an override.<br>
+    Live checks hit the real services: the web app on Vercel and the API on Railway. Parts behind secrets cannot be read from a browser, so a healthy API confirms them, and the rest are set by the team in the <code>CONFIG</code> block at the top of this file's script.<br>
     This page lives at <code>client/public/admin.html</code> and is served at <code>/admin.html</code>.
   </footer>
 </div>
@@ -150,8 +150,8 @@ const CONFIG = {
   healthPath: '/health',                                    // the API liveness route
   apiProxy: '/health-api',                                  // same origin proxy to the API health (see client/vercel.json), avoids CORS
   github: { owner: 'Sadu3103', repo: 'HERS365' },           // for the live CI check
-  // These read live from the API /health "integrations" report.
-  // Set 'ok' or 'fail' here only to force an override. Leave 'unknown' to trust the live check.
+  // For the parts a browser cannot test, set 'ok' or 'fail' once a teammate verifies.
+  // Leave 'unknown' and they show as Unverified.
   manual: {
     stripe:        'unknown',
     openai:        'unknown',
@@ -194,7 +194,7 @@ const PARTS = [
     cause:'The rewrite points at the wrong API, or the API blocks the site origin (CORS).',
     fix:'Confirm the destination in <code>client/vercel.json</code> is the live Railway URL, and that the API <code>CORS_ORIGIN</code> allows the site address.' },
 
-  { key:'database', layer:'data', name:'PostgreSQL database', tier:'host', check:'db', deps:['api-service'],
+  { key:'database', layer:'data', name:'PostgreSQL database', tier:'host', check:'derive', deps:['api-service'],
     short:'Where all the data lives.',
     needs:'<code>DATABASE_URL</code> set in Railway and the database reachable.',
     cause:'<code>DATABASE_URL</code> is missing or wrong, or the database is paused or out of connections.',
@@ -206,31 +206,31 @@ const PARTS = [
     cause:'One of them is missing, so the server refuses to start or every login breaks.',
     fix:'In Railway set both <code>JWT_SECRET</code> and <code>SESSION_SECRET</code> to long random strings of at least 32 characters.' },
 
-  { key:'stripe', layer:'apis', name:'Stripe payments', tier:'feature', check:'integration', deps:['api-service'],
+  { key:'stripe', layer:'apis', name:'Stripe payments', tier:'feature', check:'manual', deps:['api-service'],
     short:'Takes payments and runs subscriptions.',
     needs:'<code>STRIPE_SECRET_KEY</code> and <code>STRIPE_WEBHOOK_SECRET</code> in Railway.',
     cause:'A key is missing, or the webhook signing secret does not match the endpoint set in Stripe.',
     fix:'In Railway set <code>STRIPE_SECRET_KEY</code> and <code>STRIPE_WEBHOOK_SECRET</code>. In Stripe, confirm the webhook points at the live API and the signing secret matches.' },
 
-  { key:'openai', layer:'apis', name:'OpenAI', tier:'feature', check:'integration', deps:['api-service'],
+  { key:'openai', layer:'apis', name:'OpenAI', tier:'feature', check:'manual', deps:['api-service'],
     short:'Powers AI features and message moderation.',
     needs:'<code>OPENAI_API_KEY</code> in Railway.',
     cause:'<code>OPENAI_API_KEY</code> is missing or the account is out of credit, so moderation fails closed and messaging stops.',
     fix:'In Railway set <code>OPENAI_API_KEY</code>, and confirm the OpenAI account has billing and credit. Without it, messaging blocks every message on purpose.' },
 
-  { key:'maxpreps', layer:'apis', name:'MaxPreps data', tier:'feature', check:'integration', deps:['api-service'],
+  { key:'maxpreps', layer:'apis', name:'MaxPreps data', tier:'feature', check:'manual', deps:['api-service'],
     short:'Brings in outside sports stats.',
     needs:'<code>MAXPREPS_API_KEY</code> in Railway.',
     cause:'The key is missing, or MaxPreps is rate limiting or down.',
     fix:'Set <code>MAXPREPS_API_KEY</code> in Railway. If it is set, check the MaxPreps status and your quota. The site still hosts without it, the stats just stop updating.' },
 
-  { key:'google-oauth', layer:'auth', name:'Google sign in', tier:'feature', check:'integration', deps:['api-service'],
+  { key:'google-oauth', layer:'auth', name:'Google sign in', tier:'feature', check:'manual', deps:['api-service'],
     short:'Lets users log in with Google.',
     needs:'<code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code>, <code>GOOGLE_CALLBACK_URL</code>.',
     cause:'A credential is missing, or the callback URL does not match the one in the Google console.',
     fix:'In Railway set the three Google values. In the Google Cloud console, confirm the authorized redirect URI exactly matches <code>GOOGLE_CALLBACK_URL</code>.' },
 
-  { key:'github-oauth', layer:'auth', name:'GitHub sign in', tier:'feature', check:'integration', deps:['api-service'],
+  { key:'github-oauth', layer:'auth', name:'GitHub sign in', tier:'feature', check:'manual', deps:['api-service'],
     short:'Lets users log in with GitHub.',
     needs:'<code>GITHUB_CLIENT_ID</code>, <code>GITHUB_CLIENT_SECRET</code>, <code>GITHUB_CALLBACK_URL</code>.',
     cause:'A credential is missing, or the callback URL does not match the GitHub OAuth app.',
@@ -337,8 +337,6 @@ function drawWires(){
    LIVE CHECKS
    ============================================================ */
 let corsOK = false;
-let apiDb = null;
-let apiIntegrations = null;
 function fetchT(url, opts, ms){
   ms = ms || 9000;
   return Promise.race([
@@ -362,7 +360,7 @@ async function checkApi(){
       if(!r.ok){ if(t.proxied) continue; return ['fail', 'The API answered <b>'+r.status+'</b> at <code>'+CONFIG.healthPath+'</code>.']; }
       corsOK = corsOK || t.proxied;
       let s = 'ok';
-      try{ const j = await r.json(); s = j.status || 'ok'; apiDb = j.db || null; apiIntegrations = j.integrations || null; }catch(_){}
+      try{ const j = await r.json(); s = j.status || 'ok'; }catch(_){}
       const via = t.proxied ? ' (via the same proxy the app uses)' : '';
       if(s === 'ok' || s === 'healthy') return ['ok', 'The API answered 200 at <code>'+CONFIG.healthPath+'</code> and reported <b>'+s+'</b>'+via+'.'];
       if(s === 'degraded') return ['warn', 'The API is up but reported <b>degraded</b>.'];
@@ -388,22 +386,12 @@ async function checkCi(){
     return ['fail', 'Latest run <b>'+run.conclusion+'</b> on <code>'+run.head_branch+'</code>.'];
   }catch(e){ return ['unknown', 'Could not reach the GitHub API (private repo or rate limit). Check the Actions tab on GitHub.']; }
 }
-function applyDb(){
-  if(apiDb === 'up') return ['ok', 'The API ran a live <code>SELECT 1</code> against Postgres and it answered.'];
-  if(apiDb === 'down') return ['fail', 'The API is running but its live database check failed. Logins, profiles, and payments break until Postgres is back.'];
-  if(state['api-service'] === 'fail') return ['fail', 'The API is unreachable, so the database cannot be confirmed. It may be down.'];
-  return ['unknown', 'The API did not report a database status.'];
-}
-function applyIntegration(p){
-  const override = CONFIG.manual[p.key];
-  if(override === 'ok') return ['ok', 'Forced to working by an override in CONFIG.'];
-  if(override === 'fail') return ['fail', 'Forced to failing by an override in CONFIG.'];
-  if(apiIntegrations && p.key in apiIntegrations){
-    return apiIntegrations[p.key]
-      ? ['ok', 'Configured in the live environment. The API confirms its keys are present.']
-      : ['fail', 'Not configured in the live environment. Its keys are missing, so this feature is off.'];
-  }
-  return ['unknown', 'The live API did not report this integration yet.'];
+function applyManual(p){
+  const s = CONFIG.manual[p.key] || 'unknown';
+  const msg = s==='ok' ? 'Marked working in CONFIG by the team.'
+            : s==='fail' ? 'Marked failing in CONFIG by the team.'
+            : 'Not auto checked. A teammate sets this in CONFIG once it is verified.';
+  return [s, msg];
 }
 function applyDerive(p){
   const a = state['api-service'];
@@ -415,7 +403,6 @@ function applyDerive(p){
 async function runAll(){
   const btn = $('#refresh'); btn.classList.add('spin');
   corsOK = false;
-  apiDb = null; apiIntegrations = null;
   PARTS.forEach(p => { if(p.check!=='manual'){ state[p.key]='checking'; detail[p.key]=''; paint(p);} });
 
   const [api, site] = await Promise.all([checkApi(), checkSite()]);
@@ -426,9 +413,8 @@ async function runAll(){
   else wiring = ['ok', 'Both the app and the API are up. The <code>/api</code> rewrite in vercel.json connects them.'];
   set('wiring', wiring);
 
-  PARTS.filter(p=>p.check==='db').forEach(p => set(p.key, applyDb()));
   PARTS.filter(p=>p.check==='derive').forEach(p => set(p.key, applyDerive(p)));
-  PARTS.filter(p=>p.check==='integration').forEach(p => set(p.key, applyIntegration(p)));
+  PARTS.filter(p=>p.check==='manual').forEach(p => set(p.key, applyManual(p)));
 
   const ci = await checkCi(); set('ci', ci);
 
