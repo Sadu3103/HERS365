@@ -238,7 +238,7 @@ router.get('/players/search', async (req, res) => {
     }));
 
     let results = rowsWithThumbs
-      .filter((p) => p.name && p.position) // skip incomplete / test rows
+      .filter((p) => p.name) // skip incomplete / test rows
       .map(mapPlayerToScout);
 
     // Apply filters

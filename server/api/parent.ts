@@ -54,9 +54,25 @@ router.get('/children', async (req, res) => {
         school: schema.players.school,
         position: schema.players.position,
         gradYear: schema.players.gradYear,
+        stars: schema.players.stars,
+        breakoutScore: schema.players.breakoutScore,
+        nilPoints: schema.players.nilPoints,
+        profileImage: schema.players.profileImage,
+        offers: schema.players.offers,
       })
       .from(schema.players)
       .where(inArray(schema.players.id, childIds));
+
+    // Fetch one highlight per child for display
+    for (const child of children) {
+      const [hl] = await db
+        .select({ url: schema.playerHighlights.videoUrl, thumb: schema.playerHighlights.thumbnailUrl })
+        .from(schema.playerHighlights)
+        .where(eq(schema.playerHighlights.playerId, child.id))
+        .orderBy(desc(schema.playerHighlights.createdAt))
+        .limit(1);
+      (child as any).highlight = hl ?? null;
+    }
 
     res.json({ success: true, data: children });
   } catch (err) {

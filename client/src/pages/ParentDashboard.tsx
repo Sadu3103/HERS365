@@ -51,6 +51,11 @@ interface Child {
   dob?: string;
   verifiedStatus?: 'Verified' | 'Pending Review' | 'Action Required';
   profileImage?: string;
+  stars?: number;
+  breakoutScore?: number;
+  nilPoints?: number;
+  offers?: number;
+  highlight?: { url?: string; thumb?: string } | null;
 }
 
 interface PendingMsg {
@@ -729,6 +734,53 @@ export function ParentDashboard() {
                     </div>
                   )}
                 </div>
+
+                {/* --- Added: Analytics & Highlights --- */}
+                <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Stats Box */}
+                  <div className="p-4 bg-white/5 border border-white/5 rounded-xl">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-ink-muted mb-3 flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-[#8B3BFF]" /> Performance Analytics
+                    </h4>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="p-2 bg-black/20 rounded-lg">
+                        <div className="text-[10px] text-ink-muted uppercase">Breakout</div>
+                        <div className="text-sm font-black text-green-400">{c.breakoutScore ?? 0}</div>
+                      </div>
+                      <div className="p-2 bg-black/20 rounded-lg">
+                        <div className="text-[10px] text-ink-muted uppercase">NIL Pts</div>
+                        <div className="text-sm font-black text-amber-400">{(c.nilPoints ?? 0).toLocaleString()}</div>
+                      </div>
+                      <div className="p-2 bg-black/20 rounded-lg">
+                        <div className="text-[10px] text-ink-muted uppercase">Offers</div>
+                        <div className="text-sm font-black text-white">{c.offers ?? 0}</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Highlight Box */}
+                  <div className="p-4 bg-white/5 border border-white/5 rounded-xl flex items-center gap-4">
+                    {c.highlight?.thumb ? (
+                      <div className="w-24 h-16 rounded-lg bg-black overflow-hidden relative shrink-0">
+                        <img src={c.highlight.thumb} alt="Highlight" className="absolute inset-0 w-full h-full object-cover opacity-80" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center pl-0.5">
+                            <div className="w-0 h-0 border-t-[4px] border-t-transparent border-l-[6px] border-l-white border-b-[4px] border-b-transparent" />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-24 h-16 rounded-lg bg-black/30 border border-white/5 flex items-center justify-center shrink-0">
+                        <UploadCloud className="w-5 h-5 text-ink-muted" />
+                      </div>
+                    )}
+                    <div>
+                      <h4 className="text-sm font-bold text-white mb-1">Latest Highlight</h4>
+                      <p className="text-xs text-ink-muted">{c.highlight ? 'Watch their recent combine performance.' : 'No highlights uploaded yet.'}</p>
+                    </div>
+                  </div>
+                </div>
+                {/* --- End Added --- */}
 
                 {/* Safeguarding Controls Strip */}
                 <div className="mt-5 pt-4 border-t border-white/5 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
